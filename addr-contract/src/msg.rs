@@ -1,3 +1,4 @@
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -18,10 +19,18 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     // GetCount returns the current count as a json-encoded number
     GetCount {},
+
+    // GetOwner returns the owner of the contract
+    GetOwner {},
 }
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct CountResponse {
     pub count: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct OwnerResponse {
+    pub address: String,
 }

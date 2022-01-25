@@ -51,7 +51,7 @@ packages.
 
 If you want to use `cargo-crev`, please follow their
 [getting started guide](https://github.com/crev-dev/cargo-crev/blob/master/cargo-crev/src/doc/getting_started.md)
-and once you have made your own *proof repository* with at least one *trust proof*,
+and once you have made your own _proof repository_ with at least one _trust proof_,
 please make a PR to the [`cawesome-wasm`]() repo with a link to your repo and
 some public name or pseudonym that people know you by. This allows people who trust you
 to also reuse your proofs.
