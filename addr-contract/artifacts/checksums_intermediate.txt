@@ -1,1 +1,1 @@
-02767a8447887198a5994b234dbb661ac8880a7ff33b8e38c97499a081216070  ./target/wasm32-unknown-unknown/release/addr_contract.wasm
+7a97b955bc0a4fe7ee2c9595d306bfd47907aef3f16de6686b6f53073adbbfa7  ./target/wasm32-unknown-unknown/release/addr_contract.wasm

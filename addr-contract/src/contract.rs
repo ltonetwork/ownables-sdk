@@ -39,14 +39,15 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Increment {} => try_increment(deps),
+        ExecuteMsg::Increment { by } => try_increment(deps, by),
         ExecuteMsg::Reset { count } => try_reset(deps, info, count),
     }
 }
 
-pub fn try_increment(deps: DepsMut) -> Result<Response, ContractError> {
+pub fn try_increment(deps: DepsMut, by: Option<i32>) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        state.count += 1;
+
+        state.count += by.unwrap_or(1);
         Ok(state)
     })?;
 
@@ -106,7 +107,7 @@ mod tests {
         // test if the owner if the contract is set right and the query works
         let res = query(deps.as_ref(),mock_env(), QueryMsg::GetOwner {}).unwrap();
         let value: OwnerResponse = from_binary(&res).unwrap();
-        assert_eq!(value.address, (&info).sender.to_string())
+        assert_eq!(value.address, (&info).sender.to_string());
 
     }
 
@@ -120,13 +121,22 @@ mod tests {
 
         // beneficiary can release it
         let info = mock_info("anyone", &coins(2, "token"));
-        let msg = ExecuteMsg::Increment {};
+        let msg = ExecuteMsg::Increment { by: None };
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // should increase counter by 1
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
         let value: CountResponse = from_binary(&res).unwrap();
         assert_eq!(18, value.count);
+
+        // increase count by another value
+        let info = mock_info("anyone", &coins(2, "token"));
+        let msg = ExecuteMsg::Increment { by: Some(13) };
+        let _res = execute(deps.as_mut(), mock_env(), info, msg ).unwrap();
+
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount{}).unwrap();
+        let value: CountResponse = from_binary(&res).unwrap();
+        assert_eq!(31, value.count)
     }
 
     #[test]
