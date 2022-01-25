@@ -1,0 +1,1 @@
+02767a8447887198a5994b234dbb661ac8880a7ff33b8e38c97499a081216070  ./target/wasm32-unknown-unknown/release/addr_contract.wasm
