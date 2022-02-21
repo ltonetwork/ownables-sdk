@@ -20,5 +20,6 @@ pub fn greet() {
 
 #[wasm_bindgen]
 pub fn square(number: i32) -> i32 {
+    alert("computing square...");
     number * number
 }
