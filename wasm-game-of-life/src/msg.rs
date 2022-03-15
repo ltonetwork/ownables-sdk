@@ -27,6 +27,13 @@ pub struct CountResponse {
 pub struct EventBody {
     pub timestamp: i32,
     pub memo: String,
+    pub count: i32,
+
+}
+
+pub enum EventType {
+    Genesis,
+    Mod,
 }
 
 

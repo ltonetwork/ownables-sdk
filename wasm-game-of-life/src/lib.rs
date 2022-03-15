@@ -9,17 +9,8 @@ pub mod msg;
 pub mod state;
 
 use crate::state::{State};
-use crate::msg::{CountResponse, ExecuteMsg, QueryMsg, InstantiateMsg};
+// use crate::msg::{CountResponse, ExecuteMsg, QueryMsg, InstantiateMsg};
 
-
-
-// use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
-// allocator.
-// #[cfg(feature = "wee_alloc")]
-// #[global_allocator]
-// static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
 extern {
@@ -32,33 +23,36 @@ pub fn square(number: i32) -> i32 {
     number * number
 }
 
-// #[wasm_bindgen]
-pub fn compute_state(event_array: Array) -> State {
+#[wasm_bindgen]
+pub fn compute_state(event_array: Array) -> JsValue {
     let events_vec = event_array.to_vec();
-    let event_msgs:Vec<EventBody> = Vec::new();
+    let mut event_msgs:Vec<EventBody> = Vec::new();
 
     // Check if all objects in the event_array are convertable to string
-    for i in events_vec {
-        let eventBody = EventBody::from(i.as_string());
-        event_msgs.push(eventBody)
+    for value in events_vec {
+
+        let event_body = serde_wasm_bindgen::from_value(value).unwrap();
+        event_msgs.push(event_body)
     };
 
+    
+    let mut state = State {count: 0 };
     // TODO: increment state from events
+    for event in event_msgs {
+        state.count += event.count;
+    };
+
 
     // TODO: return State in a wasm_bindgen friendly manner
-    
-}
-
-
-pub fn instantiate(info:MessageInfo ,msg: InstantiateMsg) -> State {
-    // create an initial event for the eventchain
-    let state = State {
-        count: msg.count,
-        owner: info.sender,
-    };
-
     return state;
 }
 
 
-pub struct ev
+// pub fn instantiate(info: MessageInfo ,msg: InstantiateMsg) -> State {
+//     // create an initial event for the eventchain
+//     let state = State {
+//         count: msg.count,
+//     };
+
+//     return state;
+// }

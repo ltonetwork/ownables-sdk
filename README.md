@@ -4,6 +4,7 @@ Experiments for WASM based contracts on the private chain
 
 # wasm game of life:
 The wasm-game-of-life folder is based on the wasmpack template. It creates a js library that reads .wasm files based on the rust code written in rust. 
+It includes a www folder with the current test app. im using the rust in wasm-game-of-life/src/ to generate the wasm, which i will then call in the www/index.js file.
 
 To get the example website running do this in the root dir
 `wasm-pack build`
