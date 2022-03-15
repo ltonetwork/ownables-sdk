@@ -8,7 +8,7 @@ use js_sys::{Array, JSON};
 pub mod msg;
 pub mod state;
 
-use crate::state::{State};
+use crate::state::State;
 // use crate::msg::{CountResponse, ExecuteMsg, QueryMsg, InstantiateMsg};
 
 
@@ -24,7 +24,7 @@ pub fn square(number: i32) -> i32 {
 }
 
 #[wasm_bindgen]
-pub fn compute_state(event_array: Array) -> JsValue {
+pub fn compute_state(event_array: Array) -> String {
     let events_vec = event_array.to_vec();
     let mut event_msgs:Vec<EventBody> = Vec::new();
 
@@ -44,7 +44,7 @@ pub fn compute_state(event_array: Array) -> JsValue {
 
 
     // TODO: return State in a wasm_bindgen friendly manner
-    return state;
+    return serde_json::to_string(&state).unwrap();
 }
 
 

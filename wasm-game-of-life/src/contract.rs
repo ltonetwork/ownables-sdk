@@ -20,6 +20,8 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let state = State {count: msg.count };
+    state.store();
+
     // set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     // STATE.save(deps.storage, &state)?;
 
@@ -39,44 +41,33 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Increment { by } => try_increment(deps, by),
-        ExecuteMsg::Reset { count } => try_reset(deps, info, count),
+        ExecuteMsg::Increment { by } => try_increment(by),
+        ExecuteMsg::Reset { count } => try_reset(count),
     }
 }
 
-pub fn try_increment(deps: DepsMut, by: Option<i32>) -> Result<Response, ContractError> {
-    STATE.count += by.unwrap_or(1);
-    // Ok(STATE);
+pub fn try_increment(by: Option<i32>) -> Result<Response, ContractError> {
+    let state = State::load();
+    state.update(by.unwrap_or(1));
 
     Ok(Response::new().add_attribute("method", "try_increment"))
 }
 
-pub fn try_reset(deps: DepsMut, info: MessageInfo, count: i32) -> Result<Response, ContractError> {
-    STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if info.sender != state.owner {
-            return Err(ContractError::Unauthorized {});
-        }
-        state.count = count;
-        Ok(state)
-    })?;
+pub fn try_reset(count: i32) -> Result<Response, ContractError> {
+    let state = State::load();
+
     Ok(Response::new().add_attribute("method", "reset"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(msg: QueryMsg) -> StdResult<str> {
     match msg {
-        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
-        QueryMsg::GetOwner {} => to_binary(&query_owner(deps)?),
+        QueryMsg::GetCount {} => serde_json::to_string(&query_count()?),
     }
 }
 
+fn query_count() -> StdResult<CountResponse> {
+    let state = state.load();
 
-fn query_owner(deps: Deps) -> StdResult<OwnerResponse> {
-    let state = STATE.load(deps.storage)?;
-    Ok(OwnerResponse { address: state.owner.to_string() })
-}
-
-fn query_count(deps: Deps) -> StdResult<CountResponse> {
-    let state = STATE.load(deps.storage)?;
     Ok(CountResponse { count: state.count })
 }
