@@ -1,3 +1,11 @@
 .vscode/
 *.code-workspace
 .DS_Store
+
+**/target
+**/*.rs.bk
+Cargo.lock
+**/Cargo.lock
+bin/
+pkg/
+**/wasm-pack.log
