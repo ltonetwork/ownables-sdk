@@ -10,6 +10,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     Increment {by: i32},
+    Reset {count: i32}
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
@@ -36,4 +37,7 @@ pub enum EventType {
     Mod,
 }
 
+pub enum Message {
+
+}
 

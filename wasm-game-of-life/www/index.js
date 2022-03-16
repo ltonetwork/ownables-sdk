@@ -48,6 +48,8 @@ function compute_state(contract, chain) {
     chain.events
         .map(event => JSON.parse(event.body) )
         .forEach( msg => contract.execute(msg) );
+
+    console.log(contract.query({GetCount: {} }));
 }
     
 const chain = account.newEventChain();

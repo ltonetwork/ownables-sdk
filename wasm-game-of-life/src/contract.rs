@@ -4,8 +4,8 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 // use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg, OwnerResponse};
-use crate::state::{State, STATE};
+use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::state::{State};
 // use crate::store;
 
 // version info for migration info
@@ -41,7 +41,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Increment { by } => try_increment(by),
+        ExecuteMsg::Increment { by } => try_increment( by ),
         ExecuteMsg::Reset { count } => try_reset(count),
     }
 }
@@ -55,19 +55,18 @@ pub fn try_increment(by: Option<i32>) -> Result<Response, ContractError> {
 
 pub fn try_reset(count: i32) -> Result<Response, ContractError> {
     let state = State::load();
+    state.reset(count);
 
     Ok(Response::new().add_attribute("method", "reset"))
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(msg: QueryMsg) -> StdResult<str> {
+pub fn query(msg: QueryMsg) -> StdResult<CountResponse> {
     match msg {
-        QueryMsg::GetCount {} => serde_json::to_string(&query_count()?),
+        QueryMsg::GetCount {} => query_count(),
     }
 }
 
 fn query_count() -> StdResult<CountResponse> {
-    let state = state.load();
-
+let state = State::load();
     Ok(CountResponse { count: state.count })
 }
