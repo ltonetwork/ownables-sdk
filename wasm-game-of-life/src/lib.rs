@@ -7,6 +7,7 @@ use js_sys::{Array, JSON};
 
 pub mod msg;
 pub mod state;
+pub mod store;
 
 use crate::state::State;
 // use crate::msg::{CountResponse, ExecuteMsg, QueryMsg, InstantiateMsg};

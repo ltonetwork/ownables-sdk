@@ -1,5 +1,5 @@
 use js_sys::JSON;
-use wasm_bindgen::prelude::*;
+use web_sys;
 
 
 /// Stores items into localstorage
@@ -16,7 +16,7 @@ impl Store {
         if let Ok(Some(local_storage)) = window.local_storage() {
             let mut store = Store {
                 local_storage,
-                data: "",
+                data: String::new(),
                 name: String::from(name),
             };
             store.fetch_local_storage();
@@ -26,6 +26,7 @@ impl Store {
         }
     }
 
+
     /// Read the local ItemList from localStorage.
     /// Returns an &Option<ItemList> of the stored database
     /// Caches the store into `self.data` to reduce calls to JS
@@ -33,33 +34,34 @@ impl Store {
     /// Uses mut here as the return is something we might want to manipulate
     ///
     fn fetch_local_storage(&mut self) -> Option<()> {
-        let mut item_list = ItemList::new();
+
         // If we have an existing cached value, return early.
         if let Ok(Some(value)) = self.local_storage.get_item(&self.name) {
-            let data = JSON::parse(&value).ok()?;
+            let data = value;
+            self.data = data;
         }
-        self.data = item_list;
         Some(())
     }
 
     /// Write the local ItemList to localStorage.
-    fn sync_local_storage(&mut self) {
-        let array = js_sys::Array::new();
-        
-        if let Ok(storage_string) = self.data {
-            let storage_string: String = storage_string.into();
-            self.local_storage
-                .set_item(&self.name, &storage_string)
-                .unwrap();
-        }
+    fn sync_local_storage(self) {
+        let storage_string: String = self.data ;
+
+        self.local_storage
+            .set_item(&self.name, &storage_string)
+            .unwrap();
     }
 
     /// Update an item in the Store.
     ///
     /// `ItemUpdate` update Record with an id and a property to update
-    pub fn update(&mut self, data: String) {
+    pub fn update(mut self, data: String) {
         self.data = data;
         self.sync_local_storage();
+    }
+
+    pub fn get_data(self) -> String {
+        self.data
     }
 
 }

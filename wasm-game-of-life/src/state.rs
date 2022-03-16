@@ -1,7 +1,9 @@
-use js_sys::JSON;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::UnwrapThrowExt;
 extern crate serde_json;
+
+// pub mod store;
 
 use crate::store::Store; 
 
@@ -13,31 +15,30 @@ pub struct State {
 
 impl State {
     pub fn load() -> State {
-        let store = Store::new("test_store");
+        let store = Store::new("test_store").unwrap_throw();
         
-        let state: State = serde_json::from_str(store.data).unwrap();
+        let state: State = serde_json::from_str(&store.get_data()).unwrap();
         return state;
     }
 
-    fn update(self, count: i32) {
+    pub fn update(mut self, count: i32) {
         self.count += count;
-        let store = Store::new("test_store");
-        store.data = serde_json::to_string(&self).unwrap();
-        store.sync_local_storage();
+        let store = Store::new("test_store").unwrap_throw();
+        let data = serde_json::to_string(&self).unwrap();
+        store.update(data);
     }
 
-    fn store(self) {
-        let store = Store::new("test_store");
-        store.data = serde_json::to_string(&self).unwrap();
-        store.sync_local_storage();
+    pub fn store(self) {
+        let store = Store::new("test_store").unwrap_throw();
+        let data = serde_json::to_string(&self).unwrap();
+        store.update(data);
     }
 
-    fn reset(self, reset_val:i32) {
+    pub fn reset(mut self, reset_val:i32) {
         self.count = reset_val;
-        
-        let store = Store::new("test_store");
-        store.data = serde_json::to_string(&self).unwrap();
-        store.sync_local_storage();
+        let store = Store::new("test_store").unwrap_throw();
+        let data = serde_json::to_string(&self).unwrap();
+        store.update(data);
     }
-    
+   
 }
