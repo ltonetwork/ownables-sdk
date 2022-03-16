@@ -6,7 +6,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 use crate::error::ContractError;
 use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg, OwnerResponse};
 use crate::state::{State, STATE};
-use crate::store;
+// use crate::store;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:addr-contract";
