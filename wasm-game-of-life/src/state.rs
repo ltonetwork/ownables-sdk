@@ -4,20 +4,20 @@ use wasm_bindgen::UnwrapThrowExt;
 extern crate serde_json;
 
 // pub mod store;
-
+use crate::log;
 use crate::store::Store; 
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub count: i32,
+    pub count: i32
     // pub owner: Addr,
 }
 
 impl State {
     pub fn load() -> State {
         let store = Store::new("test_store").unwrap_throw();
-        
-        let state: State = serde_json::from_str(&store.get_data()).unwrap();
+        log(&store.get_data());
+        let state: State = serde_json::from_str(store.get_data()).unwrap();
         return state;
     }
 
@@ -42,3 +42,4 @@ impl State {
     }
    
 }
+

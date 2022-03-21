@@ -34,8 +34,7 @@
     "webpack-dev-server": "^3.1.5"
   },
   "dependencies": {
-    "@ltonetwork/lto": "github:ltonetwork/lto-api.js",
-    "lto-api": "^0.5.14",
+    "@ltonetwork/lto": "^0.6.4",
     "wasm-game-of-life": "file:../pkg"
   }
 }

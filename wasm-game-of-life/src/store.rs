@@ -1,4 +1,7 @@
+use std::borrow::Borrow;
+
 use js_sys::JSON;
+
 use web_sys;
 
 
@@ -16,9 +19,10 @@ impl Store {
         if let Ok(Some(local_storage)) = window.local_storage() {
             let mut store = Store {
                 local_storage,
-                data: String::new(),
+                data: String::from("{\"count\":0}"),
                 name: String::from(name),
             };
+            // store.sync_local_storage();
             store.fetch_local_storage();
             Some(store)
         } else {
@@ -38,14 +42,15 @@ impl Store {
         // If we have an existing cached value, return early.
         if let Ok(Some(value)) = self.local_storage.get_item(&self.name) {
             let data = value;
+            ;
             self.data = data;
         }
         Some(())
     }
 
     /// Write the local ItemList to localStorage.
-    fn sync_local_storage(self) {
-        let storage_string: String = self.data ;
+    fn sync_local_storage(&self) {
+        let storage_string: String = self.data.as_str().to_string() ;
 
         self.local_storage
             .set_item(&self.name, &storage_string)
@@ -60,8 +65,8 @@ impl Store {
         self.sync_local_storage();
     }
 
-    pub fn get_data(self) -> String {
-        self.data
+    pub fn get_data(&self) -> &str {
+        self.data.as_str()
     }
 
 }

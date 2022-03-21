@@ -9,8 +9,8 @@ use crate::state::{State};
 // use crate::store;
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:addr-contract";
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+// const CONTRACT_NAME: &str = "crates.io:addr-contract";
+// const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
