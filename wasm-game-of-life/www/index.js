@@ -46,7 +46,8 @@ function compute_state(chain) {
         .map(event => JSON.parse(event.getBody()))
         .forEach( msg => contract.execute(msg) );
 
-    console.log(contract.query({ get_count: {} }));
+    // console.log(contract.query({ get_count: {} }));
+    console.log(contract.query_state());
 }
     
 const chain = account.createEventChain();
@@ -60,9 +61,10 @@ increment_contract(chain, 5)
 compute_state(chain)
 
 // should return JSobjact of state
-const state = contract.query()
+// const state = contract.query({ get_count: {} })
+const state = contract.query_state()
 console.log(state)
 
 
 // NEXT TODO: contract inladen in functie
-// 
+// NEXT TODO: use js schemas

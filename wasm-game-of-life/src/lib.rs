@@ -1,12 +1,11 @@
 mod utils;
 use std::str;
 use cosmwasm_std::{MessageInfo, Addr};
-use error::ContractError;
-use msg::{EventBody, ExecuteMsg, QueryMsg, CountResponse};
-use serde_json::Error;
+
+use msg::{ExecuteMsg, QueryMsg, CountResponse};
 // use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_test::wasm_bindgen_test;
+// use wasm_bindgen_test::*;
 
 pub mod msg;
 pub mod state;
@@ -98,9 +97,10 @@ mod tests {
         println!("{:?}",json_string)
     }
 
-    // fn test_query_jsvalue() {
-    //     let value = JsValue::from_serde(&QueryMsg::GetCount()).unwrap();
-    //     query(&value);
-    // }
+
 }
-    
+// #[wasm_bindgen_test]
+// fn test_query_jsvalue() {
+//     let value = JsValue::from_serde(&QueryMsg::GetCount()).unwrap();
+//     query(&value);
+// }
