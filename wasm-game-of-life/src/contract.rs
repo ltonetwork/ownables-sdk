@@ -1,5 +1,5 @@
 #[cfg(not(feature = "library"))]
-// use cosmwasm_std::entry_point;
+use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 // use cw2::set_contract_version;
 
@@ -70,3 +70,6 @@ fn query_count() -> StdResult<CountResponse> {
 let state = State::load();
     Ok(CountResponse { count: state.count })
 }
+
+// TODO: store -> deps.storage: use more cosmwasm-like Syntax
+// TODO: try Deps, Env and DepsMut with empty stuf
