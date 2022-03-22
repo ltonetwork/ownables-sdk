@@ -9,7 +9,16 @@
       ],
       "properties": {
         "increment": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "by": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32"
+            }
+          }
         }
       },
       "additionalProperties": false

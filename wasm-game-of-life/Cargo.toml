@@ -41,6 +41,7 @@ features = [
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"
+cosmwasm-schema = { version = "1.0.0-beta" }
 
 
 [profile.release]
