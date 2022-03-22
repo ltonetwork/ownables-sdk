@@ -49,7 +49,8 @@ function compute_state(chain) {
     // console.log(contract.query({ get_count: {} }));
     console.log(contract.query_state());
 }
-    
+   
+// TODO: Initialize the eventchain in local store
 const chain = account.createEventChain();
 increment_contract(chain, 1)
 increment_contract(chain, 3)
