@@ -67,7 +67,7 @@ impl LocalStorage {
         self.data.as_str()
     }
 }
-
+/// This wrapper is only to make it recognisable by cosmwasmstd:deps
 impl Storage for LocalStorage {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
         None
@@ -75,12 +75,12 @@ impl Storage for LocalStorage {
     }
 
     fn set(&mut self, key: &[u8], value: &[u8]) {
-        if value.is_empty() {panic!("no ")}
+        if value.is_empty() { panic!("value is empty") }
         // TODO: implement setting value in local store
     }
 
     fn remove(&mut self, key: &[u8]) {
-        self.data.remove(key);
+        // self.data.remove(key);
         // TODO: Implement removing value from local store
     }
 
