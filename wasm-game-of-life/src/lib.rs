@@ -5,6 +5,7 @@ use cosmwasm_std::{MessageInfo, Addr};
 use msg::{ExecuteMsg, QueryMsg, CountResponse};
 // use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
+use utils::{create_lto_env, create_lto_deps};
 // use wasm_bindgen_test::*;
 
 pub mod msg;
@@ -38,7 +39,7 @@ pub fn square(number: i32) -> i32 {
 #[wasm_bindgen]
 pub fn execute(msg: &JsValue) {
     let message: ExecuteMsg = msg.into_serde().unwrap();
-    let result = contract::execute(MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()} , message);
+    let result = contract::execute(create_lto_deps().as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()} , message);
     let res = match result {
         Ok(response) => response,
         Err(error) => panic!("contract resulted in error :{:?}", error)
