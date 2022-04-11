@@ -61,9 +61,6 @@ So the events can include some information about who applied which event.
 
 const CANONICAL_LENGTH: usize = 54;
 
-const SHUFFLES_ENCODE: usize = 18;
-const SHUFFLES_DECODE: usize = 2;
-
 /// Empty Querier that is meant to conform the traits expected by the cosmwasm standard contract syntax. It should not be used whatsoever 
 pub struct EmptyQuerier {
 
