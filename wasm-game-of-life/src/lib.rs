@@ -2,7 +2,7 @@ mod utils;
 use std::str;
 use cosmwasm_std::{MessageInfo, Addr};
 
-use msg::{ExecuteMsg, QueryMsg, CountResponse};
+use msg::{ExecuteMsg, QueryMsg};
 // use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
 use utils::{create_lto_env, create_lto_deps};

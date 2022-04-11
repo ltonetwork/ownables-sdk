@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
+log = "0.4"
 wasm-bindgen = { version = "0.2.63", features = ["serde-serialize"] }
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
@@ -32,6 +33,9 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 #
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4.5", optional = true }
+# wraps websys indexed db api
+indexed_db_futures = "0.2.3"
+futures = "0.3.21"
 
 [dependencies.web-sys]
 version = "0.3"
