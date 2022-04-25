@@ -5,7 +5,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 
 use crate::error::ContractError;
 use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{State};
+use crate::state::{State, STATE};
 // use crate::store;
 
 // version info for migration info
@@ -19,12 +19,11 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let state = State {count: msg.count };
-    state.store();
+    let state = State {
+        count: msg.count,
+    };
 
-    // set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    // STATE.save(deps.storage, &state)?;
-
+    STATE.save(deps.storage, &state)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -41,34 +40,35 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Increment { by } => try_increment( by ),
-        ExecuteMsg::Reset { count } => try_reset(count),
+        ExecuteMsg::Increment { by } => try_increment(deps, by ),
+        ExecuteMsg::Reset { count } => try_reset(deps, count),
     }
 }
 
-pub fn try_increment(by: Option<i32>) -> Result<Response, ContractError> {
-    let state = State::load();
-    state.update(by.unwrap_or(1));
+pub fn try_increment(deps: DepsMut, by: Option<i32>) -> Result<Response, ContractError> {
+    STATE.update(deps.storage, |mut state| -> Result<_,ContractError> {
+        state.count += by.unwrap_or(1);
+        Ok(state)
+    })?;
 
     Ok(Response::new().add_attribute("method", "try_increment"))
 }
 
-pub fn try_reset(count: i32) -> Result<Response, ContractError> {
-    let state = State::load();
-    state.reset(count);
-
+pub fn try_reset(deps: DepsMut, count: i32) -> Result<Response, ContractError> {
+    STATE.update(deps.storage, |mut state| -> Result<_, ContractError>{
+        state.count = count;
+        Ok(state)
+    })?;
     Ok(Response::new().add_attribute("method", "reset"))
 }
 
-pub fn query(msg: QueryMsg) -> StdResult<CountResponse> {
+pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<CountResponse> {
     match msg {
-        QueryMsg::GetCount {} => query_count(),
+        QueryMsg::GetCount {} => query_count(deps),
     }
 }
 
-fn query_count() -> StdResult<CountResponse> {
-let state = State::load();
+fn query_count(deps: Deps) -> StdResult<CountResponse> {
+    let state = STATE.load(deps.storage)?;
     Ok(CountResponse { count: state.count })
 }
-
-// TODO: store -> deps.storage: use more cosmwasm-like Syntax
