@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use cosmwasm_std::{Addr, ContractInfo, Timestamp, Empty, OwnedDeps, Querier, Api, StdResult, StdError, CanonicalAddr, VerificationError, RecoverPubkeyError};
 use cosmwasm_std::{BlockInfo, Env};
 
-use crate::store::LocalStorage;
+use crate::store::{IdbStorage};
 
 
 
@@ -30,9 +30,10 @@ pub fn create_lto_env() -> Env {
 }
 
 /// Creates Owned deps that conforms cosmwasm_std contract standards. Except for the storage, the atributes of this deps should not be used.
-pub fn create_lto_deps() -> OwnedDeps<LocalStorage, EmptyApi, EmptyQuerier, Empty>  {
+pub async fn create_lto_deps() -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty>  {
+
     OwnedDeps {
-        storage: LocalStorage::new("test_store").unwrap(), // Storage should now be our Storage implementation that uses local store
+        storage: IdbStorage::load("test_store").await, // Storage should now be our Storage implementation that uses local store
         api: EmptyApi::default(),
         querier: EmptyQuerier::default(),
         custom_query_type: PhantomData,

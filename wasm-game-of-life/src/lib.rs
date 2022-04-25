@@ -1,10 +1,12 @@
 mod utils;
-use std::str;
-use cosmwasm_std::{MessageInfo, Addr};
+use std::{str, borrow::Borrow};
 
+use cosmwasm_std::{MessageInfo, Addr};
 use msg::{ExecuteMsg, QueryMsg};
+use serde_json::to_string;
 // use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
+
 use utils::{create_lto_env, create_lto_deps};
 // use wasm_bindgen_test::*;
 
@@ -37,37 +39,51 @@ pub fn square(number: i32) -> i32 {
 }
 
 #[wasm_bindgen]
-pub fn execute(msg: &JsValue) {
-    let message: ExecuteMsg = msg.into_serde().unwrap();
-    let result = contract::execute(create_lto_deps().as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()} , message);
-    let res = match result {
-        Ok(response) => response,
-        Err(error) => panic!("contract resulted in error :{:?}", error)
-    };
+pub async fn execute(msg: JsValue) {
+    // load from indexed db 
+
+    let mut deps = create_lto_deps().await;
+    // add the storage to the deps
     
+    let message: ExecuteMsg = msg.into_serde().unwrap();
+    let result = contract::execute(deps.as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()} , message);
+    let _res = match result {
+        Ok(response) => {
+            let resp_json = to_string(&response);
+            alert(&resp_json.unwrap());
+            deps.storage.sync_to_db().await;
+        },
+        Err(error) => panic!("contract resulted in error :{:?}", error)
+    
+    };
 }
 
 #[wasm_bindgen]
-pub fn query_state() -> i32 {
+pub async fn query_state() -> i32 {
+    let deps = create_lto_deps().await;
+
     let msg = QueryMsg::GetCount();
-    let query_result = contract::query(msg);
+    let query_result = contract::query(deps.as_ref(), msg);
     match query_result {
         Ok(count_response) => return count_response.count,
         Err(error) => panic!("contract query failed. {:?}", error)
     }
 }
+
 #[wasm_bindgen]
-pub fn query(msg: &JsValue) -> i32 {
+pub async fn query(msg: JsValue) -> i32 {
+    let deps = create_lto_deps().await;
     // let msg_string: String = msg.as_string().unwrap();
     // log(&msg_string);
     let message: QueryMsg = msg.into_serde().unwrap();
-    let query_result = contract::query(message);
+    let query_result = contract::query(deps.as_ref(),message);
     match query_result {
         Ok(count_response) => return count_response.count,
         Err(error) => panic!("contract query failed. errpr {:?}", error)
     }
 }
-    
+
+// 
 
 // #[wasm_bindgen]
 // pub fn instantiate(count: JsValue) {} 
@@ -105,3 +121,4 @@ mod tests {
 //     let value = JsValue::from_serde(&QueryMsg::GetCount()).unwrap();
 //     query(&value);
 // }
+//
