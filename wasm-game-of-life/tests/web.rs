@@ -37,8 +37,8 @@ async fn test_load_to_mem_storage() {
 
     store.load_to_mem_storage().await;
 
-    let value1 = store.get(b"key1");
-    assert!(valuew1 == b"value1", "value from idb isnt copied correctly to the memory storage");
+    let value1 = store.get(b"key1").unwrap();
+    assert!(value1 == b"value1", "value from idb isnt copied correctly to the memory storage");
 }
 
 
@@ -86,7 +86,7 @@ async fn load_from_and_to_database() {
     store.load_to_mem_storage().await;
 
     // read from memory storage
-    let value1 = store.get(b"key1");
+    let value1 = store.get(b"key1").unwrap();
 
     assert!(value1 == b"value1", "value from idb is not correctly loaded to memmory");
 
@@ -94,18 +94,18 @@ async fn load_from_and_to_database() {
 
     // overwriting value of key1
     store.set(b"key1", value1a);
-    let read_value1a = store.get(b"key1");
+    let read_value1a = store.get(b"key1").unwrap();
     assert!(value1 != read_value1a, "value in memory stays the same after overwriting");
-    assert!(value1a == read_value1a, "overwrite value in memory store is incorrect: should be {}, but got {}",value1a, read_value1a);
+    assert!(value1a.to_vec() == read_value1a, "overwrite value in memory store is incorrect: should be {:x?}, but got {:x?}",value1a, read_value1a);
 
     // writing changes to idb storage
     store.sync_to_db().await;
 
-    idb_value1a = store.get_item(b"key1");
-    idb_value2a = store.get_item(b"key2");
+    let idb_value1a = store.get_item(b"key1").await;
+    let idb_value2a = store.get_item(b"key2").await;
     assert!(idb_value1a != b"value1", "changes in memstore aren't pushed through to idb  storage. value for key1 still the same");
-    assert!(idb_value1a == b"value1a", "value for key1 didnt change according to the above instructions. Should have '{}' but got '{}'", b"value1a", idb_value1a);
-    assert!(idb_value2a == b"value2", "value for key2 changed, unintentionally. should still be: {}, but is now {}",b"value2", idb_value2a );
+    assert!(idb_value1a == b"value1a", "value for key1 didnt change according to the above instructions. Should have '{:x?}' but got '{:x?}'", b"value1a", idb_value1a);
+    assert!(idb_value2a == b"value2", "value for key2 changed, unintentionally. should still be: {:x?}, but is now {:x?}",b"value2", idb_value2a );
 }
 
 
