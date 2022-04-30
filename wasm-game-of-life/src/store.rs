@@ -58,6 +58,8 @@ impl IdbStorage {
         let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 2).unwrap();
         db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
             // Check if the object store exists; create it if it doesn't
+
+            //FIXME: db says no: "JsValue(InvalidStateError: Failed to execute 'createObjectStore' on 'IDBDatabase': The database is not running a version change transaction."
             if let None = evt.db().object_store_names().find(|n| n == "my_store") {
                 evt.db().create_object_store("my_store").unwrap();
             }
