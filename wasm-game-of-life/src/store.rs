@@ -22,10 +22,10 @@ impl IdbStorage {
     pub async fn load(name: &str) -> Self {
         let db = Self::create_db(name).await;
 
-        let mem_storage = Self::load_to_mem_storage(&db).await;
-        
+        let mut store = IdbStorage {db, storage: MemoryStorage::new()};
 
-        return IdbStorage {db, storage: mem_storage};
+        store.load_to_mem_storage().await;
+        return store
     }
 }
 
@@ -55,7 +55,7 @@ impl Storage for IdbStorage {
 
 impl IdbStorage {
     pub async fn create_db(name: &str) -> IdbDatabase {
-        let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 1).unwrap();
+        let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 2).unwrap();
         db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
             // Check if the object store exists; create it if it doesn't
             if let None = evt.db().object_store_names().find(|n| n == "my_store") {
@@ -68,56 +68,60 @@ impl IdbStorage {
         return async_res.unwrap();
     }
 
-    pub async fn get_item(db: IdbDatabase, key: &[u8]) -> Option<JsValue> {
-        let tx = db.transaction_on_one("my_store").unwrap();
+    pub async fn get_item(&self, key: &[u8]) -> Vec<u8> {
+        let tx = self.db.transaction_on_one("my_store").unwrap();
         let store = tx.object_store("my_store").unwrap();
-        let async_res = store.get_owned(Uint8Array::from(key)).unwrap().await;
-        let res = async_res.unwrap();
-        return res;
+        let async_res = store.get_owned(Uint8Array::from(key)).unwrap();
+        // let res = async_res.unwrap();
+        let res = async_res.await.unwrap().unwrap();
+        let bytes = Uint8Array::new(&res).to_vec();
+        return bytes;
     }
 
 
-    pub async fn set_item(&self, key: &[u8], value: &[u8]) {
+    pub fn set_item(&self, key: &[u8], value: &[u8]) {
         let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap();
         let store = tx.object_store("my_store").unwrap();
 
-        let _ = store.put_key_val_owned(Uint8Array::from(key) , &Uint8Array::from(value)).unwrap();
+        let _void = store.put_key_val_owned(Uint8Array::from(key) , &Uint8Array::from(value)).unwrap();
+        return  
     }
 
-    pub async fn load_to_mem_storage(db: &IdbDatabase)-> MemoryStorage {
-        let mut mem_storage = MemoryStorage::new();
+    /// check this 
+    pub async fn load_to_mem_storage(&mut self) {
 
-        match db.create_object_store("my_store").unwrap()
+        match self.db.create_object_store("my_store").unwrap()
                 .open_cursor().unwrap().await.unwrap() {
             Some(cursor) => {
 
 
                 let first_key  = Uint8Array::new(&cursor.key().unwrap()).to_vec();
                 let first_value  = Uint8Array::new(&cursor.value()).to_vec();
-                mem_storage.set(&first_key, &first_value);
+                self.storage.set(&first_key, &first_value);
         
                 // Iterate one by one
                 while cursor.continue_cursor().unwrap().await.unwrap() {
                     let next_key = Uint8Array::new(&cursor.key().unwrap()).to_vec();
                     let next_value = Uint8Array::new(&cursor.value()).to_vec(); 
-                    mem_storage.set(&next_key, &next_value);
+                    self.storage.set(&next_key, &next_value);
                 }
         
                 // Or collect the remainder into a vector
                 let _: Vec<KeyVal> = cursor.into_vec(0).await.unwrap();
             },
             None => {
+                
                 // No elements matched
             }
         }
-        return  mem_storage;
     }
+
 
     pub async fn sync_to_db(&self) {
         // "start" and "end" being "None" leads to checking the whole storage range
         for (key, value) in self.storage.range(None,None, Order::Ascending) {
             // overwrites values for keys iff present
-            self.set_item(&key, &value).await;
+            self.set_item(&key, &value);
         }
     }
 }
