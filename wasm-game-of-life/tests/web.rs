@@ -4,7 +4,9 @@
 
 
 extern crate wasm_bindgen_test;
-use std::{assert, debug_assert, println, assert_eq};
+use std::iter::empty;
+use std::ptr::null;
+use std::{assert, debug_assert, println, assert_eq, vec};
 
 use futures::executor::block_on;
 use indexed_db_futures::IdbDatabase;
@@ -23,19 +25,52 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn initialise_store() {
-    let store = IdbStorage::create_db("leipe_db").await;
-    debug_assert!(true);
+    let mut store = IdbStorage::new().await;
+
+    block_on(store.load_to_mem_storage());
 }
 
 #[wasm_bindgen_test]
-async fn set_and_get() {
+async fn set_and_get_memstore() {
     // TODO: check the mechanics of the indexed db and fix the current issue
 
-    let mut store = block_on(IdbStorage::new());
-    store.set_item(b"foo", b"bar").await;
-    // FIXME: The store finds None for key b"foo". async request isnt finished probably
-    assert_eq!(store.get(b"foo").unwrap(), b"bar");
+    let mut store = IdbStorage::new().await;
+    // join!(store);
+
+    store.set(b"foo", b"bar");
+    
+    let value = store.get(b"foo").unwrap(); //.unwrap_or(b"0");
+    assert!(!value.is_empty(), "value for key after set is foun null");
+    assert!(value == b"bar", "get from memstore for key 'foo' is unsuccesfull after set");
 }
+
+async fn prepare_test_idb() -> IdbStorage {
+    let mut store = IdbStorage::load("test_db").await;
+    store.set_item(b"key1", b"value1");
+    store.set_item(b"key2", b"value2");
+    store.set_item(b"key3", b"value3");
+    return store;
+}
+
+#[wasm_bindgen_test]
+async fn write_to_idb() {
+    let mut store = prepare_test_idb().await;
+    // let mut store = IdbStorage::load("test_db").await;
+    let value1 = store.get_item(b"key1").await;
+    
+    assert!(value1==b"value1", "value1 not set");
+}
+
+
+
+
+// FIXME: The store finds None for key b"foo". async request isnt finished probably
+// TODO: test read from idb store 
+// TODO: test write to idb store 
+// TODO: test read from idb store to memstore
+// TODO: test read from memstore to idb store
+
+
 
 
 // #[wasm_bindgen_test]
