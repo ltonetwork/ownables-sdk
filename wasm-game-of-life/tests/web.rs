@@ -18,10 +18,9 @@ use wasm_game_of_life::store::IdbStorage;
 use wasm_game_of_life;
 use log;
 
+
+
 wasm_bindgen_test_configure!(run_in_browser);
-
-
-
 
 #[wasm_bindgen_test]
 async fn initialise_store() {
@@ -29,6 +28,19 @@ async fn initialise_store() {
 
     block_on(store.load_to_mem_storage());
 }
+
+#[wasm_bindgen_test]
+/// tests if the data in idb is copied correctly to the memstore when initiating IdbStorage
+async fn test_load_to_mem_storage() {
+    let mut store = IdbStorage::new().await;
+    store.set_item(b"key1", b"value1");
+
+    store.load_to_mem_storage().await;
+
+    let value1 = store.get(b"key1");
+    assert!(valuew1 == b"value1", "value from idb isnt copied correctly to the memory storage");
+}
+
 
 #[wasm_bindgen_test]
 async fn set_and_get_memstore() {
@@ -44,6 +56,8 @@ async fn set_and_get_memstore() {
     assert!(value == b"bar", "get from memstore for key 'foo' is unsuccesfull after set");
 }
 
+
+// not sure if this is usable in the other fucntions -> TODO: check after loading is fixed if this works
 async fn prepare_test_idb() -> IdbStorage {
     let mut store = IdbStorage::load("test_db").await;
     store.set_item(b"key1", b"value1");
@@ -53,15 +67,46 @@ async fn prepare_test_idb() -> IdbStorage {
 }
 
 #[wasm_bindgen_test]
-async fn write_to_idb() {
-    let mut store = prepare_test_idb().await;
-    // let mut store = IdbStorage::load("test_db").await;
+async fn write_and_read_idb() {
+    let mut store = IdbStorage::load("test_db").await;
+    store.set_item(b"key1", b"value1");
+
     let value1 = store.get_item(b"key1").await;
     
-    assert!(value1==b"value1", "value1 not set");
+    assert!(value1==b"value1", "value1 not set in idb");
 }
 
+#[wasm_bindgen_test]
+async fn load_from_and_to_database() {
+    let mut store = IdbStorage::load("test_db").await;
+    store.set_item(b"key1", b"value1");
+    store.set_item(b"key2", b"value2");
+    store.set_item(b"key3", b"value3");
 
+    store.load_to_mem_storage().await;
+
+    // read from memory storage
+    let value1 = store.get(b"key1");
+
+    assert!(value1 == b"value1", "value from idb is not correctly loaded to memmory");
+
+    let value1a = b"value1a";
+
+    // overwriting value of key1
+    store.set(b"key1", value1a);
+    let read_value1a = store.get(b"key1");
+    assert!(value1 != read_value1a, "value in memory stays the same after overwriting");
+    assert!(value1a == read_value1a, "overwrite value in memory store is incorrect: should be {}, but got {}",value1a, read_value1a);
+
+    // writing changes to idb storage
+    store.sync_to_db().await;
+
+    idb_value1a = store.get_item(b"key1");
+    idb_value2a = store.get_item(b"key2");
+    assert!(idb_value1a != b"value1", "changes in memstore aren't pushed through to idb  storage. value for key1 still the same");
+    assert!(idb_value1a == b"value1a", "value for key1 didnt change according to the above instructions. Should have '{}' but got '{}'", b"value1a", idb_value1a);
+    assert!(idb_value2a == b"value2", "value for key2 changed, unintentionally. should still be: {}, but is now {}",b"value2", idb_value2a );
+}
 
 
 // FIXME: The store finds None for key b"foo". async request isnt finished probably

@@ -80,7 +80,7 @@ impl IdbStorage {
         return bytes;
     }
 
-
+    // TODO: ask arnold if this should be async or if its atomic
     pub fn set_item(&self, key: &[u8], value: &[u8]) {
         let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap();
         let store = tx.object_store("my_store").unwrap();
