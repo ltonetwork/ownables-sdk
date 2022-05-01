@@ -1,1 +1,0 @@
-fea5c869529383ff890d18d017289098991ccd1a2b344d28dd0eab9e7fdf9bc0  addr_contract.wasm

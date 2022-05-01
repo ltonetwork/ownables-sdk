@@ -1,3 +1,11 @@
+# LTO smartcontract implementation
+for some hands on experience with cosmwasm check their (getting started)[https://docs.cosmwasm.com/docs/1.0/getting-started/intro]
+
+
+
+
+# web assembly documentation:
+
 <div align="center">
 
   <h1><code>wasm-pack-template</code></h1>
