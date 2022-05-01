@@ -3,7 +3,8 @@
 Experiments for WASM based contracts on the private chain
 
 # wasm game of life:
-The wasm-game-of-life folder is based on the wasmpack template. It creates a js library that reads .wasm files based on the rust code written in rust. 
+The wasm-game-of-life folder is based on the wasmpack template. It creates a js library that reads .wasm files based on the rust code written in rust. This is a workaround for now to easily work with the wasm in a UI, but this will need a generic import method/layer for LTO based contracts/ownables.
+
 It includes a www folder with the current test app. im using the rust in wasm-game-of-life/src/ to generate the wasm, which i will then call in the www/index.js file.
 
 To get the example website running do this in the root dir
@@ -31,3 +32,10 @@ If you want to make changes to the current wasm this is the way to go:
 1. edit the `src/lib.rs` code 
 2. run `wasm-pack build` from within the wasm-game-of-life folder
 3. run `npm start` if not yet running
+
+
+## cosmwasm getting started
+for some hands on experience with cosmwasm check their (getting started)[https://docs.cosmwasm.com/docs/1.0/getting-started/intro]
+
+having example contracts close by when working on cosmwasm smartcontracts is always useful. See the (examples)[https://github.com/InterWasm/cw-contracts]
+
