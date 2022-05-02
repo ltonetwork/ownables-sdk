@@ -1,5 +1,5 @@
 mod utils;
-use std::{str, borrow::Borrow};
+use std::str;
 
 use cosmwasm_std::{MessageInfo, Addr};
 use msg::{ExecuteMsg, QueryMsg};
@@ -26,10 +26,10 @@ pub fn initialize() {
 
 #[wasm_bindgen]
 extern {
-    fn alert(s: &str);
+    pub fn alert(s: &str);
 
     #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
+    pub fn log(s: &str);
 }
 
 #[wasm_bindgen]
@@ -101,11 +101,9 @@ pub async fn query(msg: JsValue) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use wasm_bindgen::JsValue;
-    use crate::query;
 
-    use crate::state::{State};
-    use crate::msg::{ QueryMsg };
+    use crate::state::State;
+
     extern crate serde_json;
     #[test]
     fn create_state_from_json() {

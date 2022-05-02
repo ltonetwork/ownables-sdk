@@ -1,9 +1,12 @@
+
 use cosmwasm_std::{Storage, MemoryStorage, Record, Order};
 use indexed_db_futures::prelude::*;
 // use futures::{executor::block_on};
 
-use wasm_bindgen::JsValue;
-use js_sys::Uint8Array;
+
+use wasm_bindgen::{JsValue, UnwrapThrowExt};
+use js_sys::{Uint8Array, Array};
+
 
 pub struct IdbStorage {
     db: IdbDatabase,
@@ -13,7 +16,7 @@ pub struct IdbStorage {
 
 impl IdbStorage {
     pub async fn new() -> Self {
-        let db = Self::create_db("my_db");
+        let db = Self::create_db("");
         let mem_storage = MemoryStorage::new();
 
         return IdbStorage {db: db.await, storage: mem_storage};
@@ -54,20 +57,40 @@ impl Storage for IdbStorage {
 
 
 impl IdbStorage {
-    pub async fn create_db(name: &str) -> IdbDatabase {
-        let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 2).unwrap();
-        db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
-            // Check if the object store exists; create it if it doesn't
+    pub async fn create_db(mut name: &str) -> IdbDatabase {
+        if name.is_empty() {
+            name = "LtoDatabase"
+        }
+        
 
-            //FIXME: db says no: "JsValue(InvalidStateError: Failed to execute 'createObjectStore' on 'IDBDatabase': The database is not running a version change transaction."
-            if let None = evt.db().object_store_names().find(|n| n == "my_store") {
-                evt.db().create_object_store("my_store").unwrap();
+        // let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 4).unwrap();
+        let mut db_req: OpenDbRequest = IdbDatabase::open(name).unwrap();
+        db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
+            
+            let db = evt.db();
+            // Check if the object store exists; create it if it doesn't
+            if let None = db.object_store_names().find(|n| n == "my_store") {
+                
+                //FIXME: db says no: "JsValue(InvalidStateError: Failed to execute 'createObjectStore' on 'IDBDatabase': The database is not running a version change transaction."
+                db.create_object_store("my_store").unwrap();
+
+            } else {
+                panic!("database already exists! (this is good)");
             }
             Ok(())
         }));
 
         let async_res = db_req.into_future().await;
         return async_res.unwrap();
+    }
+
+    pub async fn set_item(&self, key: &[u8], value: &[u8]) {
+        let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap_throw();
+        let store = tx.object_store("my_store").unwrap_throw();
+
+        store.put_key_val_owned(Uint8Array::from(key) , &Uint8Array::from(value)).unwrap_throw();
+
+        let _ = tx.await.into_result().unwrap_throw();
     }
 
     pub async fn get_item(&self, key: &[u8]) -> Vec<u8> {
@@ -80,41 +103,41 @@ impl IdbStorage {
         return bytes;
     }
 
-    // TODO: ask arnold if this should be async or if its atomic
-    pub fn set_item(&self, key: &[u8], value: &[u8]) {
-        let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap();
-        let store = tx.object_store("my_store").unwrap();
-
-        let _void = store.put_key_val_owned(Uint8Array::from(key) , &Uint8Array::from(value)).unwrap();
-        return  
+    pub async fn load_key_to_mem_storage(&mut self, key: &[u8]) {
+        
+        let data = self.get_item(key).await;
+        self.storage.set(key, &data);
     }
+
+    pub async fn load_key_from_mem_storage(&mut self, key: &[u8]) {
+        
+        let data = self.get(key).unwrap();
+        self.set_item(key, &data).await;
+    }
+
+    // async fn set_jskv(key: JsValue,)
 
     /// check this 
     pub async fn load_to_mem_storage(&mut self) {
+        let store_name = "my_store";
 
-        match self.db.create_object_store("my_store").unwrap()
-                .open_cursor().unwrap().await.unwrap() {
-            Some(cursor) => {
-
-
-                let first_key  = Uint8Array::new(&cursor.key().unwrap()).to_vec();
-                let first_value  = Uint8Array::new(&cursor.value()).to_vec();
-                self.storage.set(&first_key, &first_value);
+        let tx = self.db.transaction_on_one_with_mode(store_name, IdbTransactionMode::Readonly).unwrap();
+        let store = tx.object_store(store_name).unwrap_throw();
         
-                // Iterate one by one
-                while cursor.continue_cursor().unwrap().await.unwrap() {
-                    let next_key = Uint8Array::new(&cursor.key().unwrap()).to_vec();
-                    let next_value = Uint8Array::new(&cursor.value()).to_vec(); 
-                    self.storage.set(&next_key, &next_value);
-                }
-        
-                // Or collect the remainder into a vector
-                let _: Vec<KeyVal> = cursor.into_vec(0).await.unwrap();
-            },
-            None => {
-                
-                // No elements matched
-            }
+        let data = store.get_all_keys().unwrap_throw();
+        let arraydata: Array = data.await.unwrap().into();
+        // JsCast::unchecked_from_js(data.unwrap());
+        // let array_data = data.new();
+
+        if arraydata.to_vec().is_empty() {
+            return;
+        }
+        for js_k in arraydata.iter() {
+            let k = Uint8Array::new(&js_k).to_vec();
+
+            let v = self.get_item(&k).await;
+
+            self.storage.set(&k, &v);
         }
     }
 
@@ -123,7 +146,7 @@ impl IdbStorage {
         // "start" and "end" being "None" leads to checking the whole storage range
         for (key, value) in self.storage.range(None,None, Order::Ascending) {
             // overwrites values for keys iff present
-            self.set_item(&key, &value);
+            self.set_item(&key, &value).await;
         }
     }
 }

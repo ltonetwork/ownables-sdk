@@ -4,43 +4,54 @@
 
 
 extern crate wasm_bindgen_test;
-use std::iter::empty;
-use std::ptr::null;
-use std::{assert, debug_assert, println, assert_eq, vec};
-
-use futures::executor::block_on;
-use indexed_db_futures::IdbDatabase;
-use wasm_bindgen::__rt::assert_not_null;
+use std::{assert, println};
 use wasm_bindgen_test::*;
 use cosmwasm_std::Storage;
 
+
 use wasm_game_of_life::store::IdbStorage;
-use wasm_game_of_life;
-use log;
+use wasm_game_of_life::log;
 
 
 
 wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
-async fn initialise_store() {
-    let mut store = IdbStorage::new().await;
+async fn initialise_new_store() {
+    let _store = IdbStorage::new().await;
+}
 
-    block_on(store.load_to_mem_storage());
+#[wasm_bindgen_test]
+async fn load_store() {
+    let mut store = IdbStorage::load("test_load").await;
+
+    store.load_to_mem_storage().await;
 }
 
 #[wasm_bindgen_test]
 /// tests if the data in idb is copied correctly to the memstore when initiating IdbStorage
-async fn test_load_to_mem_storage() {
+async fn test_load_single_key_to_mem_storage() {
     let mut store = IdbStorage::new().await;
-    store.set_item(b"key1", b"value1");
+    store.set_item(b"key1", b"value1").await;
 
-    store.load_to_mem_storage().await;
+    store.load_key_to_mem_storage(b"key1").await;
 
     let value1 = store.get(b"key1").unwrap();
     assert!(value1 == b"value1", "value from idb isnt copied correctly to the memory storage");
 }
 
+#[wasm_bindgen_test]
+/// tests if the data in idb is copied correctly to the memstore when initiating IdbStorage
+async fn test_load_single_key_from_mem_storage() {
+    let mut store = IdbStorage::new().await;
+    store.set(b"key1", b"value1");
+
+    // store.load_key_to_mem_storage(b"key1").await;
+    store.load_key_from_mem_storage(b"key1").await;
+
+    let value1 = store.get_item(b"key1").await;
+    assert!(value1 == b"value1", "value from idb isnt copied correctly to the memory storage");
+}
 
 #[wasm_bindgen_test]
 async fn set_and_get_memstore() {
@@ -57,19 +68,16 @@ async fn set_and_get_memstore() {
 }
 
 
-// not sure if this is usable in the other fucntions -> TODO: check after loading is fixed if this works
-async fn prepare_test_idb() -> IdbStorage {
-    let mut store = IdbStorage::load("test_db").await;
-    store.set_item(b"key1", b"value1");
-    store.set_item(b"key2", b"value2");
-    store.set_item(b"key3", b"value3");
-    return store;
+#[wasm_bindgen_test]
+async fn set_item_in_idb() {
+    let store = IdbStorage::load("test_db").await;
+    store.set_item(b"key1", b"value1").await;
 }
 
 #[wasm_bindgen_test]
 async fn write_and_read_idb() {
-    let mut store = IdbStorage::load("test_db").await;
-    store.set_item(b"key1", b"value1");
+    let store = IdbStorage::load("test_db").await;
+    store.set_item(b"key1", b"value1").await;
 
     let value1 = store.get_item(b"key1").await;
     
@@ -78,11 +86,14 @@ async fn write_and_read_idb() {
 
 #[wasm_bindgen_test]
 async fn load_from_and_to_database() {
+    log("start test load_from_and_to_database");
     let mut store = IdbStorage::load("test_db").await;
-    store.set_item(b"key1", b"value1");
-    store.set_item(b"key2", b"value2");
-    store.set_item(b"key3", b"value3");
-
+    log("load test load_from_and_to_database");
+    store.set_item(b"key1", b"value1").await;
+    store.set_item(b"key2", b"value2").await;
+    store.set_item(b"key3", b"value3").await;
+    println!("done init test load_from_and_to_database");
+    
     store.load_to_mem_storage().await;
 
     // read from memory storage
@@ -106,6 +117,16 @@ async fn load_from_and_to_database() {
     assert!(idb_value1a != b"value1", "changes in memstore aren't pushed through to idb  storage. value for key1 still the same");
     assert!(idb_value1a == b"value1a", "value for key1 didnt change according to the above instructions. Should have '{:x?}' but got '{:x?}'", b"value1a", idb_value1a);
     assert!(idb_value2a == b"value2", "value for key2 changed, unintentionally. should still be: {:x?}, but is now {:x?}",b"value2", idb_value2a );
+}
+#[wasm_bindgen_test]
+async fn create_close_and_open_db() {
+    let store = IdbStorage::load("test_db").await;
+    store.set_item(b"key1", b"value1").await;
+
+
+    let same_store = IdbStorage::load("test_db").await;
+    let value = store.get_item(b"key1").await;
+    assert!(value == b"value1")
 }
 
 
