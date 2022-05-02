@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use cosmwasm_std::{Addr, ContractInfo, Timestamp, Empty, OwnedDeps, Querier, Api, StdResult, StdError, CanonicalAddr, VerificationError, RecoverPubkeyError};
 use cosmwasm_std::{BlockInfo, Env};
 
-use crate::store::{IdbStorage};
+use crate::store::IdbStorage;
 
 
 
@@ -74,7 +74,7 @@ impl Default for EmptyQuerier {
 }
 
 impl Querier for EmptyQuerier {
-    fn raw_query(&self, bin_request: &[u8]) -> cosmwasm_std::QuerierResult {
+    fn raw_query(&self, _bin_request: &[u8]) -> cosmwasm_std::QuerierResult {
         todo!()
     }
 }
@@ -135,7 +135,7 @@ impl Api for EmptyApi {
             ));
         }
 
-        let mut tmp: Vec<u8> = canonical.clone().into();
+        let tmp: Vec<u8> = canonical.clone().into();
         // // Shuffle two more times which restored the original value (24 elements are back to original after 20 rounds)
         // for _ in 0..SHUFFLES_DECODE {
         //     tmp = riffle_shuffle(&tmp);
@@ -152,36 +152,36 @@ impl Api for EmptyApi {
 
     fn secp256k1_verify(
         &self,
-        message_hash: &[u8],
-        signature: &[u8],
-        public_key: &[u8],
+        _message_hash: &[u8],
+        _signature: &[u8],
+        _public_key: &[u8],
     ) -> Result<bool, VerificationError> {
          Err(VerificationError::unknown_err(0))
     }
 
     fn secp256k1_recover_pubkey(
         &self,
-        message_hash: &[u8],
-        signature: &[u8],
-        recovery_param: u8,
+        _message_hash: &[u8],
+        _signature: &[u8],
+        _recovery_param: u8,
     ) -> Result<Vec<u8>, RecoverPubkeyError> {
         Err(RecoverPubkeyError::unknown_err(0))
     }
 
     fn ed25519_verify(
         &self,
-        message: &[u8],
-        signature: &[u8],
-        public_key: &[u8],
+        _message: &[u8],
+        _signature: &[u8],
+        _public_key: &[u8],
     ) -> Result<bool, VerificationError> {
         Ok(true)
     }
 
     fn ed25519_batch_verify(
         &self,
-        messages: &[&[u8]],
-        signatures: &[&[u8]],
-        public_keys: &[&[u8]],
+        _messages: &[&[u8]],
+        _signatures: &[&[u8]],
+        _public_keys: &[&[u8]],
     ) -> Result<bool, VerificationError> {
         Ok(true)
     }
