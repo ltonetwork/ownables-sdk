@@ -59,9 +59,8 @@ impl Storage for IdbStorage {
 impl IdbStorage {
     pub async fn create_db(mut name: &str) -> IdbDatabase {
         if name.is_empty() {
-            name = "LtoDatabase"
+            name = "test_contract1"
         }
-        
 
         // let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 4).unwrap();
         let mut db_req: OpenDbRequest = IdbDatabase::open(name).unwrap();
@@ -115,9 +114,7 @@ impl IdbStorage {
         self.set_item(key, &data).await;
     }
 
-    // async fn set_jskv(key: JsValue,)
 
-    /// check this 
     pub async fn load_to_mem_storage(&mut self) {
         let store_name = "my_store";
 
@@ -140,7 +137,6 @@ impl IdbStorage {
             self.storage.set(&k, &v);
         }
     }
-
 
     pub async fn sync_to_db(&self) {
         // "start" and "end" being "None" leads to checking the whole storage range
