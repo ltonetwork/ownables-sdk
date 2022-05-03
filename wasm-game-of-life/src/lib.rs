@@ -52,7 +52,11 @@ pub async fn execute(msg: JsValue) {
             let resp_json = to_string(&response);
             alert(&resp_json.unwrap());
             deps.storage.sync_to_db().await;
+            // alert("state after exec: {}".format(deps.storage.get_item(b"state").await) );
         },
+
+        
+
         Err(error) => panic!("contract resulted in error :{:?}", error)
     
     };
@@ -102,17 +106,17 @@ pub async fn query(msg: JsValue) -> i32 {
 #[cfg(test)]
 mod tests {
 
+    use wasm_bindgen_test::console_log;
+
     use crate::state::State;
 
     extern crate serde_json;
     #[test]
     fn create_state_from_json() {
-        let state = State {count: 0};
-        let json_string = serde_json::to_string(&state);
-        println!("{:?}",json_string)
+        let state = State { count: 0 };
+        let json_string = serde_json::to_string(&state).unwrap();
+        console_log!("{:?}",json_string);
     }
-
-
 }
 // #[wasm_bindgen_test]
 // fn test_query_jsvalue() {

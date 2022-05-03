@@ -14,8 +14,12 @@ use wasm_game_of_life::log;
 
 
 
+/// TESTING STORAGE IMPLEMENTATION
+/// 
+/// 
+/// 
+/// 
 wasm_bindgen_test_configure!(run_in_browser);
-
 #[wasm_bindgen_test]
 async fn initialise_new_store() {
     let _store = IdbStorage::new().await;
@@ -130,35 +134,26 @@ async fn create_close_and_open_db() {
 }
 
 
-// FIXME: The store finds None for key b"foo". async request isnt finished probably
-// TODO: test read from idb store 
-// TODO: test write to idb store 
-// TODO: test read from idb store to memstore
-// TODO: test read from memstore to idb store
+/// TEST CONTRACT EXECUTION FROM BROWSER
+/// 
+/// 
+/// 
+#[wasm_bindgen_test]
+async fn execute_contract_no_initial_state() {
+    // TODO
+}
+#[wasm_bindgen_test]
+async fn execute_contract_with_initial_state() {
+    // TODO
+}
 
+#[wasm_bindgen_test]
+async fn query_state_no_initial_state() {
+    // TODO
+}
 
-
-
-// #[wasm_bindgen_test]
-// fn get_and_set() {
-//     log::warn!("loadding store...");
-//     let mut store = IdbStorage::new();
-//     assert_eq!(store.get(b"foo"), None, "The store already had some data");
-
-//     log::warn!("setting data...");
-//     store.set(b"foo", b"bar");
-//     assert_eq!(store.get(b"foo"), Some(b"bar".to_vec()), "The data in the storage is not the same as we put in.");
-//     assert_eq!(store.get(b"food"), None, "There is data with another key created");
-// }
-
-// #[wasm_bindgen_test]
-// fn delete() {
-//     let mut store = IdbStorage::new();
-//     store.set(b"foo", b"bar");
-//     store.set(b"food", b"bank");
-//     store.remove(b"foo");
-
-//     assert_eq!(store.get(b"foo"), None);
-//     assert_eq!(store.get(b"food"), Some(b"bank".to_vec()));
-// }
+#[wasm_bindgen_test]
+async fn query_state_with_initial_state() {
+    // TODO
+}
 
