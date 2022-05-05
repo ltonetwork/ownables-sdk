@@ -17,7 +17,7 @@ pub struct State {
 
 pub const STATE: Item<State> = Item::new("state");
 
-impl State {
+// impl State {
     // pub fn load() -> State {
     //     let store = LocalStorage::new("test_store").unwrap_throw();
     //     log(&store.get_data());
@@ -44,7 +44,7 @@ impl State {
     //     let data = serde_json::to_string(&self).unwrap();
     //     store.update(data);
     // }
-}
+// }
 
 
 

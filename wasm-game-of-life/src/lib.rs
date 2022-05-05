@@ -1,4 +1,4 @@
-mod utils;
+pub mod utils;
 use std::str;
 
 use cosmwasm_std::{MessageInfo, Addr};
@@ -39,7 +39,7 @@ pub fn square(number: i32) -> i32 {
 }
 
 #[wasm_bindgen]
-pub async fn execute(msg: JsValue) {
+pub async fn execute_contract(msg: JsValue) {
     // load from indexed db 
 
     let mut deps = create_lto_deps().await;
@@ -63,7 +63,7 @@ pub async fn execute(msg: JsValue) {
 }
 
 #[wasm_bindgen]
-pub async fn query_state() -> i32 {
+pub async fn query_state_contract() -> i32 {
     let deps = create_lto_deps().await;
 
     let msg = QueryMsg::GetCount();
@@ -75,7 +75,7 @@ pub async fn query_state() -> i32 {
 }
 
 #[wasm_bindgen]
-pub async fn query(msg: JsValue) -> i32 {
+pub async fn query_contract(msg: JsValue) -> i32 {
     let deps = create_lto_deps().await;
     // let msg_string: String = msg.as_string().unwrap();
     // log(&msg_string);

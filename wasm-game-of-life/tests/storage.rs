@@ -1,24 +1,17 @@
-//! Test suite for the Web and headless browsers.
-
-#![cfg(target_arch = "wasm32")]
-
 
 extern crate wasm_bindgen_test;
-use std::{assert, println};
+use std::{assert, println, panic};
 use wasm_bindgen_test::*;
 use cosmwasm_std::Storage;
 
 
+// use wasm_game_of_life::contract::execute;
+// use wasm_game_of_life::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
 use wasm_game_of_life::store::IdbStorage;
-use wasm_game_of_life::log;
+use wasm_game_of_life::*;
+// use wasm_game_of_life::contract::*;
+// use wasm_game_of_life::utils::{create_lto_deps, create_lto_env, EmptyApi, EmptyQuerier};
 
-
-
-/// TESTING STORAGE IMPLEMENTATION
-/// 
-/// 
-/// 
-/// 
 wasm_bindgen_test_configure!(run_in_browser);
 #[wasm_bindgen_test]
 async fn initialise_new_store() {
@@ -31,6 +24,7 @@ async fn load_store() {
 
     store.load_to_mem_storage().await;
 }
+
 
 #[wasm_bindgen_test]
 /// tests if the data in idb is copied correctly to the memstore when initiating IdbStorage
@@ -59,10 +53,7 @@ async fn test_load_single_key_from_mem_storage() {
 
 #[wasm_bindgen_test]
 async fn set_and_get_memstore() {
-    // TODO: check the mechanics of the indexed db and fix the current issue
-
     let mut store = IdbStorage::new().await;
-    // join!(store);
 
     store.set(b"foo", b"bar");
     
@@ -122,6 +113,7 @@ async fn load_from_and_to_database() {
     assert!(idb_value1a == b"value1a", "value for key1 didnt change according to the above instructions. Should have '{:x?}' but got '{:x?}'", b"value1a", idb_value1a);
     assert!(idb_value2a == b"value2", "value for key2 changed, unintentionally. should still be: {:x?}, but is now {:x?}",b"value2", idb_value2a );
 }
+
 #[wasm_bindgen_test]
 async fn create_close_and_open_db() {
     let store = IdbStorage::load("test_db").await;
@@ -129,31 +121,7 @@ async fn create_close_and_open_db() {
 
 
     let same_store = IdbStorage::load("test_db").await;
-    let value = store.get_item(b"key1").await;
+    let value = same_store.get_item(b"key1").await;
     assert!(value == b"value1")
-}
-
-
-/// TEST CONTRACT EXECUTION FROM BROWSER
-/// 
-/// 
-/// 
-#[wasm_bindgen_test]
-async fn execute_contract_no_initial_state() {
-    // TODO
-}
-#[wasm_bindgen_test]
-async fn execute_contract_with_initial_state() {
-    // TODO
-}
-
-#[wasm_bindgen_test]
-async fn query_state_no_initial_state() {
-    // TODO
-}
-
-#[wasm_bindgen_test]
-async fn query_state_with_initial_state() {
-    // TODO
 }
 
