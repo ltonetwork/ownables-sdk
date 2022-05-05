@@ -83,6 +83,13 @@ impl IdbStorage {
         return async_res.unwrap();
     }
 
+    pub fn clear_store(&mut self, store_name: &str){
+        let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap_throw();
+        let store = tx.object_store(store_name).unwrap_throw();
+
+        store.clear().unwrap();
+    }
+
     pub async fn set_item(&self, key: &[u8], value: &[u8]) {
         let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap_throw();
         let store = tx.object_store("my_store").unwrap_throw();
