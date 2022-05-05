@@ -3,15 +3,17 @@
 
 
 extern crate wasm_bindgen_test;
+use std::convert::{TryFrom, TryInto};
 use std::io::Read;
 use std::{assert, panic};
-use cw_storage_plus::CwIntKey;
+use cw_storage_plus::{CwIntKey, Endian};
 use wasm_bindgen_test::*;
-use cosmwasm_std::{ OwnedDeps, MessageInfo, Addr, Env, from_binary};
+use cosmwasm_std::{ OwnedDeps, MessageInfo, Addr, Env, from_binary, to_vec};
 
 
 // use wasm_game_of_life::contract::execute;
 use wasm_game_of_life::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
+use wasm_game_of_life::state::State;
 use wasm_game_of_life::store::IdbStorage;
 // use wasm_game_of_life::*;
 use wasm_game_of_life::contract::*;
@@ -94,7 +96,7 @@ async fn instantiate_contract_and_query(){
 }
 
 #[wasm_bindgen_test]
-async fn instantiate_contract_and_execute(){
+async fn instantiate_contract_and_execute() {
     let msg = InstantiateMsg { count: 0 };
     let (mut deps, info, env ) = prep_test_env().await;
 
@@ -110,7 +112,7 @@ async fn instantiate_contract_and_execute(){
     let count = q_res.unwrap();
     assert!(count.count == 1, "expected count to be '0', but was {} ", count.count);
 
-    //execute increment with same message 
+    //execute increment with same message state should have value 2 after second incement
     let _res = execute(deps.as_mut(), env, info, execute_msg);
     let q_res =     query(deps.as_ref(), QueryMsg::GetCount());
     assert!(q_res.is_ok(), "query contract after instantiate results in error : {}",q_res.err().unwrap());
@@ -121,9 +123,17 @@ async fn instantiate_contract_and_execute(){
     deps.storage.sync_to_db().await;
 
     let state_from_db = deps.storage.get_item(b"state").await;
-
-    // let state_db: i32::from_ne_bytes(state_from_db);
-    assert!(state_from_db == count.count.to_cw_bytes(), "state after db_sync is't a expected.  is {:?} while expect 2", state_from_db)
+    
+    // FIXME: THe state saved to the memstore is the state struct, not the count. 
+    //          I should convert the state_from_db to a state var and then get the count
+    // let dbstate: State = state_from_db.try_into().unwrap();
+    // let state_bytes: [u8; 4] = state_from_db.as_slice();
+    
+    // state_bytes = state_from_db.align_to();
+    // i32::from_be_bytes(state_from_db.bytes().);
+    // let state_db = i32::from_be_bytes(&[state_from_db.into_iter()]);
+    
+    assert!(state_from_db == count.count.to_be_bytes(), "state after db_sync is't a expected.  is {:?} while expect {:?}", state_from_db, to_vec(&State {count: count.count }).unwrap())
 }
 
 
@@ -134,8 +144,12 @@ async fn prep_test_env() -> (
     Env
 ) {
     let mut deps = create_lto_deps().await;
+    deps.storage.clear_store("my_store");
+    
     let info = MessageInfo{sender: Addr::unchecked("test_addr"), funds: Vec::new()};
     let env = create_lto_env();
 
     return (deps, info, env);
 }
+
+// TODO: test for different store names
