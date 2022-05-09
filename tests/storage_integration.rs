@@ -9,13 +9,13 @@ use wasm_bindgen_test::*;
 use cosmwasm_std::{ OwnedDeps, MessageInfo, Addr, Env ,from_slice};
 
 
-// use lto_ownable_smartcontract::contract::execute;
-use lto_ownable_smartcontract::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
-use lto_ownable_smartcontract::state::State;
-use lto_ownable_smartcontract::store::IdbStorage;
-// use lto_ownable_smartcontract::*;
-use lto_ownable_smartcontract::contract::*;
-use lto_ownable_smartcontract::utils::{create_lto_deps, create_lto_env, EmptyApi, EmptyQuerier};
+// use ownable_demo::contract::execute;
+use ownable_demo::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
+use ownable_demo::state::State;
+use ownable_demo::store::IdbStorage;
+// use ownable_demo::*;
+use ownable_demo::contract::*;
+use ownable_demo::utils::{create_lto_deps, create_lto_env, EmptyApi, EmptyQuerier};
 
 
 wasm_bindgen_test_configure!(run_in_browser);
@@ -33,7 +33,7 @@ async fn execute_contract_no_initial_state() {
     match res {
         Ok(_res) => panic!("The state should not be found."),
         Err(err) => {
-            assert!(err.to_string() == "lto_ownable_smartcontract::state::State not found", "expected error 'lto_ownable_smartcontract::state::State not found'. got '{}'", &err.to_string())
+            assert!(err.to_string() == "ownable_demo::state::State not found", "expected error 'ownable_demo::state::State not found'. got '{}'", &err.to_string())
         }
     }
 }
@@ -57,7 +57,7 @@ async fn query_state_no_initial_state() {
     match res_state {
         Ok(_res) => panic!("The state should not be found."),
         Err(err) => {
-            assert!(err.to_string() == "lto_ownable_smartcontract::state::State not found", "expected error 'NotFound'. got {}", &err.to_string())
+            assert!(err.to_string() == "ownable_demo::state::State not found", "expected error 'NotFound'. got {}", &err.to_string())
         }
     }
 }
