@@ -8,7 +8,7 @@ use std::io::Read;
 use std::{assert, panic};
 use cw_storage_plus::{CwIntKey, Endian};
 use wasm_bindgen_test::*;
-use cosmwasm_std::{ OwnedDeps, MessageInfo, Addr, Env, from_binary, to_vec};
+use cosmwasm_std::{ OwnedDeps, MessageInfo, Addr, Env ,from_slice, to_vec};
 
 
 // use wasm_game_of_life::contract::execute;
@@ -122,18 +122,10 @@ async fn instantiate_contract_and_execute() {
 
     deps.storage.sync_to_db().await;
 
-    let state_from_db = deps.storage.get_item(b"state").await;
+    let state_from_db_vec = deps.storage.get_item(b"state").await;
+    let state_from_db: State = from_slice(&state_from_db_vec).unwrap();
     
-    // FIXME: THe state saved to the memstore is the state struct, not the count. 
-    //          I should convert the state_from_db to a state var and then get the count
-    // let dbstate: State = state_from_db.try_into().unwrap();
-    // let state_bytes: [u8; 4] = state_from_db.as_slice();
-    
-    // state_bytes = state_from_db.align_to();
-    // i32::from_be_bytes(state_from_db.bytes().);
-    // let state_db = i32::from_be_bytes(&[state_from_db.into_iter()]);
-    
-    assert!(state_from_db == count.count.to_be_bytes(), "state after db_sync is't a expected.  is {:?} while expect {:?}", state_from_db, to_vec(&State {count: count.count }).unwrap())
+    assert!(state_from_db == State {count: count.count }, "state after db_sync is't a expected.  is {:?} while expect {:?}", state_from_db, State {count: count.count });
 }
 
 
