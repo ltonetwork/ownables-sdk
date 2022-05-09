@@ -10,3 +10,5 @@ bin/
 pkg/
 **/wasm-pack.log
 .lh/
+node_modules
+dist

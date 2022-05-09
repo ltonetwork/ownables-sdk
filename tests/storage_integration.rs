@@ -3,21 +3,19 @@
 
 
 extern crate wasm_bindgen_test;
-use std::convert::{TryFrom, TryInto};
-use std::io::Read;
+
 use std::{assert, panic};
-use cw_storage_plus::{CwIntKey, Endian};
 use wasm_bindgen_test::*;
-use cosmwasm_std::{ OwnedDeps, MessageInfo, Addr, Env ,from_slice, to_vec};
+use cosmwasm_std::{ OwnedDeps, MessageInfo, Addr, Env ,from_slice};
 
 
-// use wasm_game_of_life::contract::execute;
-use wasm_game_of_life::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
-use wasm_game_of_life::state::State;
-use wasm_game_of_life::store::IdbStorage;
-// use wasm_game_of_life::*;
-use wasm_game_of_life::contract::*;
-use wasm_game_of_life::utils::{create_lto_deps, create_lto_env, EmptyApi, EmptyQuerier};
+// use lto_ownable_smartcontract::contract::execute;
+use lto_ownable_smartcontract::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
+use lto_ownable_smartcontract::state::State;
+use lto_ownable_smartcontract::store::IdbStorage;
+// use lto_ownable_smartcontract::*;
+use lto_ownable_smartcontract::contract::*;
+use lto_ownable_smartcontract::utils::{create_lto_deps, create_lto_env, EmptyApi, EmptyQuerier};
 
 
 wasm_bindgen_test_configure!(run_in_browser);
@@ -35,14 +33,13 @@ async fn execute_contract_no_initial_state() {
     match res {
         Ok(_res) => panic!("The state should not be found."),
         Err(err) => {
-            assert!(err.to_string() == "wasm_game_of_life::state::State not found", "expected error 'wasm_game_of_life::state::State not found'. got '{}'", &err.to_string())
+            assert!(err.to_string() == "lto_ownable_smartcontract::state::State not found", "expected error 'lto_ownable_smartcontract::state::State not found'. got '{}'", &err.to_string())
         }
     }
 }
 
 
 // FIXME: tests without initial state get data from indexed db from other tests!!! 
-
 #[wasm_bindgen_test]
 async fn execute_contract_with_initial_state() {
     // TODO
@@ -60,7 +57,7 @@ async fn query_state_no_initial_state() {
     match res_state {
         Ok(_res) => panic!("The state should not be found."),
         Err(err) => {
-            assert!(err.to_string() == "wasm_game_of_life::state::State not found", "expected error 'NotFound'. got {}", &err.to_string())
+            assert!(err.to_string() == "lto_ownable_smartcontract::state::State not found", "expected error 'NotFound'. got {}", &err.to_string())
         }
     }
 }
@@ -107,7 +104,6 @@ async fn instantiate_while_exists() {
 
     let _res = instantiate(deps.as_mut(), env, info, msg);
     // TODO: This should fail. Twice initialisation should be wrong. dunno how to though...
-
 }
 
 #[wasm_bindgen_test]
