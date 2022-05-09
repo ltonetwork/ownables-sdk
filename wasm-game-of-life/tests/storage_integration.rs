@@ -48,7 +48,7 @@ async fn execute_contract_with_initial_state() {
     // TODO
 }
 
-/// Query
+/// Tests if the right error is thrown when we try to get a state without intializing it.
 #[wasm_bindgen_test]
 async fn query_state_no_initial_state() {
     let msg = QueryMsg::GetCount();
@@ -93,6 +93,21 @@ async fn instantiate_contract_and_query(){
 
     let count = q_res.unwrap();
     assert!(count.count == 0, "expected count to be '0', but was {} ", count.count)
+}
+
+/// Tests weather the contract fails when initialising the same intstance twice.
+#[wasm_bindgen_test]
+async fn instantiate_while_exists() {
+    let msg = InstantiateMsg{count: 0 };
+
+    let (mut deps, info, env) = prep_test_env().await;
+
+    let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+    
+
+    let _res = instantiate(deps.as_mut(), env, info, msg);
+    // TODO: This should fail. Twice initialisation should be wrong. dunno how to though...
+
 }
 
 #[wasm_bindgen_test]
