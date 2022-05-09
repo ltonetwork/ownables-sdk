@@ -37,7 +37,4 @@ pub enum EventType {
     Mod,
 }
 
-pub enum Message {
-
-}
 

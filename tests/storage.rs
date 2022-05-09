@@ -5,12 +5,12 @@ use wasm_bindgen_test::*;
 use cosmwasm_std::Storage;
 
 
-// use wasm_game_of_life::contract::execute;
-// use wasm_game_of_life::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
-use wasm_game_of_life::store::IdbStorage;
-use wasm_game_of_life::*;
-// use wasm_game_of_life::contract::*;
-// use wasm_game_of_life::utils::{create_lto_deps, create_lto_env, EmptyApi, EmptyQuerier};
+// use lto_ownable_smartcontract::contract::execute;
+// use lto_ownable_smartcontract::msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
+use lto_ownable_smartcontract::store::IdbStorage;
+use lto_ownable_smartcontract::*;
+// use lto_ownable_smartcontract::contract::*;
+// use lto_ownable_smartcontract::utils::{create_lto_deps, create_lto_env, EmptyApi, EmptyQuerier};
 
 wasm_bindgen_test_configure!(run_in_browser);
 #[wasm_bindgen_test]
