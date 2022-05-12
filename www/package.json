@@ -35,6 +35,6 @@
   },
   "dependencies": {
     "@ltonetwork/lto": "^0.6.4",
-    "wasm-game-of-life": "file:../pkg"
+    "ownable-demo": "file:../pkg"
   }
 }
