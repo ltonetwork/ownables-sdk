@@ -1,8 +1,9 @@
 pub mod utils;
 use std::str;
 
+use contract::instantiate;
 use cosmwasm_std::{MessageInfo, Addr};
-use msg::{ExecuteMsg, QueryMsg};
+use msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
 use serde_json::to_string;
 // use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
@@ -39,7 +40,7 @@ pub fn square(number: i32) -> i32 {
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(msg: JsValue) {
+pub async fn execute_contract(msg: JsValue) ->Result<(), JsError> {
     // load from indexed db 
 
     let mut deps = create_lto_deps().await;
@@ -50,15 +51,16 @@ pub async fn execute_contract(msg: JsValue) {
     let _res = match result {
         Ok(response) => {
             let resp_json = to_string(&response);
-            alert(&resp_json.unwrap());
+            alert(&format!("[contract] succesfully excuted msg {:?}. response {:?}", &msg , &resp_json.unwrap()));
             deps.storage.sync_to_db().await;
+            return Ok(())
             // alert("state after exec: {}".format(deps.storage.get_item(b"state").await) );
         },
 
-        
-
-        Err(error) => panic!("contract resulted in error :{:?}", error)
-    
+        Err(error) => {
+            // panic!("contract resulted in error :{:?}", error);
+            return Err(JsError::from(error));
+        } 
     };
 }
 
@@ -89,8 +91,22 @@ pub async fn query_contract(msg: JsValue) -> i32 {
 
 // 
 
-// #[wasm_bindgen]
-// pub fn instantiate(count: JsValue) {} 
+#[wasm_bindgen]
+pub async fn instantiate_contract(count: JsValue) -> Result<(), JsError>  {
+    let msg = InstantiateMsg { count: count.into_serde().unwrap() };
+    let mut deps = create_lto_deps().await;
+
+    let res = instantiate(deps.as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()}, msg);
+    match res {
+        Ok(response) => {
+            let resp_json = to_string(&response);
+            alert(&format!("[contract] succesfully instantiated! response {:?}", &resp_json.unwrap()));
+            deps.storage.sync_to_db().await;
+            return Ok(());
+        },
+        Err(error) => return Err(JsError::from(error))
+    }
+}
 
 
 
@@ -102,7 +118,6 @@ pub async fn query_contract(msg: JsValue) -> i32 {
 
 //     return state;
 // }
-
 #[cfg(test)]
 mod tests {
 
