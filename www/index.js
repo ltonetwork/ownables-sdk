@@ -23,7 +23,7 @@ $('#test-button').on('click', function() {
  * @param {LTOAccount} account 
  * @param {int} count 
  */
-async function AddAndExecuteEvent(chain, account, count, contract) {
+async function AddAndExecuteEvent(chain, account, count, _contract) {
     /* 
     This execution flow of the ownable interaction should be as follows:
         - create event in js
@@ -37,12 +37,12 @@ async function AddAndExecuteEvent(chain, account, count, contract) {
 
         console.log(`[execution 0/4] started execution`)
         // create event in js (i think only the msg is required at this point)
-        const event_msg = { increment: {count: count} }
+        // const event_msg = { increment: {by: count} }
+        const event_msg = `{ "increment": { "by": ${count} }}`
         
         // pass event to wasm contract
         console.log(`[e 1/4] execute contract`);
-        // contractS
-        await contract.execute_contract(event_msg)
+        contract.execute_contract(JSON.parse(event_msg))
         .catch( error => {
             window.alert("An error occured during contract execution. State is reverted. Error: "+ error)
             reject(error)
@@ -151,6 +151,7 @@ function updateStateElement(state) {
 
 const chain = account.createEventChain();
 instantiate_contract(chain)
+updateState()
 
 function addItemToItemListHTML(item) {
     var target = document.querySelector("#past-events .list-group");
@@ -165,6 +166,7 @@ $('#addr-button-inst').on('click', function() {
 
     var input = $('#input-inst').val();
 
+    // AddAndExecuteEvent(chain,account, input, "")
     AddAndExecuteEvent(chain,account, input, "")
     .then( () => {
             addItemToItemListHTML(JSON.stringify({ increment: { count: input }}));
