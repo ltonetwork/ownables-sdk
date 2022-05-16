@@ -2,6 +2,7 @@ import * as contract from "ownable-demo";
 import { AccountFactoryED25519 } from "@ltonetwork/lto/raw/accounts"
 import { Event } from  "@ltonetwork/lto/raw/events"
 import { EventChain } from  "@ltonetwork/lto/raw/events"
+
 // import * as contract from "addr-contract";
 
 contract.initialize()
@@ -15,7 +16,7 @@ $('#test-button').on('click', function() {
     $('#result').text(result);
 })
 
-
+const OWNABLE_ID =  "test_ownable_1"
 /**
  * Executes event on contract and on succes adds to chain and send transaction
  * [NOT FULLY FUNCTIONAL!]
@@ -42,7 +43,7 @@ async function AddAndExecuteEvent(chain, account, count, _contract) {
         
         // pass event to wasm contract
         console.log(`[e 1/4] execute contract`);
-        contract.execute_contract(JSON.parse(event_msg))
+        contract.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
         .catch( error => {
             window.alert("An error occured during contract execution. State is reverted. Error: "+ error)
             reject(error)
@@ -85,9 +86,10 @@ let account = new AccountFactoryED25519('T').createFromPrivateKey("4YQrHv8kNXc81
 // only use if you already have a eventchain
 // const chain = new EventChain('JEKNVnkbo3jqSHT8tfiAKK4tQTFK7jbx8t18wEEnygya');
 
-function instantiate_contract(_chain, count=0) {
-    contract.instantiate_contract(count)
+function instantiate_contract(_chain, ownable_id, count=0) {
+    contract.instantiate_contract(count,ownable_id, "test_contract_1")
     .then( () => {
+        storeOwnableId(ownable_id)
         return
     })
     .catch( error => {
@@ -127,11 +129,11 @@ function compute_state(chain) {
         .forEach( msg => contract.execute_contract(msg));
 
     // console.log(contract.query({ get_count: {} }));
-    console.log(contract.query_state_contract());
+    console.log(contract.query_state_contract(OWNABLE_ID));
 }
 
 function updateState() {
-    contract.query_state_contract()
+    contract.query_state_contract(OWNABLE_ID)
     .then( number => {
         console.log(`state from query: ${number}`)
         updateStateElement(number)
@@ -150,7 +152,7 @@ function updateStateElement(state) {
 
 
 const chain = account.createEventChain();
-instantiate_contract(chain)
+instantiate_contract(chain, OWNABLE_ID)
 updateState()
 
 function addItemToItemListHTML(item) {
@@ -165,6 +167,9 @@ function addItemToItemListHTML(item) {
 $('#addr-button-inst').on('click', function() {
 
     var input = $('#input-inst').val();
+    if(input == "") {
+        return
+    }
 
     // AddAndExecuteEvent(chain,account, input, "")
     AddAndExecuteEvent(chain,account, input, "")
@@ -198,3 +203,11 @@ $('#addr-button-inst').on('click', function() {
 
 // NEXT TODO: contract inladen in functie
 // NEXT TODO: use js schemas
+
+/*
+
+Make ownable object with eventchain
+contract should be in the genesis event
+with OOP 
+so al the functions, instantiate contract, execute contract, query contract are methods 
+*/

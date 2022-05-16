@@ -8,7 +8,7 @@ use serde_json::to_string;
 // use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
 
-use utils::{create_lto_env, create_lto_deps};
+use utils::{create_lto_env, create_lto_deps, load_lto_deps};
 // use wasm_bindgen_test::*;
 
 pub mod msg;
@@ -40,11 +40,12 @@ pub fn square(number: i32) -> i32 {
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(msg: JsValue) -> Result<(), JsError> {
+pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<(), JsError> {
     // load from indexed db 
     log(&format!("[contract] executing message {:?}", &msg));
+    let ownable_id: String = ownable_js_id.into_serde().unwrap();
 
-    let mut deps = create_lto_deps().await;
+    let mut deps = load_lto_deps(&ownable_id).await;
     // add the storage to the deps
     
     // let message: ExecuteMsg = serde_json::from_js ));
@@ -53,22 +54,21 @@ pub async fn execute_contract(msg: JsValue) -> Result<(), JsError> {
     let _res = match result {
         Ok(response) => {
             let resp_json = to_string(&response);
-            log(&format!("[contract] succesfully excuted msg {:?}. response {:?}", &msg , &resp_json.unwrap()));
+            log(&format!("[contract] succesfully excuted msg. response {:}", &resp_json.unwrap()));
             deps.storage.sync_to_db().await;
             return Ok(())
-            // alert("state after exec: {}".format(deps.storage.get_item(b"state").await) );
         },
 
         Err(error) => {
-            // panic!("contract resulted in error :{:?}", error);
             return Err(JsError::from(error));
         }
     };
 }
 
 #[wasm_bindgen]
-pub async fn query_state_contract() -> i32 {
-    let deps = create_lto_deps().await;
+pub async fn query_state_contract(ownable_js_id: JsValue) -> i32 {
+    let ownable_id: String = ownable_js_id.into_serde().unwrap();
+    let deps = load_lto_deps(&ownable_id).await;
 
     let msg = QueryMsg::GetCount();
     let query_result = contract::query(deps.as_ref(), msg);
@@ -79,10 +79,10 @@ pub async fn query_state_contract() -> i32 {
 }
 
 #[wasm_bindgen]
-pub async fn query_contract(msg: JsValue) -> i32 {
-    let deps = create_lto_deps().await;
-    // let msg_string: String = msg.as_string().unwrap();
-    // log(&msg_string);
+pub async fn query_contract(msg: JsValue, ownable_js_id: JsValue) -> i32 {
+    let ownable_id: String = ownable_js_id.into_serde().unwrap();
+    let deps = load_lto_deps(&ownable_id).await;
+
     let message: QueryMsg = msg.into_serde().unwrap();
     let query_result = contract::query(deps.as_ref(),message);
     match query_result {
@@ -91,12 +91,16 @@ pub async fn query_contract(msg: JsValue) -> i32 {
     }
 }
 
-// 
 
 #[wasm_bindgen]
-pub async fn instantiate_contract(count: JsValue) -> Result<(), JsError>  {
-    let msg = InstantiateMsg { count: count.into_serde().unwrap() };
-    let mut deps = create_lto_deps().await;
+pub async fn instantiate_contract(count: JsValue, ownable_id: JsValue, contract_id: JsValue) -> Result<(), JsError>  {
+    let msg = InstantiateMsg {
+        count:count.into_serde().unwrap(),
+        ownable_id: ownable_id.into_serde().unwrap(),
+        contract_id: contract_id.into_serde().unwrap() 
+    };
+
+    let mut deps = create_lto_deps(&msg.ownable_id).await;
 
     let res = instantiate(deps.as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()}, msg);
     match res {

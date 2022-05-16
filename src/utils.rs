@@ -30,16 +30,25 @@ pub fn create_lto_env() -> Env {
 }
 
 /// Creates Owned deps that conforms cosmwasm_std contract standards. Except for the storage, the atributes of this deps should not be used.
-pub async fn create_lto_deps() -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty>  {
+pub async fn create_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty>  {
 
     OwnedDeps {
-        storage: IdbStorage::load("my_store").await, // Storage should now be our Storage implementation that uses local store
+        storage: IdbStorage::new(name).await, // Storage should now be our Storage implementation that uses local store
         api: EmptyApi::default(),
         querier: EmptyQuerier::default(),
         custom_query_type: PhantomData,
     }
 }
 
+pub async fn load_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty>  {
+
+    OwnedDeps {
+        storage: IdbStorage::load(name).await, // Storage should now be our Storage implementation that uses local store
+        api: EmptyApi::default(),
+        querier: EmptyQuerier::default(),
+        custom_query_type: PhantomData,
+    }
+}
 
 /* Notes on the DepsMut:
 DepsMut's storage can be replaced by the LocalStorage, however the storage manipulations inferred by the Storage trait are not used.
