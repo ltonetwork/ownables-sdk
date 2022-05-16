@@ -40,18 +40,20 @@ pub fn square(number: i32) -> i32 {
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(msg: JsValue) ->Result<(), JsError> {
+pub async fn execute_contract(msg: JsValue) -> Result<(), JsError> {
     // load from indexed db 
+    log(&format!("[contract] executing message {:?}", &msg));
 
     let mut deps = create_lto_deps().await;
     // add the storage to the deps
     
+    // let message: ExecuteMsg = serde_json::from_js ));
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let result = contract::execute(deps.as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()} , message);
     let _res = match result {
         Ok(response) => {
             let resp_json = to_string(&response);
-            alert(&format!("[contract] succesfully excuted msg {:?}. response {:?}", &msg , &resp_json.unwrap()));
+            log(&format!("[contract] succesfully excuted msg {:?}. response {:?}", &msg , &resp_json.unwrap()));
             deps.storage.sync_to_db().await;
             return Ok(())
             // alert("state after exec: {}".format(deps.storage.get_item(b"state").await) );
@@ -60,7 +62,7 @@ pub async fn execute_contract(msg: JsValue) ->Result<(), JsError> {
         Err(error) => {
             // panic!("contract resulted in error :{:?}", error);
             return Err(JsError::from(error));
-        } 
+        }
     };
 }
 
@@ -100,7 +102,7 @@ pub async fn instantiate_contract(count: JsValue) -> Result<(), JsError>  {
     match res {
         Ok(response) => {
             let resp_json = to_string(&response);
-            alert(&format!("[contract] succesfully instantiated! response {:?}", &resp_json.unwrap()));
+            log(&format!("[contract] succesfully instantiated! response {:}", &resp_json.unwrap()));
             deps.storage.sync_to_db().await;
             return Ok(());
         },

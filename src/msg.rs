@@ -9,6 +9,7 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    // #[serde(with = "serde_with::rust::display_fromstr")]
     Increment {by: Option<i32>},
     Reset {count: i32}
 }
