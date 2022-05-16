@@ -15,8 +15,11 @@ pub struct IdbStorage {
 
 
 impl IdbStorage {
-    pub async fn new() -> Self {
-        let db = Self::create_db("");
+    pub async fn new(mut name: &str) -> Self {
+        if name.is_empty() {
+            name = "test_contract1"
+        }
+        let db = Self::create_db(name);
         let mem_storage = MemoryStorage::new();
 
         return IdbStorage {db: db.await, storage: mem_storage};
@@ -57,11 +60,7 @@ impl Storage for IdbStorage {
 
 
 impl IdbStorage {
-    pub async fn create_db(mut name: &str) -> IdbDatabase {
-        if name.is_empty() {
-            name = "test_contract1"
-        }
-
+    pub async fn create_db(name: &str) -> IdbDatabase {
         // let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 4).unwrap();
         let mut db_req: OpenDbRequest = IdbDatabase::open(name).unwrap();
         db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
@@ -69,12 +68,7 @@ impl IdbStorage {
             let db = evt.db();
             // Check if the object store exists; create it if it doesn't
             if let None = db.object_store_names().find(|n| n == "my_store") {
-                
-                //FIXME: db says no: "JsValue(InvalidStateError: Failed to execute 'createObjectStore' on 'IDBDatabase': The database is not running a version change transaction."
                 db.create_object_store("my_store").unwrap();
-
-            } else {
-                panic!("database already exists! (this is good)");
             }
             Ok(())
         }));
@@ -84,7 +78,7 @@ impl IdbStorage {
     }
 
     pub fn clear_store(&mut self, store_name: &str){
-        let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap_throw();
+        let tx = self.db.transaction_on_one_with_mode(store_name, IdbTransactionMode::Readwrite).unwrap_throw();
         let store = tx.object_store(store_name).unwrap_throw();
 
         store.clear().unwrap();
