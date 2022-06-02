@@ -1,13 +1,41 @@
-import * as contract from "ownable-demo";
-import { AccountFactoryED25519 } from "@ltonetwork/lto/raw/accounts"
-import { Event } from  "@ltonetwork/lto/raw/events"
-import { EventChain } from  "@ltonetwork/lto/raw/events"
-
+// import * as contract from "ownable-demo";
+// import { AccountFactoryED25519 } from "@ltonetwork/lto/raw/accounts"
+import { AccountFactoryED25519 } from "@ltonetwork/lto/lib/accounts"
+import { Event } from  "@ltonetwork/lto/lib/events"
+import { EventChain } from  "@ltonetwork/lto/lib/events"
 // import * as contract from "addr-contract";
+// contract.initialize()
 
-contract.initialize()
+var importObject = {}
+
+
+console.log("")
+WebAssembly.instantiateStreaming(fetch('ownable_demo.wasm'), importObject)
+.then(results => {
+    results.module
+    console.log(results.instance.exports.getFunctionName())
+    const event_msg = `{ "increment": { "by": ${count} }}`
+        
+        // pass event to wasm contract
+    console.log(`[e 1/4] execute contract`);
+    // contract2.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
+    
+    // results.instance.exports.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
+  // Do something with the results!
+  
+}
+
+).catch(e => {
+    console.log(e)
+});
+
 
 // wasm.greet();
+// $('#inst-button').on('click', function() {
+//     console.log("new item!");
+//     contract.instantiate_contract()
+// })
+
 
 $('#test-button').on('click', function() {
     var input = $('#test-input').val();
@@ -56,6 +84,7 @@ async function AddAndExecuteEvent(chain, account, count, _contract) {
             console.log(`[e 3/4] add event to event chain`)
             chain.add(event)
             
+
             console.log(`[e 4/4] send LTO transaction`)
             console.log(`[warning] send lto tx not implemented`)
             // TODO: Ask arnold how to implement this for the demo
@@ -84,7 +113,7 @@ let account = new AccountFactoryED25519('T').createFromPrivateKey("4YQrHv8kNXc81
 
 // creates event with specific event chain with id based on the key of account
 // only use if you already have a eventchain
-// const chain = new EventChain('JEKNVnkbo3jqSHT8tfiAKK4tQTFK7jbx8t18wEEnygya');
+const chain = new EventChain('JEKNVnkbo3jqSHT8tfiAKK4tQTFK7jbx8t18wEEnygya');
 
 function instantiate_contract(_chain, ownable_id, count=0) {
     contract.instantiate_contract(count,ownable_id, "test_contract_1")
@@ -137,8 +166,7 @@ function updateState() {
     .then( number => {
         console.log(`state from query: ${number}`)
         updateStateElement(number)
-    }
-    )
+    })
 }
 
 function updateStateElement(state) {
@@ -150,10 +178,10 @@ function updateStateElement(state) {
 
 
 
-
-const chain = account.createEventChain();
-instantiate_contract(chain, OWNABLE_ID)
-updateState()
+// // This uses the wasm-pack module
+// const chain = account.createEventChain();
+// instantiate_contract(chain, OWNABLE_ID)
+// updateState()
 
 function addItemToItemListHTML(item) {
     var target = document.querySelector("#past-events .list-group");
@@ -183,26 +211,11 @@ $('#addr-button-inst').on('click', function() {
     // $('#event-update:result').text(result);
 })
 
-
-
-
-// TODO: Initialize the eventchain in local store
-// increment_contract(chain, 1)
-// increment_contract(chain, 3)
-// increment_contract(chain, 5)
-// increment_contract(chain, 5)
-
-// // NEXT TODO: Genesis event returned from contract
-// // contract.instantiate(2)
-// compute_state(chain)
-
-// // should return JSobjact of state
-// // const state = contract.query({ get_count: {} })
-// const state = contract.query_state()
-// console.log(state)
-
-// NEXT TODO: contract inladen in functie
-// NEXT TODO: use js schemas
+function creatGenesisEvent() {
+    
+    genEvent = new Event(genesisBody, "")
+    
+}
 
 /*
 
@@ -210,4 +223,17 @@ Make ownable object with eventchain
 contract should be in the genesis event
 with OOP 
 so al the functions, instantiate contract, execute contract, query contract are methods 
+
+wasm can be base64 encoded to string to fit body of event.
+
+
+BIG ISSUE:
+the way wasm is used right now is its compiled using wasm-pack -target=web, 
+which turns it into a node.js module with support for complete wasm-bindgen (this includes stuf like indexedDB and local storage). 
+However we want the wasm to be stored in the genesis event, and from there loaded and used, 
+Not as a module, because this is not generic. 
+
+A possible hacky solution would be to replace the wasm in the pakache and have the package as code in the webapp
+
+
 */
