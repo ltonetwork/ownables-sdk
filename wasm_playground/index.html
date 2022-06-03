@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+    <body>
+
+
+        <script>
+            async function test() {
+                var importObject = { imports: {
+                    imported_func: arg => console.log(arg) }
+                };
+
+                WebAssembly.instantiateStreaming(
+                    fetch('./target/wasm32-unknown-unknown/debug/wasm_playground.wasm'),
+                    importObject
+                ).then(obj => {
+                    console.log(obj);
+                    const age = obj.instance.exports.age(2020, 1994);
+                    // console.log(`exported func: ${obj.instance.exports.exported_func()}`);
+                    console.log(`age: ${age}`);
+                    // obj.instance.exports.imported_func(500);
+                });
+            }
+
+            test()
+        </script>
+    </body>
+</html>
