@@ -1,23 +1,29 @@
 <!doctype html>
+
 <html>
     <body>
-
-
         <script>
             async function test() {
+                // TODO: import another wasm file and try to pass it as importObject
+                // const response = await fetch("./target/wasm32-unknown-unknown/debug/wasm_deno_example.wasm");
+                // const wasmCode = await response.arrayBuffer();
+                // const wasmModule = new WebAssembly.Module(wasmCode);
+                // const wasmInstance = new WebAssembly.Instance(wasmModule);
+
                 var importObject = { imports: {
-                    imported_func: arg => console.log(arg) }
+                    imported_func: arg => console.log(`imported func: ${arg}`) }
                 };
 
                 WebAssembly.instantiateStreaming(
                     fetch('./target/wasm32-unknown-unknown/debug/wasm_playground.wasm'),
                     importObject
-                ).then(obj => {
-                    console.log(obj);
-                    const age = obj.instance.exports.age(2020, 1994);
-                    // console.log(`exported func: ${obj.instance.exports.exported_func()}`);
-                    console.log(`age: ${age}`);
-                    // obj.instance.exports.imported_func(500);
+                ).then(wasm_binary => {
+                    // const age = wasm_binary.instance.exports.age(2020, 1994);
+                    // console.log(`age: ${age}`);
+
+                    // calls imported_func
+                    console.log(wasm_binary.instance.exports);
+                    wasm_binary.instance.exports.exported_func(5);
                 });
             }
 

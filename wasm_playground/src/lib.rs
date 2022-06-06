@@ -3,14 +3,12 @@ pub extern "C" fn age(cy: i32, yob: i32) -> i32 {
     cy - yob
 }
 
-// TODO: find alternative to wasm_bindgen to import functions
-// pub fn exported_func() {
-//    unsafe {
-//       imported_func(500);
-//    }
-// }
+#[link(wasm_import_module = "imports")]
+extern "C" {
+    fn imported_func(arg: i32);
+}
 
-// // #[wasm_bindgen]
-// extern "C" {
-//   fn imported_func(param: i32);
-// }
+#[no_mangle]
+pub extern "C" fn exported_func(arg: i32) {
+    unsafe { imported_func(arg) }
+}
