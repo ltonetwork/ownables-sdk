@@ -4,18 +4,15 @@
     <body>
         <script>
             async function test() {
-                // TODO: import another wasm file and try to pass it as importObject
-                // const response = await fetch("./target/wasm32-unknown-unknown/debug/wasm_deno_example.wasm");
-                // const wasmCode = await response.arrayBuffer();
-                // const wasmModule = new WebAssembly.Module(wasmCode);
-                // const wasmInstance = new WebAssembly.Instance(wasmModule);
+                // instantiate the wasm binary to be imported
+                let externalWasmModule = await WebAssembly.instantiateStreaming(
+                    fetch('./target/wasm32-unknown-unknown/debug/wasm_import_lib.wasm'),
+                    {}
+                );
 
                 var importObject = { imports: {
-                        imported_func: arg => console.log(`imported func: ${arg}`),
-                        add_five: arg => {
-                            console.log(`received arg: ${arg}`);
-                            return arg + 5;
-                        },
+                        imported_func: arg => externalWasmModule.instance.exports.print_i32(arg),
+                        add_five: arg => externalWasmModule.instance.exports.add_five(arg),
                     },
                 };
 
@@ -23,13 +20,10 @@
                     fetch('./target/wasm32-unknown-unknown/debug/wasm_playground.wasm'),
                     importObject
                 ).then(wasm_binary => {
-                    // const age = wasm_binary.instance.exports.age(2020, 1994);
-                    // console.log(`age: ${age}`);
                     console.log(wasm_binary);
                     // calls imported_func
-                    console.log(wasm_binary.instance.exports);
                     wasm_binary.instance.exports.exported_func(5);
-                    wasm_binary.instance.exports.imported_add_five(10);
+                    console.log(wasm_binary.instance.exports.imported_add_five(10));
                 });
             }
 
