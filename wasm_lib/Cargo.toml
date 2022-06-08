@@ -1,0 +1,54 @@
+[package]
+name = "wasm_lib"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+wasm-bindgen = { version = "0.2.63", features = ["serde-serialize"] }
+wasm-bindgen-test = "*"
+wasm-bindgen-futures = "0.4.30"
+schemars = "0.8"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+cosmwasm-std = { version = "1.0.0-beta" }
+cw-storage-plus = "*"
+js-sys = "0.3.56"
+serde_json = "1.0.59"
+serde-wasm-bindgen = "0.4.2"
+thiserror = "1.0.30"
+# web-sys = "0.3.56"
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.6", optional = true }
+
+# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
+# compared to the default allocator's ~10K. It is slower than the default
+# allocator, however.
+#
+# Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
+wee_alloc = { version = "0.4.5", optional = true }
+# wraps websys indexed db api
+indexed_db_futures = "0.2.3"
+futures = "0.3.21"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "Storage", "Window"
+]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+cosmwasm-schema = { version = "1.0.0-beta" }
+
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

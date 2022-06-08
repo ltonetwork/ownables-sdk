@@ -1,8 +1,14 @@
+use wasm_lib::common;
 
 #[no_mangle]
-pub extern "C" fn print_i32(arg: i32) -> i32 {
-    // web_sys::console::log_1(&"Hello World".into());
-    arg
+pub extern "C" fn create(count: i32) -> common::Msg {
+    common::Msg{ count }
+}
+
+#[no_mangle]
+pub extern "C" fn inc(mut msg: common::Msg, count: i32) -> common::Msg {
+    msg.inc(5);
+    msg
 }
 
 #[no_mangle]

@@ -4,26 +4,33 @@
     <body>
         <script>
             async function test() {
+
+                let memory = new WebAssembly.Memory({initial:10, maximum:100, shared: true});
+
                 // instantiate the wasm binary to be imported
                 let externalWasmModule = await WebAssembly.instantiateStreaming(
                     fetch('./target/wasm32-unknown-unknown/debug/wasm_import_lib.wasm'),
-                    {}
+                    { js: { mem: memory }},
                 );
+                console.log("external wasm module:", externalWasmModule);
 
                 var importObject = { imports: {
-                        imported_func: arg => externalWasmModule.instance.exports.print_i32(arg),
-                        add_five: arg => externalWasmModule.instance.exports.add_five(arg),
+                        add_five: externalWasmModule.instance.exports.add_five,
+                        create: externalWasmModule.instance.exports.create,
+                        inc: externalWasmModule.instance.exports.inc,
+                        create_return_count: externalWasmModule.instance.exports.create_return_count,
                     },
+                    js: { mem: memory },
                 };
 
                 WebAssembly.instantiateStreaming(
                     fetch('./target/wasm32-unknown-unknown/debug/wasm_playground.wasm'),
                     importObject
                 ).then(wasm_binary => {
-                    console.log(wasm_binary);
-                    // calls imported_func
-                    wasm_binary.instance.exports.exported_func(5);
-                    console.log(wasm_binary.instance.exports.imported_add_five(10));
+                    console.log("instantiated binary: ", wasm_binary);
+                    console.log(wasm_binary.instance.exports.do_something(37, "bars"));
+                    console.log(wasm_binary.instance.exports.do_something_count(37));
+                 
                 });
             }
 

@@ -8,10 +8,4 @@ edition = "2021"
 crate-type =["cdylib"]
 
 [dependencies]
-# ...
-
-[dependencies.web-sys]
-version = "0.3"
-features = [
-  "console",
-]
+wasm_lib = { path = "../wasm_lib" }
