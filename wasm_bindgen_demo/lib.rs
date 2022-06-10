@@ -34,17 +34,25 @@ async fn run_async() -> Result<(), JsValue> {
 
     let return_string = Reflect::get(c.as_ref(), &"return_string".into())?
         .dyn_into::<Function>()
-        .expect("return string export wasn't a function");
+        .expect("add export wasn't a function");
 
     let result = return_string.call0(&JsValue::undefined());
     console_log!("returned string: {:?}", result);
 
     let concat_string = Reflect::get(c.as_ref(), &"concat_string".into())?
         .dyn_into::<Function>()
-        .expect("concat string export wasn't a function");
+        .expect("add export wasn't a function");
 
     let concat_result = concat_string.call1(&JsValue::undefined(), &JsValue::from(" name"));
     console_log!("concatenated string: {:?}", concat_result);
+
+    // let mem = Reflect::get(c.as_ref(), &"memory".into())?
+    //     .dyn_into::<WebAssembly::Memory>()
+    //     .expect("memory export wasn't a `WebAssembly.Memory`");
+    // console_log!("created module has {} pages of memory", mem.grow(0));
+    // console_log!("giving the module 4 more pages of memory");
+    // mem.grow(4);
+    // console_log!("now the module has {} pages of memory", mem.grow(0));
 
     Ok(())
 }
