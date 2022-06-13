@@ -3,31 +3,27 @@ use wasm_lib::common;
 
 #[link(wasm_import_module = "imports")]
 extern "C" {
-    fn add_five(arg: i32) -> i32;
-    fn create(count: i32) -> common::Msg;
-    fn inc(msg: common::Msg, count: i32) -> common::Msg;
+    fn add(a: u32, b: u32) -> u32;
+    fn return_string() -> String;
+    fn concat_string(name: &str) -> String;
 }
 
 #[no_mangle]
-pub extern "C" fn imported_add_five(arg: i32) -> i32 {
-    unsafe { add_five(arg) + 3 }
+pub extern "C" fn imported_add(a: u32, b: u32) -> u32 {
+    unsafe { add(a, b) }
 }
 
 #[no_mangle]
-pub extern "C" fn do_something(count: i32, description: String) -> String {
-    let msg = unsafe { create(count) };
-    let result = unsafe { inc(msg, 5) };
-
-    result.describe()
+pub extern "C" fn imported_return_string() -> String {
+    unsafe { return_string() }
 }
 
 #[no_mangle]
-pub extern "C" fn do_something_count(count: i32) -> i32 {
-    let msg = unsafe { create(count) };
-    
-    if (msg.count != count) {
-        return -1
-    }
+pub extern "C" fn imported_concat_string(name: &str) -> String {
+    unsafe { concat_string(name) }
+}
 
-    msg.count
+#[no_mangle]
+pub extern "C" fn return_greeting(name: &str) -> String {
+    format!("hello, {}", name)
 }

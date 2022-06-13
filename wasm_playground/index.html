@@ -5,32 +5,50 @@
         <script>
             async function test() {
 
-                let memory = new WebAssembly.Memory({initial:10, maximum:100, shared: true});
-
-                // instantiate the wasm binary to be imported
-                let externalWasmModule = await WebAssembly.instantiateStreaming(
-                    fetch('./target/wasm32-unknown-unknown/debug/wasm_import_lib.wasm'),
-                    { js: { mem: memory }},
+                let sharedMemory = new WebAssembly.Memory({initial:10, maximum:100, shared: true});
+           
+                let resp = await fetch('./external_wasm.wasm');
+                let buffer = await resp.arrayBuffer();
+                let externalWasmModule = await WebAssembly.instantiate(
+                    buffer,
+                    { 
+                        js: { mem: sharedMemory }
+                    },
                 );
                 console.log("external wasm module:", externalWasmModule);
 
-                var importObject = { imports: {
-                        add_five: externalWasmModule.instance.exports.add_five,
-                        create: externalWasmModule.instance.exports.create,
-                        inc: externalWasmModule.instance.exports.inc,
-                        create_return_count: externalWasmModule.instance.exports.create_return_count,
+                var importObject = { 
+                    imports: {
+                        add: (a, b) => {
+                            console.log('received args for add(): ', a, b);
+                            return externalWasmModule.instance.exports.add;
+                        },
+                        concat_string: a => {
+                            console.log('received arg for concat string: ', a);
+                            return externalWasmModule.instance.exports.concat_string;
+                        },
+                        return_string: externalWasmModule.instance.exports.return_string,
                     },
-                    js: { mem: memory },
+                    js: { 
+                        mem: sharedMemory
+                    },
                 };
 
                 WebAssembly.instantiateStreaming(
-                    fetch('./target/wasm32-unknown-unknown/debug/wasm_playground.wasm'),
+                    fetch('./pkg/wasm_playground_bg.wasm'),
                     importObject
                 ).then(wasm_binary => {
                     console.log("instantiated binary: ", wasm_binary);
-                    console.log(wasm_binary.instance.exports.do_something(37, "bars"));
-                    console.log(wasm_binary.instance.exports.do_something_count(37));
-                 
+                    console.log("memory: ", sharedMemory);
+
+                    console.log(
+                        "ARE MEMORIES EQUAL? ", 
+                        externalWasmModule.instance.exports.memory.buffer == wasm_binary.instance.exports.memory.buffer
+                    );
+                    console.log(wasm_binary.instance.exports.imported_add(37, 2));
+                    console.log(wasm_binary.instance.exports.imported_return_string());
+                    console.log(wasm_binary.instance.exports.imported_concat_string("hi"));
+                    console.log(wasm_binary.instance.exports.return_greeting("hi"));
                 });
             }
 
