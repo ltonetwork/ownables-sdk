@@ -6,11 +6,11 @@ pub fn add(a: u32, b: u32) -> u32 {
 }
 
 #[wasm_bindgen]
-pub fn return_string() -> String {
-    "lto".into()
+pub fn return_string() -> &str {
+    &"lto"
 }
 
 #[wasm_bindgen]
-pub fn concat_string(name: &str) -> String {
+pub fn concat_string(name: String) -> String {
     format!("hello {:?}", name).into()
 }
