@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use ownable_demo::msg::{ExecuteMsg, CountResponse, InstantiateMsg, QueryMsg};
+use ownable_demo::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 use ownable_demo::state::State;
 
 fn main() {

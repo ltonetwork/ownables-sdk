@@ -1,59 +1,53 @@
 [package]
 name = "ownable-demo"
 version = "0.1.0"
-authors = ["maurits bos"]
+authors = ["bekauz <bekauz@protonmail.com>"]
 edition = "2018"
+
+exclude = [
+  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+  "contract.wasm",
+  "hash.txt",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
 [features]
-default = ["console_error_panic_hook"]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[package.metadata.scripts]
+optimize = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.6
+"""
 
 [dependencies]
-log = "0.4"
-wasm-bindgen = { version = "0.2.63", features = ["serde-serialize"] }
-wasm-bindgen-test = "*"
-wasm-bindgen-futures = "0.4.30"
-schemars = "0.8"
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-cosmwasm-std = { version = "1.0.0-beta" }
-cw-storage-plus = "*"
-js-sys = "0.3.56"
-serde_json = "1.0.59"
-serde-wasm-bindgen = "0.4.2"
-thiserror = "1.0.30"
-# web-sys = "0.3.56"
-# The `console_error_panic_hook` crate provides better debugging of panics by
-# logging them with `console.error`. This is great for development, but requires
-# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
-# code size when deploying.
-console_error_panic_hook = { version = "0.1.6", optional = true }
-
-# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
-# compared to the default allocator's ~10K. It is slower than the default
-# allocator, however.
-#
-# Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
-wee_alloc = { version = "0.4.5", optional = true }
-# wraps websys indexed db api
-indexed_db_futures = "0.2.3"
-futures = "0.3.21"
-
-[dependencies.web-sys]
-version = "0.3"
-features = [
-    "Storage", "Window"
-]
+cosmwasm-std = "1.0.0"
+cosmwasm-storage = "1.0.0"
+cw-storage-plus = "0.13.2"
+cw2 = "0.13.2"
+schemars = "0.8.8"
+serde = { version = "1.0.137", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.31" }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.13"
-cosmwasm-schema = { version = "1.0.0-beta" }
-
-
-[profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
-
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = false
+cosmwasm-schema = "1.0.0"
+cw-multi-test = "0.13.2"
