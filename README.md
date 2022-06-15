@@ -1,110 +1,106 @@
-# smart-contract-experiments
+# CosmWasm Starter Pack
 
-Experiments for WASM based contracts on the private chain
-The wasm-integrated web application is based on the wasm-game-of-life tutorial, which can be found (here)[https://rustwasm.github.io/book/game-of-life/introduction.html]
+This is a template to build smart contracts in Rust to run inside a
+[Cosmos SDK](https://github.com/cosmos/cosmos-sdk) module on all chains that enable it.
+To understand the framework better, please read the overview in the
+[cosmwasm repo](https://github.com/CosmWasm/cosmwasm/blob/master/README.md),
+and dig into the [cosmwasm docs](https://www.cosmwasm.com).
+This assumes you understand the theory and just want to get coding.
 
-### wasmpack 
-It creates a js library that reads .wasm files based on the rust code written in rust. This is a workaround for now to easily work with the wasm in a UI, but this will need a generic import method/layer for LTO based contracts/ownables.
+## Creating a new repo from template
 
-### web app folder
-This repo includes a www folder with the current test app. im using the rust in src/ to generate the wasm, which i will then call in the www/index.js file.
+Assuming you have a recent version of rust and cargo (v1.58.1+) installed
+(via [rustup](https://rustup.rs/)),
+then the following should get you a new repo to start a contract:
 
-To get the example website running do this in the root dir
-`wasm-pack build`
+Install [cargo-generate](https://github.com/ashleygwilliams/cargo-generate) and cargo-run-script.
+Unless you did that before, run this line now:
 
-then `cd` to the www dir and run:
-`npm start`*
-
-### prerequisites for running locally:
-- npm installed
-- [Rust installed](https://doc.rust-lang.org/cargo/getting-started/installation.html)
-- [wasm-pack installed](https://rustwasm.github.io/wasm-pack/installer/) mac m1 requires installing from source: `cargo install wasm-pack`
-
-### Mac M1 workarounds *
-If `npm start` doesnt work try setting this first"
-```export NODE_OPTIONS=--openssl-legacy-provider```
-
-
-### applying eddits
-If you want to make changes to the current wasm this is the way to go:
-1. edit the `src/lib.rs` code 
-2. run `wasm-pack build` from within the repo root folder
-3. run `npm start` if not yet running
-
-
-## cosmwasm getting started
-For some hands on experience with cosmwasm check their (getting started)[https://docs.cosmwasm.com/docs/1.0/getting-started/intro]
-having example contracts close by when working on cosmwasm smartcontracts is always useful. See the (examples)[https://github.com/InterWasm/cw-contracts]
-
-
-
-
-
-### Readme from the wasm example wasm-game-of-life
-<div align="center">
-
-  <h1><code>create-wasm-app</code></h1>
-
-  <strong>An <code>npm init</code> template for kick starting a project that uses NPM packages containing Rust-generated WebAssembly and bundles them with Webpack.</strong>
-
-  <p>
-    <a href="https://travis-ci.org/rustwasm/create-wasm-app"><img src="https://img.shields.io/travis/rustwasm/create-wasm-app.svg?style=flat-square" alt="Build Status" /></a>
-  </p>
-
-  <h3>
-    <a href="#usage">Usage</a>
-    <span> | </span>
-    <a href="https://discordapp.com/channels/442252698964721669/443151097398296587">Chat</a>
-  </h3>
-
-  <sub>Built with 🦀🕸 by <a href="https://rustwasm.github.io/">The Rust and WebAssembly Working Group</a></sub>
-</div>
-
-## About
-
-This template is designed for depending on NPM packages that contain
-Rust-generated WebAssembly and using them to create a Website.
-
-* Want to create an NPM package with Rust and WebAssembly? [Check out
-  `wasm-pack-template`.](https://github.com/rustwasm/wasm-pack-template)
-* Want to make a monorepo-style Website without publishing to NPM? Check out
-  [`rust-webpack-template`](https://github.com/rustwasm/rust-webpack-template)
-  and/or
-  [`rust-parcel-template`](https://github.com/rustwasm/rust-parcel-template).
-
-## 🚴 Usage
-
-```
-npm init wasm-app
+```sh
+cargo install cargo-generate --features vendored-openssl
+cargo install cargo-run-script
 ```
 
-## 🔋 Batteries Included
+Now, use it to create your new contract.
+Go to the folder in which you want to place it and run:
 
-- `.gitignore`: ignores `node_modules`
-- `LICENSE-APACHE` and `LICENSE-MIT`: most Rust projects are licensed this way, so these are included for you
-- `README.md`: the file you are reading now!
-- `index.html`: a bare bones html document that includes the webpack bundle
-- `index.js`: example js file with a comment showing how to import and use a wasm pkg
-- `package.json` and `package-lock.json`:
-  - pulls in devDependencies for using webpack:
-      - [`webpack`](https://www.npmjs.com/package/webpack)
-      - [`webpack-cli`](https://www.npmjs.com/package/webpack-cli)
-      - [`webpack-dev-server`](https://www.npmjs.com/package/webpack-dev-server)
-  - defines a `start` script to run `webpack-dev-server`
-- `webpack.config.js`: configuration file for bundling your js with webpack
 
-## License
+**Latest: 1.0.0-beta6**
 
-Licensed under either of
+```sh
+cargo generate --git https://github.com/CosmWasm/cw-template.git --name PROJECT_NAME
+````
 
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+**Older Version**
 
-at your option.
+Pass version as branch flag:
 
-### Contribution
+```sh
+cargo generate --git https://github.com/CosmWasm/cw-template.git --branch <version> --name PROJECT_NAME
+````
 
-Unless you explicitly state otherwise, any contribution intentionally
-submitted for inclusion in the work by you, as defined in the Apache-2.0
-license, shall be dual licensed as above, without any additional terms or
-conditions.
+Example:
+
+```sh
+cargo generate --git https://github.com/CosmWasm/cw-template.git --branch 0.16 --name PROJECT_NAME
+```
+
+You will now have a new folder called `PROJECT_NAME` (I hope you changed that to something else)
+containing a simple working contract and build system that you can customize.
+
+## Create a Repo
+
+After generating, you have a initialized local git repo, but no commits, and no remote.
+Go to a server (eg. github) and create a new upstream repo (called `YOUR-GIT-URL` below).
+Then run the following:
+
+```sh
+# this is needed to create a valid Cargo.lock file (see below)
+cargo check
+git branch -M main
+git add .
+git commit -m 'Initial Commit'
+git remote add origin YOUR-GIT-URL
+git push -u origin main
+```
+
+## CI Support
+
+We have template configurations for both [GitHub Actions](.github/workflows/Basic.yml)
+and [Circle CI](.circleci/config.yml) in the generated project, so you can
+get up and running with CI right away.
+
+One note is that the CI runs all `cargo` commands
+with `--locked` to ensure it uses the exact same versions as you have locally. This also means
+you must have an up-to-date `Cargo.lock` file, which is not auto-generated.
+The first time you set up the project (or after adding any dep), you should ensure the
+`Cargo.lock` file is updated, so the CI will test properly. This can be done simply by
+running `cargo check` or `cargo unit-test`.
+
+## Using your project
+
+Once you have your custom repo, you should check out [Developing](Developing.md) to explain
+more on how to run tests and develop code. Or go through the
+[online tutorial](https://docs.cosmwasm.com/) to get a better feel
+of how to develop.
+
+[Publishing](Publishing.md) contains useful information on how to publish your contract
+to the world, once you are ready to deploy it on a running blockchain. And
+[Importing](Importing.md) contains information about pulling in other contracts or crates
+that have been published.
+
+Please replace this README file with information about your specific project. You can keep
+the `Developing.md` and `Publishing.md` files as useful referenced, but please set some
+proper description in the README.
+
+## Gitpod integration
+
+[Gitpod](https://www.gitpod.io/) container-based development platform will be enabled on your project by default.
+
+Workspace contains:
+ - **rust**: for builds
+ - [wasmd](https://github.com/CosmWasm/wasmd): for local node setup and client
+ - **jq**: shell JSON manipulation tool
+
+Follow [Gitpod Getting Started](https://www.gitpod.io/docs/getting-started) and launch your workspace.
+

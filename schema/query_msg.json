@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
-  "oneOf": [
+  "anyOf": [
     {
       "type": "object",
       "required": [
@@ -9,10 +9,7 @@
       ],
       "properties": {
         "get_count": {
-          "type": "array",
-          "items": [],
-          "maxItems": 0,
-          "minItems": 0
+          "type": "object"
         }
       },
       "additionalProperties": false
