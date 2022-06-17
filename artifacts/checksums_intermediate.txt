@@ -1,0 +1,1 @@
+e0391e211e8a4a9c332f116b964fd26bcb17d891de753133f3cf96d57a88ded0  ./target/wasm32-unknown-unknown/release/ownable_demo.wasm
