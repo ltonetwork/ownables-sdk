@@ -38,7 +38,7 @@ mod tests {
         let mut app = mock_app();
         let cw_template_id = app.store_code(contract_template());
 
-        let msg = InstantiateMsg { max_capacity: 1u8 };
+        let msg = InstantiateMsg { max_capacity: 5u8 };
         let cw_template_contract_addr = app
             .instantiate_contract(
                 cw_template_id,
@@ -65,7 +65,18 @@ mod tests {
 
             let msg = ExecuteMsg::ConsumeAll {};
             let cosmos_msg = cw_template_contract.call(msg).unwrap();
-            app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
+
+            // app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
+        }
+
+        #[test]
+        fn consume_percentage() {
+            let (mut app, cw_template_contract) = proper_instantiate();
+
+            let msg = ExecuteMsg::Consume { consumption_amount: 1 };
+            let cosmos_msg = cw_template_contract.call(msg).unwrap();
+            // TODO: fix test
+            // app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
         }
     }
 }
