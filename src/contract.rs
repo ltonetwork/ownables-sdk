@@ -21,7 +21,7 @@ pub fn instantiate(
     let state = State {
         owner: info.sender.clone(),
         max_capacity: msg.max_capacity,
-        current_capacity: msg.max_capacity,
+        current_amount: msg.max_capacity,
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     STATE.save(deps.storage, &state)?;
@@ -40,14 +40,20 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ConsumeAll {} => try_consume_all(deps),
-        ExecuteMsg::Consume { percentage } => try_consume(deps, info, percentage),
+        ExecuteMsg::ConsumeAll {} => try_consume_all(info, deps),
+        ExecuteMsg::Consume { consumption_amount } => try_consume(deps, info, consumption_amount),
     }
 }
 
-pub fn try_consume_all(deps: DepsMut) -> Result<Response, ContractError> {
+pub fn try_consume_all(
+    info: MessageInfo,
+    deps: DepsMut
+) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        state.current_capacity = 0;
+        if info.sender != state.owner {
+            return Err(ContractError::Unauthorized {});
+        }
+        state.current_amount = 0;
         Ok(state)
     })?;
 
@@ -57,14 +63,14 @@ pub fn try_consume_all(deps: DepsMut) -> Result<Response, ContractError> {
 pub fn try_consume(
     deps: DepsMut,
     info: MessageInfo,
-    percentage: u8,
+    consumption_amount: u8,
 ) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
             return Err(ContractError::Unauthorized {});
         }
         // TODO: add errors for consumption of too much
-        state.current_capacity = state.current_capacity * (100 - percentage);
+        state.current_amount = state.current_amount - consumption_amount;
         Ok(state)
     })?;
     Ok(Response::new().add_attribute("method", "try_consume"))
@@ -80,78 +86,80 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn query_potion_state(deps: Deps) -> StdResult<CurrentStateResponse> {
     let state = STATE.load(deps.storage)?;
     Ok(CurrentStateResponse {
-        fraction_remaining: state.current_capacity,
+        current_amount: state.current_amount,
         max_capacity: state.max_capacity,
     })
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
-//     use cosmwasm_std::{coins, from_binary};
-//
-//     #[test]
-//     fn proper_initialization() {
-//         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
-//
-//         let msg = InstantiateMsg { count: 17 };
-//         let info = mock_info("creator", &coins(1000, "earth"));
-//
-//         // we can just call .unwrap() to assert this was a success
-//         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//         assert_eq!(0, res.messages.len());
-//
-//         // it worked, let's query the state
-//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-//         let value: CountResponse = from_binary(&res).unwrap();
-//         assert_eq!(17, value.count);
-//     }
-//
-//     #[test]
-//     fn increment() {
-//         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
-//
-//         let msg = InstantiateMsg { count: 17 };
-//         let info = mock_info("creator", &coins(2, "token"));
-//         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//
-//         // beneficiary can release it
-//         let info = mock_info("anyone", &coins(2, "token"));
-//         let msg = ExecuteMsg::Increment {};
-//         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-//
-//         // should increase counter by 1
-//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-//         let value: CountResponse = from_binary(&res).unwrap();
-//         assert_eq!(18, value.count);
-//     }
-//
-//     #[test]
-//     fn reset() {
-//         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
-//
-//         let msg = InstantiateMsg { count: 17 };
-//         let info = mock_info("creator", &coins(2, "token"));
-//         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//
-//         // beneficiary can release it
-//         let unauth_info = mock_info("anyone", &coins(2, "token"));
-//         let msg = ExecuteMsg::Reset { count: 5 };
-//         let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-//         match res {
-//             Err(ContractError::Unauthorized {}) => {}
-//             _ => panic!("Must return unauthorized error"),
-//         }
-//
-//         // only the original creator can reset the counter
-//         let auth_info = mock_info("creator", &coins(2, "token"));
-//         let msg = ExecuteMsg::Reset { count: 5 };
-//         let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
-//
-//         // should now be 5
-//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-//         let value: CountResponse = from_binary(&res).unwrap();
-//         assert_eq!(5, value.count);
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
+    use cosmwasm_std::{coins, from_binary};
+
+    #[test]
+    fn proper_initialization() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+        let msg = InstantiateMsg { max_capacity: 17 };
+        let info = mock_info("creator", &coins(1000, "earth"));
+
+        // we can just call .unwrap() to assert this was a success
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // it worked, let's query the state
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentState {}).unwrap();
+        let value: CurrentStateResponse = from_binary(&res).unwrap();
+        assert_eq!(17, value.max_capacity);
+    }
+
+    #[test]
+    fn consume_some() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+        let msg = InstantiateMsg { max_capacity: 100 };
+        let info = mock_info("creator", &coins(2, "token"));
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // TODO: unauthorized consumption test
+
+        // creator can consume it
+        let info = mock_info("creator", &coins(2, "token"));
+        let msg = ExecuteMsg::Consume { consumption_amount: 10 };
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // should decrease capacity by 10
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentState {}).unwrap();
+        let value: CurrentStateResponse = from_binary(&res).unwrap();
+        assert_eq!(90, value.current_amount);
+    }
+
+    #[test]
+    fn consume_all() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+        let msg = InstantiateMsg { max_capacity: 100 };
+        let info = mock_info("creator", &coins(2, "token"));
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // beneficiary can release it
+        let unauth_info = mock_info("anyone", &coins(2, "token"));
+        let msg = ExecuteMsg::ConsumeAll {};
+        let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+        match res {
+            Err(ContractError::Unauthorized {}) => {}
+            _ => panic!("Must return unauthorized error"),
+        }
+
+        // only the original creator can reset the counter
+        let auth_info = mock_info("creator", &coins(2, "token"));
+        let msg = ExecuteMsg::ConsumeAll {};
+        let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
+
+        // should now be 0
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentState {}).unwrap();
+        let value: CurrentStateResponse = from_binary(&res).unwrap();
+        assert_eq!(0, value.current_amount);
+    }
+}

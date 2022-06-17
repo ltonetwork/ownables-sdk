@@ -27,20 +27,20 @@ impl CwTemplateContract {
         .into())
     }
 
-    // Get Count
-    // pub fn count<Q, T, CQ>(&self, querier: &Q) -> StdResult<CountResponse>
-    // where
-    //     Q: Querier,
-    //     T: Into<String>,
-    //     CQ: CustomQuery,
-    // {
-    //     let msg = QueryMsg::GetCount {};
-    //     let query = WasmQuery::Smart {
-    //         contract_addr: self.addr().into(),
-    //         msg: to_binary(&msg)?,
-    //     }
-    //     .into();
-    //     let res: CountResponse = QuerierWrapper::<CQ>::new(querier).query(&query)?;
-    //     Ok(res)
-    // }
+    // Get current state
+    pub fn query_state<Q, T, CQ>(&self, querier: &Q) -> StdResult<CurrentStateResponse>
+    where
+        Q: Querier,
+        T: Into<String>,
+        CQ: CustomQuery,
+    {
+        let msg = QueryMsg::GetCurrentState {};
+        let query = WasmQuery::Smart {
+            contract_addr: self.addr().into(),
+            msg: to_binary(&msg)?,
+        }
+        .into();
+        let res: CurrentStateResponse = QuerierWrapper::<CQ>::new(querier).query(&query)?;
+        Ok(res)
+    }
 }

@@ -12,7 +12,7 @@ pub enum ExecuteMsg {
     // consumes the entire remaining potion
     ConsumeAll {},
     // consumes percentage of remaining potion
-    Consume { percentage: u8 },
+    Consume { consumption_amount: u8 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -25,6 +25,6 @@ pub enum QueryMsg {
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct CurrentStateResponse {
-    pub fraction_remaining: u8,
+    pub current_amount: u8,
     pub max_capacity: u8,
 }
