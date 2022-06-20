@@ -42,22 +42,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ConsumeAll {} => try_consume_all(info, deps),
         ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
     }
-}
-
-pub fn try_consume_all(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
-    STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if info.sender != state.owner {
-            return Err(ContractError::Unauthorized {});
-        }
-        state.current_amount = 0;
-        Ok(state)
-    })?;
-
-    Ok(Response::new().add_attribute("method", "try_consume_all"))
 }
 
 pub fn try_consume(
@@ -175,33 +162,6 @@ mod tests {
             }
             _ => panic!("Must return custom error"),
         }
-    }
-
-    #[test]
-    fn consume_all() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
-
-        let msg = InstantiateMsg { max_capacity: 100 };
-        let info = mock_info("creator", &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // should only allow owner to consume
-        let info = mock_info("random", &coins(2, "token"));
-        let msg = ExecuteMsg::ConsumeAll {};
-        let res = execute(deps.as_mut(), mock_env(), info, msg);
-        match res {
-            Err(ContractError::Unauthorized {}) => {}
-            _ => panic!("Must return unauthorized error"),
-        }
-
-        let info = mock_info("creator", &coins(2, "token"));
-        let msg = ExecuteMsg::ConsumeAll {};
-        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // should now be 0
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentAmount {}).unwrap();
-        let value: PotionStateResponse = from_binary(&res).unwrap();
-        assert_eq!(0, value.current_amount);
     }
 
     #[test]

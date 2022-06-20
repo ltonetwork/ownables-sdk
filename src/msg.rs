@@ -10,8 +10,6 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    // consumes the entire remaining potion
-    ConsumeAll {},
     // consumes percentage of remaining potion
     Consume { amount: u8 },
     // transfers ownership
