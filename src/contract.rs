@@ -1,10 +1,10 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Addr};
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{PotionStateResponse, ExecuteMsg, InstantiateMsg, QueryMsg, OwnershipResponse};
+use crate::msg::{ExecuteMsg, InstantiateMsg, OwnershipResponse, PotionStateResponse, QueryMsg};
 use crate::state::{State, STATE};
 
 // version info for migration info
@@ -30,7 +30,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender.clone())
-        .add_attribute("issuer", info.sender.clone())
+        .add_attribute("issuer", info.sender)
         .add_attribute("capacity", msg.max_capacity.to_string()))
 }
 
@@ -48,10 +48,7 @@ pub fn execute(
     }
 }
 
-pub fn try_consume_all(
-    info: MessageInfo,
-    deps: DepsMut
-) -> Result<Response, ContractError> {
+pub fn try_consume_all(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
             return Err(ContractError::Unauthorized {});
@@ -74,20 +71,16 @@ pub fn try_consume(
         }
         if state.current_amount < consumption_amount {
             return Err(ContractError::CustomError {
-                val: "attempt to consume more than possible" .to_string()
+                val: "attempt to consume more than possible".to_string(),
             });
         }
-        state.current_amount = state.current_amount - consumption_amount;
+        state.current_amount -= consumption_amount;
         Ok(state)
     })?;
     Ok(Response::new().add_attribute("method", "try_consume"))
 }
 
-pub fn try_transfer(
-    info: MessageInfo,
-    deps: DepsMut,
-    to: Addr,
-) -> Result<Response, ContractError> {
+pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
             return Err(ContractError::Unauthorized {});
@@ -177,7 +170,9 @@ mod tests {
         let msg = ExecuteMsg::Consume { amount: 95 };
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {
-            Err(ContractError::CustomError {val}) => assert_eq!(val, "attempt to consume more than possible"),
+            Err(ContractError::CustomError { val }) => {
+                assert_eq!(val, "attempt to consume more than possible")
+            }
             _ => panic!("Must return custom error"),
         }
     }
@@ -219,7 +214,9 @@ mod tests {
 
         // should not allow random user to transfer what she does not own
         let info = mock_info("random", &coins(2, "token"));
-        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("random") };
+        let msg = ExecuteMsg::Transfer {
+            to: Addr::unchecked("random"),
+        };
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
         match res {
             Err(ContractError::Unauthorized {}) => {}
@@ -227,7 +224,9 @@ mod tests {
         }
 
         let info = mock_info("issuer", &coins(2, "token"));
-        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("new_owner") };
+        let msg = ExecuteMsg::Transfer {
+            to: Addr::unchecked("new_owner"),
+        };
         let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // verify new owner
