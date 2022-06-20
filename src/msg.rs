@@ -1,3 +1,4 @@
+use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -13,6 +14,8 @@ pub enum ExecuteMsg {
     ConsumeAll {},
     // consumes percentage of remaining potion
     Consume { amount: u8 },
+    // transfers ownership
+    Transfer { to: Addr },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -20,11 +23,18 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     // returns the current remaining amount of potion as a json-encoded number
     GetCurrentAmount {},
+    GetOwner {},
 }
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct CurrentStateResponse {
+pub struct PotionStateResponse {
     pub current_amount: u8,
     pub max_capacity: u8,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct OwnershipResponse {
+    pub owner: Addr,
+    pub issuer: Addr,
 }
