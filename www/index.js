@@ -6,28 +6,9 @@ import { EventChain } from  "@ltonetwork/lto/lib/events"
 // import * as contract from "addr-contract";
 // contract.initialize()
 
-var importObject = {}
+// var importObject = {}
 
-
-console.log("")
-WebAssembly.instantiateStreaming(fetch('ownable_demo.wasm'), importObject)
-.then(results => {
-    results.module
-    console.log(results.instance.exports.getFunctionName())
-    const event_msg = `{ "increment": { "by": ${count} }}`
-        
-        // pass event to wasm contract
-    console.log(`[e 1/4] execute contract`);
-    // contract2.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
-    
-    // results.instance.exports.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
-  // Do something with the results!
-  
-}
-
-).catch(e => {
-    console.log(e)
-});
+// c\\\
 
 
 // wasm.greet();
@@ -35,6 +16,26 @@ WebAssembly.instantiateStreaming(fetch('ownable_demo.wasm'), importObject)
 //     console.log("new item!");
 //     contract.instantiate_contract()
 // })
+import init, * as contract from "ownable-demo"
+import importWasm from "../target/wasm32-unknown-unknown/debug/ownable_demo.wasm"
+
+const wasmPromise = init(wasm)
+
+
+// seedphrase
+// cherry glow move century meadow muffin grocery defy stomach blouse parade reject sphere mouse toddler
+
+let account = new AccountFactoryED25519('T').createFromPrivateKey("4YQrHv8kNXc81sdCqPM4tPaWcfi8dMusKxdMYBcx8hkEKZ7GfreDgT74v6zGeWEPFtNWpeoQFZrJEzM3fzGdLeCk");
+
+
+// only use if you already have a eventchain
+const chain = new EventChain('JEKNVnkbo3jqSHT8tfiAKK4tQTFK7jbx8t18wEEnygya');
+
+
+instantiate_contract(chain, "ownable1", 1, contract)
+
+AddAndExecuteEvent(chain, )
+
 
 
 $('#test-button').on('click', function() {
@@ -105,26 +106,6 @@ function RecreateStateFromChain(_chain, _contract) {
     */
 }
 
-
-
-// seedphrase
-// cherry glow move century meadow muffin grocery defy stomach blouse parade reject sphere mouse toddler
-let account = new AccountFactoryED25519('T').createFromPrivateKey("4YQrHv8kNXc81sdCqPM4tPaWcfi8dMusKxdMYBcx8hkEKZ7GfreDgT74v6zGeWEPFtNWpeoQFZrJEzM3fzGdLeCk");
-
-// creates event with specific event chain with id based on the key of account
-// only use if you already have a eventchain
-const chain = new EventChain('JEKNVnkbo3jqSHT8tfiAKK4tQTFK7jbx8t18wEEnygya');
-
-function instantiate_contract(_chain, ownable_id, count=0) {
-    contract.instantiate_contract(count,ownable_id, "test_contract_1")
-    .then( () => {
-        storeOwnableId(ownable_id)
-        return
-    })
-    .catch( error => {
-        window.alert(`error when instantiating contract ${error}`)
-    })
-}
 
 function create_event(body, account) {
     return new Event(body).signWith(account)
