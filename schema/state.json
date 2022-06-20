@@ -3,15 +3,19 @@
   "title": "State",
   "type": "object",
   "required": [
-    "current_capacity",
+    "current_amount",
+    "issuer",
     "max_capacity",
     "owner"
   ],
   "properties": {
-    "current_capacity": {
+    "current_amount": {
       "type": "integer",
       "format": "uint8",
       "minimum": 0.0
+    },
+    "issuer": {
+      "$ref": "#/definitions/Addr"
     },
     "max_capacity": {
       "type": "integer",

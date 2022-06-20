@@ -5,10 +5,22 @@
     {
       "type": "object",
       "required": [
-        "get_current_state"
+        "get_current_amount"
       ],
       "properties": {
-        "get_current_state": {
+        "get_current_amount": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_owner"
+      ],
+      "properties": {
+        "get_owner": {
           "type": "object"
         }
       },

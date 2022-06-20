@@ -1,13 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CurrentStateResponse",
+  "title": "PotionStateResponse",
   "type": "object",
   "required": [
-    "fraction_remaining",
+    "current_amount",
     "max_capacity"
   ],
   "properties": {
-    "fraction_remaining": {
+    "current_amount": {
       "type": "integer",
       "format": "uint8",
       "minimum": 0.0
