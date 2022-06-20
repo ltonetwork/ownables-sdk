@@ -1,10 +1,10 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Addr};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{CurrentStateResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{PotionStateResponse, ExecuteMsg, InstantiateMsg, QueryMsg, OwnershipResponse};
 use crate::state::{State, STATE};
 
 // version info for migration info
@@ -20,6 +20,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let state = State {
         owner: info.sender.clone(),
+        issuer: info.sender.clone(),
         max_capacity: msg.max_capacity,
         current_amount: msg.max_capacity,
     };
@@ -28,7 +29,8 @@ pub fn instantiate(
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
-        .add_attribute("owner", info.sender)
+        .add_attribute("owner", info.sender.clone())
+        .add_attribute("issuer", info.sender.clone())
         .add_attribute("capacity", msg.max_capacity.to_string()))
 }
 
@@ -42,6 +44,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::ConsumeAll {} => try_consume_all(info, deps),
         ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
+        ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
     }
 }
 
@@ -80,18 +83,42 @@ pub fn try_consume(
     Ok(Response::new().add_attribute("method", "try_consume"))
 }
 
+pub fn try_transfer(
+    info: MessageInfo,
+    deps: DepsMut,
+    to: Addr,
+) -> Result<Response, ContractError> {
+    STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
+        if info.sender != state.owner {
+            return Err(ContractError::Unauthorized {});
+        }
+        state.owner = to;
+        Ok(state)
+    })?;
+    Ok(Response::new().add_attribute("method", "try_transfer"))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetCurrentAmount {} => to_binary(&query_potion_state(deps)?),
+        QueryMsg::GetOwner {} => to_binary(&query_potion_owner(deps)?),
     }
 }
 
-fn query_potion_state(deps: Deps) -> StdResult<CurrentStateResponse> {
+fn query_potion_state(deps: Deps) -> StdResult<PotionStateResponse> {
     let state = STATE.load(deps.storage)?;
-    Ok(CurrentStateResponse {
+    Ok(PotionStateResponse {
         current_amount: state.current_amount,
         max_capacity: state.max_capacity,
+    })
+}
+
+fn query_potion_owner(deps: Deps) -> StdResult<OwnershipResponse> {
+    let state = STATE.load(deps.storage)?;
+    Ok(OwnershipResponse {
+        owner: state.owner,
+        issuer: state.issuer,
     })
 }
 
@@ -114,7 +141,7 @@ mod tests {
 
         // it worked, let's query the state
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentAmount {}).unwrap();
-        let value: CurrentStateResponse = from_binary(&res).unwrap();
+        let value: PotionStateResponse = from_binary(&res).unwrap();
         assert_eq!(17, value.max_capacity);
     }
 
@@ -142,7 +169,7 @@ mod tests {
 
         // should decrease capacity by 10
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentAmount {}).unwrap();
-        let value: CurrentStateResponse = from_binary(&res).unwrap();
+        let value: PotionStateResponse = from_binary(&res).unwrap();
         assert_eq!(90, value.current_amount);
 
         // should fail to consume more than available
@@ -178,7 +205,34 @@ mod tests {
 
         // should now be 0
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentAmount {}).unwrap();
-        let value: CurrentStateResponse = from_binary(&res).unwrap();
+        let value: PotionStateResponse = from_binary(&res).unwrap();
         assert_eq!(0, value.current_amount);
+    }
+
+    #[test]
+    fn transfer() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+        let msg = InstantiateMsg { max_capacity: 100 };
+        let info = mock_info("issuer", &coins(2, "token"));
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // should not allow random user to transfer what she does not own
+        let info = mock_info("random", &coins(2, "token"));
+        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("random") };
+        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        match res {
+            Err(ContractError::Unauthorized {}) => {}
+            _ => panic!("Must return unauthorized error"),
+        }
+
+        let info = mock_info("issuer", &coins(2, "token"));
+        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("new_owner") };
+        let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        // verify new owner
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetOwner {}).unwrap();
+        let value: OwnershipResponse = from_binary(&res).unwrap();
+        assert_eq!(value.owner, Addr::unchecked("new_owner"));
     }
 }

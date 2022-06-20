@@ -5,7 +5,7 @@ use cosmwasm_std::{
     to_binary, Addr, CosmosMsg, CustomQuery, Querier, QuerierWrapper, StdResult, WasmMsg, WasmQuery,
 };
 
-use crate::msg::{CurrentStateResponse, ExecuteMsg, QueryMsg};
+use crate::msg::{PotionStateResponse, ExecuteMsg, QueryMsg};
 
 /// CwTemplateContract is a wrapper around Addr that provides a lot of helpers
 /// for working with this.
@@ -28,7 +28,7 @@ impl CwTemplateContract {
     }
 
     // Get current state
-    pub fn query_state<Q, T, CQ>(&self, querier: &Q) -> StdResult<CurrentStateResponse>
+    pub fn query_state<Q, T, CQ>(&self, querier: &Q) -> StdResult<PotionStateResponse>
     where
         Q: Querier,
         T: Into<String>,
@@ -40,7 +40,7 @@ impl CwTemplateContract {
             msg: to_binary(&msg)?,
         }
         .into();
-        let res: CurrentStateResponse = QuerierWrapper::<CQ>::new(querier).query(&query)?;
+        let res: PotionStateResponse = QuerierWrapper::<CQ>::new(querier).query(&query)?;
         Ok(res)
     }
 }
