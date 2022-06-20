@@ -42,7 +42,7 @@ mod tests {
         let cw_template_contract_addr = app
             .instantiate_contract(
                 cw_template_id,
-                Addr::unchecked(ADMIN),
+                Addr::unchecked(USER),
                 &msg,
                 &[],
                 "test",
@@ -66,17 +66,17 @@ mod tests {
             let msg = ExecuteMsg::ConsumeAll {};
             let cosmos_msg = cw_template_contract.call(msg).unwrap();
 
-            // app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
+            app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
         }
 
         #[test]
         fn consume_percentage() {
             let (mut app, cw_template_contract) = proper_instantiate();
 
-            let msg = ExecuteMsg::Consume { consumption_amount: 1 };
+            let msg = ExecuteMsg::Consume { amount: 1 };
             let cosmos_msg = cw_template_contract.call(msg).unwrap();
-            // TODO: fix test
-            // app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
+
+            app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
         }
     }
 }

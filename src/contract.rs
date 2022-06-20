@@ -41,7 +41,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::ConsumeAll {} => try_consume_all(info, deps),
-        ExecuteMsg::Consume { consumption_amount } => try_consume(deps, info, consumption_amount),
+        ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
     }
 }
 
@@ -61,15 +61,19 @@ pub fn try_consume_all(
 }
 
 pub fn try_consume(
-    deps: DepsMut,
     info: MessageInfo,
+    deps: DepsMut,
     consumption_amount: u8,
 ) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
             return Err(ContractError::Unauthorized {});
         }
-        // TODO: add errors for consumption of too much
+        if state.current_amount < consumption_amount {
+            return Err(ContractError::CustomError {
+                val: "attempt to consume more than possible" .to_string()
+            });
+        }
         state.current_amount = state.current_amount - consumption_amount;
         Ok(state)
     })?;
@@ -79,7 +83,7 @@ pub fn try_consume(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCurrentState {} => to_binary(&query_potion_state(deps)?),
+        QueryMsg::GetCurrentAmount {} => to_binary(&query_potion_state(deps)?),
     }
 }
 
@@ -109,7 +113,7 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         // it worked, let's query the state
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentState {}).unwrap();
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentAmount {}).unwrap();
         let value: CurrentStateResponse = from_binary(&res).unwrap();
         assert_eq!(17, value.max_capacity);
     }
@@ -122,17 +126,33 @@ mod tests {
         let info = mock_info("creator", &coins(2, "token"));
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        // TODO: unauthorized consumption test
+        // should only allow owner to consume
+        let info = mock_info("random", &coins(2, "token"));
+        let msg = ExecuteMsg::Consume { amount: 10 };
+        let res = execute(deps.as_mut(), mock_env(), info, msg);
+        match res {
+            Err(ContractError::Unauthorized {}) => {}
+            _ => panic!("Must return unauthorized error"),
+        }
 
         // creator can consume it
         let info = mock_info("creator", &coins(2, "token"));
-        let msg = ExecuteMsg::Consume { consumption_amount: 10 };
+        let msg = ExecuteMsg::Consume { amount: 10 };
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // should decrease capacity by 10
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentState {}).unwrap();
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentAmount {}).unwrap();
         let value: CurrentStateResponse = from_binary(&res).unwrap();
         assert_eq!(90, value.current_amount);
+
+        // should fail to consume more than available
+        let info = mock_info("creator", &coins(2, "token"));
+        let msg = ExecuteMsg::Consume { amount: 95 };
+        let res = execute(deps.as_mut(), mock_env(), info, msg);
+        match res {
+            Err(ContractError::CustomError {val}) => assert_eq!(val, "attempt to consume more than possible"),
+            _ => panic!("Must return custom error"),
+        }
     }
 
     #[test]
@@ -143,22 +163,21 @@ mod tests {
         let info = mock_info("creator", &coins(2, "token"));
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        // beneficiary can release it
-        let unauth_info = mock_info("anyone", &coins(2, "token"));
+        // should only allow owner to consume
+        let info = mock_info("random", &coins(2, "token"));
         let msg = ExecuteMsg::ConsumeAll {};
-        let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+        let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {
             Err(ContractError::Unauthorized {}) => {}
             _ => panic!("Must return unauthorized error"),
         }
 
-        // only the original creator can reset the counter
-        let auth_info = mock_info("creator", &coins(2, "token"));
+        let info = mock_info("creator", &coins(2, "token"));
         let msg = ExecuteMsg::ConsumeAll {};
-        let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // should now be 0
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentState {}).unwrap();
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCurrentAmount {}).unwrap();
         let value: CurrentStateResponse = from_binary(&res).unwrap();
         assert_eq!(0, value.current_amount);
     }
