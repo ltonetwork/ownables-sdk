@@ -47,7 +47,7 @@ pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<()
 
     let mut deps = load_lto_deps(&ownable_id).await;
     // add the storage to the deps
-    
+
     // let message: ExecuteMsg = serde_json::from_js ));
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let result = contract::execute(deps.as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()} , message);
@@ -97,16 +97,22 @@ pub async fn instantiate_contract(count: JsValue, ownable_id: JsValue, contract_
     let msg = InstantiateMsg {
         count:count.into_serde().unwrap(),
         ownable_id: ownable_id.into_serde().unwrap(),
-        contract_id: contract_id.into_serde().unwrap() 
+        contract_id: contract_id.into_serde().unwrap()
     };
 
     let mut deps = create_lto_deps(&msg.ownable_id).await;
 
-    let res = instantiate(deps.as_mut(), create_lto_env(), MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()}, msg);
+    let res = instantiate(
+        deps.as_mut(),
+        create_lto_env(),
+        MessageInfo {sender: Addr::unchecked(""),funds: Vec::new()},
+        msg
+    );
+
     match res {
         Ok(response) => {
             let resp_json = to_string(&response);
-            log(&format!("[contract] succesfully instantiated! response {:}", &resp_json.unwrap()));
+            log(&format!("[contract] successfully instantiated! response {:}", &resp_json.unwrap()));
             deps.storage.sync_to_db().await;
             return Ok(());
         },
