@@ -1,41 +1,12 @@
-// import * as contract from "ownable-demo";
-// import { AccountFactoryED25519 } from "@ltonetwork/lto/raw/accounts"
-import { AccountFactoryED25519 } from "@ltonetwork/lto/lib/accounts"
-import { Event } from  "@ltonetwork/lto/lib/events"
-import { EventChain } from  "@ltonetwork/lto/lib/events"
-// import * as contract from "addr-contract";
-// contract.initialize()
 
-var importObject = {}
-
-
-console.log("")
-WebAssembly.instantiateStreaming(fetch('ownable_demo.wasm'), importObject)
-.then(results => {
-    results.module
-    console.log(results.instance.exports.getFunctionName())
-    const event_msg = `{ "increment": { "by": ${count} }}`
-        
-        // pass event to wasm contract
-    console.log(`[e 1/4] execute contract`);
-    // contract2.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
-    
-    // results.instance.exports.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
-  // Do something with the results!
-  
-}
-
-).catch(e => {
-    console.log(e)
-});
-
-
-// wasm.greet();
-// $('#inst-button').on('click', function() {
-//     console.log("new item!");
-//     contract.instantiate_contract()
-// })
-
+import * as contract from "ownable-demo";
+// import { AccountFactoryED25519 } from "@ltonetwork/lto/lib/accounts"
+// import { Event } from  "@ltonetwork/lto/lib/events"
+// import { EventChain } from  "@ltonetwork/lto/lib/events"
+import { AccountFactoryED25519 } from "@ltonetwork/lto/raw/accounts"
+import { Event } from  "@ltonetwork/lto/raw/events"
+import { EventChain } from  "@ltonetwork/lto/raw/events"
+import { storeOwnableId, getOwnableIds } from "./storage"
 
 $('#test-button').on('click', function() {
     var input = $('#test-input').val();
@@ -48,9 +19,9 @@ const OWNABLE_ID =  "test_ownable_1"
 /**
  * Executes event on contract and on succes adds to chain and send transaction
  * [NOT FULLY FUNCTIONAL!]
- * @param {EventChain} chain 
- * @param {LTOAccount} account 
- * @param {int} count 
+ * @param {EventChain} chain
+ * @param {LTOAccount} account
+ * @param {int} count
  */
 async function AddAndExecuteEvent(chain, account, count, _contract) {
     /* 
@@ -68,30 +39,29 @@ async function AddAndExecuteEvent(chain, account, count, _contract) {
         // create event in js (i think only the msg is required at this point)
         // const event_msg = { increment: {by: count} }
         const event_msg = `{ "increment": { "by": ${count} }}`
-        
+
         // pass event to wasm contract
         console.log(`[e 1/4] execute contract`);
         contract.execute_contract(JSON.parse(event_msg), OWNABLE_ID)
-        .catch( error => {
-            window.alert("An error occured during contract execution. State is reverted. Error: "+ error)
-            reject(error)
-        })
-        .then( () => {
-            // state should be mutated correctly now. -> create event 
-            console.log(`[e 2/4] create event`);
-            const event = create_event(JSON.stringify(event_msg), account)
-            
-            console.log(`[e 3/4] add event to event chain`)
-            chain.add(event)
-            
+            .catch( error => {
+                window.alert("An error occured during contract execution. State is reverted. Error: "+ error)
+                reject(error)
+            })
+            .then( () => {
+                // state should be mutated correctly now. -> create event
+                console.log(`[e 2/4] create event`);
+                const event = create_event(JSON.stringify(event_msg), account)
 
-            console.log(`[e 4/4] send LTO transaction`)
-            console.log(`[warning] send lto tx not implemented`)
-            // TODO: Ask arnold how to implement this for the demo
-            // - which transaction do i use
-            // - what data of the event/eventchain should i in the transaction
-            resolve()
-        })
+                console.log(`[e 3/4] add event to event chain`)
+                chain.add(event)
+
+                console.log(`[e 4/4] send LTO transaction`)
+                console.log(`[warning] send lto tx not implemented`)
+                // TODO: Ask arnold how to implement this for the demo
+                // - which transaction do i use
+                // - what data of the event/eventchain should i in the transaction
+                resolve()
+            })
     })
 }
 
@@ -113,17 +83,16 @@ let account = new AccountFactoryED25519('T').createFromPrivateKey("4YQrHv8kNXc81
 
 // creates event with specific event chain with id based on the key of account
 // only use if you already have a eventchain
-const chain = new EventChain('JEKNVnkbo3jqSHT8tfiAKK4tQTFK7jbx8t18wEEnygya');
+// const chain = new EventChain('JEKNVnkbo3jqSHT8tfiAKK4tQTFK7jbx8t18wEEnygya');
 
-function instantiate_contract(_chain, ownable_id, count=0) {
-    contract.instantiate_contract(count,ownable_id, "test_contract_1")
-    .then( () => {
-        storeOwnableId(ownable_id)
-        return
-    })
-    .catch( error => {
-        window.alert(`error when instantiating contract ${error}`)
-    })
+function instantiate_contract(_chain, ownable_id, count = 0) {
+    contract.instantiate_contract(
+        count,ownable_id, "test_contract_1"
+    ).then(
+        () => storeOwnableId(ownable_id)
+    ).catch(
+        error => window.alert(`error when instantiating contract ${error}`)
+    )
 }
 
 function create_event(body, account) {
@@ -132,7 +101,7 @@ function create_event(body, account) {
 
 // TODO: contract Increment message
 function increment_contract(chain, count = 1) {
-   // GET BODY MESSAGE FROM WASM
+    // GET BODY MESSAGE FROM WASM
     const body = JSON.stringify({ increment: { count }})
     console.log(`[e 2/3] adding event to chain: ${body}`)
 
@@ -144,7 +113,7 @@ function increment_contract(chain, count = 1) {
 
 // TODO: contract reset message
 function reset_contract(chain, count = 0) {
-   // GET BODY MESSAGE FROM WASM
+    // GET BODY MESSAGE FROM WASM
     const body = JSON.stringify({Reset: { count }})
 
     chain.add(new Event(body).signWith(account));
@@ -163,10 +132,10 @@ function compute_state(chain) {
 
 function updateState() {
     contract.query_state_contract(OWNABLE_ID)
-    .then( number => {
-        console.log(`state from query: ${number}`)
-        updateStateElement(number)
-    })
+        .then(number => {
+            console.log(`state from query: ${number}`)
+            updateStateElement(number)
+        })
 }
 
 function updateStateElement(state) {
@@ -178,16 +147,16 @@ function updateStateElement(state) {
 
 
 
-// // This uses the wasm-pack module
-// const chain = account.createEventChain();
-// instantiate_contract(chain, OWNABLE_ID)
-// updateState()
+
+const chain = account.createEventChain();
+instantiate_contract(chain, OWNABLE_ID)
+updateState()
 
 function addItemToItemListHTML(item) {
     var target = document.querySelector("#past-events .list-group");
     var template = '<li class="list-group-item">~item~</li>';
 
-    target.insertAdjacentHTML("beforeend", template.replace(/~item~/g, item));    
+    target.insertAdjacentHTML("beforeend", template.replace(/~item~/g, item));
 }
 
 
@@ -201,7 +170,7 @@ $('#addr-button-inst').on('click', function() {
 
     // AddAndExecuteEvent(chain,account, input, "")
     AddAndExecuteEvent(chain,account, input, "")
-    .then( () => {
+        .then( () => {
             addItemToItemListHTML(JSON.stringify({ increment: { count: input }}));
             updateState()
         })
@@ -211,11 +180,26 @@ $('#addr-button-inst').on('click', function() {
     // $('#event-update:result').text(result);
 })
 
-function creatGenesisEvent() {
-    
-    genEvent = new Event(genesisBody, "")
-    
-}
+
+
+
+// TODO: Initialize the eventchain in local store
+// increment_contract(chain, 1)
+// increment_contract(chain, 3)
+// increment_contract(chain, 5)
+// increment_contract(chain, 5)
+
+// // NEXT TODO: Genesis event returned from contract
+// // contract.instantiate(2)
+// compute_state(chain)
+
+// // should return JSobjact of state
+// // const state = contract.query({ get_count: {} })
+// const state = contract.query_state()
+// console.log(state)
+
+// NEXT TODO: contract inladen in functie
+// NEXT TODO: use js schemas
 
 /*
 
@@ -223,17 +207,4 @@ Make ownable object with eventchain
 contract should be in the genesis event
 with OOP 
 so al the functions, instantiate contract, execute contract, query contract are methods 
-
-wasm can be base64 encoded to string to fit body of event.
-
-
-BIG ISSUE:
-the way wasm is used right now is its compiled using wasm-pack -target=web, 
-which turns it into a node.js module with support for complete wasm-bindgen (this includes stuf like indexedDB and local storage). 
-However we want the wasm to be stored in the genesis event, and from there loaded and used, 
-Not as a module, because this is not generic. 
-
-A possible hacky solution would be to replace the wasm in the pakache and have the package as code in the webapp
-
-
 */

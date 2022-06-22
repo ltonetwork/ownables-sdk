@@ -6,15 +6,17 @@
 //   }
 
 
-function storeOwnableId(id) {
-    var ownable_ids = JSON.parse(localStorage.getItem("ownable_ids"));
-    ownable_ids.push(id)
-    localStorage.setItem("ownable_ids", JSON.stringify(ownable_ids));
+export function storeOwnableId(id) {
+    let ownableIds = JSON.parse(localStorage.getItem("ownable_ids"));
+    console.log("existing ownable ids:", ownableIds);
+    if (typeof ownableIds !== typeof Set) {
+        // if corrupt or uninitialized
+        ownableIds = new Set();
+    }
+    ownableIds.add(id);
+    localStorage.setItem("ownable_ids", JSON.stringify(ownableIds));
+}
 
-    // TODO handle ownable_id already present
-} 
-
-function getOwnableIds() {
-    var ownable_ids = JSON.parse(localStorage.getItem("ownable_ids"));
-    return ownable_ids
+export function getOwnableIds() {
+    return JSON.parse(localStorage.getItem("ownable_ids"))
 }
