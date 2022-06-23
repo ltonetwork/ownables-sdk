@@ -1,11 +1,8 @@
 
 import * as contract from "ownable-demo";
-// import { AccountFactoryED25519 } from "@ltonetwork/lto/lib/accounts"
-// import { Event } from  "@ltonetwork/lto/lib/events"
-// import { EventChain } from  "@ltonetwork/lto/lib/events"
-import { AccountFactoryED25519 } from "@ltonetwork/lto/raw/accounts"
-import { Event } from  "@ltonetwork/lto/raw/events"
-import { EventChain } from  "@ltonetwork/lto/raw/events"
+import { AccountFactoryED25519 } from "@ltonetwork/lto/lib/accounts"
+import { Event } from  "@ltonetwork/lto/lib/events"
+import { EventChain } from  "@ltonetwork/lto/lib/events"
 import { storeOwnableId, getOwnableIds } from "./storage"
 
 $('#test-button').on('click', function() {
@@ -147,8 +144,7 @@ function updateStateElement(state) {
 
 
 
-
-const chain = account.createEventChain();
+const chain = EventChain.create(account, 0);
 instantiate_contract(chain, OWNABLE_ID)
 updateState()
 
