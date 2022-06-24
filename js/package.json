@@ -1,0 +1,14 @@
+{
+  "name": "ownable-demo",
+  "collaborators": [
+    "bekauz <bekauz@protonmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "ownable_demo_bg.wasm",
+    "wasmHandler.js",
+    "moduleExports.js"
+  ],
+  "module": "moduleExports.js",
+  "sideEffects": false
+}
