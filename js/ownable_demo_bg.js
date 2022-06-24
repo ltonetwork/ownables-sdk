@@ -1,4 +1,4 @@
-import * as wasm from "../pkg/ownable_demo_bg.wasm";
+import * as wasm from "./ownable_demo_bg.wasm";
 
 let WASM_VECTOR_LEN = 0;
 
@@ -80,7 +80,17 @@ export function add(a, b) {
 }
 
 export function return_string() {
-    // TODO
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.return_string(retptr);
+        var r0 = getInt32Memory0()[retptr / 4 + 0];
+        var r1 = getInt32Memory0()[retptr / 4 + 1];
+        return getStringFromWasm0(r0, r1);
+    } catch {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_free(r0, r1);
+    }
+
 }
 
 export function concat_string(name) {
