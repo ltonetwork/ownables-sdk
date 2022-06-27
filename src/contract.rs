@@ -11,7 +11,7 @@ use crate::state::{State, STATE};
 const CONTRACT_NAME: &str = "crates.io:ownable-demo";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[cfg_attr(not(feature = "library"), entry_point)]
+// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
@@ -34,7 +34,7 @@ pub fn instantiate(
         .add_attribute("capacity", msg.max_capacity.to_string()))
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
+// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
     _env: Env,
@@ -78,8 +78,8 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
     Ok(Response::new().add_attribute("method", "try_transfer"))
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+// #[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetCurrentAmount {} => to_binary(&query_potion_state(deps)?),
         QueryMsg::GetOwner {} => to_binary(&query_potion_owner(deps)?),
