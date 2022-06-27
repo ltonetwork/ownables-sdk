@@ -74,7 +74,7 @@ function passStringToWasm0(arg, malloc, realloc) {
     return ptr;
 }
 
-// rust function exports
+// rust function (re-)exports
 export function add(a, b) {
     return wasm.add(a, b);
 }
@@ -83,7 +83,7 @@ export function return_string() {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         wasm.return_string(retptr);
-        var r0 = getInt32Memory0()[retptr / 4 + 0];
+        var r0 = getInt32Memory0()[retptr / 4];
         var r1 = getInt32Memory0()[retptr / 4 + 1];
         return getStringFromWasm0(r0, r1);
     } catch {
@@ -99,13 +99,61 @@ export function concat_string(name) {
         const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.concat_string(retptr, ptr0, len0);
-        var r0 = getInt32Memory0()[retptr / 4 + 0];
+        var r0 = getInt32Memory0()[retptr / 4];
         var r1 = getInt32Memory0()[retptr / 4 + 1];
         return getStringFromWasm0(r0, r1);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_free(r0, r1);
-    }}
+    }
+}
+
+// class definitions
+export class Message {
+
+    constructor(id, msg) {
+        const ptr0 = passStringToWasm0(msg, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.message_new(id, ptr0, len0);
+        return Message.__wrap(ret);
+    }
+
+    static __wrap(ptr) {
+        const obj = Object.create(Message.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
+
+    get id() {
+        const ret = wasm.__wbg_get_message_id(this.ptr);
+        return ret;
+    }
+
+    set id(arg) {
+        wasm.__wbg_set_message_id(this.ptr, arg);
+    }
+
+    get msg() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.message_msg(retptr, this.ptr);
+            var r0 = getInt32Memory0()[retptr / 4];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(r0, r1);
+        }
+    }
+
+    set msg(arg) {
+        const ptr0 = passStringToWasm0(arg, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.message_set_msg(this.ptr, ptr0, len0);
+    }
+
+}
 
 
 // init memory
