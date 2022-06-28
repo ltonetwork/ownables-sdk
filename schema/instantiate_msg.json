@@ -3,13 +3,21 @@
   "title": "InstantiateMsg",
   "type": "object",
   "required": [
-    "max_capacity"
+    "contract_id",
+    "max_capacity",
+    "ownable_id"
   ],
   "properties": {
+    "contract_id": {
+      "type": "string"
+    },
     "max_capacity": {
       "type": "integer",
       "format": "uint8",
       "minimum": 0.0
+    },
+    "ownable_id": {
+      "type": "string"
     }
   }
 }

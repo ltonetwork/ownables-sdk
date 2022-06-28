@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub max_capacity: u8,
+    pub ownable_id: String,
+    pub contract_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -21,7 +23,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     // returns the current remaining amount of potion as a json-encoded number
     GetCurrentAmount {},
-    GetOwner {},
+    // GetOwner {},
 }
 
 // We define a custom struct for each query response

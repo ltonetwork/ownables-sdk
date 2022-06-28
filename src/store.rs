@@ -1,18 +1,14 @@
-
-use cosmwasm_std::{Storage, MemoryStorage, Record, Order};
+use cosmwasm_std::{MemoryStorage, Order, Record, Storage};
 use indexed_db_futures::prelude::*;
 // use futures::{executor::block_on};
 
-
+use js_sys::{Array, Uint8Array};
 use wasm_bindgen::{JsValue, UnwrapThrowExt};
-use js_sys::{Uint8Array, Array};
-
 
 pub struct IdbStorage {
     db: IdbDatabase,
     storage: MemoryStorage,
 }
-
 
 impl IdbStorage {
     pub async fn new(mut name: &str) -> Self {
@@ -22,22 +18,28 @@ impl IdbStorage {
         let db = Self::create_db(name);
         let mem_storage = MemoryStorage::new();
 
-        return IdbStorage {db: db.await, storage: mem_storage};
+        return IdbStorage {
+            db: db.await,
+            storage: mem_storage,
+        };
     }
 
     pub async fn load(name: &str) -> Self {
         let db = Self::create_db(name).await;
 
-        let mut store = IdbStorage {db, storage: MemoryStorage::new()};
+        let mut store = IdbStorage {
+            db,
+            storage: MemoryStorage::new(),
+        };
 
         store.load_to_mem_storage().await;
-        return store
+        store
     }
 }
 
 impl Storage for IdbStorage {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        return self.storage.get(key)
+        self.storage.get(key)
     }
 
     fn range<'a>(
@@ -46,7 +48,7 @@ impl Storage for IdbStorage {
         end: Option<&[u8]>,
         order: Order,
     ) -> Box<dyn Iterator<Item = Record> + 'a> {
-        return self.storage.range(start, end, order);
+        self.storage.range(start, end, order)
     }
 
     fn set(&mut self, key: &[u8], value: &[u8]) {
@@ -58,15 +60,14 @@ impl Storage for IdbStorage {
     }
 }
 
-
 impl IdbStorage {
     pub async fn create_db(name: &str) -> IdbDatabase {
         // let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 4).unwrap();
         let mut db_req: OpenDbRequest = IdbDatabase::open(name).unwrap();
         db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
-
             let db = evt.db();
             // Check if the object store exists; create it if it doesn't
+            #[allow(clippy::redundant_pattern_matching)]
             if let None = db.object_store_names().find(|n| n == "my_store") {
                 db.create_object_store("my_store").unwrap();
             }
@@ -74,21 +75,29 @@ impl IdbStorage {
         }));
 
         let async_res = db_req.into_future().await;
-        return async_res.unwrap();
+        async_res.unwrap()
     }
 
-    pub fn clear_store(&mut self, store_name: &str){
-        let tx = self.db.transaction_on_one_with_mode(store_name, IdbTransactionMode::Readwrite).unwrap_throw();
+    pub fn clear_store(&mut self, store_name: &str) {
+        let tx = self
+            .db
+            .transaction_on_one_with_mode(store_name, IdbTransactionMode::Readwrite)
+            .unwrap_throw();
         let store = tx.object_store(store_name).unwrap_throw();
 
         store.clear().unwrap();
     }
 
     pub async fn set_item(&self, key: &[u8], value: &[u8]) {
-        let tx = self.db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite).unwrap_throw();
+        let tx = self
+            .db
+            .transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite)
+            .unwrap_throw();
         let store = tx.object_store("my_store").unwrap_throw();
 
-        store.put_key_val_owned(Uint8Array::from(key) , &Uint8Array::from(value)).unwrap_throw();
+        store
+            .put_key_val_owned(Uint8Array::from(key), &Uint8Array::from(value))
+            .unwrap_throw();
 
         let _ = tx.await.into_result().unwrap_throw();
     }
@@ -99,31 +108,30 @@ impl IdbStorage {
         let async_res = store.get_owned(Uint8Array::from(key)).unwrap();
         // let res = async_res.unwrap();
         let res = async_res.await.unwrap().unwrap();
-        let bytes = Uint8Array::new(&res).to_vec();
-        return bytes;
+        Uint8Array::new(&res).to_vec()
     }
 
     pub async fn load_key_to_mem_storage(&mut self, key: &[u8]) {
-
         let data = self.get_item(key).await;
         self.storage.set(key, &data);
     }
 
     pub async fn load_key_from_mem_storage(&mut self, key: &[u8]) {
-
         let data = self.get(key).unwrap();
         self.set_item(key, &data).await;
     }
 
-
     pub async fn load_to_mem_storage(&mut self) {
         let store_name = "my_store";
 
-        let tx = self.db.transaction_on_one_with_mode(store_name, IdbTransactionMode::Readonly).unwrap();
+        let tx = self
+            .db
+            .transaction_on_one_with_mode(store_name, IdbTransactionMode::Readonly)
+            .unwrap();
         let store = tx.object_store(store_name).unwrap_throw();
 
         let data = store.get_all_keys().unwrap_throw();
-        let arraydata: Array = data.await.unwrap().into();
+        let arraydata: Array = data.await.unwrap();
         // JsCast::unchecked_from_js(data.unwrap());
         // let array_data = data.new();
 
@@ -141,7 +149,7 @@ impl IdbStorage {
 
     pub async fn sync_to_db(&self) {
         // "start" and "end" being "None" leads to checking the whole storage range
-        for (key, value) in self.storage.range(None,None, Order::Ascending) {
+        for (key, value) in self.storage.range(None, None, Order::Ascending) {
             // overwrites values for keys iff present
             self.set_item(&key, &value).await;
         }
@@ -163,7 +171,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-    expected = "Getting empty values from storage is not well supported at the moment."
+        expected = "Getting empty values from storage is not well supported at the moment."
     )]
     fn set_panics_for_empty() {
         let mut store = MemoryStorage::new();
