@@ -32,6 +32,15 @@
     	  transition: top 2s;
     	}
     	
+    	#potion div.juice {
+        position: absolute;
+        background-color: darkred;
+        height: 520px;
+        width: 293px;
+        margin-top: 196px;
+        margin-left: 147px;
+      }
+    	
     	#potion .amount {
     	  font-family: DS-Digital;
         position: absolute;
@@ -92,7 +101,8 @@
   <body>
     <div id="potion">
       <img src="back.png">
-      <img id="potion-juice" src="juice.png" class="juice">
+      <div id="potion-juice" class="juice"></div>
+      <!--img id="potion-juice" src="juice.png" class="juice"-->
       <div class="under"></div>
       <img src="glass.png">
       <img src="body.png">
