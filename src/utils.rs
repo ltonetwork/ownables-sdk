@@ -1,7 +1,9 @@
-use std::marker::PhantomData;
-use cosmwasm_std::{Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, OwnedDeps, Querier, RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError};
 use crate::store::IdbStorage;
-
+use cosmwasm_std::{
+    Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, OwnedDeps, Querier,
+    RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError,
+};
+use std::marker::PhantomData;
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
@@ -10,15 +12,20 @@ pub fn set_panic_hook() {
 
 pub fn create_lto_env() -> Env {
     let env = Env {
-        block: BlockInfo { height: 0, time: Timestamp::from_seconds(0), chain_id: "lto".to_string() },
-        contract: ContractInfo { address: Addr::unchecked("")},
-        transaction: None
+        block: BlockInfo {
+            height: 0,
+            time: Timestamp::from_seconds(0),
+            chain_id: "lto".to_string(),
+        },
+        contract: ContractInfo {
+            address: Addr::unchecked(""),
+        },
+        transaction: None,
     };
     return env;
 }
 
-pub async fn create_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty>  {
-
+pub async fn create_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
     OwnedDeps {
         storage: IdbStorage::new(name).await, // Storage should now be our Storage implementation that uses local store
         api: EmptyApi::default(),
@@ -27,8 +34,7 @@ pub async fn create_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, Empt
     }
 }
 
-pub async fn load_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty>  {
-
+pub async fn load_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
     OwnedDeps {
         storage: IdbStorage::load(name).await, // Storage should now be our Storage implementation that uses local store
         api: EmptyApi::default(),
@@ -40,13 +46,11 @@ pub async fn load_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQ
 const CANONICAL_LENGTH: usize = 54;
 
 /// Empty Querier that is meant to conform the traits expected by the cosmwasm standard contract syntax. It should not be used whatsoever
-pub struct EmptyQuerier {
-
-}
+pub struct EmptyQuerier {}
 
 impl Default for EmptyQuerier {
     fn default() -> Self {
-        Self {  }
+        Self {}
     }
 }
 
