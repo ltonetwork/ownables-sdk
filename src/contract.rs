@@ -1,5 +1,4 @@
 #[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
@@ -79,10 +78,10 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 }
 
 // #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<PotionStateResponse> {
     match msg {
-        QueryMsg::GetCurrentAmount {} => to_binary(&query_potion_state(deps)?),
-        QueryMsg::GetOwner {} => to_binary(&query_potion_owner(deps)?),
+        QueryMsg::GetCurrentAmount {} => query_potion_state(deps),
+        // QueryMsg::GetOwner {} => to_binary(&query_potion_owner(deps)?),
     }
 }
 
