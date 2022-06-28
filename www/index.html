@@ -7,6 +7,8 @@
   </head>
   <body>
 
+    <button type="button" id="inst-button">Get new potion</button>
+
     <div id="potion">
       <img src="potion/back.png">
       <div id="potion-juice" class="juice"></div>
@@ -14,13 +16,14 @@
       <img src="potion/glass.png">
       <img src="potion/body.png">
       <div id="potion-amount" class="amount"></div>
+
     </div>
 
+    <div id="drink">
+      <input type="range" min="1" max="100" value="50" class="slider" id="drink-amount-slider">
+      <button id="drink-button">Drink</button>
+    </div>
 
-    <input type="range" min="1" max="100" value="50" class="slider" id="drink-amount-slider">
-
-    <button id="drink">Drink</button>
-    <button type="button" id="inst-button">Get new potion</button>
 
     <script src="./bootstrap.js"></script>
   </body>

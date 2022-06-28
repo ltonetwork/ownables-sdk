@@ -33,9 +33,26 @@ function updateState(amt) {
 
 function issuePotion() {
   wasm.instantiate_contract(100, "0", "c-id-1").then(
-    () => console.log("instantiated potion")
+    () => {
+      document.getElementById('potion').style.display = "block";
+      document.getElementById('drink').style.display = "block";
+      updateState(100);
+      document.getElementById('potion-amount').textContent = '';
+    }
   );
 }
 
+function hideOrLoadExistingPotion() {
+  if (document.getElementById('potion-amount').innerHTML) {
+    document.getElementById('potion').style.display = "block";
+    document.getElementById('drink').style.display = "block";
+    queryState();
+  } else {
+    document.getElementById('potion').style.display = "none";
+    document.getElementById('drink').style.display = "none";
+  }
+}
+
 document.getElementById('inst-button').addEventListener('click', issuePotion);
-document.getElementById('drink').addEventListener('click', consumePotion);
+document.getElementById('drink-button').addEventListener('click', consumePotion);
+document.getElementById('potion').onload = hideOrLoadExistingPotion();
