@@ -9,6 +9,7 @@
   max-width: 100%;
   position: relative;
   overflow: hidden;
+
 }
 
 #potion img {
@@ -47,6 +48,10 @@
   font-size: 65px;
   transform: skewY(22deg);
   opacity: 0.7;
+}
+
+#potion-juice {
+  transition: all 2s ease;
 }
 
 .slider {
