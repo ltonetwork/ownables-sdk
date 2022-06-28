@@ -11,7 +11,7 @@ pub fn set_panic_hook() {
 }
 
 pub fn create_lto_env() -> Env {
-    let env = Env {
+    Env {
         block: BlockInfo {
             height: 0,
             time: Timestamp::from_seconds(0),
@@ -21,8 +21,7 @@ pub fn create_lto_env() -> Env {
             address: Addr::unchecked(""),
         },
         transaction: None,
-    };
-    return env;
+    }
 }
 
 pub async fn create_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
@@ -46,13 +45,8 @@ pub async fn load_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQ
 const CANONICAL_LENGTH: usize = 54;
 
 /// Empty Querier that is meant to conform the traits expected by the cosmwasm standard contract syntax. It should not be used whatsoever
+#[derive(Default)]
 pub struct EmptyQuerier {}
-
-impl Default for EmptyQuerier {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl Querier for EmptyQuerier {
     fn raw_query(&self, _bin_request: &[u8]) -> cosmwasm_std::QuerierResult {
