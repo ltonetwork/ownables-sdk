@@ -92,15 +92,27 @@
   <body>
     <div id="potion">
       <img src="back.png">
-      <img src="juice.png" class="juice">
+      <img id="potion-juice" src="juice.png" class="juice">
       <div class="under"></div>
       <img src="glass.png">
       <img src="body.png">
-      <div class="amount">42</div>
+      <div id="potion-amount" class="amount"></div>
     </div>
 
     
     <input type="range" min="1" max="1000" value="500" class="slider">
-    <button>Drink</button>
+    <button id="drink">Drink</button>
+    
+    <script>
+      function refresh() {
+        // get amount from contract
+        const amount = Math.random();
+        
+        document.getElementById('potion-juice').style.top = (50 * amount) + '%';
+        document.getElementById('potion-amount').textContent = Math.round(100 - (amount * 100));
+      }
+    
+      document.getElementById('drink').addEventListener('click', refresh);
+    </script>
   </body>
 </html>
