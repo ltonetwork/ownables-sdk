@@ -5,12 +5,10 @@ use contract::instantiate;
 use cosmwasm_std::{MessageInfo, Addr, from_binary};
 use msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
 use serde_json::to_string;
-// use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
 
 use utils::{create_lto_env, create_lto_deps, load_lto_deps};
-use crate::msg::OwnershipResponse;
-// use wasm_bindgen_test::*;
+use crate::msg::{OwnershipResponse, PotionStateResponse};
 
 pub mod msg;
 pub mod state;
@@ -28,18 +26,19 @@ extern {
 
 #[wasm_bindgen]
 pub fn square(number: i32) -> i32 {
-    alert("computing square...");
+    log("computing square...");
     number * number
 }
 
 #[wasm_bindgen]
-pub async fn instantiate_contract(capacity: JsValue) -> Result<(), JsError>  {
+pub async fn instantiate_contract(capacity: JsValue, ownable_id: JsValue, contract_id: JsValue) -> Result<(), JsError>  {
     let msg = InstantiateMsg {
-        max_capacity: capacity.into_serde().unwrap()
+        max_capacity: capacity.into_serde().unwrap(),
+        ownable_id: ownable_id.into_serde().unwrap(),
+        contract_id: contract_id.into_serde().unwrap(),
     };
 
-    // TODO: rework into using id instead of capacity
-    let mut deps = create_lto_deps(&msg.max_capacity.to_string()).await;
+    let mut deps = create_lto_deps(&msg.ownable_id).await;
 
     let res = instantiate(
         deps.as_mut(),
@@ -93,20 +92,19 @@ pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<()
     }
 }
 
-// #[wasm_bindgen]
-// pub async fn query_contract_state(ownable_js_id: JsValue) -> i32 {
-//     let ownable_id: String = ownable_js_id.into_serde().unwrap();
-//     let deps = load_lto_deps(&ownable_id).await;
-//
-//     let message: QueryMsg = QueryMsg::GetCurrentAmount {};
-//     let query_result = contract::query(deps.as_ref(), message);
-//     match query_result {
-//         Ok(count_response) => count_response.count,
-//         Err(error) => panic!("contract state query failed. error {:?}", error)
-//     }
-// }
-//
-//
+#[wasm_bindgen]
+pub async fn query_contract_state(ownable_js_id: JsValue) -> u8 {
+    let ownable_id: String = ownable_js_id.into_serde().unwrap();
+    let deps = load_lto_deps(&ownable_id).await;
+
+    let message: QueryMsg = QueryMsg::GetCurrentAmount {};
+    let query_result = contract::query(deps.as_ref(), message);
+    match query_result {
+        Ok(potion_response) => potion_response.current_amount,
+        Err(error) => panic!("contract state query failed. error {:?}", error)
+    }
+}
+
 // #[wasm_bindgen]
 // pub async fn query_contract_owner(ownable_js_id: JsValue) -> String {
 //     let ownable_id: String = ownable_js_id.into_serde().unwrap();
