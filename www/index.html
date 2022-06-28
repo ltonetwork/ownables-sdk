@@ -2,21 +2,26 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
-    <title>Hello wasm-pack!</title>
+    <title>Ownable demo</title>
+    <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <button type="button" id="inst-button">
-      Issue potion
-    </button>
 
-    <button type="button" id="query-button">
-      Query potion
-    </button>
+    <div id="potion">
+      <img src="potion/back.png">
+      <div id="potion-juice" class="juice"></div>
+      <div class="under"></div>
+      <img src="potion/glass.png">
+      <img src="potion/body.png">
+      <div id="potion-amount" class="amount"></div>
+    </div>
 
-    <button type="button" id="drink-button">
-      Drink 20 units of potion
-    </button>
+
+    <input type="range" min="1" max="100" value="50" class="slider" id="drink-amount-slider">
+
+    <button id="drink">Drink</button>
+    <button type="button" id="inst-button">Get new potion</button>
+
     <script src="./bootstrap.js"></script>
   </body>
 </html>

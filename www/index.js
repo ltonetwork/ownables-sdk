@@ -1,34 +1,41 @@
 import * as wasm from "ownable-demo";
 
-$('#inst-button').on('click', function() {
-  wasm.instantiate_contract(100, "0", "c-id-1").then(
-    () => console.log("instantiated potion")
+function queryState() {
+  wasm.query_contract_state("0").then(
+    amt => {
+      updateState(amt);
+      return amt;
+    }
   );
-});
+}
 
-$('#drink-button').on('click', function() {
-  console.log("drinking 10 potion unit points");
-
+function consumePotion() {
   let msg = {
     "consume": {
-      "amount": 20,
+      "amount": getDrinkAmount(),
     },
   };
   wasm.execute_contract(msg, "0").then(
-    () => console.log("consumed potion")
+    () => queryState(),
+    (err) => window.alert("attempting to consume more than possible")
   );
-});
+}
 
-$('#query-button').on('click', function() {
-  console.log("querying contract state");
-  let queryMsg = {
-    "get_current_amount": {},
-  };
-  let result = wasm.query_contract_state("0").then(
-    r => {
-      console.log(r);
-      return r;
-    }
+function getDrinkAmount() {
+  let stringAmount = document.getElementById('drink-amount-slider').valueOf().value;
+  return parseInt(stringAmount);
+}
+
+function updateState(amt) {
+  document.getElementById('potion-juice').style.top = (100 - amt) / 2 + '%';
+  document.getElementById('potion-amount').textContent = amt;
+}
+
+function issuePotion() {
+  wasm.instantiate_contract(100, "0", "c-id-1").then(
+    () => console.log("instantiated potion")
   );
-  console.log(result);
-});
+}
+
+document.getElementById('inst-button').addEventListener('click', issuePotion);
+document.getElementById('drink').addEventListener('click', consumePotion);
