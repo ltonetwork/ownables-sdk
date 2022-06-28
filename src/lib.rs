@@ -2,24 +2,22 @@ pub mod utils;
 use std::str;
 
 use contract::instantiate;
-use cosmwasm_std::{MessageInfo, Addr, from_binary};
-use msg::{ExecuteMsg, QueryMsg, InstantiateMsg};
+use cosmwasm_std::{Addr, MessageInfo};
+use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use serde_json::to_string;
-// use utils::MessageInfo;
 use wasm_bindgen::prelude::*;
 
-use utils::{create_lto_env, create_lto_deps, load_lto_deps};
-use crate::msg::OwnershipResponse;
-// use wasm_bindgen_test::*;
+use utils::{create_lto_deps, create_lto_env, load_lto_deps};
+// use crate::msg::{OwnershipResponse, PotionStateResponse};
 
+pub mod contract;
+pub mod error;
 pub mod msg;
 pub mod state;
 pub mod store;
-pub mod error;
-pub mod contract;
 
 #[wasm_bindgen]
-extern {
+extern "C" {
     pub fn alert(s: &str);
 
     #[wasm_bindgen(js_namespace = console)]
@@ -28,38 +26,47 @@ extern {
 
 #[wasm_bindgen]
 pub fn square(number: i32) -> i32 {
-    alert("computing square...");
+    log("computing square...");
     number * number
 }
 
 #[wasm_bindgen]
-pub async fn instantiate_contract(capacity: JsValue) -> Result<(), JsError>  {
+pub async fn instantiate_contract(
+    capacity: JsValue,
+    ownable_id: JsValue,
+    contract_id: JsValue,
+) -> Result<(), JsError> {
     let msg = InstantiateMsg {
-        max_capacity: capacity.into_serde().unwrap()
+        max_capacity: capacity.into_serde().unwrap(),
+        ownable_id: ownable_id.into_serde().unwrap(),
+        contract_id: contract_id.into_serde().unwrap(),
     };
 
-    // TODO: rework into using id instead of capacity
-    let mut deps = create_lto_deps(&msg.max_capacity.to_string()).await;
+    let mut deps = create_lto_deps(&msg.ownable_id).await;
 
     let res = instantiate(
         deps.as_mut(),
         create_lto_env(),
-        MessageInfo {sender: Addr::unchecked(""), funds: Vec::new()},
-        msg
+        MessageInfo {
+            sender: Addr::unchecked(""),
+            funds: Vec::new(),
+        },
+        msg,
     );
 
     match res {
         Ok(response) => {
             let resp_json = to_string(&response);
-            log(&format!("[contract] successfully instantiated! response {:}", &resp_json.unwrap()));
+            log(&format!(
+                "[contract] successfully instantiated! response {:}",
+                &resp_json.unwrap()
+            ));
             deps.storage.sync_to_db().await;
             Ok(())
-        },
-        Err(error) => Err(JsError::from(error))
+        }
+        Err(error) => Err(JsError::from(error)),
     }
 }
-
-
 
 #[wasm_bindgen]
 pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<(), JsError> {
@@ -76,37 +83,37 @@ pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<()
         create_lto_env(),
         MessageInfo {
             sender: Addr::unchecked(""),
-            funds: Vec::new()
+            funds: Vec::new(),
         },
-        message
+        message,
     );
     match result {
         Ok(response) => {
             let resp_json = to_string(&response);
-            log(&format!("[contract] succesfully excuted msg. response {:}", &resp_json.unwrap()));
+            log(&format!(
+                "[contract] succesfully excuted msg. response {:}",
+                &resp_json.unwrap()
+            ));
             deps.storage.sync_to_db().await;
             Ok(())
-        },
-        Err(error) => {
-            Err(JsError::from(error))
         }
+        Err(error) => Err(JsError::from(error)),
     }
 }
 
-// #[wasm_bindgen]
-// pub async fn query_contract_state(ownable_js_id: JsValue) -> i32 {
-//     let ownable_id: String = ownable_js_id.into_serde().unwrap();
-//     let deps = load_lto_deps(&ownable_id).await;
-//
-//     let message: QueryMsg = QueryMsg::GetCurrentAmount {};
-//     let query_result = contract::query(deps.as_ref(), message);
-//     match query_result {
-//         Ok(count_response) => count_response.count,
-//         Err(error) => panic!("contract state query failed. error {:?}", error)
-//     }
-// }
-//
-//
+#[wasm_bindgen]
+pub async fn query_contract_state(ownable_js_id: JsValue) -> u8 {
+    let ownable_id: String = ownable_js_id.into_serde().unwrap();
+    let deps = load_lto_deps(&ownable_id).await;
+
+    let message: QueryMsg = QueryMsg::GetCurrentAmount {};
+    let query_result = contract::query(deps.as_ref(), message);
+    match query_result {
+        Ok(potion_response) => potion_response.current_amount,
+        Err(error) => panic!("contract state query failed. error {:?}", error),
+    }
+}
+
 // #[wasm_bindgen]
 // pub async fn query_contract_owner(ownable_js_id: JsValue) -> String {
 //     let ownable_id: String = ownable_js_id.into_serde().unwrap();
