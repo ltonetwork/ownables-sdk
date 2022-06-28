@@ -33,13 +33,13 @@ impl IdbStorage {
         };
 
         store.load_to_mem_storage().await;
-        return store;
+        store
     }
 }
 
 impl Storage for IdbStorage {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        return self.storage.get(key);
+        self.storage.get(key)
     }
 
     fn range<'a>(
@@ -48,7 +48,7 @@ impl Storage for IdbStorage {
         end: Option<&[u8]>,
         order: Order,
     ) -> Box<dyn Iterator<Item = Record> + 'a> {
-        return self.storage.range(start, end, order);
+        self.storage.range(start, end, order)
     }
 
     fn set(&mut self, key: &[u8], value: &[u8]) {
@@ -67,6 +67,7 @@ impl IdbStorage {
         db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
             let db = evt.db();
             // Check if the object store exists; create it if it doesn't
+            #[allow(clippy::redundant_pattern_matching)]
             if let None = db.object_store_names().find(|n| n == "my_store") {
                 db.create_object_store("my_store").unwrap();
             }
@@ -74,7 +75,7 @@ impl IdbStorage {
         }));
 
         let async_res = db_req.into_future().await;
-        return async_res.unwrap();
+        async_res.unwrap()
     }
 
     pub fn clear_store(&mut self, store_name: &str) {
@@ -107,8 +108,7 @@ impl IdbStorage {
         let async_res = store.get_owned(Uint8Array::from(key)).unwrap();
         // let res = async_res.unwrap();
         let res = async_res.await.unwrap().unwrap();
-        let bytes = Uint8Array::new(&res).to_vec();
-        return bytes;
+        Uint8Array::new(&res).to_vec()
     }
 
     pub async fn load_key_to_mem_storage(&mut self, key: &[u8]) {
@@ -131,7 +131,7 @@ impl IdbStorage {
         let store = tx.object_store(store_name).unwrap_throw();
 
         let data = store.get_all_keys().unwrap_throw();
-        let arraydata: Array = data.await.unwrap().into();
+        let arraydata: Array = data.await.unwrap();
         // JsCast::unchecked_from_js(data.unwrap());
         // let array_data = data.new();
 
