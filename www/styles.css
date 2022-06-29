@@ -3,22 +3,22 @@
   src: url("potion/ds-digital-numbers.ttf");
 }
 
-#potion {
+.potion {
   aspect-ratio: 1 / 1.5;
-  width: 600px;
+  width: 40%;
   max-width: 100%;
   position: relative;
   overflow: hidden;
 
 }
 
-#potion img {
+.potion img {
   position: absolute;
   left: -15%;
   top: 0;
   height: 100%;
 }
-#potion .under {
+.potion .under {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -26,31 +26,30 @@
   height: 20%;
   background-color: white;
 }
-#potion.in .juice {
+.potion.in .juice {
   transition: top 2s;
 }
 
-#potion div.juice {
+.potion div.juice {
   position: absolute;
-  background-color: darkred;
-  height: 520px;
-  width: 293px;
-  margin-top: 196px;
-  margin-left: 147px;
+  height: 100%;
+  width: 50%;
+  margin-top: 31%;
+  margin-left: 25%;
 }
 
-#potion .amount {
+.potion .amount {
   font-family: DS-Digital;
   position: absolute;
-  right: 18.4%;
+  right: 18.5%;
   top: 9%;
   color: black;
-  font-size: 65px;
+  font-size: 95%;
   transform: skewY(22deg);
   opacity: 0.7;
 }
 
-#potion-juice {
+.potion-juice {
   transition: all 2s ease;
 }
 
@@ -83,8 +82,20 @@ button:active {
   top: 1px;
 }
 
+.grid-container {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  padding: 10px;
+}
+.grid-item {
+  border: 1px solid rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  font-size: 30px;
+  text-align: center;
+}
+
 @media (max-width: 600px) {
-  #potion .amount {
+  .potion .amount {
     font-size: 10.83vw;
   }
 }

@@ -1,58 +1,59 @@
 import * as wasm from "ownable-demo";
 
-function queryState() {
-  wasm.query_contract_state("0").then(
+function queryState(ownable_id) {
+  wasm.query_contract_state(ownable_id).then(
     amt => {
-      updateState(amt);
+      updateState(ownable_id, amt);
       return amt;
     }
   );
 }
 
-function consumePotion() {
+function consumePotion(ownable_id) {
   let msg = {
     "consume": {
-      "amount": getDrinkAmount(),
+      "amount": getDrinkAmount(ownable_id),
     },
   };
-  wasm.execute_contract(msg, "0").then(
-    () => queryState(),
+  wasm.execute_contract(msg, ownable_id).then(
+    () => queryState(ownable_id),
     (err) => window.alert("attempting to consume more than possible")
   );
 }
 
-function getDrinkAmount() {
-  let stringAmount = document.getElementById('drink-amount-slider').valueOf().value;
+function getDrinkAmount(ownable_id) {
+  let stringAmount = document.getElementById(ownable_id)
+    .getElementsByClassName('drink-amount-slider')[0].valueOf().value;
   return parseInt(stringAmount);
 }
 
-function updateState(amt) {
-  document.getElementById('potion-juice').style.top = (100 - amt) / 2 + '%';
-  document.getElementById('potion-amount').textContent = amt;
+function updateState(ownable_id, amt) {
+  document.getElementById(ownable_id).getElementsByClassName('potion-juice')[0].style.top = (100 - amt) / 2 + '%';
+  document.getElementById(ownable_id).getElementsByClassName('potion-amount')[0].textContent = amt;
 }
 
-function issuePotion() {
-  wasm.instantiate_contract(100, "0", "c-id-1").then(
+function issuePotion(ownable_id) {
+  wasm.instantiate_contract(100, ownable_id, "c-id-1").then(
     () => {
-      document.getElementById('potion').style.display = "block";
-      document.getElementById('drink').style.display = "block";
-      updateState(100);
-      document.getElementById('potion-amount').textContent = '';
+      console.log(document.getElementById(ownable_id).getElementsByClassName('juice'));
+      document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.backgroundColor = ownable_id;
+      updateState(ownable_id, 100)
     }
   );
 }
 
-function hideOrLoadExistingPotion() {
-  if (document.getElementById('potion-amount').innerHTML) {
-    document.getElementById('potion').style.display = "block";
-    document.getElementById('drink').style.display = "block";
-    queryState();
-  } else {
-    document.getElementById('potion').style.display = "none";
-    document.getElementById('drink').style.display = "none";
-  }
+function initListenersForId(id) {
+  document.getElementById(id)
+    .getElementsByClassName("inst-button")[0]
+    .addEventListener('click', () => issuePotion(id));
+  document.getElementById(id)
+    .getElementsByClassName("drink-button")[0]
+    .addEventListener('click', () => consumePotion(id));
 }
 
-document.getElementById('inst-button').addEventListener('click', issuePotion);
-document.getElementById('drink-button').addEventListener('click', consumePotion);
-document.getElementById('potion').onload = hideOrLoadExistingPotion();
+initListenersForId("darkred");
+initListenersForId("darkblue");
+initListenersForId("darkgreen");
+initListenersForId("yellow");
+initListenersForId("pink");
+initListenersForId("white");
