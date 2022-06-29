@@ -34,6 +34,7 @@
     "copy-webpack-plugin": "^5.0.0"
   },
   "dependencies": {
+    "@ltonetwork/lto": "^0.8.9",
     "ownable-demo": "file:../pkg"
   }
 }
