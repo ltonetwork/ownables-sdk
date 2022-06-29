@@ -32,16 +32,10 @@ pub fn square(number: i32) -> i32 {
 
 #[wasm_bindgen]
 pub async fn instantiate_contract(
-    capacity: JsValue,
-    ownable_id: JsValue,
-    contract_id: JsValue,
+    msg: JsValue,
 ) -> Result<(), JsError> {
-    let msg = InstantiateMsg {
-        max_capacity: capacity.into_serde().unwrap(),
-        ownable_id: ownable_id.into_serde().unwrap(),
-        contract_id: contract_id.into_serde().unwrap(),
-    };
 
+    let msg: InstantiateMsg = msg.into_serde().unwrap();
     let mut deps = create_lto_deps(&msg.ownable_id).await;
 
     let res = instantiate(
@@ -69,7 +63,10 @@ pub async fn instantiate_contract(
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<(), JsError> {
+pub async fn execute_contract(
+    msg: JsValue,
+    ownable_js_id: JsValue
+) -> Result<(), JsError> {
     // load from indexed db
     log(&format!("[contract] executing message {:?}", &msg));
     let ownable_id: String = ownable_js_id.into_serde().unwrap();
