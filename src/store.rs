@@ -10,6 +10,8 @@ pub struct IdbStorage {
     storage: MemoryStorage,
 }
 
+const INDEXDB_STORE: &str = "state";
+
 impl IdbStorage {
     pub async fn new(mut name: &str) -> Self {
         if name.is_empty() {
@@ -68,8 +70,8 @@ impl IdbStorage {
             let db = evt.db();
             // Check if the object store exists; create it if it doesn't
             #[allow(clippy::redundant_pattern_matching)]
-            if let None = db.object_store_names().find(|n| n == "my_store") {
-                db.create_object_store("my_store").unwrap();
+            if let None = db.object_store_names().find(|n| n == INDEXDB_STORE) {
+                db.create_object_store(INDEXDB_STORE).unwrap();
             }
             Ok(())
         }));
@@ -91,9 +93,9 @@ impl IdbStorage {
     pub async fn set_item(&self, key: &[u8], value: &[u8]) {
         let tx = self
             .db
-            .transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite)
+            .transaction_on_one_with_mode(INDEXDB_STORE, IdbTransactionMode::Readwrite)
             .unwrap_throw();
-        let store = tx.object_store("my_store").unwrap_throw();
+        let store = tx.object_store(INDEXDB_STORE).unwrap_throw();
 
         store
             .put_key_val_owned(Uint8Array::from(key), &Uint8Array::from(value))
@@ -103,8 +105,8 @@ impl IdbStorage {
     }
 
     pub async fn get_item(&self, key: &[u8]) -> Vec<u8> {
-        let tx = self.db.transaction_on_one("my_store").unwrap();
-        let store = tx.object_store("my_store").unwrap();
+        let tx = self.db.transaction_on_one(INDEXDB_STORE).unwrap();
+        let store = tx.object_store(INDEXDB_STORE).unwrap();
         let async_res = store.get_owned(Uint8Array::from(key)).unwrap();
         // let res = async_res.unwrap();
         let res = async_res.await.unwrap().unwrap();
@@ -122,7 +124,7 @@ impl IdbStorage {
     }
 
     pub async fn load_to_mem_storage(&mut self) {
-        let store_name = "my_store";
+        let store_name = INDEXDB_STORE;
 
         let tx = self
             .db
