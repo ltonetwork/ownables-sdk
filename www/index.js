@@ -5,6 +5,8 @@ import {LTO} from '@ltonetwork/lto';
 
 const lto = new LTO('T');
 const account = lto.account();
+// IDB
+let db;
 
 function queryState(ownable_id) {
   wasm.query_contract_state(ownable_id).then(
@@ -21,10 +23,30 @@ function consumePotion(ownable_id) {
       "amount": getDrinkAmount(ownable_id),
     },
   };
+
+  let chain = deriveStateFromEventChain(ownable_id);
   wasm.execute_contract(msg, ownable_id).then(
-    () => queryState(ownable_id),
+    () => {
+      chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
+      localStorage.setItem(ownable_id, JSON.stringify(chain));
+      queryState(ownable_id);
+    },
     (err) => window.alert("attempting to consume more than possible")
   );
+}
+
+function deriveStateFromEventChain(ownable_id) {
+  let data = JSON.parse(localStorage.getItem(ownable_id));
+  const chain = new EventChain('');
+  chain.set(data);
+
+  console.log("deriving state for ", chain);
+  chain.events.forEach(
+    e => {
+      console.log(e.getBody());
+    }
+  )
+  return chain
 }
 
 function getDrinkAmount(ownable_id) {
@@ -39,9 +61,9 @@ function updateState(ownable_id, amt) {
 }
 
 function issuePotion() {
+  syncDb().then(() => console.log('synced'));
   // issue a new event chain
   const chain = EventChain.create(account);
-
   const msg = {
     max_capacity: 100,
     ownable_id: chain.id,
@@ -50,8 +72,9 @@ function issuePotion() {
 
   wasm.instantiate_contract(msg).then(
     () => {
-      // add the event to chain
+      // add the event to chain and store in local storage
       chain.add(new Event({"@context": "instantiate_msg.json", ...msg}).signWith(account));
+      localStorage.setItem(msg.ownable_id, JSON.stringify(chain));
       // injects element into html
       injectPotionToGrid(msg.ownable_id);
       updateState(msg.ownable_id, 100);
@@ -95,3 +118,18 @@ function getPotionTemplate(id) {
 }
 
 document.getElementsByClassName("inst-button")[0].addEventListener('click', () => issuePotion());
+
+async function syncDb() {
+
+  const DBOpenRequest = window.indexedDB.open("event-chain");
+
+  DBOpenRequest.onerror = function(event) {
+    console.log('Error loading database');
+    return -1;
+  };
+
+  DBOpenRequest.onsuccess = function(event) {
+    console.log('Database initialized.');
+    db = DBOpenRequest.result;
+  };
+}

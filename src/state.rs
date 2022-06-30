@@ -12,4 +12,4 @@ pub struct State {
     pub current_amount: u8,
 }
 
-pub const STATE: Item<State> = Item::new("state");
+pub const STATE: Item<State> = Item::new("potion");
