@@ -6,7 +6,14 @@ import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
 const account = lto.account();
 // IDB
-let db;
+let dbs = {};
+
+// if no chainIds found, init empty
+if (localStorage.getItem("chainIds") === null) {
+  localStorage.chainIds = JSON.stringify([]);
+}
+
+
 
 function queryState(ownable_id) {
   wasm.query_contract_state(ownable_id).then(
@@ -61,7 +68,6 @@ function updateState(ownable_id, amt) {
 }
 
 function issuePotion() {
-  syncDb().then(() => console.log('synced'));
   // issue a new event chain
   const chain = EventChain.create(account);
   const msg = {
@@ -69,6 +75,11 @@ function issuePotion() {
     ownable_id: chain.id,
     contract_id: "c-id-1",
   };
+
+  let chainIds = JSON.parse(localStorage.chainIds);
+  chainIds.push(msg.ownable_id);
+  localStorage.chainIds = JSON.stringify(chainIds);
+
 
   wasm.instantiate_contract(msg).then(
     () => {
@@ -118,18 +129,33 @@ function getPotionTemplate(id) {
 }
 
 document.getElementsByClassName("inst-button")[0].addEventListener('click', () => issuePotion());
+document.getElementsByClassName("sync-button")[0].addEventListener('click', () => syncDb());
 
 async function syncDb() {
 
-  const DBOpenRequest = window.indexedDB.open("event-chain");
+  if (!window.indexedDB) {
+    console.log("Your browser doesn't support a stable version of IndexedDB.");
+  }
 
-  DBOpenRequest.onerror = function(event) {
-    console.log('Error loading database');
-    return -1;
-  };
+  const chainIds = JSON.parse(localStorage.chainIds);
+  console.log("chainIds: ", chainIds);
 
-  DBOpenRequest.onsuccess = function(event) {
-    console.log('Database initialized.');
-    db = DBOpenRequest.result;
-  };
+  for (let i = 0; i < chainIds.length; i++) {
+    const request = window.indexedDB.open(chainIds[i]);
+
+    request.onerror = errorEvent => console.log('Error loading database', request.result);
+
+    request.onsuccess = successEvent => {
+      const db = request.result
+      dbs[chainIds[i]] = db;
+      console.log("querying db:");
+      db.transaction("state")
+        .objectStore("state")
+        .getAll()
+        .onsuccess = event => {
+          console.log("state: ", event.target.result);
+        };
+    };
+  }
+
 }
