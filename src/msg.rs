@@ -1,6 +1,6 @@
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -29,6 +29,8 @@ pub enum QueryMsg {
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PotionStateResponse {
+    pub owner: String,
+    pub issuer: String,
     pub current_amount: u8,
     pub max_capacity: u8,
 }

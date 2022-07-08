@@ -8,6 +8,7 @@ use serde_json::to_string;
 use wasm_bindgen::prelude::*;
 
 use utils::{create_lto_deps, create_lto_env, load_lto_deps};
+use crate::msg::PotionStateResponse;
 // use crate::msg::{OwnershipResponse, PotionStateResponse};
 
 pub mod contract;
@@ -36,13 +37,15 @@ pub async fn instantiate_contract(
 ) -> Result<(), JsError> {
 
     let msg: InstantiateMsg = msg.into_serde().unwrap();
-    let mut deps = create_lto_deps(&msg.ownable_id).await;
+    // let info: MessageInfo = info.into_serde().unwrap();
+
+    let mut deps = load_lto_deps(&msg.ownable_id).await;
 
     let res = instantiate(
         deps.as_mut(),
         create_lto_env(),
         MessageInfo {
-            sender: Addr::unchecked(""),
+            sender: Addr::unchecked("info.sender"),
             funds: Vec::new(),
         },
         msg,
@@ -68,7 +71,7 @@ pub async fn execute_contract(
     ownable_js_id: JsValue
 ) -> Result<(), JsError> {
     // load from indexed db
-    log(&format!("[contract] executing message {:?}", &msg));
+    log(&format!("[contract] executing message {:?} for ownable_id #{:?}", &msg, &ownable_js_id));
     let ownable_id: String = ownable_js_id.into_serde().unwrap();
 
     let mut deps = load_lto_deps(&ownable_id).await;
@@ -79,7 +82,7 @@ pub async fn execute_contract(
         deps.as_mut(),
         create_lto_env(),
         MessageInfo {
-            sender: Addr::unchecked(""),
+            sender: Addr::unchecked("info.sender"),
             funds: Vec::new(),
         },
         message,
@@ -88,7 +91,7 @@ pub async fn execute_contract(
         Ok(response) => {
             let resp_json = to_string(&response);
             log(&format!(
-                "[contract] succesfully excuted msg. response {:}",
+                "[contract] successfully executed msg. response {:}",
                 &resp_json.unwrap()
             ));
             deps.storage.sync_to_db().await;
@@ -99,30 +102,14 @@ pub async fn execute_contract(
 }
 
 #[wasm_bindgen]
-pub async fn query_contract_state(ownable_js_id: JsValue) -> u8 {
+pub async fn query_contract_state(ownable_js_id: JsValue) -> Result<JsValue, JsError> {
     let ownable_id: String = ownable_js_id.into_serde().unwrap();
     let deps = load_lto_deps(&ownable_id).await;
 
     let message: QueryMsg = QueryMsg::GetCurrentAmount {};
     let query_result = contract::query(deps.as_ref(), message);
     match query_result {
-        Ok(potion_response) => potion_response.current_amount,
+        Ok(potion_response) => Ok(JsValue::from_serde(&potion_response).unwrap()),
         Err(error) => panic!("contract state query failed. error {:?}", error),
     }
 }
-
-// #[wasm_bindgen]
-// pub async fn query_contract_owner(ownable_js_id: JsValue) -> String {
-//     let ownable_id: String = ownable_js_id.into_serde().unwrap();
-//     let deps = load_lto_deps(&ownable_id).await;
-//
-//     let message = QueryMsg::GetOwner {};
-//     let query_result = contract::query(deps.as_ref(), message);
-//     let ownership_response: OwnershipResponse = from_binary(query_result.unwrap().into()).into();
-//     match ownership_response {
-//         Ok(ownership_response) => {
-//             ownership_response.owner
-//         },
-//         Err(error) => panic!("contract owner query failed. error {:?}", error)
-//     }
-// }
