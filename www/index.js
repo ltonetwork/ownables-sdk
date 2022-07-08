@@ -17,9 +17,9 @@ if (localStorage.getItem("chainIds") === null) {
 
 function queryState(ownable_id) {
   wasm.query_contract_state(ownable_id).then(
-    amt => {
-      updateState(ownable_id, amt);
-      return amt;
+    potion => {
+      updateState(ownable_id, potion.current_amount);
+      return potion.current_amount;
     }
   );
 }
@@ -35,7 +35,7 @@ function consumePotion(ownable_id) {
   wasm.execute_contract(msg, ownable_id).then(
     () => {
       chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
-      localStorage.setItem(ownable_id, JSON.stringify(chain));
+      // localStorage.setItem(ownable_id, JSON.stringify(chain));
       queryState(ownable_id);
     },
     (err) => window.alert("attempting to consume more than possible")
@@ -62,6 +62,7 @@ function getDrinkAmount(ownable_id) {
   return parseInt(stringAmount);
 }
 
+
 function updateState(ownable_id, amt) {
   document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.top = (100 - amt) / 2 + '%';
   document.getElementById(ownable_id).getElementsByClassName('amount')[0].textContent = amt;
@@ -87,12 +88,16 @@ function issuePotion() {
       chain.add(new Event({"@context": "instantiate_msg.json", ...msg}).signWith(account));
       localStorage.setItem(msg.ownable_id, JSON.stringify(chain));
       // injects element into html
-      injectPotionToGrid(msg.ownable_id);
-      updateState(msg.ownable_id, 100);
-      initListenersForId(msg.ownable_id);
+      initializePotionHTML(msg.ownable_id, 100);
     },
     (err) => window.alert("failed to instantiate contract")
   );
+}
+
+function initializePotionHTML(ownable_id, amount) {
+  injectPotionToGrid(ownable_id);
+  updateState(ownable_id, amount);
+  initListenersForId(ownable_id);
 }
 
 function injectPotionToGrid(ownable_id) {
@@ -142,20 +147,19 @@ async function syncDb() {
 
   for (let i = 0; i < chainIds.length; i++) {
     const request = window.indexedDB.open(chainIds[i]);
+    let potionResponse = wasm.query_contract_state(chainIds[i]).then(
+      (resp) => {
+        console.log(resp);
+        if (document.getElementById(chainIds[i]) === null) {
+          initializePotionHTML(chainIds[i], resp.current_amount);
+        } else {
+          console.log('potion already initialized');
+        }
+      },
+      (err) => console.log("something went wrong")
+    );
 
-    request.onerror = errorEvent => console.log('Error loading database', request.result);
-
-    request.onsuccess = successEvent => {
-      const db = request.result
-      dbs[chainIds[i]] = db;
-      console.log("querying db:");
-      db.transaction("state")
-        .objectStore("state")
-        .getAll()
-        .onsuccess = event => {
-          console.log("state: ", event.target.result);
-        };
-    };
   }
-
 }
+
+

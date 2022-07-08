@@ -53,7 +53,9 @@ pub fn try_consume(
 ) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
-            return Err(ContractError::Unauthorized {});
+            return Err(ContractError::Unauthorized {
+                val: "Unauthorized consumption attempt".to_string(),
+            });
         }
         if state.current_amount < consumption_amount {
             return Err(ContractError::CustomError {
@@ -69,7 +71,9 @@ pub fn try_consume(
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
-            return Err(ContractError::Unauthorized {});
+            return Err(ContractError::Unauthorized {
+                val: "Unauthorized transfer attempt".to_string(),
+            });
         }
         state.owner = to;
         Ok(state)
@@ -81,25 +85,18 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<PotionStateResponse> {
     match msg {
         QueryMsg::GetCurrentAmount {} => query_potion_state(deps),
-        // QueryMsg::GetOwner {} => to_binary(&query_potion_owner(deps)?),
     }
 }
 
 fn query_potion_state(deps: Deps) -> StdResult<PotionStateResponse> {
     let state = STATE.load(deps.storage)?;
     Ok(PotionStateResponse {
+        owner: state.owner.into_string(),
+        issuer: state.issuer.into_string(),
         current_amount: state.current_amount,
         max_capacity: state.max_capacity,
     })
 }
-
-// fn query_potion_owner(deps: Deps) -> StdResult<OwnershipResponse> {
-//     let state = STATE.load(deps.storage)?;
-//     Ok(OwnershipResponse {
-//         owner: state.owner,
-//         issuer: state.issuer,
-//     })
-// }
 
 #[cfg(test)]
 mod tests {
@@ -145,7 +142,7 @@ mod tests {
         let msg = ExecuteMsg::Consume { amount: 10 };
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {
-            Err(ContractError::Unauthorized {}) => {}
+            Err(ContractError::Unauthorized { .. }) => {}
             _ => panic!("Must return unauthorized error"),
         }
 

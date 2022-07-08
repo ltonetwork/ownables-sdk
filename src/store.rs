@@ -37,6 +37,7 @@ impl IdbStorage {
         store.load_to_mem_storage().await;
         store
     }
+
 }
 
 impl Storage for IdbStorage {
