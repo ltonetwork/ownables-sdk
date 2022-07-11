@@ -1,6 +1,6 @@
 import * as wasm from "ownable-demo";
 import {Event, EventChain} from "@ltonetwork/lto/lib/events"
-
+import {getEventChainForOwnableId, syncDb, writeEventObjToIDB} from "./event-chain";
 import {LTO} from '@ltonetwork/lto';
 
 const lto = new LTO('T');
@@ -27,7 +27,7 @@ function consumePotion(ownable_id) {
     },
   };
 
-  let chain = deriveStateFromEventChain(ownable_id);
+  let chain = getEventChainForOwnableId(ownable_id);
   wasm.execute_contract(msg, ownable_id).then(
     () => {
       let newEvent = chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
@@ -38,58 +38,11 @@ function consumePotion(ownable_id) {
   );
 }
 
-function deriveStateFromEventChain(ownable_id) {
-  if (!window.indexedDB) {
-    console.log("Your browser doesn't support a stable version of IndexedDB.");
-  }
-  let chain = new EventChain('');
-  const request = window.indexedDB.open(ownable_id);
-  request.onerror = event => console.log("Can't use IndexedDB");
-  request.onsuccess = event => {
-    const db = event.target.result;
-    const tx = db.transaction("events");
-    const objectStore = tx.objectStore("events");
-    objectStore.getAll()
-      .onsuccess = event => {
-        let latestEvent = { timestamp: 0 };
-        event.target.result.forEach(
-          e => {
-            e = JSON.parse(e);
-            if (e.timestamp > latestEvent.timestamp) {
-              latestEvent = e;
-            }
-          }
-        )
-        chain.set(latestEvent);
-    };
-  };
-  return chain;
-}
-
-function writeEventObjToIDB(eventObj, ownable_id) {
-  if (!window.indexedDB) {
-    console.log("Your browser doesn't support a stable version of IndexedDB.");
-  }
-
-  const request = window.indexedDB.open(ownable_id);
-  request.onerror = () => console.error("Can't use IndexedDB");
-  request.onsuccess = event => {
-    const db = event.target.result;
-    db.transaction("events", "readwrite")
-      .objectStore("events")
-      .put(JSON.stringify(eventObj), eventObj['_hash'])
-      .onsuccess = event => {
-        console.log("event written to db: ", eventObj)
-    };
-  };
-}
-
 function getDrinkAmount(ownable_id) {
   let stringAmount = document.getElementById(ownable_id)
     .getElementsByClassName('slider')[0].valueOf().value;
   return parseInt(stringAmount);
 }
-
 
 function updateState(ownable_id, amt) {
   document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.top = (100 - amt) / 2 + '%';
@@ -120,12 +73,11 @@ function issuePotion() {
   );
 }
 
-
-
 function initializePotionHTML(ownable_id, amount) {
   injectPotionToGrid(ownable_id);
   updateState(ownable_id, amount);
-  initListenersForId(ownable_id);
+  document.getElementById(ownable_id).getElementsByClassName("drink-button")[0]
+    .addEventListener('click', () => consumePotion(ownable_id));
 }
 
 function injectPotionToGrid(ownable_id) {
@@ -137,11 +89,6 @@ function injectPotionToGrid(ownable_id) {
 
   document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.backgroundColor =
     `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-}
-
-function initListenersForId(id) {
-  document.getElementById(id).getElementsByClassName("drink-button")[0]
-    .addEventListener('click', () => consumePotion(id));
 }
 
 function getPotionTemplate(id) {
@@ -162,30 +109,4 @@ function getPotionTemplate(id) {
 }
 
 document.getElementsByClassName("inst-button")[0].addEventListener('click', () => issuePotion());
-document.getElementsByClassName("sync-button")[0].addEventListener('click', () => syncDb());
-
-async function syncDb() {
-
-  if (!window.indexedDB) {
-    console.log("Your browser doesn't support a stable version of IndexedDB.");
-  }
-
-  const chainIds = JSON.parse(localStorage.chainIds);
-  console.log("chainIds: ", chainIds);
-
-  for (let i = 0; i < chainIds.length; i++) {
-    const request = window.indexedDB.open(chainIds[i]);
-    let potionResponse = wasm.query_contract_state(chainIds[i]).then(
-      (resp) => {
-        console.log(resp);
-        if (document.getElementById(chainIds[i]) === null) {
-          initializePotionHTML(chainIds[i], resp.current_amount);
-        } else {
-          console.log('potion already initialized');
-        }
-      },
-      (err) => console.log("something went wrong")
-    );
-
-  }
-}
+document.getElementsByClassName("sync-button")[0].addEventListener('click', () => syncDb(initializePotionHTML));
