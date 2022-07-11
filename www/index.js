@@ -5,15 +5,11 @@ import {LTO} from '@ltonetwork/lto';
 
 const lto = new LTO('T');
 const account = lto.account();
-// IDB
-let dbs = {};
 
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
 }
-
-
 
 function queryState(ownable_id) {
   wasm.query_contract_state(ownable_id).then(
@@ -34,8 +30,8 @@ function consumePotion(ownable_id) {
   let chain = deriveStateFromEventChain(ownable_id);
   wasm.execute_contract(msg, ownable_id).then(
     () => {
-      chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
-      // localStorage.setItem(ownable_id, JSON.stringify(chain));
+      let newEvent = chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
+      writeEventObjToIDB(newEvent, ownable_id);
       queryState(ownable_id);
     },
     (err) => window.alert("attempting to consume more than possible")
@@ -43,17 +39,49 @@ function consumePotion(ownable_id) {
 }
 
 function deriveStateFromEventChain(ownable_id) {
-  let data = JSON.parse(localStorage.getItem(ownable_id));
-  const chain = new EventChain('');
-  chain.set(data);
+  if (!window.indexedDB) {
+    console.log("Your browser doesn't support a stable version of IndexedDB.");
+  }
+  let chain = new EventChain('');
+  const request = window.indexedDB.open(ownable_id);
+  request.onerror = event => console.log("Can't use IndexedDB");
+  request.onsuccess = event => {
+    const db = event.target.result;
+    const tx = db.transaction("events");
+    const objectStore = tx.objectStore("events");
+    objectStore.getAll()
+      .onsuccess = event => {
+        let latestEvent = { timestamp: 0 };
+        event.target.result.forEach(
+          e => {
+            e = JSON.parse(e);
+            if (e.timestamp > latestEvent.timestamp) {
+              latestEvent = e;
+            }
+          }
+        )
+        chain.set(latestEvent);
+    };
+  };
+  return chain;
+}
 
-  console.log("deriving state for ", chain);
-  chain.events.forEach(
-    e => {
-      console.log(e.getBody());
-    }
-  )
-  return chain
+function writeEventObjToIDB(eventObj, ownable_id) {
+  if (!window.indexedDB) {
+    console.log("Your browser doesn't support a stable version of IndexedDB.");
+  }
+
+  const request = window.indexedDB.open(ownable_id);
+  request.onerror = () => console.error("Can't use IndexedDB");
+  request.onsuccess = event => {
+    const db = event.target.result;
+    db.transaction("events", "readwrite")
+      .objectStore("events")
+      .put(JSON.stringify(eventObj), eventObj['_hash'])
+      .onsuccess = event => {
+        console.log("event written to db: ", eventObj)
+    };
+  };
 }
 
 function getDrinkAmount(ownable_id) {
@@ -81,18 +109,18 @@ function issuePotion() {
   chainIds.push(msg.ownable_id);
   localStorage.chainIds = JSON.stringify(chainIds);
 
-
   wasm.instantiate_contract(msg).then(
     () => {
       // add the event to chain and store in local storage
-      chain.add(new Event({"@context": "instantiate_msg.json", ...msg}).signWith(account));
-      localStorage.setItem(msg.ownable_id, JSON.stringify(chain));
-      // injects element into html
+      let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
+      writeEventObjToIDB(newEvent, msg.ownable_id);
       initializePotionHTML(msg.ownable_id, 100);
     },
     (err) => window.alert("failed to instantiate contract")
   );
 }
+
+
 
 function initializePotionHTML(ownable_id, amount) {
   injectPotionToGrid(ownable_id);
@@ -161,5 +189,3 @@ async function syncDb() {
 
   }
 }
-
-
