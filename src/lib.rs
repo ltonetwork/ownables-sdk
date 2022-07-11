@@ -7,9 +7,7 @@ use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use serde_json::to_string;
 use wasm_bindgen::prelude::*;
 
-use utils::{create_lto_deps, create_lto_env, load_lto_deps};
-use crate::msg::PotionStateResponse;
-// use crate::msg::{OwnershipResponse, PotionStateResponse};
+use utils::{create_lto_env, load_lto_deps};
 
 pub mod contract;
 pub mod error;
@@ -32,10 +30,7 @@ pub fn square(number: i32) -> i32 {
 }
 
 #[wasm_bindgen]
-pub async fn instantiate_contract(
-    msg: JsValue,
-) -> Result<(), JsError> {
-
+pub async fn instantiate_contract(msg: JsValue) -> Result<(), JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
     // let info: MessageInfo = info.into_serde().unwrap();
 
@@ -66,12 +61,12 @@ pub async fn instantiate_contract(
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(
-    msg: JsValue,
-    ownable_js_id: JsValue
-) -> Result<(), JsError> {
+pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<(), JsError> {
     // load from indexed db
-    log(&format!("[contract] executing message {:?} for ownable_id #{:?}", &msg, &ownable_js_id));
+    log(&format!(
+        "[contract] executing message {:?} for ownable_id #{:?}",
+        &msg, &ownable_js_id
+    ));
     let ownable_id: String = ownable_js_id.into_serde().unwrap();
 
     let mut deps = load_lto_deps(&ownable_id).await;
