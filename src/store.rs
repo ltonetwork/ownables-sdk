@@ -11,6 +11,7 @@ pub struct IdbStorage {
 }
 
 const INDEXDB_STORE: &str = "state";
+const INDEXDB_EVENTS: &str = "events";
 
 impl IdbStorage {
     pub async fn new(mut name: &str) -> Self {
@@ -73,6 +74,9 @@ impl IdbStorage {
             #[allow(clippy::redundant_pattern_matching)]
             if let None = db.object_store_names().find(|n| n == INDEXDB_STORE) {
                 db.create_object_store(INDEXDB_STORE).unwrap();
+            }
+            if let None = db.object_store_names().find(|n| n == INDEXDB_EVENTS) {
+                db.create_object_store(INDEXDB_EVENTS).unwrap();
             }
             Ok(())
         }));
