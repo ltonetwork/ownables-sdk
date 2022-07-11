@@ -2,7 +2,7 @@ pub mod utils;
 use std::str;
 
 use contract::instantiate;
-use cosmwasm_std::{Addr, MessageInfo};
+use cosmwasm_std::{MessageInfo};
 use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use serde_json::to_string;
 use wasm_bindgen::prelude::*;
@@ -24,25 +24,16 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn square(number: i32) -> i32 {
-    log("computing square...");
-    number * number
-}
-
-#[wasm_bindgen]
-pub async fn instantiate_contract(msg: JsValue) -> Result<(), JsError> {
+pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<(), JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
-    // let info: MessageInfo = info.into_serde().unwrap();
+    let info: MessageInfo = info.into_serde().unwrap();
 
     let mut deps = load_lto_deps(&msg.ownable_id).await;
 
     let res = instantiate(
         deps.as_mut(),
         create_lto_env(),
-        MessageInfo {
-            sender: Addr::unchecked("info.sender"),
-            funds: Vec::new(),
-        },
+        info,
         msg,
     );
 
@@ -61,7 +52,7 @@ pub async fn instantiate_contract(msg: JsValue) -> Result<(), JsError> {
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<(), JsError> {
+pub async fn execute_contract(msg: JsValue, info: JsValue, ownable_js_id: JsValue) -> Result<(), JsError> {
     // load from indexed db
     log(&format!(
         "[contract] executing message {:?} for ownable_id #{:?}",
@@ -73,15 +64,15 @@ pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<()
     // add the storage to the deps
 
     let message: ExecuteMsg = msg.into_serde().unwrap();
+    let info: MessageInfo = info.into_serde().unwrap();
+
     let result = contract::execute(
         deps.as_mut(),
         create_lto_env(),
-        MessageInfo {
-            sender: Addr::unchecked("info.sender"),
-            funds: Vec::new(),
-        },
+        info,
         message,
     );
+
     match result {
         Ok(response) => {
             let resp_json = to_string(&response);
@@ -92,7 +83,12 @@ pub async fn execute_contract(msg: JsValue, ownable_js_id: JsValue) -> Result<()
             deps.storage.sync_to_db().await;
             Ok(())
         }
-        Err(error) => Err(JsError::from(error)),
+        Err(error) => {
+            log(&format!(
+                "[contract] failed to execute msg"
+            ));
+            Err(JsError::from(error))
+        },
     }
 }
 
