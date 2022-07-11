@@ -20,15 +20,20 @@ function queryState(ownable_id) {
   );
 }
 
-function consumePotion(ownable_id) {
+function consumeOwnable(ownable_id) {
   let msg = {
     "consume": {
       "amount": getDrinkAmount(ownable_id),
     },
   };
 
+  let info = {
+    sender: "test-1-2",
+    funds: [],
+  }
+
   let chain = getEventChainForOwnableId(ownable_id);
-  wasm.execute_contract(msg, ownable_id).then(
+  wasm.execute_contract(msg, info, ownable_id).then(
     () => {
       let newEvent = chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
       writeEventObjToIDB(newEvent, ownable_id);
@@ -57,12 +62,16 @@ function issuePotion() {
     ownable_id: chain.id,
     contract_id: "c-id-1",
   };
+  const info = {
+    sender: "test-1-2",
+    funds: [],
+  };
 
   let chainIds = JSON.parse(localStorage.chainIds);
   chainIds.push(msg.ownable_id);
   localStorage.chainIds = JSON.stringify(chainIds);
 
-  wasm.instantiate_contract(msg).then(
+  wasm.instantiate_contract(msg, info).then(
     () => {
       // add the event to chain and store in local storage
       let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
@@ -73,11 +82,32 @@ function issuePotion() {
   );
 }
 
+function transferOwnable(ownable_id) {
+  let addr = window.prompt("Transfer the ownable to: ", null);
+  // if (lto.isValidAddress(addr)) {
+    const msg = {
+      transfer: {
+        to: addr,
+      },
+    };
+    const info = {
+      sender: "test-1-2",
+      funds: [],
+    };
+    wasm.execute_contract(msg, info, ownable_id).then(
+      (resp) => console.log(resp)
+    )
+  // }
+}
+
 function initializePotionHTML(ownable_id, amount) {
   injectPotionToGrid(ownable_id);
   updateState(ownable_id, amount);
-  document.getElementById(ownable_id).getElementsByClassName("drink-button")[0]
-    .addEventListener('click', () => consumePotion(ownable_id));
+  const ownableHTML = document.getElementById(ownable_id);
+  ownableHTML.getElementsByClassName("drink-button")[0]
+    .addEventListener('click', () => consumeOwnable(ownable_id));
+  ownableHTML.getElementsByClassName("transfer-button")[0]
+    .addEventListener('click', () => transferOwnable(ownable_id));
 }
 
 function injectPotionToGrid(ownable_id) {
@@ -86,7 +116,7 @@ function injectPotionToGrid(ownable_id) {
   potionElement.classList.add('grid-item');
   potionElement.innerHTML = getPotionTemplate(ownable_id);
   potionGrid.appendChild(potionElement);
-
+  // TODO: sometimes fails, find a more reliable way to generate color
   document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.backgroundColor =
     `#${Math.floor(Math.random() * 16777215).toString(16)}`;
 }
@@ -104,6 +134,7 @@ function getPotionTemplate(id) {
             <div class="drink">
               <input type="range" min="1" max="100" value="50" class="slider">
               <button class="drink-button">Drink</button>
+              <button class="transfer-button">Transfer</button>
             </div>
           </div>`
 }
