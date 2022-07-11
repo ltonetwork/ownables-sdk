@@ -38,7 +38,6 @@ impl IdbStorage {
         store.load_to_mem_storage().await;
         store
     }
-
 }
 
 impl Storage for IdbStorage {
@@ -75,6 +74,7 @@ impl IdbStorage {
             if let None = db.object_store_names().find(|n| n == INDEXDB_STORE) {
                 db.create_object_store(INDEXDB_STORE).unwrap();
             }
+            #[allow(clippy::redundant_pattern_matching)]
             if let None = db.object_store_names().find(|n| n == INDEXDB_EVENTS) {
                 db.create_object_store(INDEXDB_EVENTS).unwrap();
             }
