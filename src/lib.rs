@@ -24,7 +24,7 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<(), JsError> {
+pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<JsValue, JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
 
@@ -39,20 +39,15 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<(), JsE
 
     match res {
         Ok(response) => {
-            let resp_json = to_string(&response);
-            log(&format!(
-                "[contract] successfully instantiated! response {:}",
-                &resp_json.unwrap()
-            ));
             deps.storage.sync_to_db().await;
-            Ok(())
+            Ok(JsValue::from(to_string(&response).unwrap()))
         }
         Err(error) => Err(JsError::from(error)),
     }
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(msg: JsValue, info: JsValue, ownable_js_id: JsValue) -> Result<(), JsError> {
+pub async fn execute_contract(msg: JsValue, info: JsValue, ownable_js_id: JsValue) -> Result<JsValue, JsError> {
     // load from indexed db
     log(&format!(
         "[contract] executing message {:?} for ownable_id #{:?}",
@@ -75,13 +70,12 @@ pub async fn execute_contract(msg: JsValue, info: JsValue, ownable_js_id: JsValu
 
     match result {
         Ok(response) => {
-            let resp_json = to_string(&response);
             log(&format!(
                 "[contract] successfully executed msg. response {:}",
-                &resp_json.unwrap()
+                &to_string(&response).unwrap()
             ));
             deps.storage.sync_to_db().await;
-            Ok(())
+            Ok(JsValue::from(to_string(&response).unwrap()))
         }
         Err(error) => {
             log(&format!(
@@ -97,7 +91,7 @@ pub async fn query_contract_state(ownable_js_id: JsValue) -> Result<JsValue, JsE
     let ownable_id: String = ownable_js_id.into_serde().unwrap();
     let deps = load_lto_deps(&ownable_id).await;
 
-    let message: QueryMsg = QueryMsg::GetCurrentAmount {};
+    let message: QueryMsg = QueryMsg::GetPotionState {};
     let query_result = contract::query(deps.as_ref(), message);
     match query_result {
         Ok(potion_response) => Ok(JsValue::from_serde(&potion_response).unwrap()),

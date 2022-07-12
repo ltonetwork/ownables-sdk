@@ -21,9 +21,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    // returns the current remaining amount of potion as a json-encoded number
-    GetCurrentAmount {},
-    // GetOwner {},
+    GetPotionState {},
 }
 
 // We define a custom struct for each query response
@@ -33,6 +31,7 @@ pub struct PotionStateResponse {
     pub issuer: String,
     pub current_amount: u8,
     pub max_capacity: u8,
+    pub color_hex: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
