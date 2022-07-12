@@ -58,17 +58,15 @@ export async function syncDb(initializePotionHTML) {
   const chainIds = JSON.parse(localStorage.chainIds);
 
   for (let i = 0; i < chainIds.length; i++) {
-    const request = window.indexedDB.open(chainIds[i]);
-    let potionResponse = wasm.query_contract_state(chainIds[i]).then(
+    wasm.query_contract_state(chainIds[i]).then(
       (resp) => {
         if (document.getElementById(chainIds[i]) === null) {
-          initializePotionHTML(chainIds[i], resp.current_amount);
+          initializePotionHTML(chainIds[i], resp.current_amount, resp.color_hex);
         } else {
           console.log('potion already initialized');
         }
       },
       (err) => console.log("something went wrong")
     );
-
   }
 }
