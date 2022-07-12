@@ -13,9 +13,9 @@ if (localStorage.getItem("chainIds") === null) {
 
 function queryState(ownable_id) {
   wasm.query_contract_state(ownable_id).then(
-    potion => {
-      updateState(ownable_id, potion.current_amount);
-      return potion.current_amount;
+    (ownable) => {
+      updateState(ownable_id, ownable.current_amount);
+      return ownable.current_amount;
     }
   );
 }
@@ -34,7 +34,7 @@ function consumeOwnable(ownable_id) {
 
   let chain = getEventChainForOwnableId(ownable_id);
   wasm.execute_contract(msg, info, ownable_id).then(
-    () => {
+    (resp) => {
       let newEvent = chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
       writeEventObjToIDB(newEvent, ownable_id);
       queryState(ownable_id);
@@ -72,14 +72,23 @@ function issuePotion() {
   localStorage.chainIds = JSON.stringify(chainIds);
 
   wasm.instantiate_contract(msg, info).then(
-    () => {
+    (resp) => {
+      const ownable = JSON.parse(resp);
+      let color = extractAttributeValue(ownable.attributes, "color");
+      let amount_str = extractAttributeValue(ownable.attributes, "capacity");
       // add the event to chain and store in local storage
       let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
       writeEventObjToIDB(newEvent, msg.ownable_id);
-      initializePotionHTML(msg.ownable_id, 100);
+      initializePotionHTML(msg.ownable_id, parseInt(amount_str), color);
     },
     (err) => window.alert("failed to instantiate contract")
   );
+}
+
+function extractAttributeValue(attributes, key) {
+  return attributes.filter(prop => {
+    return prop.key === key
+  })[0].value;
 }
 
 function transferOwnable(ownable_id) {
@@ -100,8 +109,8 @@ function transferOwnable(ownable_id) {
   // }
 }
 
-function initializePotionHTML(ownable_id, amount) {
-  injectPotionToGrid(ownable_id);
+function initializePotionHTML(ownable_id, amount, color) {
+  injectPotionToGrid(ownable_id, color);
   updateState(ownable_id, amount);
   const ownableHTML = document.getElementById(ownable_id);
   ownableHTML.getElementsByClassName("drink-button")[0]
@@ -110,15 +119,13 @@ function initializePotionHTML(ownable_id, amount) {
     .addEventListener('click', () => transferOwnable(ownable_id));
 }
 
-function injectPotionToGrid(ownable_id) {
+function injectPotionToGrid(ownable_id, color) {
   const potionGrid = document.getElementsByClassName("grid-container")[0];
   const potionElement = document.createElement('div');
   potionElement.classList.add('grid-item');
   potionElement.innerHTML = getPotionTemplate(ownable_id);
   potionGrid.appendChild(potionElement);
-  // TODO: sometimes fails, find a more reliable way to generate color
-  document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.backgroundColor =
-    `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+  document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.backgroundColor = color;
 }
 
 function getPotionTemplate(id) {
