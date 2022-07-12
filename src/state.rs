@@ -10,6 +10,7 @@ pub struct State {
     pub issuer: Addr,
     pub max_capacity: u8,
     pub current_amount: u8,
+    pub color_hex: String,
 }
 
 pub const STATE: Item<State> = Item::new("potion");

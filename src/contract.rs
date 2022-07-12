@@ -5,6 +5,7 @@ use cw2::set_contract_version;
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, PotionStateResponse, QueryMsg};
 use crate::state::{State, STATE};
+use rand::Rng;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-demo";
@@ -22,6 +23,7 @@ pub fn instantiate(
         issuer: info.sender.clone(),
         max_capacity: msg.max_capacity,
         current_amount: msg.max_capacity,
+        color_hex: get_random_color()
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     STATE.save(deps.storage, &state)?;
@@ -30,7 +32,20 @@ pub fn instantiate(
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender.clone())
         .add_attribute("issuer", info.sender)
+        .add_attribute("color", state.color_hex)
         .add_attribute("capacity", msg.max_capacity.to_string()))
+}
+
+fn get_random_color() -> String {
+    let mut rng = rand::thread_rng();
+    let red = rng.gen_range(0..255);
+    let green = rng.gen_range(0..255);
+    let blue = rng.gen_range(0..255);
+    rgb(red, green, blue)
+}
+
+fn rgb(r: i32, g: i32, b: i32) -> String {
+    format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
 
 // #[cfg_attr(not(feature = "library"), entry_point)]
@@ -84,7 +99,7 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 // #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<PotionStateResponse> {
     match msg {
-        QueryMsg::GetCurrentAmount {} => query_potion_state(deps),
+        QueryMsg::GetPotionState {} => query_potion_state(deps),
     }
 }
 
@@ -95,6 +110,7 @@ fn query_potion_state(deps: Deps) -> StdResult<PotionStateResponse> {
         issuer: state.issuer.into_string(),
         current_amount: state.current_amount,
         max_capacity: state.max_capacity,
+        color_hex: state.color_hex,
     })
 }
 
