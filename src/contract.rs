@@ -1,11 +1,10 @@
+use std::convert::TryInto;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
-
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, PotionStateResponse, QueryMsg};
 use crate::state::{State, STATE};
-use rand::Rng;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-demo";
@@ -23,7 +22,7 @@ pub fn instantiate(
         issuer: info.sender.clone(),
         max_capacity: msg.max_capacity,
         current_amount: msg.max_capacity,
-        color_hex: get_random_color()
+        color_hex: get_random_color(msg.ownable_id)
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     STATE.save(deps.storage, &state)?;
@@ -36,15 +35,21 @@ pub fn instantiate(
         .add_attribute("capacity", msg.max_capacity.to_string()))
 }
 
-fn get_random_color() -> String {
-    let mut rng = rand::thread_rng();
-    let red = rng.gen_range(0..255);
-    let green = rng.gen_range(0..255);
-    let blue = rng.gen_range(0..255);
-    rgb(red, green, blue)
+fn get_random_color(hash: String) -> String {
+    let (red, green, blue) = derive_rgb(hash);
+    rgb_hex(red, green, blue)
 }
 
-fn rgb(r: i32, g: i32, b: i32) -> String {
+
+fn derive_rgb(id: String) -> (u8, u8, u8) {
+    let mut bytes: [u8; 62] = id.as_bytes()
+        .try_into().expect("cant slice into it");
+    // reverse because of address structure
+    bytes.reverse();
+    (bytes[0], bytes[1], bytes[2])
+}
+
+fn rgb_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
 
