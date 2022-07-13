@@ -1,7 +1,7 @@
 use cosmwasm_std::{MemoryStorage, Order, Record, Storage};
 use indexed_db_futures::prelude::*;
 // use futures::{executor::block_on};
-
+use crate::log;
 use js_sys::{Array, Uint8Array};
 use wasm_bindgen::{JsValue, UnwrapThrowExt};
 
@@ -65,18 +65,16 @@ impl Storage for IdbStorage {
 
 impl IdbStorage {
     pub async fn create_db(name: &str) -> IdbDatabase {
-        // let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 4).unwrap();
-        let mut db_req: OpenDbRequest = IdbDatabase::open(name).unwrap();
+        log(&format!("Opening db name {:}", &name));
+        // expect a db with some db initialized from js side (v1)
+        let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 2).unwrap();
         db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
             let db = evt.db();
+            log(&format!("onupgradeneeded trigger"));
             // Check if the object store exists; create it if it doesn't
             #[allow(clippy::redundant_pattern_matching)]
             if let None = db.object_store_names().find(|n| n == INDEXDB_STORE) {
                 db.create_object_store(INDEXDB_STORE).unwrap();
-            }
-            #[allow(clippy::redundant_pattern_matching)]
-            if let None = db.object_store_names().find(|n| n == INDEXDB_EVENTS) {
-                db.create_object_store(INDEXDB_EVENTS).unwrap();
             }
             Ok(())
         }));

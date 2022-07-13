@@ -70,18 +70,41 @@ function issuePotion() {
   chainIds.push(msg.ownable_id);
   localStorage.chainIds = JSON.stringify(chainIds);
 
+  initIndexedDb(msg.ownable_id);
+  let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
+  writeEventObjToIDB(newEvent, msg.ownable_id);
+
   wasm.instantiate_contract(msg, info).then(
     (resp) => {
       const ownable = JSON.parse(resp);
       let color = extractAttributeValue(ownable.attributes, "color");
       let amount_str = extractAttributeValue(ownable.attributes, "capacity");
       // add the event to chain and store in local storage
-      let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-      writeEventObjToIDB(newEvent, msg.ownable_id);
+
       initializePotionHTML(msg.ownable_id, parseInt(amount_str), color);
     },
     (err) => window.alert("failed to instantiate contract")
   );
+}
+
+function initIndexedDb(ownable_id) {
+  const request = window.indexedDB.open(ownable_id, 1);
+  let db;
+  request.onupgradeneeded = event => {
+    db = request.result;
+    console.log("onupgradeneeded trigger");
+    if (!db.objectStoreNames.contains("events")) {
+      db.createObjectStore("events");
+    }
+    if (!db.objectStoreNames.contains("chain")) {
+      db.createObjectStore("chain");
+    }
+  }
+
+  request.onsuccess = event => {
+    console.log("onsuccess");
+    db = request.result;
+  }
 }
 
 function extractAttributeValue(attributes, key) {

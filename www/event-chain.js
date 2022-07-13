@@ -42,15 +42,17 @@ export function writeEventObjToIDB(eventObj, ownable_id) {
   const request = window.indexedDB.open(ownable_id);
   request.onerror = () => console.error("Can't use IndexedDB");
   request.onsuccess = event => {
-    const db = event.target.result;
+    const db = request.result;
     db.transaction(EVENTS_STORE, "readwrite")
       .objectStore(EVENTS_STORE)
-      .put(JSON.stringify(eventObj), eventObj['_hash'])
+      .put(JSON.stringify(eventObj), eventObj.hash)
       .onsuccess = event => {
         console.log("event written to db: ", eventObj)
     };
   };
 }
+
+
 
 export async function syncDb(initializePotionHTML) {
 
