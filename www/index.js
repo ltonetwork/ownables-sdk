@@ -28,7 +28,7 @@ function consumeOwnable(ownable_id) {
   };
 
   let info = {
-    sender: "test-1-2",
+    sender: account.address,
     funds: [],
   }
 
@@ -60,10 +60,9 @@ function issuePotion() {
   const msg = {
     max_capacity: 100,
     ownable_id: chain.id,
-    contract_id: "c-id-1",
   };
   const info = {
-    sender: "test-1-2",
+    sender: account.address,
     funds: [],
   };
 
@@ -93,20 +92,20 @@ function extractAttributeValue(attributes, key) {
 
 function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the ownable to: ", null);
-  // if (lto.isValidAddress(addr)) {
+  if (lto.isValidAddress(addr)) {
     const msg = {
       transfer: {
         to: addr,
       },
     };
     const info = {
-      sender: "test-1-2",
+      sender: account.address,
       funds: [],
     };
     wasm.execute_contract(msg, info, ownable_id).then(
       (resp) => console.log(resp)
     )
-  // }
+  }
 }
 
 function initializePotionHTML(ownable_id, amount, color) {
