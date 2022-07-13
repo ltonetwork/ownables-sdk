@@ -117,7 +117,7 @@ fn query_potion_state(deps: Deps) -> StdResult<PotionStateResponse> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::coins;
+    use cosmwasm_std::{coins};
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 
     #[test]
@@ -127,7 +127,6 @@ mod tests {
         let msg = InstantiateMsg {
             max_capacity: 17,
             ownable_id: "0".to_string(),
-            contract_id: "c-id-1".to_string(),
         };
         let info = mock_info("creator", &coins(1000, "earth"));
 
@@ -136,7 +135,7 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         // it worked, let's query the state
-        let res = query(deps.as_ref(), QueryMsg::GetCurrentAmount {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::GetPotionState {}).unwrap();
 
         assert_eq!(17, res.max_capacity);
     }
@@ -148,7 +147,6 @@ mod tests {
         let msg = InstantiateMsg {
             max_capacity: 100,
             ownable_id: "0".to_string(),
-            contract_id: "c-id-1".to_string(),
         };
         let info = mock_info("creator", &coins(2, "token"));
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -168,7 +166,7 @@ mod tests {
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // should decrease capacity by 10
-        let res = query(deps.as_ref(), QueryMsg::GetCurrentAmount {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::GetPotionState {}).unwrap();
         // let value: PotionStateResponse = res).unwrap();
         assert_eq!(90, res.current_amount);
 
@@ -191,7 +189,6 @@ mod tests {
     //     let msg = InstantiateMsg {
     //         max_capacity: 17,
     //         ownable_id: "0".to_string(),
-    //         contract_id: "c-id-1".to_string()
     //     };
     //     let info = mock_info("issuer", &coins(2, "token"));
     //     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -203,7 +200,7 @@ mod tests {
     //     };
     //     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
     //     match res {
-    //         Err(ContractError::Unauthorized {}) => {}
+    //         Err(ContractError::Unauthorized { .. }) => {}
     //         _ => panic!("Must return unauthorized error"),
     //     }
     //
