@@ -1,6 +1,10 @@
 import * as wasm from "ownable-demo";
 import {Event, EventChain} from "@ltonetwork/lto/lib/events"
-import {getEventChainForOwnableId, syncDb, writeEventObjToIDB} from "./event-chain";
+import {
+  syncDb,
+  writeInstantiateEventToIdb,
+  writeExecuteEventToIdb
+} from "./event-chain";
 import {LTO} from '@ltonetwork/lto';
 
 const lto = new LTO('T');
@@ -26,21 +30,20 @@ function consumeOwnable(ownable_id) {
       "amount": getDrinkAmount(ownable_id),
     },
   };
-
   let info = {
     sender: account.address,
     funds: [],
   }
 
-  let chain = getEventChainForOwnableId(ownable_id);
   wasm.execute_contract(msg, info, ownable_id).then(
     (resp) => {
-      let newEvent = chain.add(new Event({"@context": "execute_msg.json", ...msg})).signWith(account);
-      writeEventObjToIDB(newEvent, ownable_id);
+      const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+      writeExecuteEventToIdb(ownable_id, newEvent, account);
       queryState(ownable_id);
     },
     (err) => window.alert("attempting to consume more than possible")
   );
+
 }
 
 function getDrinkAmount(ownable_id) {
@@ -72,15 +75,13 @@ function issuePotion() {
 
   initIndexedDb(msg.ownable_id);
   let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-  writeEventObjToIDB(newEvent, msg.ownable_id);
+  writeInstantiateEventToIdb(newEvent, msg.ownable_id, true);
 
   wasm.instantiate_contract(msg, info).then(
     (resp) => {
       const ownable = JSON.parse(resp);
       let color = extractAttributeValue(ownable.attributes, "color");
       let amount_str = extractAttributeValue(ownable.attributes, "capacity");
-      // add the event to chain and store in local storage
-
       initializePotionHTML(msg.ownable_id, parseInt(amount_str), color);
     },
     (err) => window.alert("failed to instantiate contract")
