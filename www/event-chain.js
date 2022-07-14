@@ -19,7 +19,7 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
   const request = window.indexedDB.open(ownable_id);
 
   request.onerror = () => console.log("Can't use IndexedDB");
-  request.onsuccess = event => {
+  request.onsuccess = () => {
     const db = request.result;
     // grab the latest event from the chain
     let chainTx = db.transaction(CHAIN_STORE).objectStore(CHAIN_STORE).get(LATEST);
@@ -84,4 +84,20 @@ export async function syncDb(initializePotionHTML) {
       (err) => console.log("something went wrong")
     );
   }
+}
+
+export function initIndexedDb(ownable_id) {
+  const request = window.indexedDB.open(ownable_id, 1);
+  let db;
+
+  request.onupgradeneeded = () => {
+    db = request.result;
+    if (!db.objectStoreNames.contains(EVENTS_STORE)) {
+      db.createObjectStore(EVENTS_STORE);
+    }
+    if (!db.objectStoreNames.contains(CHAIN_STORE)) {
+      db.createObjectStore(CHAIN_STORE);
+    }
+  }
+  request.onsuccess = () => console.log("indexdb initialized");
 }

@@ -74,12 +74,12 @@ pub fn try_consume(
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
             return Err(ContractError::Unauthorized {
-                val: "Unauthorized consumption attempt".to_string(),
+                val: "Unauthorized consumption attempt".into()
             });
         }
         if state.current_amount < consumption_amount {
             return Err(ContractError::CustomError {
-                val: "attempt to consume more than possible".to_string(),
+                val: "attempt to consume more than possible".into(),
             });
         }
         state.current_amount -= consumption_amount;

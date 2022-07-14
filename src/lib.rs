@@ -47,19 +47,20 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<JsValue
 }
 
 #[wasm_bindgen]
-pub async fn execute_contract(msg: JsValue, info: JsValue, ownable_js_id: JsValue) -> Result<JsValue, JsError> {
-    // load from indexed db
+pub async fn execute_contract(
+    msg: JsValue,
+    info: JsValue,
+    ownable_js_id: JsValue
+) -> Result<JsValue, JsError> {
+    let ownable_id: String = ownable_js_id.into_serde().unwrap();
+    let message: ExecuteMsg = msg.into_serde().unwrap();
+    let info: MessageInfo = info.into_serde().unwrap();
+    let mut deps = load_lto_deps(&ownable_id).await;
+
     log(&format!(
         "[contract] executing message {:?} for ownable_id #{:?}",
         &msg, &ownable_js_id
     ));
-    let ownable_id: String = ownable_js_id.into_serde().unwrap();
-
-    let mut deps = load_lto_deps(&ownable_id).await;
-    // add the storage to the deps
-
-    let message: ExecuteMsg = msg.into_serde().unwrap();
-    let info: MessageInfo = info.into_serde().unwrap();
 
     let result = contract::execute(
         deps.as_mut(),
