@@ -64,6 +64,7 @@ impl IdbStorage {
     pub async fn create_db(name: &str) -> IdbDatabase {
         // expect a db with some db initialized from js side (v1)
         let mut db_req: OpenDbRequest = IdbDatabase::open_u32(name, 2).unwrap();
+
         db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
             let db = evt.db();
             // Check if the object store exists; create it if it doesn't

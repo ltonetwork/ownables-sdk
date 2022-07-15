@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
@@ -36,17 +35,14 @@ pub fn instantiate(
 }
 
 fn get_random_color(hash: String) -> String {
-    let (red, green, blue) = derive_rgb(hash);
+    let (red, green, blue) = derive_rgb_values(hash);
     rgb_hex(red, green, blue)
 }
 
-
-fn derive_rgb(id: String) -> (u8, u8, u8) {
-    let mut bytes: [u8; 62] = id.as_bytes()
-        .try_into().expect("cant slice into it");
-    // reverse because of address structure
-    bytes.reverse();
-    (bytes[0], bytes[1], bytes[2])
+fn derive_rgb_values(hash: String) -> (u8, u8, u8) {
+    let mut decoded_hash = bs58::decode(&hash).into_vec().unwrap();
+    decoded_hash.reverse();
+    (decoded_hash[0], decoded_hash[1], decoded_hash[2])
 }
 
 fn rgb_hex(r: u8, g: u8, b: u8) -> String {
