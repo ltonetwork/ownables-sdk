@@ -96,16 +96,19 @@ export async function syncDb() {
 }
 
 export function transferOwnable(ownable_id) {
-  let addr = window.prompt("Transfer the ownable to: ", null);
+  let addr = window.prompt("Transfer the Ownable to: ", null);
   if (lto.isValidAddress(addr)) {
     const msg = {
       transfer: {
         to: addr,
       },
     };
-
-    wasm.execute_contract(msg, MESSAGE_INFO, ownable_id).then(
-      (resp) => console.log(resp)
-    )
+    if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
+      wasm.execute_contract(msg, MESSAGE_INFO, ownable_id).then(
+        (resp) => console.log(resp)
+      )
+    }
+  } else {
+    alert(`${addr} is not a valid address`);
   }
 }
