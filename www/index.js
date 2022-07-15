@@ -1,13 +1,9 @@
-import * as wasm from "ownable-demo";
-import {Event, EventChain} from "@ltonetwork/lto/lib/events"
-import {
-  syncDb,
-} from "./event-chain";
+import {consumeOwnable, deleteOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
 
-import {consumeOwnable, issueOwnable, transferOwnable} from "./wasm-wrappers";
+export async function sync() {
+  await syncDb();
+}
 
-syncDb(initializePotionHTML)
-  .then(() => console.log("sync complete"));
 
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
@@ -33,6 +29,11 @@ export function initializePotionHTML(ownable_id, amount, color) {
     .addEventListener('click', () => consumeOwnable(ownable_id));
   ownableHTML.getElementsByClassName("transfer-button")[0]
     .addEventListener('click', () => transferOwnable(ownable_id));
+  ownableHTML.getElementsByClassName("delete-button")[0]
+    .addEventListener('click', () => {
+      deleteOwnable(ownable_id);
+      ownableHTML.parentElement.remove();
+    });
 }
 
 function injectPotionToGrid(ownable_id, color) {
@@ -58,8 +59,10 @@ function getPotionTemplate(id) {
               <input type="range" min="1" max="100" value="50" class="slider">
               <button class="drink-button">Drink</button>
               <button class="transfer-button">Transfer</button>
+              <button class="delete-button">Delete</button>
             </div>
           </div>`
 }
 
 document.getElementsByClassName("inst-button")[0].addEventListener('click', () => issueOwnable());
+document.getElementsByClassName("sync-button")[0].addEventListener('click', () => sync());
