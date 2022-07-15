@@ -1,7 +1,12 @@
 import * as wasm from "ownable-demo";
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
-import {initIndexedDb, writeExecuteEventToIdb, writeInstantiateEventToIdb} from "./event-chain";
-import {getDrinkAmount, initializePotionHTML} from "./index";
+import {
+  deleteIndexedDb,
+  initIndexedDb,
+  writeExecuteEventToIdb,
+  writeInstantiateEventToIdb
+} from "./event-chain";
+import {getDrinkAmount, initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 
 const lto = new LTO('T');
@@ -12,23 +17,28 @@ const MESSAGE_INFO = {
   funds: [],
 }
 
-export function consumeOwnable(ownable_id) {
+export async function consumeOwnable(ownable_id) {
   let msg = {
     "consume": {
       "amount": getDrinkAmount(ownable_id),
     },
   };
 
+  const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+  let db = await writeExecuteEventToIdb(ownable_id, newEvent, account);
+  db.close();
+
   wasm.execute_contract(msg, MESSAGE_INFO, ownable_id).then(
     (resp) => {
-      const newEvent = new Event({"@context": "execute_msg.json", ...msg});
-      writeExecuteEventToIdb(ownable_id, newEvent, account);
       queryState(ownable_id);
     },
     (err) => window.alert("attempting to consume more than possible")
   );
 }
 
+export function deleteOwnable(ownable_id) {
+  deleteIndexedDb(ownable_id);
+}
 
 export function queryState(ownable_id) {
   wasm.query_contract_state(ownable_id).then(
@@ -45,7 +55,7 @@ function extractAttributeValue(attributes, key) {
   })[0].value;
 }
 
-export function issueOwnable() {
+export async function issueOwnable() {
   // issue a new event chain
   const chain = EventChain.create(account);
   const msg = {
@@ -57,21 +67,33 @@ export function issueOwnable() {
   chainIds.push(msg.ownable_id);
   localStorage.chainIds = JSON.stringify(chainIds);
 
-  initIndexedDb(msg.ownable_id);
+  const db = await initIndexedDb(msg.ownable_id);
   let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-  writeInstantiateEventToIdb(newEvent, msg.ownable_id);
+  writeInstantiateEventToIdb(db, newEvent);
 
-  wasm.instantiate_contract(msg, MESSAGE_INFO).then(
-    (resp) => {
-      const ownable = JSON.parse(resp);
-      let color = extractAttributeValue(ownable.attributes, "color");
-      let amount_str = extractAttributeValue(ownable.attributes, "capacity");
-      initializePotionHTML(msg.ownable_id, parseInt(amount_str), color);
-    },
-    (err) => window.alert("failed to instantiate contract")
-  );
+  // close db to not block the wasm side from accessing it
+  db.close();
+
+  const resp = await wasm.instantiate_contract(msg, MESSAGE_INFO);
+  const ownable = JSON.parse(resp);
+  let color = extractAttributeValue(ownable.attributes, "color");
+  let amount_str = extractAttributeValue(ownable.attributes, "capacity");
+  initializePotionHTML(msg.ownable_id, parseInt(amount_str), color);
 }
 
+export async function syncDb() {
+  // TODO: maybe clear existing grid beforehand
+  const chainIds = JSON.parse(localStorage.chainIds);
+
+  for (let i = 0; i < chainIds.length; i++) {
+    let contractState = await wasm.query_contract_state(chainIds[i]);
+    if (document.getElementById(chainIds[i]) === null) {
+      initializePotionHTML(chainIds[i], contractState.current_amount, contractState.color_hex);
+    } else {
+      console.log('potion already initialized');
+    }
+  }
+}
 
 export function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the ownable to: ", null);
