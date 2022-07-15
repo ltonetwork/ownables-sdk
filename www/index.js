@@ -4,7 +4,6 @@ export async function sync() {
   await syncDb();
 }
 
-
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
@@ -31,8 +30,10 @@ export function initializePotionHTML(ownable_id, amount, color) {
     .addEventListener('click', () => transferOwnable(ownable_id));
   ownableHTML.getElementsByClassName("delete-button")[0]
     .addEventListener('click', () => {
-      deleteOwnable(ownable_id);
-      ownableHTML.parentElement.remove();
+      if (confirm("Are you sure you want to delete this Ownable?")) {
+        deleteOwnable(ownable_id);
+        ownableHTML.parentElement.remove();
+      }
     });
 }
 
@@ -55,11 +56,18 @@ function getPotionTemplate(id) {
               <img src="potion/body.png">
               <div class="amount"></div>
             </div>
-            <div class="drink">
-              <input type="range" min="1" max="100" value="50" class="slider">
-              <button class="drink-button">Drink</button>
-              <button class="transfer-button">Transfer</button>
-              <button class="delete-button">Delete</button>
+            <div style="display: flex">
+                <div class="drink">
+                <input type="range" min="1" max="100" value="50" class="slider">
+                <button class="drink-button">Drink</button>
+              </div>
+              <div class="dropdown">
+                <div class="dropdown-icon"><strong>&#10247;</strong></div>
+                <div class="dropdown-content">
+                  <button class="transfer-button">Transfer</button>
+                  <button class="delete-button">Delete</button>
+                </div>
+              </div>
             </div>
           </div>`
 }

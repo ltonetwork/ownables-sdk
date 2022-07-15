@@ -94,6 +94,25 @@ button:active {
   text-align: center;
 }
 
+/* dropdown menu */
+.dropdown-icon {
+  font-size: 36px;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  z-index: 1;
+}
+
+/* Show the dropdown menu on hover */
+.dropdown:hover .dropdown-content {display: block;}
+
 @media (max-width: 600px) {
   .potion .amount {
     font-size: 10.83vw;
