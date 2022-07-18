@@ -1,5 +1,5 @@
 import {EventChain} from "@ltonetwork/lto/lib/events";
-import {sync} from "./index";
+import {syncDb} from "./wasm-wrappers";
 
 const EVENTS_STORE = "events";
 const CHAIN_STORE = "chain";
@@ -13,9 +13,8 @@ export function validateIndexedDBSupport() {
 }
 
 export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
-
+  validateIndexedDBSupport();
   return new Promise((resolve, reject) => {
-    validateIndexedDBSupport();
     let chain = new EventChain('');
     const request = window.indexedDB.open(ownable_id);
     request.onsuccess = () => {
@@ -40,6 +39,7 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
       };
     }
     request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
+    request.onblocked = (event) => reject("idb blocked: " + event);
   });
 }
 
@@ -70,12 +70,13 @@ export function deleteIndexedDb(name) {
   localStorage.chainIds = JSON.stringify(chainIds);
 
   const request = window.indexedDB.deleteDatabase(name);
+
   request.onerror = () => console.log("error deleting idb");
   request.onsuccess = async () => {
     console.log("success deleting db");
-    console.log(request.result);
-    await sync();
+    await syncDb();
   }
+  request.onblocked = (e) => console.log("idb blocked: ", e);
 }
 
 export function initIndexedDb(ownable_id) {
@@ -93,5 +94,6 @@ export function initIndexedDb(ownable_id) {
     }
     request.onsuccess = () => resolve(request.result);
     request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
+    request.onblocked = (event) => reject("idb blocked: " + event)
   });
 }

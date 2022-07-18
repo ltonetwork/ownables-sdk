@@ -40,9 +40,13 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<JsValue
     match res {
         Ok(response) => {
             deps.storage.sync_to_db().await;
+            deps.storage.close();
             Ok(JsValue::from(to_string(&response).unwrap()))
         }
-        Err(error) => Err(JsError::from(error)),
+        Err(error) => {
+            deps.storage.close();
+            Err(JsError::from(error))
+        },
     }
 }
 
@@ -76,12 +80,14 @@ pub async fn execute_contract(
                 &to_string(&response).unwrap()
             ));
             deps.storage.sync_to_db().await;
+            deps.storage.close();
             Ok(JsValue::from(to_string(&response).unwrap()))
         }
         Err(error) => {
             log(&format!(
                 "[contract] failed to execute msg"
             ));
+            deps.storage.close();
             Err(JsError::from(error))
         },
     }
@@ -94,6 +100,7 @@ pub async fn query_contract_state(ownable_js_id: JsValue) -> Result<JsValue, JsE
 
     let message: QueryMsg = QueryMsg::GetPotionState {};
     let query_result = contract::query(deps.as_ref(), message);
+    deps.storage.close();
     match query_result {
         Ok(potion_response) => Ok(JsValue::from_serde(&potion_response).unwrap()),
         Err(error) => panic!("contract state query failed. error {:?}", error),
