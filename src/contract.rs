@@ -1,9 +1,9 @@
-#[cfg(not(feature = "library"))]
-use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use cw2::set_contract_version;
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, PotionStateResponse, QueryMsg};
 use crate::state::{State, STATE};
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cw2::set_contract_version;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-demo";
@@ -21,7 +21,7 @@ pub fn instantiate(
         issuer: info.sender.clone(),
         max_capacity: msg.max_capacity,
         current_amount: msg.max_capacity,
-        color_hex: get_random_color(msg.ownable_id)
+        color_hex: get_random_color(msg.ownable_id),
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     STATE.save(deps.storage, &state)?;
@@ -70,7 +70,7 @@ pub fn try_consume(
     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
             return Err(ContractError::Unauthorized {
-                val: "Unauthorized consumption attempt".into()
+                val: "Unauthorized consumption attempt".into(),
             });
         }
         if state.current_amount < consumption_amount {
@@ -118,7 +118,7 @@ fn query_potion_state(deps: Deps) -> StdResult<PotionStateResponse> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{coins};
+    use cosmwasm_std::coins;
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 
     #[test]
@@ -127,9 +127,9 @@ mod tests {
 
         let msg = InstantiateMsg {
             max_capacity: 17,
-            ownable_id: "0".to_string(),
+            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
         };
-        let info = mock_info("creator", &coins(1000, "earth"));
+        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(1000, "earth"));
 
         // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -147,13 +147,13 @@ mod tests {
 
         let msg = InstantiateMsg {
             max_capacity: 100,
-            ownable_id: "0".to_string(),
+            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
         };
-        let info = mock_info("creator", &coins(2, "token"));
+        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // should only allow owner to consume
-        let info = mock_info("random", &coins(2, "token"));
+        let info = mock_info("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh", &coins(2, "token"));
         let msg = ExecuteMsg::Consume { amount: 10 };
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {
@@ -162,7 +162,7 @@ mod tests {
         }
 
         // creator can consume it
-        let info = mock_info("creator", &coins(2, "token"));
+        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
         let msg = ExecuteMsg::Consume { amount: 10 };
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(90, res.current_amount);
 
         // should fail to consume more than available
-        let info = mock_info("creator", &coins(2, "token"));
+        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
         let msg = ExecuteMsg::Consume { amount: 95 };
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {

@@ -2,7 +2,7 @@ pub mod utils;
 use std::str;
 
 use contract::instantiate;
-use cosmwasm_std::{MessageInfo};
+use cosmwasm_std::MessageInfo;
 use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use serde_json::to_string;
 use wasm_bindgen::prelude::*;
@@ -30,12 +30,7 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<JsValue
 
     let mut deps = load_lto_deps(&msg.ownable_id).await;
 
-    let res = instantiate(
-        deps.as_mut(),
-        create_lto_env(),
-        info,
-        msg,
-    );
+    let res = instantiate(deps.as_mut(), create_lto_env(), info, msg);
 
     match res {
         Ok(response) => {
@@ -46,7 +41,7 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<JsValue
         Err(error) => {
             deps.storage.close();
             Err(JsError::from(error))
-        },
+        }
     }
 }
 
@@ -54,7 +49,7 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue) -> Result<JsValue
 pub async fn execute_contract(
     msg: JsValue,
     info: JsValue,
-    ownable_js_id: JsValue
+    ownable_js_id: JsValue,
 ) -> Result<JsValue, JsError> {
     let ownable_id: String = ownable_js_id.into_serde().unwrap();
     let message: ExecuteMsg = msg.into_serde().unwrap();
@@ -66,12 +61,7 @@ pub async fn execute_contract(
         &msg, &ownable_js_id
     ));
 
-    let result = contract::execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info,
-        message,
-    );
+    let result = contract::execute(deps.as_mut(), create_lto_env(), info, message);
 
     match result {
         Ok(response) => {
@@ -84,12 +74,10 @@ pub async fn execute_contract(
             Ok(JsValue::from(to_string(&response).unwrap()))
         }
         Err(error) => {
-            log(&format!(
-                "[contract] failed to execute msg"
-            ));
+            log("[contract] failed to execute msg");
             deps.storage.close();
             Err(JsError::from(error))
-        },
+        }
     }
 }
 

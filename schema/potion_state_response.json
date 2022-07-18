@@ -3,12 +3,16 @@
   "title": "PotionStateResponse",
   "type": "object",
   "required": [
+    "color_hex",
     "current_amount",
     "issuer",
     "max_capacity",
     "owner"
   ],
   "properties": {
+    "color_hex": {
+      "type": "string"
+    },
     "current_amount": {
       "type": "integer",
       "format": "uint8",
