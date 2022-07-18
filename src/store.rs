@@ -35,6 +35,10 @@ impl IdbStorage {
         store.load_to_mem_storage().await;
         store
     }
+
+    pub fn close(&self) {
+        self.db.close()
+    }
 }
 
 impl Storage for IdbStorage {
