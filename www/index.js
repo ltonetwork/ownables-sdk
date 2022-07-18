@@ -69,4 +69,3 @@ function getPotionTemplate(id) {
 }
 
 document.getElementsByClassName("inst-button")[0].addEventListener('click', () => issueOwnable());
-document.getElementsByClassName("sync-button")[0].addEventListener('click', () => syncDb());

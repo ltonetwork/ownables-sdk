@@ -8,13 +8,45 @@ import {
 } from "./event-chain";
 import {getDrinkAmount, initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
-
 const lto = new LTO('T');
-const account = lto.account();
 
-const MESSAGE_INFO = {
-  sender: account.address,
-  funds: [],
+
+function getAccount() {
+  let existingSeed = localStorage.encryptedSeed;
+  let account;
+  if (existingSeed === undefined) {
+    const pw = window.prompt("Setup a password for your account", "");
+    account = lto.account();
+    localStorage.encryptedSeed = account.encryptSeed(pw);
+  } else {
+    account = attemptToDecryptSeed(existingSeed);
+  }
+  return account;
+}
+
+function attemptToDecryptSeed(seed, promptMsg = "Enter your password") {
+  let account;
+  while (account === undefined) {
+    const pw = window.prompt(promptMsg, "");
+    const settings = {
+      seed: seed,
+      seedPassword: pw,
+    };
+    try {
+      account = lto.account(settings);
+      window.alert("Successfully authenticated");
+      return account;
+    } catch (e) {
+      promptMsg = "Invalid password, try again";
+    }
+  }
+}
+
+function getMessageInfo() {
+  return {
+    sender: account.address,
+    funds: [],
+  }
 }
 
 export async function consumeOwnable(ownable_id) {
@@ -28,7 +60,7 @@ export async function consumeOwnable(ownable_id) {
   let db = await writeExecuteEventToIdb(ownable_id, newEvent, account);
   db.close();
 
-  wasm.execute_contract(msg, MESSAGE_INFO, ownable_id).then(
+  wasm.execute_contract(msg, getMessageInfo(), ownable_id).then(
     (resp) => {
       queryState(ownable_id);
     },
@@ -74,7 +106,7 @@ export async function issueOwnable() {
   // close db to not block the wasm side from accessing it
   db.close();
 
-  const resp = await wasm.instantiate_contract(msg, MESSAGE_INFO);
+  const resp = await wasm.instantiate_contract(msg, getMessageInfo());
   const ownable = JSON.parse(resp);
   let color = extractAttributeValue(ownable.attributes, "color");
   let amount_str = extractAttributeValue(ownable.attributes, "capacity");
@@ -104,7 +136,7 @@ export function transferOwnable(ownable_id) {
       },
     };
     if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
-      wasm.execute_contract(msg, MESSAGE_INFO, ownable_id).then(
+      wasm.execute_contract(msg, getMessageInfo(), ownable_id).then(
         (resp) => console.log(resp)
       )
     }
@@ -112,3 +144,6 @@ export function transferOwnable(ownable_id) {
     alert(`${addr} is not a valid address`);
   }
 }
+
+let account = getAccount();
+setTimeout(() => syncDb(), 0);
