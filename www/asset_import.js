@@ -1,3 +1,5 @@
+import {ASSETS_STORE} from "./event-chain";
+
 var xhr = new XMLHttpRequest(), blob;
 
 export function importAssets() {
@@ -19,15 +21,15 @@ export function importAssets() {
 }
 
 function storeTemplates(templates) {
-  const request = window.indexedDB.open("assets");
+  const request = window.indexedDB.open(ASSETS_STORE);
   let db;
 
   request.onblocked = (event) => console.log("idb blocked: ", event);
   request.onerror = (event) => console.log("failed to open indexeddb: ", event.errorCode);
   request.onupgradeneeded = () => {
     db = request.result;
-    if (!db.objectStoreNames.contains("img")) {
-      db.createObjectStore("img");
+    if (!db.objectStoreNames.contains(ASSETS_STORE)) {
+      db.createObjectStore(ASSETS_STORE);
     }
   };
   request.onsuccess = async () => {
@@ -40,9 +42,21 @@ function storeTemplates(templates) {
 
 function writeImg(db, template) {
   return new Promise((resolve, reject) => {
-    let tx = db.transaction("img", "readwrite")
-      .objectStore("img")
+    let tx = db.transaction(ASSETS_STORE, "readwrite")
+      .objectStore(ASSETS_STORE)
       .put(template, template["name"]);
+
+    tx.onsuccess = () => resolve(tx.result);
+    tx.onerror = (err) => reject(err);
+    tx.onblocked = (err) => reject(err);
+  });
+}
+
+export function fetchImg(db, key) {
+  return new Promise((resolve, reject) => {
+    let tx = db.transaction(ASSETS_STORE, "readonly")
+      .objectStore(ASSETS_STORE)
+      .get(key);
 
     tx.onsuccess = () => resolve(tx.result);
     tx.onerror = (err) => reject(err);
