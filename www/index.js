@@ -1,5 +1,5 @@
 import {consumeOwnable, deleteOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
-
+import {importAssets} from "./asset_import";
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
@@ -69,3 +69,4 @@ function getPotionTemplate(id) {
 }
 
 document.getElementsByClassName("inst-button")[0].addEventListener('click', () => issueOwnable());
+document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
