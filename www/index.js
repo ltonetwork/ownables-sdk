@@ -1,5 +1,5 @@
 import {consumeOwnable, deleteOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
-import {importAssets} from "./asset_import";
+import {fetchImg, importAssets} from "./asset_import";
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
@@ -37,19 +37,46 @@ function injectPotionToGrid(ownable_id, color) {
   const potionGrid = document.getElementsByClassName("grid-container")[0];
   const potionElement = document.createElement('div');
   potionElement.classList.add('grid-item');
-  potionElement.innerHTML = getPotionTemplate(ownable_id);
+  potionElement.innerHTML = getPotionTemplate(ownable_id).trim();
+  findImgSources(potionElement.firstChild);
   potionGrid.appendChild(potionElement);
   document.getElementById(ownable_id).getElementsByClassName('juice')[0].style.backgroundColor = color;
 }
 
+function findImgSources(htmlTemplate) {
+  let allElements = htmlTemplate.getElementsByTagName("*");
+  const request = window.indexedDB.open("assets");
+  request.onblocked = (event) => console.log("idb blocked: ", event);
+  request.onerror = (event) => console.log("failed to open indexeddb: ", event.errorCode);
+  request.onsuccess = async () => {
+    let db = request.result;
+    for (const element of allElements) {
+      // for each image tag within the html template..
+      if (element.tagName === "IMG") {
+        const currentSrc = element.getAttribute("src");
+        const fr = new FileReader();
+        // query the idb for that img and update the template
+        let imgFile = await fetchImg(db, currentSrc);
+        fr.onload = (event) => {
+          element.src = event.target.result;
+        };
+        if (imgFile) {
+          fr.readAsDataURL(imgFile);
+        }
+      }
+    }
+  };
+}
+
+
 function getPotionTemplate(id) {
   return `<div id="${id}">
             <div class="potion">
-              <img src="potion/back.png">
+              <img src="back.png">
               <div class="juice"></div>
               <div class="under"></div>
-              <img src="potion/glass.png">
-              <img src="potion/body.png">
+              <img src="glass.png">
+              <img src="body.png">
               <div class="amount"></div>
             </div>
             <div style="display: flex">
