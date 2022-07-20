@@ -92,9 +92,6 @@ export function initIndexedDb(ownable_id) {
       if (!db.objectStoreNames.contains(CHAIN_STORE)) {
         db.createObjectStore(CHAIN_STORE);
       }
-      if (!db.objectStoreNames.contains(ASSETS_STORE)) {
-        db.createObjectStore(ASSETS_STORE);
-      }
     }
     request.onsuccess = () => resolve(request.result);
     request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);

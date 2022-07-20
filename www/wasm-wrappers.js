@@ -49,13 +49,7 @@ function getMessageInfo() {
   }
 }
 
-export async function consumeOwnable(ownable_id) {
-  let msg = {
-    "consume": {
-      "amount": getDrinkAmount(ownable_id),
-    },
-  };
-
+export async function executeOwnable(ownable_id, msg) {
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
   let db = await writeExecuteEventToIdb(ownable_id, newEvent, account);
   db.close();
@@ -107,20 +101,17 @@ export async function issueOwnable() {
   db.close();
 
   const resp = await wasm.instantiate_contract(msg, getMessageInfo());
-  const ownable = JSON.parse(resp);
-  let color = extractAttributeValue(ownable.attributes, "color");
-  let amount_str = extractAttributeValue(ownable.attributes, "capacity");
-  initializePotionHTML(msg.ownable_id, parseInt(amount_str), color);
+  return JSON.parse(resp);
 }
 
-export async function syncDb() {
+export async function syncDb(callback) {
   // TODO: maybe clear existing grid beforehand
   const chainIds = JSON.parse(localStorage.chainIds);
 
   for (let i = 0; i < chainIds.length; i++) {
     let contractState = await wasm.query_contract_state(chainIds[i]);
     if (document.getElementById(chainIds[i]) === null) {
-      initializePotionHTML(chainIds[i], contractState.current_amount, contractState.color_hex);
+      callback(chainIds[i], contractState);
     } else {
       console.log('potion already initialized');
     }
@@ -145,5 +136,5 @@ export function transferOwnable(ownable_id) {
   }
 }
 
+// Todo I want to be moved
 let account = getAccount();
-setTimeout(() => syncDb(), 0);

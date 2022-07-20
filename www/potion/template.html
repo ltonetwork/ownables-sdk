@@ -1,0 +1,162 @@
+<div class="potion">
+  <img src="back.png">
+  <div class="juice"></div>
+  <div class="under"></div>
+  <img src="glass.png">
+  <img src="body.png">
+  <div class="amount"></div>
+</div>
+<div style="display: flex">
+  <div class="drink">
+    <input type="range" min="1" max="100" value="50" class="slider">
+    <button class="drink-button">Drink</button>
+  </div>
+  <!--div class="dropdown">
+    <div class="dropdown-icon"><strong>&#10247;</strong></div>
+    <div class="dropdown-content">
+      <button class="transfer-button">Transfer</button>
+      <button class="delete-button">Delete</button>
+    </div>
+  </div-->
+</div>
+<script>
+  let ownable_id;
+
+  document.getElementsByClassName("drink-button")[0]
+    .addEventListener('click', () => consume());
+
+  function updateState(color, amt) {
+    document.getElementsByClassName('juice')[0].style.backgroundColor = color;
+    document.getElementsByClassName('juice')[0].style.top = (100 - amt) / 2 + '%';
+    document.getElementsByClassName('amount')[0].textContent = amt;
+  }
+
+
+  window.addEventListener("message", (event) => {
+    console.log(event);
+
+    ownable_id = event.data.ownable_id;
+
+    const state = event.data.state;
+    updateState(state.color, state.amount)
+  });
+
+  function getDrinkAmount() {
+    let stringAmount = document.getElementsByClassName('slider')[0].valueOf().value;
+    return parseInt(stringAmount);
+  }
+
+  function consume() {
+    let msg = {
+      "consume": {
+        "amount": getDrinkAmount(),
+      },
+    };
+
+    console.log(msg);
+
+    window.parent.postMessage({ownable_id, msg}, "*");
+  }
+</script>
+<style>
+  @font-face {
+    font-family: "DS-Digital";
+    src: url("potion/ds-digital-numbers.ttf");
+  }
+
+  .potion {
+    aspect-ratio: 1 / 1.5;
+    width: 40%;
+    max-width: 100%;
+    position: relative;
+    overflow: hidden;
+
+  }
+
+  .potion img {
+    position: absolute;
+    left: -15%;
+    top: 0;
+    height: 100%;
+  }
+  .potion .under {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 20%;
+    background-color: white;
+  }
+  .potion.in .juice {
+    transition: top 2s;
+  }
+
+  .potion div.juice {
+    position: absolute;
+    height: 100%;
+    width: 50%;
+    margin-top: 31%;
+    margin-left: 25%;
+  }
+
+  .potion .amount {
+    font-family: DS-Digital;
+    position: absolute;
+    right: 18.5%;
+    top: 9%;
+    color: black;
+    font-size: 95%;
+    transform: skewY(22deg);
+    opacity: 0.7;
+  }
+
+  .juice {
+    transition: all 2s ease;
+  }
+
+  .slider {
+    width: 50%;
+    max-width: calc(100% - 140px);
+  }
+
+  button {
+    box-shadow: inset 0px 1px 0px 0px #e184f3;
+    background: linear-gradient(to bottom, #c123de 5%, #a20dbd 100%);
+    background-color: #c123de;
+    border-radius: 3px;
+    border: 1px solid #a511c0;
+    display: inline-block;
+    cursor: pointer;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 6px 0;
+    width: 160px;
+    text-decoration: none;
+  }
+  button:hover {
+    background: linear-gradient(to bottom, #a20dbd 5%, #c123de 100%);
+    background-color: #a20dbd;
+  }
+  button:active {
+    position: relative;
+    top: 1px;
+  }
+
+  @media (max-width: 600px) {
+    .potion .amount {
+      font-size: 10.83vw;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .slider {
+      max-width: calc(100% - 100px);
+    }
+    button {
+      font-size: 16px;
+      width: 80px;
+    }
+  }
+
+</style>
