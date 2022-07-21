@@ -6,7 +6,7 @@ import {
   writeExecuteEventToIdb,
   writeInstantiateEventToIdb
 } from "./event-chain";
-import {getDrinkAmount, initializePotionHTML, updateState} from "./index";
+import {updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
 
@@ -69,17 +69,15 @@ export function deleteOwnable(ownable_id) {
 export function queryState(ownable_id) {
   wasm.query_contract_state(ownable_id).then(
     (ownable) => {
-      updateState(ownable_id, ownable.current_amount);
-      return ownable.current_amount;
+      updateState(ownable_id, {
+        amount: ownable.current_amount,
+        color: ownable.color_hex,
+      });
     }
   );
 }
 
-function extractAttributeValue(attributes, key) {
-  return attributes.filter(prop => {
-    return prop.key === key
-  })[0].value;
-}
+
 
 export async function issueOwnable() {
   // issue a new event chain
@@ -101,17 +99,20 @@ export async function issueOwnable() {
   db.close();
 
   const resp = await wasm.instantiate_contract(msg, getMessageInfo());
-  return JSON.parse(resp);
+  return {
+    ownable_id: msg.ownable_id,
+    ...JSON.parse(resp)
+  };
 }
 
 export async function syncDb(callback) {
   // TODO: maybe clear existing grid beforehand
   const chainIds = JSON.parse(localStorage.chainIds);
-
+  console.log(chainIds, " are syncing");
   for (let i = 0; i < chainIds.length; i++) {
     let contractState = await wasm.query_contract_state(chainIds[i]);
     if (document.getElementById(chainIds[i]) === null) {
-      callback(chainIds[i], contractState);
+      callback(chainIds[i], contractState.current_amount, contractState.color_hex);
     } else {
       console.log('potion already initialized');
     }

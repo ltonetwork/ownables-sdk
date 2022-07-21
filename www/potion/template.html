@@ -25,7 +25,7 @@
   document.getElementsByClassName("drink-button")[0]
     .addEventListener('click', () => consume());
 
-  function updateState(color, amt) {
+  function updateTemplate(color, amt) {
     document.getElementsByClassName('juice')[0].style.backgroundColor = color;
     document.getElementsByClassName('juice')[0].style.top = (100 - amt) / 2 + '%';
     document.getElementsByClassName('amount')[0].textContent = amt;
@@ -33,12 +33,12 @@
 
 
   window.addEventListener("message", (event) => {
-    console.log(event);
+    console.log("iframe picked up event: ", event);
 
     ownable_id = event.data.ownable_id;
 
     const state = event.data.state;
-    updateState(state.color, state.amount)
+    updateTemplate(state.color, state.amount)
   });
 
   function getDrinkAmount() {
@@ -53,7 +53,7 @@
       },
     };
 
-    console.log(msg);
+    console.log("iframe posting msg: ", msg);
 
     window.parent.postMessage({ownable_id, msg}, "*");
   }

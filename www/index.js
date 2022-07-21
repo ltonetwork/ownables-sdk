@@ -1,4 +1,4 @@
-import {consumeOwnable, deleteOwnable, executeOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
+import {executeOwnable, issueOwnable, syncDb} from "./wasm-wrappers";
 import {fetchTemplate, importAssets} from "./asset_import";
 import {ASSETS_STORE} from "./event-chain";
 // if no chainIds found, init empty
@@ -6,32 +6,19 @@ if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
 }
 
-// export function getDrinkAmount(ownable_id) {
-//   let stringAmount = document.getElementById(ownable_id)
-//     .getElementsByClassName('slider')[0].valueOf().value;
-//   return parseInt(stringAmount);
-// }
-
 export function updateState(ownable_id, state) {
   const ownableWindow = document.getElementById(ownable_id).contentWindow;
   ownableWindow.onload = () => ownableWindow.postMessage({ownable_id, state}, "*");
+  ownableWindow.postMessage({ownable_id, state}, "*");
 }
 
-export function initializePotionHTML(ownable_id, state) {
+export function initializePotionHTML(ownable_id, amount, color) {
   injectPotionToGrid(ownable_id).then(() => {
+    const state = {
+      amount: amount,
+      color: color
+    };
     updateState(ownable_id, state);
-
-    const ownableHTML = document.getElementById(ownable_id);
-
-    /*ownableHTML.getElementsByClassName("transfer-button")[0]
-      .addEventListener('click', () => transferOwnable(ownable_id));
-    ownableHTML.getElementsByClassName("delete-button")[0]
-      .addEventListener('click', () => {
-        if (confirm("Are you sure you want to delete this Ownable?")) {
-          deleteOwnable(ownable_id);
-          ownableHTML.parentElement.remove();
-        }
-      });*/
   });
 }
 
@@ -100,19 +87,24 @@ function getOwnableTemplate() {
   });
 }
 
-document.getElementsByClassName("inst-button")[0].addEventListener('click', () => {
-  const ownable = issueOwnable();
+function extractAttributeValue(attributes, key) {
+  return attributes.filter(prop => {
+    return prop.key === key
+  })[0].value;
+}
+
+document.getElementsByClassName("inst-button")[0].addEventListener('click', async () => {
+  const ownable = await issueOwnable();
   let color = extractAttributeValue(ownable.attributes, "color");
   let amount_str = extractAttributeValue(ownable.attributes, "capacity");
-  initializePotionHTML(msg.ownable_id, parseInt(amount_str), color);
+  initializePotionHTML(ownable.ownable_id, parseInt(amount_str), color);
 });
+
 document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
 
 setTimeout(() => syncDb(initializePotionHTML), 0);
 
 window.addEventListener("message", async event => {
-  console.log(event);
-
   if (typeof event.data.ownable_id === "undefined") return;
 
   if (document.getElementById(event.data.ownable_id).contentWindow !== event.source) {

@@ -95,7 +95,7 @@ button:active {
 .grid-item iframe {
   border: none;
   width: 100%;
-  height: 100%;
+  height: 300px;
 }
 
 /* dropdown menu */
