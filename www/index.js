@@ -32,11 +32,24 @@ async function injectPotionToGrid(ownable_id) {
   potionElement.classList.add('grid-item');
   const potionIframe = document.createElement('iframe');
   potionIframe.id = ownable_id;
+  injectOptionsDropdown(potionContent);
   potionIframe.srcdoc = potionContent.outerHTML;
 
   potionElement.appendChild(potionIframe);
-
   potionGrid.appendChild(potionElement);
+}
+
+function injectOptionsDropdown(ownableHTML) {
+  let dropdown = document.createElement("div");
+  dropdown.innerHTML = `<div class="dropdown" style="position: absolute; top: 10px; right: 10px">
+          <div class="dropdown-icon" style="font-size: 36px"><strong>&#10247;</strong></div>
+          <div class="dropdown-content" style="display: none; position: absolute; z-index: 1">
+            <button class="transfer-button">Transfer</button>
+            <button class="delete-button">Delete</button>
+          </div>
+        </div>`;
+  ownableHTML.appendChild(dropdown);
+  // TODO: initialize listeners for transfer & delete
 }
 
 async function findImgSources(htmlTemplate) {
