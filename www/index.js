@@ -27,46 +27,56 @@ async function injectPotionToGrid(ownable_id) {
 
   const potionContent = document.createElement('div');
   potionContent.innerHTML = await getOwnableTemplate();
-  findImgSources(potionContent.firstChild);
-
+  await findImgSources(potionContent);
   const potionElement = document.createElement('div');
   potionElement.classList.add('grid-item');
   const potionIframe = document.createElement('iframe');
   potionIframe.id = ownable_id;
-  potionIframe.srcdoc = potionContent.innerHTML;
+  potionIframe.srcdoc = potionContent.outerHTML;
+
   potionElement.appendChild(potionIframe);
 
   potionGrid.appendChild(potionElement);
 }
 
-function findImgSources(htmlTemplate) {
-  let allElements = htmlTemplate.getElementsByTagName("*");
-  const request = window.indexedDB.open("assets");
-  request.onblocked = (event) => console.log("idb blocked: ", event);
-  request.onerror = (event) => console.log("failed to open indexeddb: ", event.errorCode);
-  request.onupgradeneeded = (event) => {
-    if (!request.result.objectStoreNames.contains(ASSETS_STORE)) {
-      request.result.createObjectStore(ASSETS_STORE);
-    }
-  }
-  request.onsuccess = async () => {
-    let db = request.result;
-    for (const element of allElements) {
-      // for each image tag within the html template..
-      if (element.tagName === "IMG") {
-        const currentSrc = element.getAttribute("src");
-        const fr = new FileReader();
-        // query the idb for that img and update the template
-        let imgFile = await fetchTemplate(db, currentSrc);
-        fr.onload = (event) => {
-          element.src = event.target.result;
-        };
-        if (imgFile) {
-          fr.readAsDataURL(imgFile);
-        }
+async function findImgSources(htmlTemplate) {
+  return new Promise((resolve, reject) => {
+    const allElements = htmlTemplate.getElementsByTagName("img");
+    const request = window.indexedDB.open("assets");
+    request.onblocked = (event) => console.warn("idb blocked: ", event);
+    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
+    request.onupgradeneeded = (event) => {
+      if (!request.result.objectStoreNames.contains(ASSETS_STORE)) {
+        request.result.createObjectStore(ASSETS_STORE);
       }
     }
-  };
+    request.onsuccess = async () => {
+      let db = request.result;
+      await Promise.all(
+        [...allElements].map(el => replaceImage(el, db))
+      );
+      resolve();
+    };
+  });
+}
+
+async function replaceImage(element, db) {
+  return new Promise((resolve, reject) => {
+    const currentSrc = element.getAttribute("src");
+    const fr = new FileReader();
+    // query the idb for that img and update the template
+    fetchTemplate(db, currentSrc).then(imgFile => {
+      if (!imgFile) {
+        resolve();
+      }
+
+      fr.onload = (event) => {
+        element.src = event.target.result;
+        resolve();
+      };
+      fr.readAsDataURL(imgFile);
+    }, error => reject(error));
+  });
 }
 
 function getOwnableTemplate() {
