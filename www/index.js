@@ -7,9 +7,8 @@ if (localStorage.getItem("chainIds") === null) {
 }
 
 export function updateState(ownable_id, state) {
-  const ownableWindow = document.getElementById(ownable_id).contentWindow;
-  ownableWindow.onload = () => ownableWindow.postMessage({ownable_id, state}, "*");
-  ownableWindow.postMessage({ownable_id, state}, "*");
+  const iframe = document.getElementById(ownable_id);
+  iframe.contentWindow.postMessage({ownable_id, state}, "*");
 }
 
 export function initializePotionHTML(ownable_id, amount, color) {
@@ -18,7 +17,9 @@ export function initializePotionHTML(ownable_id, amount, color) {
       amount: amount,
       color: color
     };
-    updateState(ownable_id, state);
+
+    const iframe = document.getElementById(ownable_id);
+    iframe.onload = () => iframe.contentWindow.postMessage({ownable_id, state}, "*");
   });
 }
 
@@ -32,6 +33,7 @@ async function injectPotionToGrid(ownable_id) {
   potionElement.classList.add('grid-item');
   const potionIframe = document.createElement('iframe');
   potionIframe.id = ownable_id;
+  potionIframe.sandbox = "allow-scripts";
   injectOptionsDropdown(potionContent);
   potionIframe.srcdoc = potionContent.outerHTML;
 
