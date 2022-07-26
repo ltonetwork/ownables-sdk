@@ -1,11 +1,11 @@
 import * as wasm from "ownable-demo";
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
 import {
-  deleteIndexedDb,
-  initIndexedDb,
+  deleteIndexedDb, initIndexedDb,
   writeExecuteEventToIdb,
   writeInstantiateEventToIdb
 } from "./event-chain";
+import {IdbStore} from "./idb-store";
 import {updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
@@ -51,12 +51,15 @@ function getMessageInfo() {
 
 export async function executeOwnable(ownable_id, msg) {
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
-  let db = await writeExecuteEventToIdb(ownable_id, newEvent, account);
-  db.close();
 
-  wasm.execute_contract(msg, getMessageInfo(), ownable_id).then(
+  await initIndexedDb(msg.ownable_id);
+  let idbStore = new IdbStore(msg.ownable_id, 'state');
+
+  await writeExecuteEventToIdb(ownable_id, newEvent, account);
+
+  wasm.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
     (resp) => {
-      queryState(ownable_id);
+      queryState(ownable_id, idbStore);
     },
     (err) => window.alert("attempting to consume more than possible")
   );
@@ -66,8 +69,8 @@ export function deleteOwnable(ownable_id) {
   deleteIndexedDb(ownable_id);
 }
 
-export function queryState(ownable_id) {
-  wasm.query_contract_state(ownable_id).then(
+export function queryState(ownable_id, idbStore) {
+  wasm.query_contract_state(ownable_id, idbStore).then(
     (ownable) => {
       updateState(ownable_id, {
         amount: ownable.current_amount,
@@ -91,14 +94,14 @@ export async function issueOwnable() {
   chainIds.push(msg.ownable_id);
   localStorage.chainIds = JSON.stringify(chainIds);
 
-  const db = await initIndexedDb(msg.ownable_id);
+  await initIndexedDb(msg.ownable_id);
+
+  let idbStore = new IdbStore(msg.ownable_id, 'state');
+
   let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-  writeInstantiateEventToIdb(db, newEvent);
+  writeInstantiateEventToIdb(await idbStore.get_db(), newEvent);
 
-  // close db to not block the wasm side from accessing it
-  db.close();
-
-  const resp = await wasm.instantiate_contract(msg, getMessageInfo());
+  const resp = await wasm.instantiate_contract(msg, getMessageInfo(), idbStore);
   return {
     ownable_id: msg.ownable_id,
     ...JSON.parse(resp)
@@ -110,7 +113,9 @@ export async function syncDb(callback) {
   const chainIds = JSON.parse(localStorage.chainIds);
   console.log(chainIds, " are syncing");
   for (let i = 0; i < chainIds.length; i++) {
-    let contractState = await wasm.query_contract_state(chainIds[i]);
+    let idb = await initIndexedDb(chainIds[i]);
+    let idbStore = new IdbStore(chainIds[i], 'state');
+    let contractState = await wasm.query_contract_state(chainIds[i], idbStore);
     if (document.getElementById(chainIds[i]) === null) {
       callback(chainIds[i], contractState.current_amount, contractState.color_hex);
     } else {
