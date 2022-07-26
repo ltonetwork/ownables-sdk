@@ -82,7 +82,7 @@ export function deleteIndexedDb(name) {
 
 export function initIndexedDb(ownable_id) {
   return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(ownable_id, 1);
+    const request = window.indexedDB.open(ownable_id);
     let db;
     request.onupgradeneeded = () => {
       db = request.result;
@@ -91,6 +91,9 @@ export function initIndexedDb(ownable_id) {
       }
       if (!db.objectStoreNames.contains(CHAIN_STORE)) {
         db.createObjectStore(CHAIN_STORE);
+      }
+      if (!request.result.objectStoreNames.contains('state')) {
+        request.result.createObjectStore('state');
       }
     }
     request.onsuccess = () => resolve(request.result);
