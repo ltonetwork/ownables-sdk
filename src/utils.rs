@@ -4,6 +4,8 @@ use cosmwasm_std::{
     RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError,
 };
 use std::marker::PhantomData;
+use crate::IdbStore;
+use crate::log;
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
@@ -33,9 +35,9 @@ pub async fn create_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, Empt
     }
 }
 
-pub async fn load_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
+pub async fn load_lto_deps(name: &str, idb: &IdbStore) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
     OwnedDeps {
-        storage: IdbStorage::load(name).await, // Storage should now be our Storage implementation that uses local store
+        storage: IdbStorage::load(name, idb).await, // Storage should now be our Storage implementation that uses local store
         api: EmptyApi::default(),
         querier: EmptyQuerier::default(),
         custom_query_type: PhantomData,

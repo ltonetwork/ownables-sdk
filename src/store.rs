@@ -1,7 +1,11 @@
 use cosmwasm_std::{MemoryStorage, Order, Record, Storage};
 use indexed_db_futures::prelude::*;
-use js_sys::{Array, Uint8Array};
-use wasm_bindgen::{JsValue, UnwrapThrowExt};
+use js_sys::{Array, Promise, Uint8Array};
+use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
+use wasm_bindgen::closure::WasmClosureFnOnce;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
+use crate::{IdbStore, log};
 
 pub struct IdbStorage {
     db: IdbDatabase,
@@ -24,15 +28,14 @@ impl IdbStorage {
         };
     }
 
-    pub async fn load(name: &str) -> Self {
-        let db = Self::create_db(name).await;
-
+    pub async fn load(name: &str, idb: &IdbStore) -> Self {
+        // TODO: remove the db from IdbStorage
+        let db = Self::create_db("").await;
         let mut store = IdbStorage {
             db,
             storage: MemoryStorage::new(),
         };
-
-        store.load_to_mem_storage().await;
+        store.load_to_mem_storage(idb).await;
         store
     }
 
@@ -126,19 +129,13 @@ impl IdbStorage {
         self.set_item(key, &data).await;
     }
 
-    pub async fn load_to_mem_storage(&mut self) {
-        let store_name = INDEXDB_STORE;
+    pub async fn load_to_mem_storage(&mut self, idb_store: &IdbStore) {
 
-        let tx = self
-            .db
-            .transaction_on_one_with_mode(store_name, IdbTransactionMode::Readonly)
-            .unwrap();
-        let store = tx.object_store(store_name).unwrap_throw();
+        let promise = idb_store.get_all_idb_keys();
+        let future = JsFuture::from(promise);
+        let result: JsValue = future.await.unwrap();
 
-        let data = store.get_all_keys().unwrap_throw();
-        let arraydata: Array = data.await.unwrap();
-        // JsCast::unchecked_from_js(data.unwrap());
-        // let array_data = data.new();
+        let arraydata: Array = JsCast::unchecked_from_js(result);
 
         if arraydata.to_vec().is_empty() {
             return;
@@ -157,6 +154,14 @@ impl IdbStorage {
         for (key, value) in self.storage.range(None, None, Order::Ascending) {
             // overwrites values for keys iff present
             self.set_item(&key, &value).await;
+        }
+    }
+
+    pub async fn sync_to_js_db(&self, idb: &IdbStore) {
+        for (key, value) in self.storage.range(None, None, Order::Ascending) {
+            let promise = idb.put(&key, &value);
+            let future = JsFuture::from(promise);
+            let result = future.await.unwrap();
         }
     }
 }
