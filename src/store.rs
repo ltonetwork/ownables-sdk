@@ -1,11 +1,9 @@
 use cosmwasm_std::{MemoryStorage, Order, Record, Storage};
 use indexed_db_futures::prelude::*;
-use js_sys::{Array, Promise, Uint8Array};
+use js_sys::{Array, Uint8Array};
 use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
-use wasm_bindgen::closure::WasmClosureFnOnce;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use crate::{IdbStore, log};
+use crate::{IdbStore};
 
 pub struct IdbStorage {
     db: IdbDatabase,
@@ -28,7 +26,7 @@ impl IdbStorage {
         };
     }
 
-    pub async fn load(name: &str, idb: &IdbStore) -> Self {
+    pub async fn load(idb: &IdbStore) -> Self {
         // TODO: remove the db from IdbStorage
         let db = Self::create_db("").await;
         let mut store = IdbStorage {
@@ -114,7 +112,6 @@ impl IdbStorage {
         let tx = self.db.transaction_on_one(INDEXDB_STORE).unwrap();
         let store = tx.object_store(INDEXDB_STORE).unwrap();
         let async_res = store.get_owned(Uint8Array::from(key)).unwrap();
-        // let res = async_res.unwrap();
         let res = async_res.await.unwrap().unwrap();
         Uint8Array::new(&res).to_vec()
     }
@@ -134,7 +131,6 @@ impl IdbStorage {
         let promise = idb_store.get_all_idb_keys();
         let future = JsFuture::from(promise);
         let result: JsValue = future.await.unwrap();
-
         let arraydata: Array = JsCast::unchecked_from_js(result);
 
         if arraydata.to_vec().is_empty() {
@@ -142,18 +138,12 @@ impl IdbStorage {
         }
         for js_k in arraydata.iter() {
             let k = Uint8Array::new(&js_k).to_vec();
-
-            let v = self.get_item(&k).await;
-
-            self.storage.set(&k, &v);
-        }
-    }
-
-    pub async fn sync_to_db(&self) {
-        // "start" and "end" being "None" leads to checking the whole storage range
-        for (key, value) in self.storage.range(None, None, Order::Ascending) {
-            // overwrites values for keys iff present
-            self.set_item(&key, &value).await;
+            let promise = idb_store.get(&k);
+            let future = JsFuture::from(promise);
+            let result: JsValue = future.await.unwrap();
+            let array_data = Uint8Array::new(&result);
+            let val: Vec<u8> = array_data.to_vec();
+            self.storage.set(&k, &val);
         }
     }
 
@@ -161,7 +151,7 @@ impl IdbStorage {
         for (key, value) in self.storage.range(None, None, Order::Ascending) {
             let promise = idb.put(&key, &value);
             let future = JsFuture::from(promise);
-            let result = future.await.unwrap();
+            let _result = future.await.unwrap();
         }
     }
 }
