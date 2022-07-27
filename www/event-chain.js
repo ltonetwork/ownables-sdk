@@ -3,6 +3,7 @@ import {syncDb} from "./wasm-wrappers";
 
 const EVENTS_STORE = "events";
 const CHAIN_STORE = "chain";
+const STATE_STORE = "state";
 export const ASSETS_STORE = "assets";
 const READ_WRITE = "readwrite";
 const LATEST = "latest";
@@ -92,8 +93,8 @@ export function initIndexedDb(ownable_id) {
       if (!db.objectStoreNames.contains(CHAIN_STORE)) {
         db.createObjectStore(CHAIN_STORE);
       }
-      if (!request.result.objectStoreNames.contains('state')) {
-        request.result.createObjectStore('state');
+      if (!request.result.objectStoreNames.contains(STATE_STORE)) {
+        request.result.createObjectStore(STATE_STORE);
       }
     }
     request.onsuccess = () => resolve(request.result);
