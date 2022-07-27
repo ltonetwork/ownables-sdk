@@ -53,10 +53,9 @@ export async function executeOwnable(ownable_id, msg) {
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
 
   await initIndexedDb(msg.ownable_id);
-  let idbStore = new IdbStore(msg.ownable_id, 'state');
+  let idbStore = new IdbStore(msg.ownable_id);
 
   await writeExecuteEventToIdb(ownable_id, newEvent, account);
-
   wasm.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
     (resp) => {
       queryState(ownable_id, idbStore);
@@ -96,7 +95,7 @@ export async function issueOwnable() {
 
   await initIndexedDb(msg.ownable_id);
 
-  let idbStore = new IdbStore(msg.ownable_id, 'state');
+  let idbStore = new IdbStore(msg.ownable_id);
 
   let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
   writeInstantiateEventToIdb(await idbStore.get_db(), newEvent);
@@ -114,7 +113,7 @@ export async function syncDb(callback) {
   console.log(chainIds, " are syncing");
   for (let i = 0; i < chainIds.length; i++) {
     let idb = await initIndexedDb(chainIds[i]);
-    let idbStore = new IdbStore(chainIds[i], 'state');
+    let idbStore = new IdbStore(chainIds[i]);
     let contractState = await wasm.query_contract_state(chainIds[i], idbStore);
     if (document.getElementById(chainIds[i]) === null) {
       callback(chainIds[i], contractState.current_amount, contractState.color_hex);

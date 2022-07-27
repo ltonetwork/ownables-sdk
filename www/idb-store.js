@@ -1,8 +1,12 @@
 export class IdbStore {
 
-  constructor(id, STATE_STORE) {
+  constructor(id) {
     this.ownable_id = id;
-    this.STATE_STORE = STATE_STORE;
+    this.STATE_STORE = "state";
+    this.DB_OP = {
+      R: "readonly",
+      RW: "readwrite"
+    };
   }
 
   get ownable_id() {
@@ -17,29 +21,24 @@ export class IdbStore {
     return new Promise(async (resolve, reject) => {
       let db = await this.get_db();
 
-      let tx = db.transaction(this.STATE_STORE, "readonly")
+      let tx = db.transaction(this.STATE_STORE, this.DB_OP.R)
         .objectStore(this.STATE_STORE)
         .get(key);
 
-      tx.onsuccess = () => {
-        resolve(tx.result);
-      }
-      tx.onerror = (err) => reject(err);
+      tx.onsuccess = () => resolve(tx.result);
+      tx.onerror = (e) => reject(e);
     });
   }
 
   async get_all_idb_keys() {
     return new Promise(async (resolve, reject) => {
       let db = await this.get_db();
-      let tx = db.transaction(this.STATE_STORE, "readonly")
+      let tx = db.transaction(this.STATE_STORE, this.DB_OP.R)
         .objectStore(this.STATE_STORE)
         .getAllKeys();
 
-      tx.onsuccess = () => {
-        console.log(tx);
-        resolve(tx.result);
-      }
-      tx.onerror = (err) => reject(err);
+      tx.onsuccess = () => resolve(tx.result);
+      tx.onerror = (e) => reject(e);
     });
   }
 
@@ -54,22 +53,24 @@ export class IdbStore {
   async put(k, v) {
     return new Promise(async (resolve, reject) => {
       let db = await this.get_db();
-      let tx = db.transaction(this.STATE_STORE, "readwrite")
+      let tx = db.transaction(this.STATE_STORE, this.DB_OP.RW)
         .objectStore(this.STATE_STORE)
         .put(v, k);
 
       tx.onsuccess = () => resolve(v);
-      tx.onerror = (err) => reject(err);
+      tx.onerror = (e) => reject(e);
     });
   }
 
   async clear() {
-    let tx = this.db.transaction(this.STATE_STORE, "readwrite")
-      .objectStore(this.STATE_STORE)
-      .clear();
+    return new Promise(async (resolve, reject) => {
+      let tx = this.db.transaction(this.STATE_STORE, this.DB_OP.RW)
+        .objectStore(this.STATE_STORE)
+        .clear();
 
-    tx.onsuccess = () => console.log("store cleared");
-    tx.onerror = (err) => console.log(err);
+      tx.onsuccess = () => resolve("store cleared");
+      tx.onerror = (e) => reject(e);
+    });
   }
 
   async init_state_object_store() {
@@ -80,10 +81,8 @@ export class IdbStore {
           request.result.createObjectStore(this.STATE_STORE);
         }
       }
-      request.onsuccess = () => {
-        resolve(request.result);
-      }
-      request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject('failed to open indexeddb: ' + e.errorCode);
     });
   }
 }
