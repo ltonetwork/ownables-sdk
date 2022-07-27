@@ -52,8 +52,8 @@ function getMessageInfo() {
 export async function executeOwnable(ownable_id, msg) {
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
 
-  await initIndexedDb(msg.ownable_id);
-  let idbStore = new IdbStore(msg.ownable_id);
+  await initIndexedDb(ownable_id);
+  let idbStore = new IdbStore(ownable_id);
 
   await writeExecuteEventToIdb(ownable_id, newEvent, account);
   wasm.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
@@ -78,8 +78,6 @@ export function queryState(ownable_id, idbStore) {
     }
   );
 }
-
-
 
 export async function issueOwnable() {
   // issue a new event chain

@@ -135,6 +135,5 @@ window.addEventListener("message", async event => {
   if (document.getElementById(event.data.ownable_id).contentWindow !== event.source) {
     //throw Error("Not allowed to execute msg on other ownable");
   }
-
   await executeOwnable(event.data.ownable_id, event.data.msg);
 });

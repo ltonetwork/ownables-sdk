@@ -9,18 +9,9 @@ export class IdbStore {
     };
   }
 
-  get ownable_id() {
-    return this._ownable_id;
-  }
-
-  set ownable_id(new_id) {
-    this._ownable_id = new_id;
-  }
-
   async get(key) {
     return new Promise(async (resolve, reject) => {
       let db = await this.get_db();
-
       let tx = db.transaction(this.STATE_STORE, this.DB_OP.R)
         .objectStore(this.STATE_STORE)
         .get(key);
@@ -73,16 +64,4 @@ export class IdbStore {
     });
   }
 
-  async init_state_object_store() {
-    return new Promise((resolve, reject) => {
-      const request = window.indexedDB.open(this.ownable_id);
-      request.onupgradeneeded = () => {
-        if (!request.result.objectStoreNames.contains(this.STATE_STORE)) {
-          request.result.createObjectStore(this.STATE_STORE);
-        }
-      }
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject('failed to open indexeddb: ' + e.errorCode);
-    });
-  }
 }
