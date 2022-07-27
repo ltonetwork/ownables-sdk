@@ -3,11 +3,10 @@ use std::str;
 
 use contract::instantiate;
 use cosmwasm_std::MessageInfo;
-use js_sys::Promise;
+use js_sys::{Promise};
 use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use serde_json::to_string;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::JsFuture;
 
 use utils::{create_lto_env, load_lto_deps};
 
@@ -24,7 +23,7 @@ extern "C" {
     #[wasm_bindgen(constructor)]
     fn new(arg: JsValue) -> IdbStore;
     #[wasm_bindgen(method)]
-    fn get(this: &IdbStore, key: JsValue) -> Promise;
+    fn get(this: &IdbStore, key: &[u8]) -> Promise;
     #[wasm_bindgen(method)]
     fn get_all_idb_keys(this: &IdbStore) -> Promise;
     #[wasm_bindgen(method)]
@@ -42,11 +41,15 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb_store: IdbStore) -> Result<JsValue, JsError> {
+pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb: IdbStore) -> Result<JsValue, JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
+    let mut deps = load_lto_deps(&msg.ownable_id, &idb).await;
 
-    let mut deps = load_lto_deps(&msg.ownable_id, &idb_store).await;
+    log(&format!(
+        "[contract] instantiate message {:?} for ownable_id #{:?}",
+        &msg, &msg.ownable_id
+    ));
     let res = instantiate(deps.as_mut(), create_lto_env(), info, msg);
 
     match res {
@@ -55,7 +58,7 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb_store: IdbSto
                 "[contract] successfully instantiated msg. response {:}",
                 &to_string(&response).unwrap()
             ));
-            deps.storage.sync_to_js_db(&idb_store).await;
+            deps.storage.sync_to_js_db(&idb).await;
             Ok(JsValue::from(to_string(&response).unwrap()))
         }
         Err(error) => {
@@ -69,17 +72,16 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb_store: IdbSto
 pub async fn execute_contract(
     msg: JsValue,
     info: JsValue,
-    ownable_js_id: JsValue,
+    ownable_id: String,
     idb: IdbStore
 ) -> Result<JsValue, JsError> {
-    let ownable_id: String = ownable_js_id.into_serde().unwrap();
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
     let mut deps = load_lto_deps(&ownable_id, &idb).await;
 
     log(&format!(
         "[contract] executing message {:?} for ownable_id #{:?}",
-        &msg, &ownable_js_id
+        &msg, ownable_id
     ));
 
     let result = contract::execute(deps.as_mut(), create_lto_env(), info, message);
@@ -90,8 +92,7 @@ pub async fn execute_contract(
                 "[contract] successfully executed msg. response {:}",
                 &to_string(&response).unwrap()
             ));
-            deps.storage.sync_to_db().await;
-            deps.storage.close();
+            deps.storage.sync_to_js_db(&idb).await;
             Ok(JsValue::from(to_string(&response).unwrap()))
         }
         Err(error) => {
@@ -103,8 +104,7 @@ pub async fn execute_contract(
 }
 
 #[wasm_bindgen]
-pub async fn query_contract_state(ownable_js_id: JsValue, idb: IdbStore) -> Result<JsValue, JsError> {
-    let ownable_id = ownable_js_id.as_string().unwrap();
+pub async fn query_contract_state(ownable_id: String, idb: IdbStore) -> Result<JsValue, JsError> {
     let deps = load_lto_deps(&ownable_id, &idb).await;
     let message: QueryMsg = QueryMsg::GetPotionState {};
 
