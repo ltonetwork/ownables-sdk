@@ -118,7 +118,7 @@ fn query_potion_state(deps: Deps) -> StdResult<PotionStateResponse> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::coins;
+    use cosmwasm_std::{Addr, coins};
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 
     #[test]
@@ -183,37 +183,39 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn transfer() {
-    //     let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
-    //
-    //     let msg = InstantiateMsg {
-    //         max_capacity: 17,
-    //         ownable_id: "0".to_string(),
-    //     };
-    //     let info = mock_info("issuer", &coins(2, "token"));
-    //     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-    //
-    //     // should not allow random user to transfer what she does not own
-    //     let info = mock_info("random", &coins(2, "token"));
-    //     let msg = ExecuteMsg::Transfer {
-    //         to: Addr::unchecked("random"),
-    //     };
-    //     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
-    //     match res {
-    //         Err(ContractError::Unauthorized { .. }) => {}
-    //         _ => panic!("Must return unauthorized error"),
-    //     }
-    //
-    //     let info = mock_info("issuer", &coins(2, "token"));
-    //     let msg = ExecuteMsg::Transfer {
-    //         to: Addr::unchecked("new_owner"),
-    //     };
-    //     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-    //
-    //     // verify new owner
-    //     let res = query(deps.as_ref(), QueryMsg::GetOwner {}).unwrap();
-    //     let value: OwnershipResponse = res.unwrap();
-    //     assert_eq!(value.owner, Addr::unchecked("new_owner"));
-    // }
+    #[test]
+    fn transfer() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+        let msg = InstantiateMsg {
+            max_capacity: 17,
+            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
+        };
+        let owner = "3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1";
+        let random = "3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh";
+
+        let info = mock_info(owner, &coins(2, "token"));
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // should not allow random user to transfer what she does not own
+        let info = mock_info(random, &coins(2, "token"));
+        let msg = ExecuteMsg::Transfer {
+            to: Addr::unchecked(random),
+        };
+        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        match res {
+            Err(ContractError::Unauthorized { .. }) => {}
+            _ => panic!("Must return unauthorized error"),
+        }
+
+        let info = mock_info(owner, &coins(2, "token"));
+        let msg = ExecuteMsg::Transfer {
+            to: Addr::unchecked(random),
+        };
+        let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        // verify new owner
+        let res: PotionStateResponse = query(deps.as_ref(), QueryMsg::GetPotionState {}).unwrap();
+        assert_eq!(res.owner, Addr::unchecked("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh"));
+    }
 }

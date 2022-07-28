@@ -8,17 +8,6 @@ pub struct IdbStorage {
     storage: MemoryStorage,
 }
 
-impl IdbStorage {
-
-    pub async fn load(idb: &IdbStore) -> Self {
-        let mut store = IdbStorage {
-            storage: MemoryStorage::new(),
-        };
-        store.load_to_mem_storage(idb).await;
-        store
-    }
-}
-
 impl Storage for IdbStorage {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
         self.storage.get(key)
@@ -43,6 +32,14 @@ impl Storage for IdbStorage {
 }
 
 impl IdbStorage {
+
+    pub async fn load(idb: &IdbStore) -> Self {
+        let mut store = IdbStorage {
+            storage: MemoryStorage::new(),
+        };
+        store.load_to_mem_storage(idb).await;
+        store
+    }
 
     pub async fn set_item(&self, idb: &IdbStore, key: &[u8], value: &[u8]) {
         let promise = idb.put(&key, &value);
