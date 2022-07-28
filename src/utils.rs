@@ -25,16 +25,7 @@ pub fn create_lto_env() -> Env {
     }
 }
 
-pub async fn create_lto_deps(name: &str) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
-    OwnedDeps {
-        storage: IdbStorage::new(name).await, // Storage should now be our Storage implementation that uses local store
-        api: EmptyApi::default(),
-        querier: EmptyQuerier::default(),
-        custom_query_type: PhantomData,
-    }
-}
-
-pub async fn load_lto_deps(name: &str, idb: &IdbStore) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
+pub async fn load_lto_deps(idb: &IdbStore) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
     OwnedDeps {
         storage: IdbStorage::load(idb).await, // Storage should now be our Storage implementation that uses local store
         api: EmptyApi::default(),

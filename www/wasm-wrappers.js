@@ -69,7 +69,7 @@ export function deleteOwnable(ownable_id) {
 }
 
 export function queryState(ownable_id, idbStore) {
-  wasm.query_contract_state(ownable_id, idbStore).then(
+  wasm.query_contract_state(idbStore).then(
     (ownable) => {
       updateState(ownable_id, {
         amount: ownable.current_amount,
@@ -112,7 +112,7 @@ export async function syncDb(callback) {
   for (let i = 0; i < chainIds.length; i++) {
     let idb = await initIndexedDb(chainIds[i]);
     let idbStore = new IdbStore(chainIds[i]);
-    let contractState = await wasm.query_contract_state(chainIds[i], idbStore);
+    let contractState = await wasm.query_contract_state(idbStore);
     if (document.getElementById(chainIds[i]) === null) {
       callback(chainIds[i], contractState.current_amount, contractState.color_hex);
     } else {
