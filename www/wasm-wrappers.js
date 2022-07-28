@@ -6,7 +6,7 @@ import {
   writeInstantiateEventToIdb
 } from "./event-chain";
 import {IdbStore} from "./idb-store";
-import {updateState} from "./index";
+import {initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
 
@@ -64,8 +64,9 @@ export async function executeOwnable(ownable_id, msg) {
   );
 }
 
-export function deleteOwnable(ownable_id) {
-  deleteIndexedDb(ownable_id);
+export async function deleteOwnable(ownable_id) {
+  await deleteIndexedDb(ownable_id);
+  await syncDb(initializePotionHTML);
 }
 
 export function queryState(ownable_id, idbStore) {
@@ -106,7 +107,10 @@ export async function issueOwnable() {
 }
 
 export async function syncDb(callback) {
-  // TODO: maybe clear existing grid beforehand
+  const grid = document.getElementsByClassName("grid-container")[0];
+  while (grid.firstChild) {
+    grid.removeChild(grid.firstChild);
+  }
   const chainIds = JSON.parse(localStorage.chainIds);
   console.log(chainIds, " are syncing");
   for (let i = 0; i < chainIds.length; i++) {
@@ -121,7 +125,7 @@ export async function syncDb(callback) {
   }
 }
 
-export function transferOwnable(ownable_id) {
+export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);
   if (lto.isValidAddress(addr)) {
     const msg = {
@@ -130,7 +134,9 @@ export function transferOwnable(ownable_id) {
       },
     };
     if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
-      wasm.execute_contract(msg, getMessageInfo(), ownable_id).then(
+      await initIndexedDb(ownable_id);
+      let idbStore = new IdbStore(ownable_id);
+      wasm.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
         (resp) => console.log(resp)
       )
     }

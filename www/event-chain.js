@@ -1,5 +1,4 @@
 import {EventChain} from "@ltonetwork/lto/lib/events";
-import {syncDb} from "./wasm-wrappers";
 
 const EVENTS_STORE = "events";
 const CHAIN_STORE = "chain";
@@ -63,22 +62,23 @@ export function writeInstantiateEventToIdb(db, eventObj) {
 }
 
 export function deleteIndexedDb(name) {
-  validateIndexedDBSupport();
-  const chainIds = JSON.parse(localStorage.chainIds);
-  const index = chainIds.indexOf(name);
-  if (index !== -1) {
-    chainIds.splice(index, 1);
-  }
-  localStorage.chainIds = JSON.stringify(chainIds);
+  return new Promise((resolve, reject) => {
+    validateIndexedDBSupport();
+    const chainIds = JSON.parse(localStorage.chainIds);
+    const index = chainIds.indexOf(name);
+    if (index !== -1) {
+      chainIds.splice(index, 1);
+    }
+    localStorage.chainIds = JSON.stringify(chainIds);
+    const request = window.indexedDB.deleteDatabase(name);
 
-  const request = window.indexedDB.deleteDatabase(name);
-
-  request.onerror = () => console.log("error deleting idb");
-  request.onsuccess = async () => {
-    console.log("success deleting db");
-    await syncDb();
-  }
-  request.onblocked = (e) => console.log("idb blocked: ", e);
+    request.onerror = () => reject("error deleting idb");
+    request.onsuccess = () => {
+      console.log("success deleting db");
+      resolve();
+    }
+    request.onblocked = (e) => reject("idb blocked: ", e);
+  });
 }
 
 export function initIndexedDb(ownable_id) {

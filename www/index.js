@@ -1,10 +1,16 @@
-import {executeOwnable, issueOwnable, syncDb} from "./wasm-wrappers";
+import {deleteOwnable, executeOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
 import {fetchTemplate, importAssets} from "./asset_import";
 import {ASSETS_STORE} from "./event-chain";
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
 }
+
+const eventType = {
+  TRANSFER: "transfer",
+  DELETE: "delete",
+  EXECUTE: "execute",
+};
 
 export function updateState(ownable_id, state) {
   const iframe = document.getElementById(ownable_id);
@@ -34,9 +40,8 @@ async function injectPotionToGrid(ownable_id) {
   const potionIframe = document.createElement('iframe');
   potionIframe.id = ownable_id;
   potionIframe.sandbox = "allow-scripts";
-  injectOptionsDropdown(potionContent);
+  // injectOptionsDropdown(potionContent);
   potionIframe.srcdoc = potionContent.outerHTML;
-
   potionElement.appendChild(potionIframe);
   potionGrid.appendChild(potionElement);
 }
@@ -133,7 +138,18 @@ window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;
 
   if (document.getElementById(event.data.ownable_id).contentWindow !== event.source) {
-    //throw Error("Not allowed to execute msg on other ownable");
+    throw Error("Not allowed to execute msg on other ownable");
   }
-  await executeOwnable(event.data.ownable_id, event.data.msg);
+
+  switch (event.data.type) {
+    case eventType.TRANSFER:
+      await transferOwnable(event.data.ownable_id);
+      break;
+    case eventType.DELETE:
+      await deleteOwnable(event.data.ownable_id);
+      break;
+    case eventType.EXECUTE:
+      await executeOwnable(event.data.ownable_id, event.data.msg);
+      break;
+  }
 });
