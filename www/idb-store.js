@@ -59,7 +59,7 @@ export class IdbStore {
         .objectStore(this.STATE_STORE)
         .clear();
 
-      tx.onsuccess = () => resolve("store cleared");
+      tx.onsuccess = () => resolve();
       tx.onerror = (e) => reject(e);
     });
   }

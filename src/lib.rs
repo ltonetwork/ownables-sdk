@@ -44,7 +44,7 @@ extern "C" {
 pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb: IdbStore) -> Result<JsValue, JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
-    let mut deps = load_lto_deps(&msg.ownable_id, &idb).await;
+    let mut deps = load_lto_deps(&idb).await;
 
     log(&format!(
         "[contract] instantiate message {:?} for ownable_id #{:?}",
@@ -62,7 +62,6 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb: IdbStore) ->
             Ok(JsValue::from(to_string(&response).unwrap()))
         }
         Err(error) => {
-            deps.storage.close();
             Err(JsError::from(error))
         }
     }
@@ -77,7 +76,7 @@ pub async fn execute_contract(
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
-    let mut deps = load_lto_deps(&ownable_id, &idb).await;
+    let mut deps = load_lto_deps(&idb).await;
 
     log(&format!(
         "[contract] executing message {:?} for ownable_id #{:?}",
@@ -97,19 +96,17 @@ pub async fn execute_contract(
         }
         Err(error) => {
             log("[contract] failed to execute msg");
-            deps.storage.close();
             Err(JsError::from(error))
         }
     }
 }
 
 #[wasm_bindgen]
-pub async fn query_contract_state(ownable_id: String, idb: IdbStore) -> Result<JsValue, JsError> {
-    let deps = load_lto_deps(&ownable_id, &idb).await;
+pub async fn query_contract_state(idb: IdbStore) -> Result<JsValue, JsError> {
+    let deps = load_lto_deps(&idb).await;
     let message: QueryMsg = QueryMsg::GetPotionState {};
 
     let query_result = contract::query(deps.as_ref(), message);
-    deps.storage.close();
     match query_result {
         Ok(potion_response) => Ok(JsValue::from_serde(&potion_response).unwrap()),
         Err(error) => panic!("contract state query failed. error {:?}", error),
