@@ -1,9 +1,17 @@
 import {deleteOwnable, executeOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
-import {fetchTemplate, importAssets} from "./asset_import";
+import {addOwnableOption, dropFilenameExtension, fetchTemplate, importAssets} from "./asset_import";
 import {ASSETS_STORE} from "./event-chain";
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
+}
+if (localStorage.getItem("templates") === null) {
+  localStorage.templates = JSON.stringify([]);
+} else {
+  let templates = JSON.parse(localStorage.getItem("templates"));
+  templates.forEach(
+    t => addOwnableOption(t)
+  );
 }
 
 const eventType = {
@@ -29,12 +37,12 @@ export function initializePotionHTML(ownable_id, amount, color) {
   });
 }
 
-async function injectPotionToGrid(ownable_id) {
+async function injectPotionToGrid(ownable_id, ownableType = "template") {
   const potionGrid = document.getElementsByClassName("grid-container")[0];
 
   const potionContent = document.createElement('div');
-  potionContent.innerHTML = await getOwnableTemplate();
-  await findImgSources(potionContent);
+  potionContent.innerHTML = await getOwnableTemplate(ownableType);
+  await findImgSources(potionContent, ownableType);
   const potionElement = document.createElement('div');
   potionElement.classList.add('grid-item');
   const potionIframe = document.createElement('iframe');
@@ -59,37 +67,36 @@ function injectOptionsDropdown(ownableHTML) {
   // TODO: initialize listeners for transfer & delete
 }
 
-async function findImgSources(htmlTemplate) {
+async function findImgSources(htmlTemplate, templateName) {
   return new Promise((resolve, reject) => {
     const allElements = htmlTemplate.getElementsByTagName("img");
     const request = window.indexedDB.open("assets");
     request.onblocked = (event) => console.warn("idb blocked: ", event);
     request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
     request.onupgradeneeded = (event) => {
-      if (!request.result.objectStoreNames.contains(ASSETS_STORE)) {
-        request.result.createObjectStore(ASSETS_STORE);
+      if (!request.result.objectStoreNames.contains(templateName)) {
+        request.result.createObjectStore(templateName);
       }
     }
     request.onsuccess = async () => {
       let db = request.result;
       await Promise.all(
-        [...allElements].map(el => replaceImage(el, db))
+        [...allElements].map(el => replaceImage(el, db, templateName))
       );
       resolve();
     };
   });
 }
 
-async function replaceImage(element, db) {
+async function replaceImage(element, db, templateName) {
   return new Promise((resolve, reject) => {
     const currentSrc = element.getAttribute("src");
     const fr = new FileReader();
     // query the idb for that img and update the template
-    fetchTemplate(db, currentSrc).then(imgFile => {
+    fetchTemplate(db, currentSrc, templateName).then(imgFile => {
       if (!imgFile) {
         resolve();
       }
-
       fr.onload = (event) => {
         element.src = event.target.result;
         resolve();
@@ -99,7 +106,7 @@ async function replaceImage(element, db) {
   });
 }
 
-function getOwnableTemplate() {
+function getOwnableTemplate(ownableType) {
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(ASSETS_STORE);
     const reader = new FileReader();
@@ -108,7 +115,7 @@ function getOwnableTemplate() {
       request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
       request.onsuccess = async () => {
         db = request.result;
-        template = await fetchTemplate(db, "template.html");
+        template = await fetchTemplate(db, "template.html", ownableType);
         reader.onload = function(evt) {
           resolve(`${evt.target.result}`);
         };
@@ -124,11 +131,16 @@ function extractAttributeValue(attributes, key) {
 }
 
 document.getElementsByClassName("inst-button")[0].addEventListener('click', async () => {
+  document.getElementById("inst-menu").classList.toggle("show");
+});
+
+export async function instantiateOwnable() {
+  document.getElementById("inst-menu").classList.toggle("show");
   const ownable = await issueOwnable();
   let color = extractAttributeValue(ownable.attributes, "color");
   let amount_str = extractAttributeValue(ownable.attributes, "capacity");
   initializePotionHTML(ownable.ownable_id, parseInt(amount_str), color);
-});
+}
 
 document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
 

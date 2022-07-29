@@ -118,6 +118,16 @@ button:active {
   z-index: 1;
 }
 
+.instantiate-selection {
+  display: none;
+  position: absolute;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+
+.show {display:block;}
+
 /* Show the dropdown menu on hover */
 .dropdown:hover .dropdown-content {display: block;}
 

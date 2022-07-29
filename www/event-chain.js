@@ -24,7 +24,8 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
       let chainTx = db.transaction(CHAIN_STORE).objectStore(CHAIN_STORE).get(LATEST);
       chainTx.onsuccess = () => {
         const latestEventChainHash = chainTx.result;
-        let eventChainTx = db.transaction(EVENTS_STORE).objectStore(EVENTS_STORE).get(latestEventChainHash);
+        let eventChainTx = db.transaction(EVENTS_STORE)
+          .objectStore(EVENTS_STORE).get(latestEventChainHash);
         eventChainTx.onsuccess = () => {
           chain.set(JSON.parse(eventChainTx.result));
           // append the new event to the previous head and sign
@@ -34,10 +35,14 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
           putEventTx.onsuccess = () => {
             let putChainTx = db.transaction(CHAIN_STORE, READ_WRITE)
               .objectStore(CHAIN_STORE).put(signedEvent.hash, LATEST);
-            putChainTx.onsuccess = () => resolve(request.result);
+            putChainTx.onsuccess = () => {
+              db.close();
+              resolve(request.result);
+            }
           };
         };
       };
+
     }
     request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
     request.onblocked = (event) => reject("idb blocked: " + event);
@@ -46,15 +51,12 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
 
 export function writeInstantiateEventToIdb(db, eventObj) {
 
-  const eventsTx = db.transaction(EVENTS_STORE, READ_WRITE)
-    .objectStore(EVENTS_STORE)
-    .put(JSON.stringify(eventObj), eventObj.hash);
-  const chainTx = db.transaction(CHAIN_STORE, READ_WRITE)
-    .objectStore(CHAIN_STORE)
-    .put(eventObj.hash, LATEST);
-  const chainNetworkTx = db.transaction(CHAIN_STORE, READ_WRITE)
-    .objectStore(CHAIN_STORE)
-    .put('T', "network");
+  const eventsObjectStore = db.transaction(EVENTS_STORE, READ_WRITE).objectStore(EVENTS_STORE);
+  const chainObjectStore = db.transaction(CHAIN_STORE, READ_WRITE).objectStore(CHAIN_STORE);
+
+  const eventsTx = eventsObjectStore.put(JSON.stringify(eventObj), eventObj.hash);
+  const chainTx = chainObjectStore.put(eventObj.hash, LATEST);
+  const chainNetworkTx = chainObjectStore.put('T', "network");
 
   eventsTx.onsuccess = () => console.log("events object store updated");
   chainTx.onsuccess = () => console.log("chain object store updated");
@@ -93,8 +95,8 @@ export function initIndexedDb(ownable_id) {
       if (!db.objectStoreNames.contains(CHAIN_STORE)) {
         db.createObjectStore(CHAIN_STORE);
       }
-      if (!request.result.objectStoreNames.contains(STATE_STORE)) {
-        request.result.createObjectStore(STATE_STORE);
+      if (!db.objectStoreNames.contains(STATE_STORE)) {
+        db.createObjectStore(STATE_STORE);
       }
     }
     request.onsuccess = () => resolve(request.result);
