@@ -100,7 +100,6 @@
           width: 80px;
         }
       }
-
     </style>
   </head>
   <body>
@@ -120,12 +119,27 @@
         </div>
       </div>
     </div>
+    <div class="dropdown" style="position: absolute; top: 10px; right: 50px">
+      <div class="dropdown-icon" style="font-size: 36px"><strong>&#10247;</strong></div>
+      <div class="dropdown-content" style="display: block; position: absolute; z-index: 1">
+        <button class="transfer-button">Transfer</button>
+        <button class="delete-button">Delete</button>
+      </div>
+    </div>
 
     <script>
       let ownable_id;
 
       document.getElementsByClassName("drink-button")[0]
         .addEventListener('click', () => consume());
+      document.getElementsByClassName("transfer-button")[0]
+        .addEventListener('click', () => {
+          window.parent.postMessage({type: "transfer", ownable_id}, "*");
+        });
+      document.getElementsByClassName("delete-button")[0]
+        .addEventListener('click', () => {
+          window.parent.postMessage({type: "delete", ownable_id}, "*");
+        });
 
       function updateTemplate(color, amt) {
         document.getElementsByClassName('juice')[0].style.backgroundColor = color;
@@ -142,7 +156,6 @@
         const state = event.data.state;
         updateTemplate(state.color, state.amount)
       });
-
       function getDrinkAmount() {
         let stringAmount = document.getElementsByClassName('slider')[0].valueOf().value;
         return parseInt(stringAmount);
@@ -157,7 +170,7 @@
 
         console.log("iframe posting msg: ", msg);
 
-        window.parent.postMessage({ownable_id, msg}, "*");
+        window.parent.postMessage({type: "execute", ownable_id, msg}, "*");
       }
     </script>
   </body>

@@ -1,5 +1,6 @@
 import {ASSETS_STORE} from "./event-chain";
 import JSZip from "jszip";
+import {instantiateOwnable} from "./index";
 
 
 export function importAssets() {
@@ -17,7 +18,6 @@ export function importAssets() {
     let unzippedFiles = await importZip(files);
 
     for (let i = 0; i < unzippedFiles.length; i++) {
-      console.log(unzippedFiles[i]);
       templates[i] = unzippedFiles[i];
     }
     storeTemplates(templates);
@@ -58,45 +58,60 @@ async function importZip(f) {
 function storeTemplates(templates) {
   const request = window.indexedDB.open(ASSETS_STORE);
   let db;
+  let templateFile = templates.find(t => t.type === extToMimes[".html"]);
+  let templateName = dropFilenameExtension(templateFile.name);
 
   request.onblocked = (event) => console.log("idb blocked: ", event);
   request.onerror = (event) => console.log("failed to open indexeddb: ", event.errorCode);
   request.onupgradeneeded = () => {
     db = request.result;
-    if (!db.objectStoreNames.contains(ASSETS_STORE)) {
-      db.createObjectStore(ASSETS_STORE);
+    if (!db.objectStoreNames.contains(templateName)) {
+      db.createObjectStore(templateName);
     }
   };
   request.onsuccess = async () => {
     db = request.result;
+    const objectStore = db.transaction([templateName], "readwrite")
+      .objectStore(templateName);
     for (let i = 0; i < templates.length; i++) {
-      console.log("writing: ", templates[i]);
-      if (templates[i].type === extToMimes[".html"]) {
-        writeTemplate(db, templates[i]);
-      } else {
-        writeTemplate(db, templates[i]);
-      }
+      await writeTemplate(objectStore, templates[i]);
     }
+    const templateOptions = JSON.parse(localStorage.templates);
+    templateOptions.push(templateName);
+    localStorage.templates = JSON.stringify(templateOptions);
+    addOwnableOption(templateName);
     db.close();
   }
 }
 
-function writeTemplate(db, template) {
-  return new Promise((resolve, reject) => {
-    let tx = db.transaction(ASSETS_STORE, "readwrite")
-      .objectStore(ASSETS_STORE)
-      .put(template, template["name"]);
+export function addOwnableOption(templateName) {
+  let ownableHtml = document.createElement("button");
+  ownableHtml.id = `inst-${templateName}`;
+  ownableHtml.innerText = templateName;
+  ownableHtml.type = "button";
+  ownableHtml.addEventListener('click', async () => {
+    await instantiateOwnable();
+  });
+  document.getElementById("inst-menu").appendChild(ownableHtml);
+}
 
+function writeTemplate(objectStore, template) {
+  return new Promise((resolve, reject) => {
+    let tx = objectStore.put(template, template["name"]);
     tx.onsuccess = () => resolve(tx.result);
     tx.onerror = (err) => reject(err);
     tx.onblocked = (err) => reject(err);
   });
 }
 
-export function fetchTemplate(db, key) {
+export function dropFilenameExtension(filename) {
+  return filename.substring(0, filename.indexOf("."));
+}
+
+export function fetchTemplate(db, key, objectStore) {
   return new Promise((resolve, reject) => {
-    let tx = db.transaction(ASSETS_STORE, "readonly")
-      .objectStore(ASSETS_STORE)
+    let tx = db.transaction(objectStore, "readonly")
+      .objectStore(objectStore)
       .get(key);
 
     tx.onsuccess = () => resolve(tx.result);
