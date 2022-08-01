@@ -18,49 +18,43 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
   return new Promise((resolve, reject) => {
     let chain = new EventChain('');
     const request = window.indexedDB.open(ownable_id);
-    request.onsuccess = () => {
+    request.onsuccess = async () => {
       const db = request.result;
-      // grab the latest event from the chain
-      let chainTx = db.transaction(CHAIN_STORE).objectStore(CHAIN_STORE).get(LATEST);
-      chainTx.onsuccess = () => {
-        const latestEventChainHash = chainTx.result;
-        let eventChainTx = db.transaction(EVENTS_STORE)
-          .objectStore(EVENTS_STORE).get(latestEventChainHash);
-        eventChainTx.onsuccess = () => {
-          chain.set(JSON.parse(eventChainTx.result));
-          // append the new event to the previous head and sign
-          let signedEvent = chain.add(newEvent).signWith(signer);
-          let putEventTx = db.transaction(EVENTS_STORE, READ_WRITE)
-            .objectStore(EVENTS_STORE).put(JSON.stringify(signedEvent), signedEvent.hash);
-          putEventTx.onsuccess = () => {
-            let putChainTx = db.transaction(CHAIN_STORE, READ_WRITE)
-              .objectStore(CHAIN_STORE).put(signedEvent.hash, LATEST);
-            putChainTx.onsuccess = () => {
-              db.close();
-              resolve(request.result);
-            }
-          };
-        };
-      };
-
-    }
-    request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
-    request.onblocked = (event) => reject("idb blocked: " + event);
+      const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
+      const latestEvent = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
+      chain.set(JSON.parse(latestEvent));
+      let signedEvent = chain.add(newEvent).signWith(signer);
+      await promisifyIdbPutTxn(db, EVENTS_STORE, signedEvent.hash, JSON.stringify(signedEvent));
+      await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, signedEvent.hash);
+      db.close();
+      resolve();
+    };
+    request.onerror = (e) => reject(e);
   });
 }
 
-export function writeInstantiateEventToIdb(db, eventObj) {
+export async function writeInstantiateEventToIdb(db, eventObj) {
+  await promisifyIdbPutTxn(db, EVENTS_STORE, eventObj.hash, JSON.stringify(eventObj));
+  await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, eventObj.hash);
+  await promisifyIdbPutTxn(db, CHAIN_STORE, "network", "T");
+}
 
-  const eventsObjectStore = db.transaction(EVENTS_STORE, READ_WRITE).objectStore(EVENTS_STORE);
-  const chainObjectStore = db.transaction(CHAIN_STORE, READ_WRITE).objectStore(CHAIN_STORE);
+function promisifyIdbPutTxn(db, store, key, val) {
+  return new Promise((resolve, reject) => {
+    const objectStore = db.transaction(store, READ_WRITE).objectStore(store);
+    let txn = objectStore.put(val, key);
+    txn.onsuccess = () => resolve(key);
+    txn.onerror = (e) => reject(e);
+  });
+}
 
-  const eventsTx = eventsObjectStore.put(JSON.stringify(eventObj), eventObj.hash);
-  const chainTx = chainObjectStore.put(eventObj.hash, LATEST);
-  const chainNetworkTx = chainObjectStore.put('T', "network");
-
-  eventsTx.onsuccess = () => console.log("events object store updated");
-  chainTx.onsuccess = () => console.log("chain object store updated");
-  chainNetworkTx.onsuccess = () => console.log("chain object store updated");
+function promisifyIdbGetTxn(db, store, key) {
+  return new Promise((resolve, reject) => {
+    const objectStore = db.transaction(store, READ_WRITE).objectStore(store);
+    let txn = objectStore.get(key);
+    txn.onsuccess = () => resolve(txn.result);
+    txn.onerror = (e) => reject(e);
+  });
 }
 
 export function deleteIndexedDb(name) {
@@ -99,7 +93,10 @@ export function initIndexedDb(ownable_id) {
         db.createObjectStore(STATE_STORE);
       }
     }
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      db = request.result;
+      resolve(db);
+    }
     request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
     request.onblocked = (event) => reject("idb blocked: " + event)
   });
