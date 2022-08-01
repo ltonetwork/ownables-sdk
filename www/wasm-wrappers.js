@@ -92,14 +92,15 @@ export async function issueOwnable() {
   chainIds.push(msg.ownable_id);
   localStorage.chainIds = JSON.stringify(chainIds);
 
-  await initIndexedDb(msg.ownable_id);
+  let db = await initIndexedDb(msg.ownable_id);
 
   let idbStore = new IdbStore(msg.ownable_id);
 
   let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-  writeInstantiateEventToIdb(await idbStore.get_db(), newEvent);
+  await writeInstantiateEventToIdb(db, newEvent);
 
   const resp = await wasm.instantiate_contract(msg, getMessageInfo(), idbStore);
+  await db.close();
   return {
     ownable_id: msg.ownable_id,
     ...JSON.parse(resp)
@@ -118,10 +119,11 @@ export async function syncDb(callback) {
     let idbStore = new IdbStore(chainIds[i]);
     let contractState = await wasm.query_contract_state(idbStore);
     if (document.getElementById(chainIds[i]) === null) {
-      callback(chainIds[i], contractState.current_amount, contractState.color_hex);
+      await callback(chainIds[i], contractState.current_amount, contractState.color_hex);
     } else {
       console.log('potion already initialized');
     }
+    idb.close();
   }
 }
 

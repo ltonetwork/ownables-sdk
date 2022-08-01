@@ -25,15 +25,19 @@ export function updateState(ownable_id, state) {
   iframe.contentWindow.postMessage({ownable_id, state}, "*");
 }
 
-export function initializePotionHTML(ownable_id, amount, color) {
-  injectPotionToGrid(ownable_id).then(() => {
+export async function initializePotionHTML(ownable_id, amount, color) {
+  return new Promise(async (resolve, reject) => {
+    await injectPotionToGrid(ownable_id);
     const state = {
       amount: amount,
       color: color
     };
-
     const iframe = document.getElementById(ownable_id);
-    iframe.onload = () => iframe.contentWindow.postMessage({ownable_id, state}, "*");
+    iframe.onload = () => {
+      iframe.contentWindow.postMessage({ownable_id, state}, "*");
+      resolve();
+    }
+    iframe.onerror = reject();
   });
 }
 
@@ -83,6 +87,7 @@ async function findImgSources(htmlTemplate, templateName) {
       await Promise.all(
         [...allElements].map(el => replaceImage(el, db, templateName))
       );
+      db.close();
       resolve();
     };
   });
@@ -111,16 +116,17 @@ function getOwnableTemplate(ownableType) {
     const request = window.indexedDB.open(ASSETS_STORE);
     const reader = new FileReader();
     let db, template;
-      request.onblocked = (event) => reject("idb blocked: ", event);
-      request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
-      request.onsuccess = async () => {
-        db = request.result;
-        template = await fetchTemplate(db, "template.html", ownableType);
-        reader.onload = function(evt) {
-          resolve(`${evt.target.result}`);
-        };
-        reader.readAsText(template);
+    request.onblocked = (event) => reject("idb blocked: ", event);
+    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
+    request.onsuccess = async () => {
+      db = request.result;
+      template = await fetchTemplate(db, "template.html", ownableType);
+      reader.onload = function(evt) {
+        db.close();
+        resolve(`${evt.target.result}`);
       };
+      reader.readAsText(template);
+    };
   });
 }
 
@@ -144,7 +150,7 @@ export async function instantiateOwnable() {
 
 document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
 
-setTimeout(() => syncDb(initializePotionHTML), 0);
+setTimeout(async () => await syncDb(initializePotionHTML), 0);
 
 window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;
@@ -152,7 +158,6 @@ window.addEventListener("message", async event => {
   if (document.getElementById(event.data.ownable_id).contentWindow !== event.source) {
     throw Error("Not allowed to execute msg on other ownable");
   }
-
   switch (event.data.type) {
     case eventType.TRANSFER:
       await transferOwnable(event.data.ownable_id);
