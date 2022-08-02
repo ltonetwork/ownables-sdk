@@ -1,6 +1,7 @@
-import * as wasm from "ownable-demo";
+// import * as wasm from "ownable-demo";
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
 import {
+  ASSETS_STORE,
   deleteIndexedDb, initIndexedDb,
   writeExecuteEventToIdb,
   writeInstantiateEventToIdb
@@ -9,7 +10,39 @@ import {IdbStore} from "./idb-store";
 import {initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
+import init, { instantiate_contract, query_contract_state, execute_contract } from '../pkg/ownable_demo';
 
+setTimeout(() => {
+  getWasmBlob().then(async arrayBuffer => {
+    await init(arrayBuffer);
+  });
+}, 0);
+
+function getWasmBlob() {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(ASSETS_STORE);
+    let db;
+    request.onblocked = (event) => reject("idb blocked: ", event);
+    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
+    request.onsuccess = async () => {
+      db = request.result;
+      const objectStore = db.transaction(['template'], "readonly")
+        .objectStore('template');
+      let wasm_file = objectStore.get('ownable_demo_bg.wasm');
+      wasm_file.onsuccess = async (e) => {
+        const fr = new FileReader();
+
+        fr.onload = () => {
+          db.close();
+          resolve(fr.result);
+        };
+
+        fr.readAsArrayBuffer(e.target.result);
+      }
+      wasm_file.onerror = (e) => console.log(e);
+    }
+  });
+}
 
 function getAccount() {
   let existingSeed = localStorage.encryptedSeed;
@@ -56,7 +89,7 @@ export async function executeOwnable(ownable_id, msg) {
   let idbStore = new IdbStore(ownable_id);
 
   await writeExecuteEventToIdb(ownable_id, newEvent, account);
-  wasm.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
+  execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
     (resp) => {
       queryState(ownable_id, idbStore);
     },
@@ -70,7 +103,7 @@ export async function deleteOwnable(ownable_id) {
 }
 
 export function queryState(ownable_id, idbStore) {
-  wasm.query_contract_state(idbStore).then(
+  query_contract_state(idbStore).then(
     (ownable) => {
       updateState(ownable_id, {
         amount: ownable.current_amount,
@@ -99,7 +132,7 @@ export async function issueOwnable() {
   let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
   await writeInstantiateEventToIdb(db, newEvent);
 
-  const resp = await wasm.instantiate_contract(msg, getMessageInfo(), idbStore);
+  const resp = await instantiate_contract(msg, getMessageInfo(), idbStore);
   await db.close();
   return {
     ownable_id: msg.ownable_id,

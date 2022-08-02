@@ -150,7 +150,7 @@ export async function instantiateOwnable() {
 
 document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
 
-setTimeout(async () => await syncDb(initializePotionHTML), 0);
+// setTimeout(async () => await syncDb(initializePotionHTML), 0);
 
 window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;
