@@ -29,7 +29,9 @@ const extToMimes = {
   '.img': 'image/jpeg',
   '.png': 'image/png',
   '.svg': 'image/svg',
-  '.html': 'text/html'
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.wasm': 'application/wasm',
 }
 
 async function importZip(f) {
@@ -38,11 +40,9 @@ async function importZip(f) {
   await JSZip.loadAsync(f[0])
     .then(async function (zip) {
       for (let [filename, file] of Object.entries(zip.files)) {
-        // TODO: find a nicer solution to avoid os-specific files
         if (!filename.includes("MAC")) {
           const blob = await zip.files[filename].async("blob");
           const ext = filename.substring(filename.indexOf('.'));
-          console.log(filename, ":", file);
           files.push(new File([blob], filename, {
             type: extToMimes[ext]
           }));
@@ -57,34 +57,42 @@ async function importZip(f) {
 
 function storeTemplates(templates) {
   const request = window.indexedDB.open(ASSETS_STORE);
-  let db;
   let templateFile = templates.find(t => t.type === extToMimes[".html"]);
   let templateName = dropFilenameExtension(templateFile.name);
+  let newImport = false;
+  let db;
 
   request.onblocked = (event) => console.log("idb blocked: ", event);
   request.onerror = (event) => console.log("failed to open indexeddb: ", event.errorCode);
   request.onupgradeneeded = () => {
     db = request.result;
     if (!db.objectStoreNames.contains(templateName)) {
+      newImport = true;
       db.createObjectStore(templateName);
     }
   };
   request.onsuccess = async () => {
     db = request.result;
-    const objectStore = db.transaction([templateName], "readwrite")
-      .objectStore(templateName);
-    for (let i = 0; i < templates.length; i++) {
-      await writeTemplate(objectStore, templates[i]);
+    if (newImport) {
+      const objectStore = db.transaction([templateName], "readwrite")
+        .objectStore(templateName);
+      for (let i = 0; i < templates.length; i++) {
+        console.log(templates[i]);
+        await writeTemplate(objectStore, templates[i]);
+      }
+      const templateOptions = JSON.parse(localStorage.templates);
+      templateOptions.push(templateName);
+      localStorage.templates = JSON.stringify(templateOptions);
+      await addOwnableOption(templateName);
+    } else {
+      console.log('existing template import');
     }
-    const templateOptions = JSON.parse(localStorage.templates);
-    templateOptions.push(templateName);
-    localStorage.templates = JSON.stringify(templateOptions);
-    addOwnableOption(templateName);
+
     db.close();
   }
 }
 
-export function addOwnableOption(templateName) {
+export async function addOwnableOption(templateName) {
   let ownableHtml = document.createElement("button");
   ownableHtml.id = `inst-${templateName}`;
   ownableHtml.innerText = templateName;
