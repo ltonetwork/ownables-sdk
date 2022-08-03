@@ -1,4 +1,3 @@
-// import * as wasm from "ownable-demo";
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
 import {
   ASSETS_STORE,
@@ -10,15 +9,18 @@ import {IdbStore} from "./idb-store";
 import {initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
-import init, { instantiate_contract, query_contract_state, execute_contract } from '../pkg/ownable_demo';
+import init, { instantiate_contract, query_contract_state, execute_contract } from './potion/ownable_demo.js';
 
-setTimeout(() => {
-  getWasmBlob().then(async arrayBuffer => {
-    await init(arrayBuffer);
+export function initWasmTemplate(template) {
+  return new Promise((resolve, reject) => {
+    getWasmBlob(template).then(async arrayBuffer => {
+      let initializedWasm = await init(arrayBuffer);
+      resolve(initializedWasm);
+    }).catch((e) => reject(e));
   });
-}, 0);
+}
 
-function getWasmBlob() {
+function getWasmBlob(template) {
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(ASSETS_STORE);
     let db;
@@ -26,20 +28,18 @@ function getWasmBlob() {
     request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
     request.onsuccess = async () => {
       db = request.result;
-      const objectStore = db.transaction(['template'], "readonly")
-        .objectStore('template');
+      const objectStore = db.transaction([template], "readonly")
+        .objectStore(template);
       let wasm_file = objectStore.get('ownable_demo_bg.wasm');
       wasm_file.onsuccess = async (e) => {
         const fr = new FileReader();
-
         fr.onload = () => {
           db.close();
           resolve(fr.result);
         };
-
         fr.readAsArrayBuffer(e.target.result);
       }
-      wasm_file.onerror = (e) => console.log(e);
+      wasm_file.onerror = (e) => reject(e);
     }
   });
 }
@@ -145,18 +145,26 @@ export async function syncDb(callback) {
   while (grid.firstChild) {
     grid.removeChild(grid.firstChild);
   }
+  await initAllWasmInstances();
   const chainIds = JSON.parse(localStorage.chainIds);
   console.log(chainIds, " are syncing");
   for (let i = 0; i < chainIds.length; i++) {
     let idb = await initIndexedDb(chainIds[i]);
     let idbStore = new IdbStore(chainIds[i]);
-    let contractState = await wasm.query_contract_state(idbStore);
+    let contractState = await query_contract_state(idbStore);
     if (document.getElementById(chainIds[i]) === null) {
       await callback(chainIds[i], contractState.current_amount, contractState.color_hex);
     } else {
       console.log('potion already initialized');
     }
     idb.close();
+  }
+}
+
+async function initAllWasmInstances() {
+  let templateNames = JSON.parse(localStorage.templates);
+  for (let i = 0; i < templateNames.length; i++) {
+    await initWasmTemplate(templateNames[i]);
   }
 }
 
@@ -171,7 +179,7 @@ export async function transferOwnable(ownable_id) {
     if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
       await initIndexedDb(ownable_id);
       let idbStore = new IdbStore(ownable_id);
-      wasm.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
+      execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
         (resp) => console.log(resp)
       )
     }

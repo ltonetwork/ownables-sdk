@@ -145,12 +145,12 @@ export async function instantiateOwnable() {
   const ownable = await issueOwnable();
   let color = extractAttributeValue(ownable.attributes, "color");
   let amount_str = extractAttributeValue(ownable.attributes, "capacity");
-  initializePotionHTML(ownable.ownable_id, parseInt(amount_str), color);
+  await initializePotionHTML(ownable.ownable_id, parseInt(amount_str), color);
 }
 
 document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
 
-// setTimeout(async () => await syncDb(initializePotionHTML), 0);
+setTimeout(async () => await syncDb(initializePotionHTML), 0);
 
 window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;

@@ -35,7 +35,6 @@
   },
   "dependencies": {
     "@ltonetwork/lto": "^0.8.9",
-    "jszip": "^3.10.0",
-    "ownable-demo": "file:../pkg"
+    "jszip": "^3.10.0"
   }
 }
