@@ -19,8 +19,8 @@ pub fn instantiate(
     let state = State {
         owner: info.sender.clone(),
         issuer: info.sender.clone(),
-        max_capacity: msg.max_capacity,
-        current_amount: msg.max_capacity,
+        max_capacity: 100,
+        current_amount: 100,
         color_hex: get_random_color(msg.ownable_id),
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -31,7 +31,7 @@ pub fn instantiate(
         .add_attribute("owner", info.sender.clone())
         .add_attribute("issuer", info.sender)
         .add_attribute("color", state.color_hex)
-        .add_attribute("capacity", msg.max_capacity.to_string()))
+        .add_attribute("capacity", state.max_capacity.to_string()))
 }
 
 fn get_random_color(hash: String) -> String {
@@ -126,7 +126,6 @@ mod tests {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
         let msg = InstantiateMsg {
-            max_capacity: 17,
             ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
         };
         let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(1000, "earth"));
@@ -146,7 +145,6 @@ mod tests {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
         let msg = InstantiateMsg {
-            max_capacity: 100,
             ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
         };
         let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
@@ -188,7 +186,6 @@ mod tests {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
         let msg = InstantiateMsg {
-            max_capacity: 17,
             ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
         };
         let owner = "3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1";
