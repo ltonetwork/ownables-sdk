@@ -104,7 +104,7 @@ pub async fn execute_contract(
 #[wasm_bindgen]
 pub async fn query_contract_state(idb: IdbStore) -> Result<JsValue, JsError> {
     let deps = load_lto_deps(&idb).await;
-    let message: QueryMsg = QueryMsg::GetPotionState {};
+    let message: QueryMsg = QueryMsg::GetOwnableState {};
 
     let query_result = contract::query(deps.as_ref(), message);
     match query_result {
