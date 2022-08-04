@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    pub max_capacity: u8,
+    // pub max_capacity: u8,
     pub ownable_id: String,
 }
 
