@@ -58,10 +58,11 @@ function storeTemplates(templates) {
   return new Promise((resolve, reject) => {
     let templateFile = templates.find(t => t.type === extToMimes[".html"]);
     let templateName = dropFilenameExtension(templateFile.name);
+    console.log("importing template: ", templateName);
     let newImport = false;
     let db;
 
-    const request = window.indexedDB.open(ASSETS_STORE);
+    const request = window.indexedDB.open(ASSETS_STORE, localStorage.templates.length + 1);
     request.onupgradeneeded = () => {
       db = request.result;
       if (!db.objectStoreNames.contains(templateName)) {

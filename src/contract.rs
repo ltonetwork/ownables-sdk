@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, PotionStateResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, OwnableStateResponse, QueryMsg};
 use crate::state::{State, STATE};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -98,15 +98,15 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 }
 
 // #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<PotionStateResponse> {
+pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<OwnableStateResponse> {
     match msg {
-        QueryMsg::GetPotionState {} => query_potion_state(deps),
+        QueryMsg::GetOwnableState {} => query_potion_state(deps),
     }
 }
 
-fn query_potion_state(deps: Deps) -> StdResult<PotionStateResponse> {
+fn query_potion_state(deps: Deps) -> StdResult<OwnableStateResponse> {
     let state = STATE.load(deps.storage)?;
-    Ok(PotionStateResponse {
+    Ok(OwnableStateResponse {
         owner: state.owner.into_string(),
         issuer: state.issuer.into_string(),
         current_amount: state.current_amount,
@@ -136,7 +136,7 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         // it worked, let's query the state
-        let res = query(deps.as_ref(), QueryMsg::GetPotionState {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::GetOwnableState {}).unwrap();
 
         assert_eq!(17, res.max_capacity);
     }
@@ -167,7 +167,7 @@ mod tests {
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // should decrease capacity by 10
-        let res = query(deps.as_ref(), QueryMsg::GetPotionState {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::GetOwnableState {}).unwrap();
         // let value: PotionStateResponse = res).unwrap();
         assert_eq!(90, res.current_amount);
 
@@ -215,7 +215,7 @@ mod tests {
         let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // verify new owner
-        let res: PotionStateResponse = query(deps.as_ref(), QueryMsg::GetPotionState {}).unwrap();
+        let res: OwnableStateResponse = query(deps.as_ref(), QueryMsg::GetOwnableState {}).unwrap();
         assert_eq!(res.owner, Addr::unchecked("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh"));
     }
 }
