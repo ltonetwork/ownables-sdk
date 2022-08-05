@@ -9,7 +9,8 @@ import {IdbStore} from "./idb-store";
 import {initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
-import init, { instantiate_contract, query_contract_state, execute_contract } from './potion/ownable_demo.js';
+import init, { instantiate_contract, query_contract_state, execute_contract } from './wasm-glue.js';
+import {associateOwnableType} from "./asset_import";
 
 export function initWasmTemplate(template) {
   return new Promise((resolve, reject) => {
@@ -30,7 +31,7 @@ function getWasmBlob(template) {
       db = request.result;
       const objectStore = db.transaction([template], "readonly")
         .objectStore(template);
-      let wasm_file = objectStore.get('ownable_demo_bg.wasm');
+      let wasm_file = objectStore.get('wasm');
       wasm_file.onsuccess = async (e) => {
         const fr = new FileReader();
         fr.onload = () => {
@@ -113,52 +114,64 @@ export function queryState(ownable_id, idbStore) {
   );
 }
 
-export async function issueOwnable() {
-  // issue a new event chain
-  const chain = EventChain.create(account);
-  const msg = {
-    max_capacity: 100,
-    ownable_id: chain.id,
-  };
+export async function issueOwnable(ownableType) {
+  return new Promise(async (resolve, reject) => {
+    // issue a new event chain
+    const chain = EventChain.create(account);
+    const msg = {
+      ownable_id: chain.id,
+    };
 
-  let chainIds = JSON.parse(localStorage.chainIds);
-  chainIds.push(msg.ownable_id);
-  localStorage.chainIds = JSON.stringify(chainIds);
+    let chainIds = JSON.parse(localStorage.chainIds);
+    chainIds.push(msg.ownable_id);
+    localStorage.chainIds = JSON.stringify(chainIds);
 
-  let db = await initIndexedDb(msg.ownable_id);
+    let db = await initIndexedDb(msg.ownable_id);
+    let idbStore = new IdbStore(msg.ownable_id);
 
-  let idbStore = new IdbStore(msg.ownable_id);
+    let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
+    await writeInstantiateEventToIdb(db, newEvent);
+    const resp = await instantiate_contract(msg, getMessageInfo(), idbStore);
 
-  let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-  await writeInstantiateEventToIdb(db, newEvent);
+    if (resp) {
+      await associateOwnableType(db, chain.id, ownableType);
+    } else {
+      reject();
+    }
+    await db.close();
 
-  const resp = await instantiate_contract(msg, getMessageInfo(), idbStore);
-  await db.close();
-  return {
-    ownable_id: msg.ownable_id,
-    ...JSON.parse(resp)
-  };
+    resolve({
+      ownable_id: msg.ownable_id,
+      ...JSON.parse(resp)
+    });
+  });
 }
 
 export async function syncDb(callback) {
-  const grid = document.getElementsByClassName("grid-container")[0];
-  while (grid.firstChild) {
-    grid.removeChild(grid.firstChild);
-  }
-  await initAllWasmInstances();
-  const chainIds = JSON.parse(localStorage.chainIds);
-  console.log(chainIds, " are syncing");
-  for (let i = 0; i < chainIds.length; i++) {
-    let idb = await initIndexedDb(chainIds[i]);
-    let idbStore = new IdbStore(chainIds[i]);
-    let contractState = await query_contract_state(idbStore);
-    if (document.getElementById(chainIds[i]) === null) {
-      await callback(chainIds[i], contractState.current_amount, contractState.color_hex);
-    } else {
-      console.log('potion already initialized');
+  return new Promise(async (resolve, reject) => {
+    const grid = document.getElementsByClassName("grid-container")[0];
+    while (grid.firstChild) {
+      grid.removeChild(grid.firstChild);
     }
-    idb.close();
-  }
+    if (!localStorage.chainIds) {
+      reject();
+    }
+    await initAllWasmInstances();
+    const chainIds = JSON.parse(localStorage.chainIds);
+    console.log(chainIds, " are syncing");
+    for (let i = 0; i < chainIds.length; i++) {
+      let idb = await initIndexedDb(chainIds[i]);
+      let idbStore = new IdbStore(chainIds[i]);
+      let contractState = await query_contract_state(idbStore);
+      if (document.getElementById(chainIds[i]) === null) {
+        await callback(chainIds[i], contractState.current_amount, contractState.color_hex);
+      } else {
+        console.log('potion already initialized');
+      }
+      idb.close();
+      resolve();
+    }
+  });
 }
 
 async function initAllWasmInstances() {

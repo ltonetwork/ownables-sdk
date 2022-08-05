@@ -92,6 +92,9 @@ export function initIndexedDb(ownable_id) {
       if (!db.objectStoreNames.contains(STATE_STORE)) {
         db.createObjectStore(STATE_STORE);
       }
+      if (!db.objectStoreNames.contains("associations")) {
+        db.createObjectStore("associations");
+      }
     }
     request.onsuccess = () => {
       db = request.result;
