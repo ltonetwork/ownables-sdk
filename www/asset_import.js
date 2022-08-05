@@ -61,9 +61,9 @@ function storeTemplates(templates) {
     console.log("importing template: ", templateName);
     let newImport = false;
     let db;
-
-    const request = window.indexedDB.open(ASSETS_STORE, localStorage.templates.length + 1);
-    request.onupgradeneeded = () => {
+    const templateCount = JSON.parse(localStorage.templates).length;
+    const request = window.indexedDB.open(ASSETS_STORE, templateCount + 1);
+    request.onupgradeneeded = (e) => {
       db = request.result;
       if (!db.objectStoreNames.contains(templateName)) {
         newImport = true;
@@ -91,7 +91,7 @@ function storeTemplates(templates) {
       resolve();
     }
     request.onblocked = (event) => reject("idb blocked: ", event);
-    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
+    request.onerror = (event) => reject("failed to open indexeddb: ", event);
   });
 
 }
@@ -102,14 +102,15 @@ export async function addOwnableOption(templateName) {
   ownableHtml.innerText = templateName;
   ownableHtml.type = "button";
   ownableHtml.addEventListener('click', async () => {
-    await instantiateOwnable();
+    await instantiateOwnable(templateName);
   });
   document.getElementById("inst-menu").appendChild(ownableHtml);
 }
 
 function writeTemplate(objectStore, template) {
   return new Promise((resolve, reject) => {
-    let tx = objectStore.put(template, template["name"]);
+    let templateName = ((template.type == "application/wasm") ? "wasm" : template["name"]);
+    let tx = objectStore.put(template, templateName);
     tx.onsuccess = () => resolve(tx.result);
     tx.onerror = (err) => reject(err);
     tx.onblocked = (err) => reject(err);
@@ -132,3 +133,14 @@ export function fetchTemplate(db, key, objectStore) {
   });
 }
 
+export function associateOwnableType(db, ownableId, ownableType) {
+  return new Promise((resolve, reject) => {
+    let tx = db.transaction("associations", "readwrite")
+      .objectStore("associations")
+      .put(ownableType, ownableId);
+
+    tx.onsuccess = () => resolve(tx.result);
+    tx.onerror = (err) => reject(err);
+    tx.onblocked = (err) => reject(err);
+  });
+}

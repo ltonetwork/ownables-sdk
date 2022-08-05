@@ -1,5 +1,5 @@
 import {deleteOwnable, executeOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
-import {addOwnableOption, dropFilenameExtension, fetchTemplate, importAssets} from "./asset_import";
+import {addOwnableOption, fetchTemplate, importAssets} from "./asset_import";
 import {ASSETS_STORE} from "./event-chain";
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
@@ -27,9 +27,8 @@ export function updateState(ownable_id, state) {
 
 export async function initializePotionHTML(ownable_id, amount, color) {
   return new Promise(async (resolve, reject) => {
-    await injectPotionToGrid(ownable_id);
+    await injectOwnableToGrid(ownable_id, "template");
     const state = {
-      amount: amount,
       color: color
     };
     const iframe = document.getElementById(ownable_id);
@@ -41,18 +40,17 @@ export async function initializePotionHTML(ownable_id, amount, color) {
   });
 }
 
-async function injectPotionToGrid(ownable_id, ownableType = "template") {
+async function injectOwnableToGrid(ownable_id, ownableType = "template") {
   const potionGrid = document.getElementsByClassName("grid-container")[0];
 
   const potionContent = document.createElement('div');
   potionContent.innerHTML = await getOwnableTemplate(ownableType);
-  await findImgSources(potionContent, ownableType);
+  await findMediaSources(potionContent, ownableType);
   const potionElement = document.createElement('div');
   potionElement.classList.add('grid-item');
   const potionIframe = document.createElement('iframe');
   potionIframe.id = ownable_id;
   potionIframe.sandbox = "allow-scripts";
-  // injectOptionsDropdown(potionContent);
   potionIframe.srcdoc = potionContent.outerHTML;
   potionElement.appendChild(potionIframe);
   potionGrid.appendChild(potionElement);
@@ -71,9 +69,9 @@ function injectOptionsDropdown(ownableHTML) {
   // TODO: initialize listeners for transfer & delete
 }
 
-async function findImgSources(htmlTemplate, templateName) {
+async function findMediaSources(htmlTemplate, templateName) {
   return new Promise((resolve, reject) => {
-    const allElements = htmlTemplate.getElementsByTagName("img");
+    const allElements = Array.from(htmlTemplate.getElementsByTagName("*")).filter(el => el.hasAttribute("src"));
     const request = window.indexedDB.open("assets");
     request.onblocked = (event) => console.warn("idb blocked: ", event);
     request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
@@ -85,7 +83,7 @@ async function findImgSources(htmlTemplate, templateName) {
     request.onsuccess = async () => {
       let db = request.result;
       await Promise.all(
-        [...allElements].map(el => replaceImage(el, db, templateName))
+        [...allElements].map(el => replaceSources(el, db, templateName))
       );
       db.close();
       resolve();
@@ -93,20 +91,20 @@ async function findImgSources(htmlTemplate, templateName) {
   });
 }
 
-async function replaceImage(element, db, templateName) {
+async function replaceSources(element, db, templateName) {
   return new Promise((resolve, reject) => {
     const currentSrc = element.getAttribute("src");
     const fr = new FileReader();
     // query the idb for that img and update the template
-    fetchTemplate(db, currentSrc, templateName).then(imgFile => {
-      if (!imgFile) {
+    fetchTemplate(db, currentSrc, templateName).then(mediaFile => {
+      if (!mediaFile) {
         resolve();
       }
       fr.onload = (event) => {
         element.src = event.target.result;
         resolve();
       };
-      fr.readAsDataURL(imgFile);
+      fr.readAsDataURL(mediaFile);
     }, error => reject(error));
   });
 }
@@ -140,17 +138,24 @@ document.getElementsByClassName("inst-button")[0].addEventListener('click', asyn
   document.getElementById("inst-menu").classList.toggle("show");
 });
 
-export async function instantiateOwnable() {
-  document.getElementById("inst-menu").classList.toggle("show");
-  const ownable = await issueOwnable();
-  let color = extractAttributeValue(ownable.attributes, "color");
-  let amount_str = extractAttributeValue(ownable.attributes, "capacity");
-  await initializePotionHTML(ownable.ownable_id, parseInt(amount_str), color);
+export async function instantiateOwnable(templateName) {
+  return new Promise(async (resolve, reject) => {
+    document.getElementById("inst-menu").classList.toggle("show");
+    const ownable = await issueOwnable(templateName);
+    let color = extractAttributeValue(ownable.attributes, "color");
+    let amount_str = extractAttributeValue(ownable.attributes, "capacity");
+    await initializePotionHTML(ownable.ownable_id, parseInt(amount_str), color);
+    resolve();
+  });
 }
 
 document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
 
-setTimeout(async () => await syncDb(initializePotionHTML), 0);
+setTimeout(async () => {
+  if (localStorage.templates) {
+    await syncDb(initializePotionHTML);
+  }
+}, 0);
 
 window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;
