@@ -109,7 +109,18 @@ export async function addOwnableOption(templateName) {
 
 function writeTemplate(objectStore, template) {
   return new Promise((resolve, reject) => {
-    let templateName = ((template.type == "application/wasm") ? "wasm" : template["name"]);
+    let templateName;
+    switch (template.type) {
+      case "application/wasm":
+        templateName = "wasm";
+        break;
+      case "text/html":
+        templateName = "html";
+        break;
+      default:
+        templateName = template["name"];
+        break;
+    }
     let tx = objectStore.put(template, templateName);
     tx.onsuccess = () => resolve(tx.result);
     tx.onerror = (err) => reject(err);
@@ -142,5 +153,27 @@ export function associateOwnableType(db, ownableId, ownableType) {
     tx.onsuccess = () => resolve(tx.result);
     tx.onerror = (err) => reject(err);
     tx.onblocked = (err) => reject(err);
+  });
+}
+
+export function getOwnableType(ownableId) {
+  return new Promise((resolve, reject) => {
+    let dbTx = indexedDB.open(ownableId);
+    dbTx.onsuccess = (e) => {
+      let db = e.target.result;
+      let tx = db.transaction("associations", "readwrite")
+        .objectStore("associations")
+        .get(ownableId);
+      tx.onsuccess = () => {
+        db.close();
+        resolve(tx.result);
+      }
+      tx.onerror = () => {
+        db.close();
+        reject();
+      }
+    }
+    dbTx.onblocked = () => reject("db blocked");
+    dbTx.onerror = () => reject("failed to open db");
   });
 }
