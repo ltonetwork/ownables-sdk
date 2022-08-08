@@ -6,11 +6,11 @@ import {
   writeInstantiateEventToIdb
 } from "./event-chain";
 import {IdbStore} from "./idb-store";
-import {initializePotionHTML, updateState} from "./index";
+import {initializeCarHTML, initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
 import init, { instantiate_contract, query_contract_state, execute_contract } from './wasm-glue.js';
-import {associateOwnableType} from "./asset_import";
+import {associateOwnableType, getOwnableType} from "./asset_import";
 
 export function initWasmTemplate(template) {
   return new Promise((resolve, reject) => {
@@ -147,7 +147,7 @@ export async function issueOwnable(ownableType) {
   });
 }
 
-export async function syncDb(callback) {
+export async function syncDb() {
   return new Promise(async (resolve, reject) => {
     const grid = document.getElementsByClassName("grid-container")[0];
     while (grid.firstChild) {
@@ -164,7 +164,18 @@ export async function syncDb(callback) {
       let idbStore = new IdbStore(chainIds[i]);
       let contractState = await query_contract_state(idbStore);
       if (document.getElementById(chainIds[i]) === null) {
-        await callback(chainIds[i], contractState.current_amount, contractState.color_hex);
+        let ownableType = await getOwnableType(chainIds[i]);
+        switch (ownableType) {
+          case "template":
+            await initializePotionHTML(chainIds[i], ownableType, {
+              color: contractState.color_hex,
+              current_amount: contractState.current_amount,
+            });
+            break;
+          case "templatecar":
+            await initializeCarHTML(chainIds[i]);
+            break;
+        }
       } else {
         console.log('potion already initialized');
       }

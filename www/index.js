@@ -1,5 +1,5 @@
 import {deleteOwnable, executeOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
-import {addOwnableOption, fetchTemplate, importAssets} from "./asset_import";
+import {addOwnableOption, fetchTemplate, getOwnableType, importAssets} from "./asset_import";
 import {ASSETS_STORE} from "./event-chain";
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
@@ -25,35 +25,80 @@ export function updateState(ownable_id, state) {
   iframe.contentWindow.postMessage({ownable_id, state}, "*");
 }
 
-export async function initializePotionHTML(ownable_id, amount, color) {
+export async function initializePotionHTML(ownable_id, ownableType, state) {
   return new Promise(async (resolve, reject) => {
-    await injectOwnableToGrid(ownable_id, "template");
-    const state = {
-      color: color
-    };
+    await injectOwnableToGrid(ownable_id, ownableType);
     const iframe = document.getElementById(ownable_id);
     iframe.onload = () => {
-      iframe.contentWindow.postMessage({ownable_id, state}, "*");
+      console.log("iframe loaded, posting: ", {ownable_id, state});
+      updateState(ownable_id, state);
       resolve();
     }
     iframe.onerror = reject();
   });
 }
 
-async function injectOwnableToGrid(ownable_id, ownableType = "template") {
-  const potionGrid = document.getElementsByClassName("grid-container")[0];
+export async function initializeCarHTML(ownable_id) {
+  return new Promise(async (resolve, reject) => {
+    let ownableType = await getOwnableType(ownable_id);
+    await injectOwnableToGrid(ownable_id, ownableType);
+    const iframe = document.getElementById(ownable_id);
+    iframe.onload = () => {
+      iframe.contentWindow.postMessage({ownable_id}, "*");
+      resolve();
+    }
+    iframe.onerror = reject();
+  });
+}
 
-  const potionContent = document.createElement('div');
-  potionContent.innerHTML = await getOwnableTemplate(ownableType);
-  await findMediaSources(potionContent, ownableType);
-  const potionElement = document.createElement('div');
-  potionElement.classList.add('grid-item');
-  const potionIframe = document.createElement('iframe');
-  potionIframe.id = ownable_id;
-  potionIframe.sandbox = "allow-scripts";
-  potionIframe.srcdoc = potionContent.outerHTML;
-  potionElement.appendChild(potionIframe);
-  potionGrid.appendChild(potionElement);
+async function injectOwnableToGrid(ownable_id, ownableType) {
+  const ownableGrid = document.getElementsByClassName("grid-container")[0];
+  switch (ownableType) {
+    case "template":
+      ownableGrid.appendChild(await generatePotionOwnable(ownable_id, ownableType));
+      break;
+    case "templatecar":
+      ownableGrid.appendChild(await generateVideoOwnable(ownable_id, ownableType));
+      break;
+  }
+}
+
+async function generateVideoOwnable(ownable_id, type) {
+  // generate iframe contents
+  const ownableContent = document.createElement('div');
+  ownableContent.innerHTML = await getOwnableTemplate(type);
+  await findMediaSources(ownableContent, type);
+
+  // generate iframe, set contents
+  const ownableIframe = document.createElement('iframe');
+  ownableIframe.id = ownable_id;
+  ownableIframe.sandbox = "allow-scripts";
+  ownableIframe.srcdoc = ownableContent.outerHTML;
+
+  // wrap iframe in a grid-item and return
+  const ownableElement = document.createElement('div');
+  ownableElement.classList.add('grid-item');
+  ownableElement.appendChild(ownableIframe);
+  return ownableElement;
+}
+
+async function generatePotionOwnable(ownable_id, type="template") {
+  // generate iframe contents
+  const ownableContent = document.createElement('div');
+  ownableContent.innerHTML = await getOwnableTemplate(type);
+  await findMediaSources(ownableContent, type);
+
+  // generate iframe, set contents
+  const ownableIframe = document.createElement('iframe');
+  ownableIframe.id = ownable_id;
+  ownableIframe.sandbox = "allow-scripts";
+  ownableIframe.srcdoc = ownableContent.outerHTML;
+
+  // wrap iframe in a grid-item and return
+  const ownableElement = document.createElement('div');
+  ownableElement.classList.add('grid-item');
+  ownableElement.appendChild(ownableIframe);
+  return ownableElement;
 }
 
 function injectOptionsDropdown(ownableHTML) {
@@ -73,7 +118,7 @@ async function findMediaSources(htmlTemplate, templateName) {
   return new Promise((resolve, reject) => {
     const allElements = Array.from(htmlTemplate.getElementsByTagName("*")).filter(el => el.hasAttribute("src"));
     const request = window.indexedDB.open("assets");
-    request.onblocked = (event) => console.warn("idb blocked: ", event);
+    request.onblocked = (event) => reject("idb blocked: ", event);
     request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
     request.onupgradeneeded = (event) => {
       if (!request.result.objectStoreNames.contains(templateName)) {
@@ -118,7 +163,7 @@ function getOwnableTemplate(ownableType) {
     request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
     request.onsuccess = async () => {
       db = request.result;
-      template = await fetchTemplate(db, "template.html", ownableType);
+      template = await fetchTemplate(db, "html", ownableType);
       reader.onload = function(evt) {
         db.close();
         resolve(`${evt.target.result}`);
@@ -142,10 +187,21 @@ export async function instantiateOwnable(templateName) {
   return new Promise(async (resolve, reject) => {
     document.getElementById("inst-menu").classList.toggle("show");
     const ownable = await issueOwnable(templateName);
-    let color = extractAttributeValue(ownable.attributes, "color");
-    let amount_str = extractAttributeValue(ownable.attributes, "capacity");
-    await initializePotionHTML(ownable.ownable_id, parseInt(amount_str), color);
-    resolve();
+    // TODO: generalize for all ownable types
+    if (templateName === "template") { // potion
+      let color = extractAttributeValue(ownable.attributes, "color");
+      let amount_str = extractAttributeValue(ownable.attributes, "capacity");
+      let state = {
+        color,
+        amount: amount_str,
+      };
+      await initializePotionHTML(ownable.ownable_id, "template", state);
+      resolve();
+    } else if (templateName === "templatecar") {
+      await initializeCarHTML(ownable.ownable_id);
+      resolve();
+    }
+    reject();
   });
 }
 
@@ -153,7 +209,7 @@ document.getElementsByClassName("import-button")[0].addEventListener('click', ()
 
 setTimeout(async () => {
   if (localStorage.templates) {
-    await syncDb(initializePotionHTML);
+    await syncDb();
   }
 }, 0);
 
