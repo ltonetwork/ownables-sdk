@@ -156,6 +156,7 @@
         const state = event.data.state;
         updateTemplate(state.color, state.amount)
       });
+
       function getDrinkAmount() {
         let stringAmount = document.getElementsByClassName('slider')[0].valueOf().value;
         return parseInt(stringAmount);
