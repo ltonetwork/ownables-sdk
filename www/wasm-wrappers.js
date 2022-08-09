@@ -13,25 +13,27 @@ import init, { instantiate_contract, query_contract_state, execute_contract } fr
 import {associateOwnableType, getOwnableType} from "./asset_import";
 
 export function initWasmTemplate(template) {
-  return new Promise((resolve, reject) => {
-    getWasmBlob(template).then(async arrayBuffer => {
-      let initializedWasm = await init(arrayBuffer);
-      resolve(initializedWasm);
-    }).catch((e) => reject(e));
+  return new Promise(async (resolve, _) => {
+    const wasmBlob = await getBlobFromObjectStore(template, "wasm");
+    const bindgenJsBlob = new Blob(
+      [await getBlobFromObjectStore(template, "bindgen")]
+    );
+    const importObjectURL = URL.createObjectURL(new Blob([bindgenJsBlob]));
+    let initializedWasm = await init(wasmBlob, importObjectURL);
+    resolve(initializedWasm);
   });
 }
 
-function getWasmBlob(template) {
+function getBlobFromObjectStore(objectStore, type) {
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(ASSETS_STORE);
     let db;
-    request.onblocked = (event) => reject("idb blocked: ", event);
-    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
+
     request.onsuccess = async () => {
       db = request.result;
-      const objectStore = db.transaction([template], "readonly")
-        .objectStore(template);
-      let wasm_file = objectStore.get('wasm');
+      const tx = db.transaction([objectStore], "readonly")
+        .objectStore(objectStore);
+      let wasm_file = tx.get(type);
       wasm_file.onsuccess = async (e) => {
         const fr = new FileReader();
         fr.onload = () => {
@@ -42,6 +44,8 @@ function getWasmBlob(template) {
       }
       wasm_file.onerror = (e) => reject(e);
     }
+    request.onblocked = (event) => reject("idb blocked: ", event);
+    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
   });
 }
 
@@ -187,6 +191,7 @@ export async function syncDb() {
 
 async function initAllWasmInstances() {
   let templateNames = JSON.parse(localStorage.templates);
+  console.log("intializing wasm instances: ", templateNames);
   for (let i = 0; i < templateNames.length; i++) {
     await initWasmTemplate(templateNames[i]);
   }
