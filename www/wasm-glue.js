@@ -310,11 +310,11 @@ function initSync(bytes) {
   return finalizeInit(instance, module);
 }
 
-async function init(input, importsURL) {
-  return new Promise((resolve, reject) => {
+async function init(input, imports) {
+  return new Promise(async (resolve, reject) => {
     if (typeof input === 'undefined') {
       reject("no wasm found");
-    } else if (typeof importsURL === 'undefined') {
+    } else if (typeof imports === 'undefined') {
       reject("no import object URL found");
     }
 
@@ -322,37 +322,14 @@ async function init(input, importsURL) {
       input = fetch(input);
     }
 
-    const myWorker = new Worker(importsURL);
-    myWorker.addEventListener("message", async (m) => {
-      // override the default importObject with the imported one
-      importObject = {
-        wbg: deserializeImportObject(m.data.serializedImportObj)
-      };
-      console.log("deserialized import object: ", importObject);
+    initMemory(imports);
 
-      initMemory(importObject);
+    const { instance, module } = await load(await input, imports);
 
-      const {instance, module} = await load(await input, importObject);
-      await finalizeInit(instance, module);
-      resolve(wasm);
-    });
-    myWorker.postMessage({"type": "getImports"});
+    resolve(finalizeInit(instance, module));
   });
 }
 
-
-function deserializeImportObject(importObj) {
-  let importFunctions = {};
-  for (let funcName in importObj) {
-    const func = importObj[funcName];
-    const importFunction = new Function(
-      func.arguments,
-      func.body,
-    );
-    importFunctions[funcName] = importFunction;
-  }
-  return importFunctions;
-}
 
 export { initSync }
 export default init;
