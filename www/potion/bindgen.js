@@ -126,23 +126,3 @@ function getImports() {
 
   return imports;
 }
-
-self.addEventListener("message", (m) => {
-  console.log("received message in worker: ", m.data);
-  const imports = getImports();
-  let importObj = Object.assign(imports.wbg);
-  let serializedImportObj = {};
-  for (let funcName in importObj) {
-    const func = importObj[funcName];
-    const funcString = func.toString();
-    const body = funcString.slice(funcString.indexOf("{") + 1, funcString.lastIndexOf('}'));
-    const args = funcString.slice(funcString.indexOf("(") + 1, funcString.indexOf(")"));
-    const functionDefinition = {
-      "arguments": args,
-      "body": body,
-    };
-    serializedImportObj[funcName] = functionDefinition;
-  }
-
-  postMessage({type: "importObj", serializedImportObj});
-});

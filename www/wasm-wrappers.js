@@ -16,11 +16,24 @@ export function initWasmTemplate(template) {
   return new Promise(async (resolve, _) => {
     const wasmBlob = await getBlobFromObjectStore(template, "wasm");
     const bindgenJsBlob = new Blob(
-      [await getBlobFromObjectStore(template, "bindgen")]
+      [await getBlobFromObjectStore(template, "bindgen")],
+      { type: "text/javascript" },
     );
-    const importObjectURL = URL.createObjectURL(new Blob([bindgenJsBlob]));
-    let initializedWasm = await init(wasmBlob, importObjectURL);
+    let importObjectURL = await readBlob(bindgenJsBlob);
+    let { importedBindgen } = await import(importObjectURL);
+
+    let initializedWasm = await init(wasmBlob, importedBindgen);
     resolve(initializedWasm);
+  });
+}
+
+function readBlob(b) {
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      resolve(reader.result);
+    };
+    reader.readAsDataURL(b);
   });
 }
 
