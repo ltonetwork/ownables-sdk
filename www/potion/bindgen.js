@@ -1,4 +1,4 @@
-function getImports() {
+export const getImports = () => {
   const imports = {};
   imports.wbg = {};
   imports.wbg.__wbindgen_json_serialize = function(arg0, arg1) {
@@ -123,6 +123,5 @@ function getImports() {
     const ret = makeMutClosure(arg0, arg1, 71, __wbg_adapter_20);
     return addHeapObject(ret);
   };
-
   return imports;
 }

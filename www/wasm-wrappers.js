@@ -19,10 +19,10 @@ export function initWasmTemplate(template) {
       [await getBlobFromObjectStore(template, "bindgen")],
       { type: "text/javascript" },
     );
+    // returns `data:text/javascript;base64,ZnVu...`
     let importObjectURL = await readBlob(bindgenJsBlob);
-    let { importedBindgen } = await import(importObjectURL);
-
-    let initializedWasm = await init(wasmBlob, importedBindgen);
+    const { getImports } = await import(importObjectURL);
+    let initializedWasm = await init(wasmBlob, getImports);
     resolve(initializedWasm);
   });
 }
