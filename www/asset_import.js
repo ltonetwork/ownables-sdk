@@ -30,6 +30,7 @@ const extToMimes = {
   '.svg': 'image/svg',
   '.html': 'text/html',
   '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
   '.wasm': 'application/wasm',
 }
 
