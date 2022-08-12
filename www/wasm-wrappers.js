@@ -9,31 +9,49 @@ import {IdbStore} from "./idb-store";
 import {initializeCarHTML, initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
-import init, { instantiate_contract, query_contract_state, execute_contract } from './wasm-glue.js';
+import { instantiate_contract, query_contract_state, execute_contract } from './wasm-glue.js';
 import {associateOwnableType, getOwnableType} from "./asset_import";
+import init, { getImports } from "./potion/bindgen";
+
+// let bindgenModule;
 
 export function initWasmTemplate(template) {
   return new Promise(async (resolve, _) => {
     const wasmBlob = await getBlobFromObjectStore(template, "wasm");
-    const bindgenJsBlob = new Blob(
-      [await getBlobFromObjectStore(template, "bindgen")],
-      { type: "text/javascript" },
-    );
-    // returns `data:text/javascript;base64,ZnVu...`
-    let importObjectURL = await readBlob(bindgenJsBlob);
-    const { getImports } = await import(importObjectURL);
-    let initializedWasm = await init(wasmBlob, getImports);
+    const bindgenDataURL = await readBindgenAsDataURL(template);
+    // const js = atob((await readBindgenAsDataURL(template)).substring(28));
+    // import(bindgenDataURL)
+    //   .then((module) => {
+    //     bindgenModule = module;
+    //     console.log(module.getImports());
+    //   }).catch((e) => console.log("error importing bindgen: ", e));
+    let initializedWasm = await init(wasmBlob);
     resolve(initializedWasm);
   });
 }
 
-function readBlob(b) {
-  return new Promise(function (resolve, reject) {
-    const reader = new FileReader();
-    reader.onloadend = function () {
-      resolve(reader.result);
-    };
-    reader.readAsDataURL(b);
+function readBindgenAsDataURL(objectStore) {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(ASSETS_STORE);
+    let db;
+
+    request.onsuccess = async () => {
+      db = request.result;
+      const tx = db.transaction([objectStore], "readonly")
+        .objectStore(objectStore);
+      let bindgen = tx.get("bindgen");
+      bindgen.onsuccess = async (e) => {
+        const fr = new FileReader();
+        fr.onloadend = () => {
+          db.close()
+          resolve(fr.result);
+        };
+        fr.readAsDataURL(bindgen.result);
+      }
+      bindgen.onerror = (e) => reject(e);
+    }
+    request.onblocked = (event) => reject("idb blocked: ", event);
+    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
   });
 }
 
