@@ -1,4 +1,3 @@
-
 let wasm;
 let importObject;
 
@@ -295,12 +294,12 @@ function finalizeInit(instance, module) {
   return wasm;
 }
 
-function getImports() {
+function getBindgenImports() {
   return importObject;
 }
 
 function initSync(bytes) {
-  const imports = getImports();
+  const imports = getBindgenImports();
 
   initMemory(imports);
 
@@ -310,21 +309,23 @@ function initSync(bytes) {
   return finalizeInit(instance, module);
 }
 
-async function init(input, imports) {
+async function init(input, bindgenImports) {
   return new Promise(async (resolve, reject) => {
     if (typeof input === 'undefined') {
       reject("no wasm found");
-    } else if (typeof imports === 'undefined') {
-      reject("no import object URL found");
+    } else if (typeof bindgenImports === 'undefined') {
+      reject("no import object found");
     }
+
+    console.log("importObject: ", importObject);
 
     if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
       input = fetch(input);
     }
 
-    initMemory(imports);
+    initMemory(importObject);
 
-    const { instance, module } = await load(await input, imports);
+    const { instance, module } = await load(await input, importObject);
 
     resolve(finalizeInit(instance, module));
   });
