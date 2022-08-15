@@ -9,23 +9,16 @@ import {IdbStore} from "./idb-store";
 import {initializeCarHTML, initializePotionHTML, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
-import { instantiate_contract, query_contract_state, execute_contract } from './wasm-glue.js';
 import {associateOwnableType, getOwnableType} from "./asset_import";
-import init, { getImports } from "./potion/bindgen";
 
-// let bindgenModule;
+let bindgenModule;
 
 export function initWasmTemplate(template) {
   return new Promise(async (resolve, _) => {
     const wasmBlob = await getBlobFromObjectStore(template, "wasm");
     const bindgenDataURL = await readBindgenAsDataURL(template);
-    // const js = atob((await readBindgenAsDataURL(template)).substring(28));
-    // import(bindgenDataURL)
-    //   .then((module) => {
-    //     bindgenModule = module;
-    //     console.log(module.getImports());
-    //   }).catch((e) => console.log("error importing bindgen: ", e));
-    let initializedWasm = await init(wasmBlob);
+    bindgenModule = await import(/* webpackIgnore: true */ bindgenDataURL);
+    let initializedWasm = await bindgenModule.default(wasmBlob);
     resolve(initializedWasm);
   });
 }
@@ -125,7 +118,7 @@ export async function executeOwnable(ownable_id, msg) {
   let idbStore = new IdbStore(ownable_id);
 
   await writeExecuteEventToIdb(ownable_id, newEvent, account);
-  execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
+  bindgenModule.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
     (resp) => {
       queryState(ownable_id, idbStore);
     },
@@ -139,7 +132,7 @@ export async function deleteOwnable(ownable_id) {
 }
 
 export function queryState(ownable_id, idbStore) {
-  query_contract_state(idbStore).then(
+  bindgenModule.query_contract_state(idbStore).then(
     (ownable) => {
       updateState(ownable_id, {
         amount: ownable.current_amount,
@@ -166,7 +159,7 @@ export async function issueOwnable(ownableType) {
 
     let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
     await writeInstantiateEventToIdb(db, newEvent);
-    const resp = await instantiate_contract(msg, getMessageInfo(), idbStore);
+    const resp = await bindgenModule.instantiate_contract(msg, getMessageInfo(), idbStore);
 
     if (resp) {
       await associateOwnableType(db, chain.id, ownableType);
@@ -197,25 +190,27 @@ export async function syncDb() {
     for (let i = 0; i < chainIds.length; i++) {
       let idb = await initIndexedDb(chainIds[i]);
       let idbStore = new IdbStore(chainIds[i]);
-      let contractState = await query_contract_state(idbStore);
-      if (document.getElementById(chainIds[i]) === null) {
-        let ownableType = await getOwnableType(chainIds[i]);
-        switch (ownableType) {
-          case "template":
-            await initializePotionHTML(chainIds[i], ownableType, {
-              color: contractState.color_hex,
-              current_amount: contractState.current_amount,
-            });
-            break;
-          case "templatecar":
-            await initializeCarHTML(chainIds[i]);
-            break;
+      bindgenModule.query_contract_state(idbStore)
+      .then(async contractState => {
+        if (document.getElementById(chainIds[i]) === null) {
+          let ownableType = await getOwnableType(chainIds[i]);
+          switch (ownableType) {
+            case "template":
+              await initializePotionHTML(chainIds[i], ownableType, {
+                color: contractState.color_hex,
+                current_amount: contractState.current_amount,
+              });
+              break;
+            case "templatecar":
+              await initializeCarHTML(chainIds[i]);
+              break;
+          }
+        } else {
+          console.log('potion already initialized');
         }
-      } else {
-        console.log('potion already initialized');
-      }
-      idb.close();
-      resolve();
+        idb.close();
+        resolve();
+      });
     }
   });
 }
@@ -239,7 +234,7 @@ export async function transferOwnable(ownable_id) {
     if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
       await initIndexedDb(ownable_id);
       let idbStore = new IdbStore(ownable_id);
-      execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
+      bindgenModule.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
         (resp) => console.log(resp)
       )
     }
