@@ -78,12 +78,19 @@ button:active {
   top: 1px;
 }
 
+.ownables-grid {
+  background-color: white;
+  border-radius: 20px;
+  z-index: 10;
+}
+
 .grid-container {
   display: grid;
   grid-template-columns: auto auto auto;
   padding: 10px;
   grid-column-gap: 20px;
 }
+
 .grid-item {
   border: 1px solid rgba(0, 0, 0, 0.8);
   font-size: 30px;
@@ -124,12 +131,23 @@ button:active {
 .show {display:block;}
 
 .navbar {
-  height: 100px;
+  background: #1caaff;
+}
+.navbar img {
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+  width: 30vw;
+  height: auto;
+  padding: 18px 36px;
+}
 
+.actions {
+  padding: 36px 0;
 }
 
 body {
-  background-image: url('DEMOBG.svg');
+  background-image: url('./assets/background.svg');
   background-repeat: no-repeat;
   background-attachment: fixed;
   background-size: cover;
