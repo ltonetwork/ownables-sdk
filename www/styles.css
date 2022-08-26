@@ -84,24 +84,36 @@ button:active {
   z-index: 10;
 }
 
+.ownables-grid h1 {
+  color: #0b88d9;
+}
+
 .grid-container {
-  display: grid;
-  grid-template-columns: auto auto auto;
-  padding: 10px;
-  grid-column-gap: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  row-gap: 10px;
+  column-gap: 20px;
+
+  padding: 3%;
+  box-shadow: 0 0 10px gray;
+  border-radius: 15px;
 }
 
 .grid-item {
-  border: 1px solid rgba(0, 0, 0, 0.8);
+  border: 1px solid #1caaff;
   font-size: 30px;
-  grid-column-gap: 20px;
+  border-radius: 15px;
+  grid-column-gap: 1%;
   text-align: center;
-
+  width: 30%;
 }
+
 .grid-item iframe {
   border: none;
-  width: auto;
-  height: 50vh;
+  /*width: calc(100vh * 4 / 3);*/
+  height: 70vh;
 }
 
 /* dropdown menu */

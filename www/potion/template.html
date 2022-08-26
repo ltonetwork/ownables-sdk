@@ -3,14 +3,14 @@
   <head>
     <style>
       body {
-        width: 100%;
+        width: 95%;
         height: 100%;
       }
 
       .potion {
         aspect-ratio: 1 / 1.5;
-        width: 35%;
-        max-width: 35%;
+        /*width: 75%;*/
+        /*max-width: 75%;*/
         position: relative;
         overflow: hidden;
       }
@@ -55,8 +55,8 @@
       }
 
       .slider {
-        width: 50%;
-        max-width: calc(100% - 140px);
+        /*width: 50%;*/
+        /*max-width: calc(100% - 140px);*/
       }
       button {
         background: rebeccapurple;
@@ -92,19 +92,24 @@
 
       .ownable-actions {
         display: flex;
+        flex-direction: column;
         background-color: #f0f0ff;
         border-radius: 10px;
         padding: 16px;
       }
+      .ownable-actions button {
+        margin-bottom: 8px;
+      }
+
       @media (max-width: 600px) {
         .potion .amount {
-          font-size: 10.83vw;
+          font-size: 3.83vw;
         }
       }
 
       @media (max-width: 400px) {
         .slider {
-          max-width: calc(100% - 100px);
+          /*max-width: calc(100% - 100px);*/
         }
         button {
           font-size: 16px;
@@ -196,8 +201,8 @@
         border: 1px solid #0b88d9;
         width: min-content;
         height: min-content;
-        top: 0;
-        right: 0;
+        top: 2%;
+        /*right: 2%;*/
         padding: 6px;
         position: absolute;
       }
@@ -223,6 +228,7 @@
         <div class="amount"></div>
       </div>
       <div class="ownable-actions">
+        <button class="drink-button">Drink</button>
         <div class="drink">
           <input type="range" min="1" max="100" value="50" list="tickmarks" class="slider">
           <datalist id="tickmarks">
@@ -232,7 +238,6 @@
             <option value="75" label="75%"></option>
             <option value="100" label="100%"></option>
           </datalist>
-          <button class="drink-button">Drink</button>
         </div>
       </div>
     </div>
