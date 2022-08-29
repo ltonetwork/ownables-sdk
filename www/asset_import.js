@@ -32,6 +32,7 @@ const extToMimes = {
   '.js': 'text/javascript',
   '.mjs': 'text/javascript',
   '.wasm': 'application/wasm',
+  '.mp4': 'video/mp4',
 }
 
 async function importZip(f) {

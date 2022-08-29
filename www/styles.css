@@ -113,7 +113,7 @@ button:active {
 .grid-item iframe {
   border: none;
   /*width: calc(100vh * 4 / 3);*/
-  height: 70vh;
+  height: 50vh;
 }
 
 /* dropdown menu */
