@@ -74,7 +74,7 @@ async function generateVideoOwnable(ownable_id, type) {
   ownableIframe.id = ownable_id;
   ownableIframe.sandbox = "allow-scripts";
   ownableIframe.srcdoc = ownableContent.outerHTML;
-  ownableIframe.style.height = "100vh";
+  // ownableIframe.style.height = "100vh";
   // wrap iframe in a grid-item and return
   const ownableElement = document.createElement('div');
   ownableElement.classList.add('grid-item');
