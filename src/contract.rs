@@ -3,6 +3,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, OwnableStateResponse, QueryMsg};
 use crate::state::{State, STATE};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{Binary, to_binary};
 use cw2::set_contract_version;
 
 // version info for migration info
@@ -98,15 +99,15 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 }
 
 // #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<OwnableStateResponse> {
+pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableState {} => query_potion_state(deps),
     }
 }
 
-fn query_potion_state(deps: Deps) -> StdResult<OwnableStateResponse> {
+fn query_potion_state(deps: Deps) -> StdResult<Binary> {
     let state = STATE.load(deps.storage)?;
-    Ok(OwnableStateResponse {
+    to_binary(&OwnableStateResponse {
         owner: state.owner.into_string(),
         issuer: state.issuer.into_string(),
         current_amount: state.current_amount,
