@@ -22,6 +22,7 @@ const eventType = {
 
 export function updateState(ownable_id, state) {
   const iframe = document.getElementById(ownable_id);
+
   iframe.contentWindow.postMessage({ownable_id, state}, "*");
 }
 

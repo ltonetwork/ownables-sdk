@@ -134,6 +134,8 @@ export async function deleteOwnable(ownable_id) {
 export function queryState(ownable_id, idbStore) {
   bindgenModule.query_contract_state(idbStore).then(
     (ownable) => {
+      // decode binary response
+      ownable = JSON.parse(atob(ownable));
       updateState(ownable_id, {
         amount: ownable.current_amount,
         color: ownable.color_hex,
@@ -190,16 +192,17 @@ export async function syncDb() {
     for (let i = 0; i < chainIds.length; i++) {
       let idb = await initIndexedDb(chainIds[i]);
       let idbStore = new IdbStore(chainIds[i]);
-      bindgenModule.query_contract_state(idbStore)
-      .then(async contractState => {
+      bindgenModule.query_contract_state(idbStore).then(async contractState => {
+        contractState = JSON.parse(atob(contractState));
         if (document.getElementById(chainIds[i]) === null) {
           let ownableType = await getOwnableType(chainIds[i]);
           switch (ownableType) {
             case "template":
-              await initializePotionHTML(chainIds[i], ownableType, {
+              const state = {
                 color: contractState.color_hex,
-                current_amount: contractState.current_amount,
-              });
+                amount: contractState.current_amount,
+              };
+              await initializePotionHTML(chainIds[i], ownableType, state);
               break;
             case "templatecar":
               await initializeCarHTML(chainIds[i]);
