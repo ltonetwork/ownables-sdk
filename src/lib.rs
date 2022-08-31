@@ -4,7 +4,7 @@ use std::str;
 use contract::instantiate;
 use cosmwasm_std::MessageInfo;
 use js_sys::{Promise};
-use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use msg::{ExecuteMsg, InstantiateMsg};
 use serde_json::to_string;
 use wasm_bindgen::prelude::*;
 
@@ -102,11 +102,14 @@ pub async fn execute_contract(
 }
 
 #[wasm_bindgen]
-pub async fn query_contract_state(idb: IdbStore) -> Result<JsValue, JsError> {
+pub async fn query_contract_state(
+    msg: JsValue,
+    info: JsValue,
+    idb: IdbStore
+) -> Result<JsValue, JsError> {
     let deps = load_lto_deps(&idb).await;
-    let message: QueryMsg = QueryMsg::GetOwnableState {};
 
-    let query_result = contract::query(deps.as_ref(), message);
+    let query_result = contract::query(deps.as_ref(), msg.into_serde().unwrap());
     match query_result {
         Ok(potion_response) => Ok(JsValue::from_serde(&potion_response).unwrap()),
         Err(error) => panic!("contract state query failed. error {:?}", error),
