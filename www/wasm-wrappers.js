@@ -132,7 +132,10 @@ export async function deleteOwnable(ownable_id) {
 }
 
 export function queryState(ownable_id, idbStore) {
-  bindgenModule.query_contract_state(idbStore).then(
+  let msg = {
+    "get_ownable_config": {},
+  };
+  bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(
     (ownable) => {
       // decode binary response
       ownable = JSON.parse(atob(ownable));
@@ -142,6 +145,21 @@ export function queryState(ownable_id, idbStore) {
       });
     }
   );
+}
+
+export function queryMetadata(ownable_id, idbStore) {
+  return new Promise((resolve, reject) => {
+    let msg = {
+      "get_ownable_metadata": {},
+    };
+    bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(
+      (metadata) => {
+        // decode binary response
+        metadata = JSON.parse(atob(metadata));
+        resolve(metadata);
+      }
+    );
+  })
 }
 
 export async function issueOwnable(ownableType) {
