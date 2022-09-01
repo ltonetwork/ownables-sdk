@@ -245,6 +245,7 @@
       <div class="general-actions">
         <button class="transfer-button">Transfer</button>
         <button class="delete-button">Delete</button>
+        <button class="info-button">Info</button>
       </div>
     </div>
     <script>
@@ -259,6 +260,10 @@
       document.getElementsByClassName("delete-button")[0]
         .addEventListener('click', () => {
           window.parent.postMessage({type: "delete", ownable_id}, "*");
+        });
+      document.getElementsByClassName("info-button")[0]
+        .addEventListener('click', () => {
+          window.parent.postMessage({type: "info", ownable_id}, "*");
         });
       const threeDots = document.getElementsByClassName("three-dots")[0];
       threeDots.addEventListener('mouseover', () => {
