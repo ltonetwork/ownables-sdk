@@ -1,6 +1,7 @@
-import {deleteOwnable, executeOwnable, issueOwnable, syncDb, transferOwnable} from "./wasm-wrappers";
+import {deleteOwnable, executeOwnable, issueOwnable, queryMetadata, syncDb, transferOwnable} from "./wasm-wrappers";
 import {addOwnableOption, fetchTemplate, getOwnableType, importAssets} from "./asset_import";
-import {ASSETS_STORE} from "./event-chain";
+import {ASSETS_STORE, getEvents, initIndexedDb} from "./event-chain";
+import {IdbStore} from "./idb-store";
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
@@ -18,6 +19,7 @@ const eventType = {
   TRANSFER: "transfer",
   DELETE: "delete",
   EXECUTE: "execute",
+  INFO: "info",
 };
 
 export function updateState(ownable_id, state) {
@@ -201,8 +203,10 @@ export async function instantiateOwnable(templateName) {
     } else if (templateName === "templatecar") {
       await initializeCarHTML(ownable.ownable_id);
       resolve();
+    } else {
+      console.log("Unknown template: ", templateName);
+      reject();
     }
-    reject();
   });
 }
 
@@ -230,5 +234,18 @@ window.addEventListener("message", async event => {
     case eventType.EXECUTE:
       await executeOwnable(event.data.ownable_id, event.data.msg);
       break;
+    case eventType.INFO:
+      let metadata = await queryMetadata(event.data.ownable_id);
+      let events = await getEvents(event.data.ownable_id);
+      let msg = `
+Name: ${metadata.name}
+Description: ${metadata.description}
+Event chain:\n`;
+      for (let i = 0; i < events.length; i++) {
+        msg = `${msg} ${i}: ${JSON.stringify(events[i])}\n`;
+      }
+      window.alert(msg);
+      break;
   }
 });
+

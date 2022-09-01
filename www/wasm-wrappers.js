@@ -147,11 +147,13 @@ export function queryState(ownable_id, idbStore) {
   );
 }
 
-export function queryMetadata(ownable_id, idbStore) {
-  return new Promise((resolve, reject) => {
+export function queryMetadata(ownable_id) {
+  return new Promise(async (resolve, reject) => {
     let msg = {
       "get_ownable_metadata": {},
     };
+    await initIndexedDb(ownable_id);
+    let idbStore = new IdbStore(ownable_id);
     bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(
       (metadata) => {
         // decode binary response
@@ -210,7 +212,10 @@ export async function syncDb() {
     for (let i = 0; i < chainIds.length; i++) {
       let idb = await initIndexedDb(chainIds[i]);
       let idbStore = new IdbStore(chainIds[i]);
-      bindgenModule.query_contract_state(idbStore).then(async contractState => {
+      let msg = {
+        "get_ownable_config": {},
+      }
+      bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(async contractState => {
         contractState = JSON.parse(atob(contractState));
         if (document.getElementById(chainIds[i]) === null) {
           let ownableType = await getOwnableType(chainIds[i]);

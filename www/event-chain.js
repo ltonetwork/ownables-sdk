@@ -1,4 +1,5 @@
 import {EventChain} from "@ltonetwork/lto/lib/events";
+import {Event} from "@ltonetwork/lto/lib/events";
 
 const EVENTS_STORE = "events";
 const CHAIN_STORE = "chain";
@@ -30,6 +31,32 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
       resolve();
     };
     request.onerror = (e) => reject(e);
+  });
+}
+
+export function getEvents(ownable_id) {
+  validateIndexedDBSupport();
+  return new Promise(async (resolve, reject) => {
+    const request = window.indexedDB.open(ownable_id);
+    request.onsuccess = async () => {
+      const db = request.result;
+      // const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
+      // const latestEvent = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
+      const objectStore = db.transaction(EVENTS_STORE, READ_WRITE).objectStore(EVENTS_STORE);
+      let txn = objectStore.getAll();
+      txn.onsuccess = () => {
+        let eventsArray = [];
+        txn.result.forEach(r => {
+          let event = Object.assign(new Event(), JSON.parse(r));
+          eventsArray.push(event.getBody());
+        });
+        db.close();
+        resolve(eventsArray);
+      }
+      txn.onerror = (e) => reject(e);
+    }
+    request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
+    request.onblocked = (event) => reject("idb blocked: " + event)
   });
 }
 
