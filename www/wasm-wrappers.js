@@ -6,7 +6,7 @@ import {
   writeInstantiateEventToIdb
 } from "./event-chain";
 import {IdbStore} from "./idb-store";
-import {initializeCarHTML, initializePotionHTML, updateState} from "./index";
+import {findMediaSources, getOwnableTemplate, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 const lto = new LTO('T');
 import {associateOwnableType, getOwnableType} from "./asset_import";
@@ -128,7 +128,7 @@ export async function executeOwnable(ownable_id, msg) {
 
 export async function deleteOwnable(ownable_id) {
   await deleteIndexedDb(ownable_id);
-  await syncDb(initializePotionHTML);
+  await syncDb();
 }
 
 export function queryState(ownable_id, idbStore) {
@@ -139,10 +139,7 @@ export function queryState(ownable_id, idbStore) {
     (ownable) => {
       // decode binary response
       ownable = JSON.parse(atob(ownable));
-      updateState(ownable_id, {
-        amount: ownable.current_amount,
-        color: ownable.color_hex,
-      });
+      updateState(ownable_id, ownable);
     }
   );
 }
@@ -218,19 +215,7 @@ export async function syncDb() {
       bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(async contractState => {
         contractState = JSON.parse(atob(contractState));
         if (document.getElementById(chainIds[i]) === null) {
-          let ownableType = await getOwnableType(chainIds[i]);
-          switch (ownableType) {
-            case "template":
-              const state = {
-                color: contractState.color_hex,
-                amount: contractState.current_amount,
-              };
-              await initializePotionHTML(chainIds[i], ownableType, state);
-              break;
-            case "templatecar":
-              await initializeCarHTML(chainIds[i]);
-              break;
-          }
+          await initializeOwnableHTML(chainIds[i], contractState);
         } else {
           console.log('potion already initialized');
         }
@@ -239,6 +224,41 @@ export async function syncDb() {
       });
     }
   });
+}
+
+export async function initializeOwnableHTML(ownable_id, state) {
+  return new Promise(async (resolve, reject) => {
+    const ownableType = await getOwnableType(ownable_id);
+    const ownableGrid = document.getElementsByClassName("grid-container")[0];
+    ownableGrid.appendChild(await generateOwnable(ownable_id, ownableType));
+
+    const iframe = document.getElementById(ownable_id);
+    iframe.onload = () => {
+      console.log("iframe loaded, posting: ", {ownable_id, state});
+      updateState(ownable_id, state);
+      resolve();
+    }
+    iframe.onerror = reject();
+  });
+}
+
+async function generateOwnable(ownable_id, type) {
+  // generate iframe contents
+  const ownableContent = document.createElement('div');
+  ownableContent.innerHTML = await getOwnableTemplate(type);
+  await findMediaSources(ownableContent, type);
+
+  // generate iframe, set contents
+  const ownableIframe = document.createElement('iframe');
+  ownableIframe.id = ownable_id;
+  ownableIframe.sandbox = "allow-scripts";
+  ownableIframe.srcdoc = ownableContent.outerHTML;
+
+  // wrap iframe in a grid-item and return
+  const ownableElement = document.createElement('div');
+  ownableElement.classList.add('grid-item');
+  ownableElement.appendChild(ownableIframe);
+  return ownableElement;
 }
 
 async function initAllWasmInstances() {

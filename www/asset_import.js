@@ -7,8 +7,9 @@ import {initWasmTemplate} from "./wasm-wrappers";
 export function importAssets() {
   let input = document.createElement("input");
   input.type = "file";
-  input.name = "file"
-  input.id = "file"
+  input.name = "file";
+  input.id = "file";
+  input.accept = ".zip";
   input.multiple = true;
   let templates = [];
 
@@ -58,9 +59,10 @@ async function importZip(f) {
 
 function storeTemplates(templates) {
   return new Promise((resolve, reject) => {
+    // TODO: get ownable name from elsewhere
     let templateFile = templates.find(t => t.type === extToMimes[".html"]);
     let templateName = dropFilenameExtension(templateFile.name);
-    console.log("importing template: ", templateName);
+
     let newImport = false;
     let db;
     const templateCount = JSON.parse(localStorage.templates).length;

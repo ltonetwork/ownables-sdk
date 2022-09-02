@@ -1,4 +1,12 @@
-import {deleteOwnable, executeOwnable, issueOwnable, queryMetadata, syncDb, transferOwnable} from "./wasm-wrappers";
+import {
+  deleteOwnable,
+  executeOwnable,
+  initializeOwnableHTML,
+  issueOwnable,
+  queryMetadata,
+  syncDb,
+  transferOwnable
+} from "./wasm-wrappers";
 import {addOwnableOption, fetchTemplate, getOwnableType, importAssets} from "./asset_import";
 import {ASSETS_STORE, getEvents, initIndexedDb} from "./event-chain";
 import {IdbStore} from "./idb-store";
@@ -24,100 +32,10 @@ const eventType = {
 
 export function updateState(ownable_id, state) {
   const iframe = document.getElementById(ownable_id);
-
   iframe.contentWindow.postMessage({ownable_id, state}, "*");
 }
 
-export async function initializePotionHTML(ownable_id, ownableType, state) {
-  return new Promise(async (resolve, reject) => {
-    await injectOwnableToGrid(ownable_id, ownableType);
-    const iframe = document.getElementById(ownable_id);
-    iframe.onload = () => {
-      console.log("iframe loaded, posting: ", {ownable_id, state});
-      updateState(ownable_id, state);
-      resolve();
-    }
-    iframe.onerror = reject();
-  });
-}
-
-export async function initializeCarHTML(ownable_id) {
-  return new Promise(async (resolve, reject) => {
-    let ownableType = await getOwnableType(ownable_id);
-    await injectOwnableToGrid(ownable_id, ownableType);
-    const iframe = document.getElementById(ownable_id);
-    iframe.onload = () => {
-      iframe.contentWindow.postMessage({ownable_id}, "*");
-      resolve();
-    }
-    iframe.onerror = reject();
-  });
-}
-
-async function injectOwnableToGrid(ownable_id, ownableType) {
-  const ownableGrid = document.getElementsByClassName("grid-container")[0];
-  switch (ownableType) {
-    case "template":
-      ownableGrid.appendChild(await generatePotionOwnable(ownable_id, ownableType));
-      break;
-    case "templatecar":
-      ownableGrid.appendChild(await generateVideoOwnable(ownable_id, ownableType));
-      break;
-  }
-}
-
-async function generateVideoOwnable(ownable_id, type) {
-  // generate iframe contents
-  const ownableContent = document.createElement('div');
-  ownableContent.innerHTML = await getOwnableTemplate(type);
-  await findMediaSources(ownableContent, type);
-
-  // generate iframe, set contents
-  const ownableIframe = document.createElement('iframe');
-  ownableIframe.id = ownable_id;
-  ownableIframe.sandbox = "allow-scripts";
-  ownableIframe.srcdoc = ownableContent.outerHTML;
-  // ownableIframe.style.height = "100vh";
-  // wrap iframe in a grid-item and return
-  const ownableElement = document.createElement('div');
-  ownableElement.classList.add('grid-item');
-  ownableElement.appendChild(ownableIframe);
-  return ownableElement;
-}
-
-async function generatePotionOwnable(ownable_id, type="template") {
-  // generate iframe contents
-  const ownableContent = document.createElement('div');
-  ownableContent.innerHTML = await getOwnableTemplate(type);
-  await findMediaSources(ownableContent, type);
-
-  // generate iframe, set contents
-  const ownableIframe = document.createElement('iframe');
-  ownableIframe.id = ownable_id;
-  ownableIframe.sandbox = "allow-scripts";
-  ownableIframe.srcdoc = ownableContent.outerHTML;
-
-  // wrap iframe in a grid-item and return
-  const ownableElement = document.createElement('div');
-  ownableElement.classList.add('grid-item');
-  ownableElement.appendChild(ownableIframe);
-  return ownableElement;
-}
-
-function injectOptionsDropdown(ownableHTML) {
-  let dropdown = document.createElement("div");
-  dropdown.innerHTML = `<div class="dropdown" style="position: absolute; top: 10px; right: 10px">
-          <div class="dropdown-icon" style="font-size: 36px"><strong>&#10247;</strong></div>
-          <div class="dropdown-content" style="display: none; position: absolute; z-index: 1">
-            <button class="transfer-button">Transfer</button>
-            <button class="delete-button">Delete</button>
-          </div>
-        </div>`;
-  ownableHTML.appendChild(dropdown);
-  // TODO: initialize listeners for transfer & delete
-}
-
-async function findMediaSources(htmlTemplate, templateName) {
+export async function findMediaSources(htmlTemplate, templateName) {
   return new Promise((resolve, reject) => {
     const allElements = Array.from(htmlTemplate.getElementsByTagName("*")).filter(el => el.hasAttribute("src"));
     const request = window.indexedDB.open("assets");
@@ -139,7 +57,7 @@ async function findMediaSources(htmlTemplate, templateName) {
   });
 }
 
-async function replaceSources(element, db, templateName) {
+export async function replaceSources(element, db, templateName) {
   return new Promise((resolve, reject) => {
     const currentSrc = element.getAttribute("src");
     const fr = new FileReader();
@@ -157,7 +75,7 @@ async function replaceSources(element, db, templateName) {
   });
 }
 
-function getOwnableTemplate(ownableType) {
+export function getOwnableTemplate(ownableType) {
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(ASSETS_STORE);
     const reader = new FileReader();
@@ -192,16 +110,16 @@ export async function instantiateOwnable(templateName) {
     const ownable = await issueOwnable(templateName);
     // TODO: generalize for all ownable types
     if (templateName === "template") { // potion
-      let color = extractAttributeValue(ownable.attributes, "color");
-      let amount_str = extractAttributeValue(ownable.attributes, "capacity");
+      let color_hex = extractAttributeValue(ownable.attributes, "color");
+      let current_amount = extractAttributeValue(ownable.attributes, "capacity");
       let state = {
-        color,
-        amount: amount_str,
+        color_hex,
+        current_amount,
       };
-      await initializePotionHTML(ownable.ownable_id, "template", state);
+      await initializeOwnableHTML(ownable.ownable_id, state);
       resolve();
     } else if (templateName === "templatecar") {
-      await initializeCarHTML(ownable.ownable_id);
+      await initializeOwnableHTML(ownable.ownable_id, {});
       resolve();
     } else {
       console.log("Unknown template: ", templateName);
