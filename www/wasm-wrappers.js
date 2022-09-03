@@ -96,7 +96,6 @@ function attemptToDecryptSeed(seed, promptMsg = "Enter your password") {
     };
     try {
       account = lto.account(settings);
-      window.alert("Successfully authenticated");
       return account;
     } catch (e) {
       promptMsg = "Invalid password, try again";
@@ -256,9 +255,15 @@ async function generateOwnable(ownable_id, type) {
 
   // wrap iframe in a grid-item and return
   const ownableElement = document.createElement('div');
-  ownableElement.classList.add('grid-item');
+  ownableElement.classList.add('ownable');
   ownableElement.appendChild(ownableIframe);
-  return ownableElement;
+
+  // wrap iframe in a grid-item and return
+  const ownableGridItem = document.createElement('div');
+  ownableGridItem.classList.add('grid-item');
+  ownableGridItem.appendChild(ownableElement);
+
+  return ownableGridItem;
 }
 
 async function initAllWasmInstances() {

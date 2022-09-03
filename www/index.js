@@ -100,8 +100,17 @@ function extractAttributeValue(attributes, key) {
   })[0].value;
 }
 
-document.getElementsByClassName("inst-button")[0].addEventListener('click', async () => {
-  document.getElementById("inst-menu").classList.toggle("show");
+document.getElementById("inst").addEventListener('click', async event => {
+  event.preventDefault();
+  const modal = document.getElementById('inst-modal');
+  modal.classList.add('open');
+  const exits = modal.querySelectorAll('.modal-bg, .instantiate-selection button');
+  exits.forEach(function (exit) {
+    exit.addEventListener('click', function (event) {
+      event.preventDefault();
+      modal.classList.remove('open');
+    });
+  });
 });
 
 export async function instantiateOwnable(templateName) {
