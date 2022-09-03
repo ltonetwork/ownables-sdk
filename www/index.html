@@ -11,14 +11,19 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="inst-button">Issue</button>
-      <button type="button" class="import-button">Import</button>
-      <div id="inst-menu" class="instantiate-selection"></div>
+      <button type="button" id="inst" class="hover-rotate"><span>&#43;</span></button>
     </div>
 
     <div class="ownables-grid">
-      <h1>My Ownables</h1>
       <div class="grid-container"></div>
+    </div>
+
+    <div class="modal" id="inst-modal">
+      <div class="modal-bg"></div>
+      <div class="modal-container">
+        <div id="inst-menu" class="instantiate-selection"></div>
+        <button type="button" class="import-button">Import from file</button>
+      </div>
     </div>
 
     <script src="./bootstrap.js"></script>
