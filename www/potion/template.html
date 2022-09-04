@@ -2,278 +2,223 @@
 <html>
   <head>
     <style>
+      html, body {
+        margin: 0;
+      }
+
       body {
         width: 100%;
         height: 100%;
+        overflow: hidden;
       }
 
       .potion {
+        height: 75vh;
+        margin: 2vh auto 0;
         aspect-ratio: 1 / 1;
         position: relative;
         overflow: hidden;
+        left: 3vw;
       }
       .potion img {
         position: absolute;
-        left: -15%;
         top: 0;
         height: 100%;
       }
-      .potion .under {
+      .potion .juice-box {
+        position: absolute;
+        height: 53%;
+        width: 32.5%;
+        top: 22%;
+        left: 26.3%;
+      }
+      .potion .juice {
         position: absolute;
         bottom: 0;
-        left: 0;
+        height: 100%;
         width: 100%;
-        height: 20%;
-        background-color: white;
+        background-color: red;
       }
       .potion.in .juice {
-        transition: top 2s;
+        transition: height 2s;
       }
-
-      .potion div.juice {
-        position: absolute;
-        height: 100%;
-        width: 50%;
-        margin-top: 31%;
-        margin-left: 25%;
-      }
-
       .potion .amount {
         position: absolute;
-        right: 18.5%;
-        top: 9%;
+        right: 35.5%;
+        top: 9.5%;
         color: black;
-        font-size: 95%;
+        font-size: 4vh;
         transform: skewY(22deg);
         opacity: 0.7;
-      }
-
-      .juice {
-        transition: all 2s ease;
-      }
-
-      .slider {
-        /*width: 50%;*/
-        /*max-width: calc(100% - 140px);*/
-      }
-      button {
-        background: rebeccapurple;
-        border-radius: 15px;
-        border: none;
-        display: inline-block;
-        cursor: pointer;
-        color: #ffffff;
-        font-size: 20px;
-        padding: 5px 10px;
-        width: 120px;
-      }
-      button:hover {
-        background: darkslateblue;
-      }
-      button:active {
-        position: relative;
-        top: 1px;
-      }
-
-      .general-actions {
-        top: 0;
-        right: 0;
-        padding: 6px;
-        position: absolute;
-        display: none;
-        flex-direction: column;
-      }
-
-      .general-actions button {
-        padding: 6px 0;
+        width: 6vh;
+        text-align: center;
       }
 
       .ownable-actions {
         display: flex;
         flex-direction: column;
-        background-color: #f0f0ff;
-        border-radius: 10px;
-        padding: 16px;
+        border-radius: 5%;
+        height: 19vh;
+        margin: 3vh 0 2vh;
       }
+
       .ownable-actions button {
-        margin-bottom: 8px;
+        border-radius: 5%;
+        background: #ffffff;
+        box-shadow: 20px 20px 60px #d9d9d9, -20px -20px 60px #ffffff;
+        border: none;
+        height: 7vh;
+        width: 60%;
+        margin: 4vh auto 0;
+        font-size: 3vh;
+      }
+      .ownable-actions button:active {
+        box-shadow: inset 20px 20px 60px #d9d9d9, inset -20px -20px 60px #ffffff;
       }
 
-      @media (max-width: 600px) {
-        .potion .amount {
-          font-size: 3.83vw;
-        }
-      }
 
-      @media (max-width: 400px) {
-        .slider {
-          /*max-width: calc(100% - 100px);*/
-        }
-        button {
-          font-size: 16px;
-          width: 80px;
-        }
+      input[type='range'] {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
       }
-
-      /*firefox does not allow tickmarks*/
-      input[type="range"]::-moz-range-track {
-        padding: 0 10px;
-        background: repeating-linear-gradient(to right,
-        #ccc,
-        #ccc 10%,
-        #000 10%,
-        #000 11%,
-        #ccc 11%,
-        #ccc 20%);
-      }
-
-      /*disabling default styling */
-      input[type=range] {
-        /*-webkit-appearance: none;*/
-        width: 100%;
-        /*background: transparent;*/
-      }
-
-      input[type=range]:focus {
+      input[type='range']:focus {
         outline: none;
       }
-      input[type=range]::-ms-track {
-        width: 100%;
-        cursor: pointer;
-        background: transparent;
-        border-color: transparent;
-        color: transparent;
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+      }
+      input[type='range']::-moz-range-thumb {
+        border: none;
       }
 
-
-      /*custom slider thumb */
-      /* chrome/safari */
-      input[type=range]::-webkit-slider-thumb {
-        /*-webkit-appearance: none;*/
-        height: 24px;
-        width: 8px;
+      .slider {
+        display: block;
+        width: 90vw;
+        margin: 1vh auto;
+      }
+      .slider::-webkit-slider-runnable-track {
+        display: flex;
+        align-items: center;
+        height: 20px;
         border-radius: 10px;
-        background: darkred;
-        cursor: pointer;
-        margin-top: -14px;
+        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
       }
-
-      /* Firefox */
-      input[type=range]::-moz-range-thumb {
-        height: 24px;
-        width: 8px;
+      .slider::-webkit-slider-thumb {
+        position: relative;
+        top: -50%;
+        width: 40px;
+        height: 40px;
+        background-color: #fff;
+        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
+        border-radius: 50%;
+        box-shadow: -1px -1px 2px white, 1px 1px 2px rgba(0, 0, 0, 0.3);
+      }
+      .slider::-moz-range-track {
+        display: flex;
+        align-items: center;
+        height: 20px;
         border-radius: 10px;
-        background: darkred;
-        cursor: pointer;
+        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
       }
-
-      /* IE/Edge */
-      input[type=range]::-ms-thumb {
-        height: 24px;
-        width: 8px;
-        border-radius: 10px;
-        background: darkred;
-        cursor: pointer;
-      }
-
-      /* firefox */
-      input[type="range"]::-moz-range-progress {
-        background-color: #0b88d9;
-        height: 8px;
-        border-radius:4px;
-
-      }
-      input[type="range"]::-moz-range-track {
-        background-color: #0b88d9;
-      }
-
-      /*IE*/
-      input[type="range"]::-ms-fill-lower {
-        background-color: #0b88d9;
-      }
-      input[type="range"]::-ms-fill-upper {
-        background-color: #0b88d9;
+      .slider::-moz-range-thumb {
+        position: relative;
+        top: -50%;
+        width: 40px;
+        height: 40px;
+        background-color: #fff;
+        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
+        border-radius: 50%;
+        box-shadow: -1px -1px 2px white, 1px 1px 2px rgba(0, 0, 0, 0.3);
       }
 
       .three-dots {
-        border: 1px solid #0b88d9;
-        width: min-content;
-        height: min-content;
         top: 2%;
         right: 2%;
-        padding: 6px;
+        padding: 1vw;
         position: absolute;
       }
       .three-dots:after {
         cursor: pointer;
-        color: #0b88d9;
+        color: #999999;
         padding: 0;
-        content: '\25AA\25AA\25AA';
-        font-size: 35px;
+        content: '\22EE';
+        font-size: 5vh;
         vertical-align: -50%;
+        font-weight: bold;
+      }
+      .general-actions {
+        top: 0;
+        right: 0;
+        padding: 1vh 1vw 0 1vw;
+        position: absolute;
+        display: none;
+        flex-direction: column;
+        box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 2px 0 rgb(0 0 0 / 14%), 0 1px 5px 0 rgb(0 0 0 / 12%);
+        border-radius: 1.5vw;
+      }
+      .general-actions button {
+        font-size: 3vh;
+        padding: 2vh 4vw;
+        background-color: #fff;
+        border: none;
+        border-bottom: 1px solid #999;
+        cursor: pointer;
+      }
+      .general-actions button:last-child {
+        border-bottom: none;
       }
 
     </style>
   </head>
   <body>
-    <div>
-      <div class="potion">
-        <img src="back.png">
+    <div class="potion">
+      <img src="back.png">
+      <div class="juice-box">
         <div class="juice"></div>
-        <div class="under"></div>
-        <img src="glass.png">
-        <img src="body.png">
-        <div class="amount"></div>
       </div>
-      <div class="ownable-actions">
-        <button class="drink-button">Drink</button>
-        <div class="drink">
-          <input type="range" min="1" max="100" value="50" list="tickmarks" class="slider">
-          <datalist id="tickmarks">
-            <option value="1" label="1%"></option>
-            <option value="25" label="25%"></option>
-            <option value="50" label="50%"></option>
-            <option value="75" label="75%"></option>
-            <option value="100" label="100%"></option>
-          </datalist>
-        </div>
-      </div>
+      <img src="glass.png">
+      <img src="body.png">
+      <div class="amount"></div>
     </div>
-    <div class="three-dots">
+    <div class="ownable-actions">
+      <div class="drink">
+        <input type="range" class="slider" min="0" max="100" value="50">
+      </div>
+      <button id="drink-button">Drink</button>
+    </div>
+    <div id="more-button" class="three-dots">
       <div class="general-actions">
-        <button class="transfer-button">Transfer</button>
-        <button class="delete-button">Delete</button>
-        <button class="info-button">Info</button>
+        <button id="transfer-button">Transfer</button>
+        <button id="delete-button">Delete</button>
+        <button id="info-button">Info</button>
       </div>
     </div>
     <script>
       let ownable_id;
 
-      document.getElementsByClassName("drink-button")[0]
-        .addEventListener('click', () => consume());
-      document.getElementsByClassName("transfer-button")[0]
-        .addEventListener('click', () => {
-          window.parent.postMessage({type: "transfer", ownable_id}, "*");
-        });
-      document.getElementsByClassName("delete-button")[0]
-        .addEventListener('click', () => {
-          window.parent.postMessage({type: "delete", ownable_id}, "*");
-        });
-      document.getElementsByClassName("info-button")[0]
-        .addEventListener('click', () => {
-          window.parent.postMessage({type: "info", ownable_id}, "*");
-        });
-      const threeDots = document.getElementsByClassName("three-dots")[0];
-      threeDots.addEventListener('mouseover', () => {
-          document.getElementsByClassName("general-actions")[0].style.display = "flex";
-        });
-      threeDots.addEventListener('mouseout', () => {
+      document.getElementById("drink-button").addEventListener('click', () => consume());
+      document.getElementById("transfer-button").addEventListener('click', () => {
+        window.parent.postMessage({type: "transfer", ownable_id}, "*");
+      });
+      document.getElementById("delete-button").addEventListener('click', () => {
+        window.parent.postMessage({type: "delete", ownable_id}, "*");
+      });
+      document.getElementById("info-button").addEventListener('click', () => {
+        window.parent.postMessage({type: "info", ownable_id}, "*");
+      });
+
+      const more = document.getElementById("more-button");
+      more.addEventListener('mouseover', () => {
+        document.getElementsByClassName("general-actions")[0].style.display = "flex";
+      });
+      more.addEventListener('mouseout', () => {
         document.getElementsByClassName("general-actions")[0].style.display = "none";
       });
 
       function updateTemplate(color, amt) {
         document.getElementsByClassName('juice')[0].style.backgroundColor = color;
-        document.getElementsByClassName('juice')[0].style.top = (100 - amt) / 2 + '%';
+        document.getElementsByClassName('juice')[0].style.top = (100 - amt) + '%';
         document.getElementsByClassName('amount')[0].textContent = amt;
       }
 
