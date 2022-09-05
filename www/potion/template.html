@@ -42,6 +42,9 @@
       .potion.in .juice {
         transition: height 2s;
       }
+      .potion .juice {
+        transition: height 1s, top 1s;
+      }
       .potion .amount {
         position: absolute;
         right: 35.5%;
@@ -219,6 +222,7 @@
       function updateTemplate(color, amt) {
         document.getElementsByClassName('juice')[0].style.backgroundColor = color;
         document.getElementsByClassName('juice')[0].style.top = (100 - amt) + '%';
+        document.getElementsByClassName('juice')[0].style.height = amt + '%';
         document.getElementsByClassName('amount')[0].textContent = amt;
       }
 
