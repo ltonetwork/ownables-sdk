@@ -61,7 +61,7 @@ export async function replaceSources(element, db, templateName) {
   return new Promise((resolve, reject) => {
     const currentSrc = element.getAttribute("src");
     const fr = new FileReader();
-    // query the idb for that img and update the template
+    // query the idb for that media and update the template
     fetchTemplate(db, currentSrc, templateName).then(mediaFile => {
       if (!mediaFile) {
         resolve();

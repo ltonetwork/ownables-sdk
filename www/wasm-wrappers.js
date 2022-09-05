@@ -261,14 +261,66 @@ async function generateOwnable(ownable_id, type) {
   // wrap iframe in a grid-item and return
   const ownableGridItem = document.createElement('div');
   ownableGridItem.classList.add('grid-item');
+  ownableGridItem.id = ownable_id;
   ownableGridItem.appendChild(ownableElement);
+
+  // TODO
+  // const generalOwnableActions = getOwnableActionsHTML(ownable_id);
+  // ownableGridItem.appendChild(generalOwnableActions);
 
   return ownableGridItem;
 }
 
+function getOwnableActionsHTML(ownable_id) {
+  const transferButton = document.createElement("button");
+  transferButton.id = "transfer-button";
+  transferButton.textContent = "Transfer";
+  transferButton.addEventListener(
+    'click',
+    () => { window.parent.postMessage({type: "transfer", ownable_id}, "*")
+  });
+
+  const deleteButton = document.createElement("button");
+  deleteButton.id = "delete-button";
+  deleteButton.textContent = "Delete";
+  deleteButton.addEventListener(
+    'click',
+    () => { window.parent.postMessage({type: "delete", ownable_id}, "*")
+  });
+
+  const infoButton = document.createElement("button");
+  infoButton.id = "info-button";
+  infoButton.textContent = "Info";
+  infoButton.addEventListener(
+    'click',
+    () => { window.parent.postMessage({type: "info", ownable_id}, "*")
+  });
+
+  const generalActions = document.createElement("div");
+  generalActions.className = "general-actions";
+  generalActions.appendChild(transferButton);
+  generalActions.appendChild(deleteButton);
+  generalActions.appendChild(infoButton);
+
+  const threeDots = document.createElement("div");
+  threeDots.className = "three-dots";
+  threeDots.id = "more-button";
+  threeDots.addEventListener(
+    'mouseover',
+    () => { generalActions.style.display = "flex"
+  });
+  threeDots.addEventListener(
+    'mouseout',
+    () => { generalActions.style.display = "none"
+  });
+  threeDots.appendChild(generalActions);
+
+  return threeDots;
+}
+
 async function initAllWasmInstances() {
   let templateNames = JSON.parse(localStorage.templates);
-  console.log("intializing wasm instances: ", templateNames);
+  console.log("initializing wasm instances: ", templateNames);
   for (let i = 0; i < templateNames.length; i++) {
     await initWasmTemplate(templateNames[i]);
   }
