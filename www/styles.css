@@ -166,3 +166,7 @@ button {
 .modal button.import-button {
   border-bottom: none;
 }
+#inst-menu {
+  display: flex;
+  flex-direction: column;
+}
