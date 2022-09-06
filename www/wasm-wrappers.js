@@ -245,6 +245,7 @@ async function generateOwnable(ownable_id, type) {
   // generate iframe contents
   const ownableContent = document.createElement('div');
   ownableContent.innerHTML = await getOwnableTemplate(type);
+  ownableContent.style.height = "100%";
   await findMediaSources(ownableContent, type);
 
   // generate iframe, set contents
@@ -261,7 +262,6 @@ async function generateOwnable(ownable_id, type) {
   // wrap iframe in a grid-item and return
   const ownableGridItem = document.createElement('div');
   ownableGridItem.classList.add('grid-item');
-  ownableGridItem.id = ownable_id;
   ownableGridItem.appendChild(ownableElement);
 
   // TODO

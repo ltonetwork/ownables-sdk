@@ -7,9 +7,9 @@ import {
   syncDb,
   transferOwnable
 } from "./wasm-wrappers";
-import {addOwnableOption, fetchTemplate, getOwnableType, importAssets} from "./asset_import";
-import {ASSETS_STORE, getEvents, initIndexedDb} from "./event-chain";
-import {IdbStore} from "./idb-store";
+import {addOwnableOption, fetchTemplate, importAssets} from "./asset_import";
+import {ASSETS_STORE, getEvents} from "./event-chain";
+
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
   localStorage.chainIds = JSON.stringify([]);
@@ -118,7 +118,7 @@ export async function instantiateOwnable(templateName) {
     document.getElementById("inst-menu").classList.toggle("show");
     const ownable = await issueOwnable(templateName);
     // TODO: generalize for all ownable types
-    if (templateName === "template") { // potion
+    if (templateName === "potion") {
       let color_hex = extractAttributeValue(ownable.attributes, "color");
       let current_amount = extractAttributeValue(ownable.attributes, "capacity");
       let state = {
@@ -127,7 +127,7 @@ export async function instantiateOwnable(templateName) {
       };
       await initializeOwnableHTML(ownable.ownable_id, state);
       resolve();
-    } else if (templateName === "templatecar") {
+    } else if (templateName) {
       await initializeOwnableHTML(ownable.ownable_id, {});
       resolve();
     } else {
