@@ -1,10 +1,10 @@
 use crate::store::IdbStorage;
+use crate::IdbStore;
 use cosmwasm_std::{
     Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, OwnedDeps, Querier,
     RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError,
 };
 use std::marker::PhantomData;
-use crate::IdbStore;
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
