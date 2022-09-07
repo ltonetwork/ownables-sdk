@@ -1,23 +1,27 @@
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
 import {
   ASSETS_STORE,
-  deleteIndexedDb, initIndexedDb,
+  deleteIndexedDb,
+  initIndexedDb,
   writeExecuteEventToIdb,
   writeInstantiateEventToIdb
 } from "./event-chain";
 import {IdbStore} from "./idb-store";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
-const lto = new LTO('T');
 import {associateOwnableType, getOwnableType} from "./asset_import";
 
-let bindgenModule;
+const lto = new LTO('T');
+
+// Maps ownable type to its respective bindgen module
+let bindgenModuleMap = new Map();
 
 export function initWasmTemplate(template) {
   return new Promise(async (resolve, _) => {
     const wasmBlob = await getBlobFromObjectStore(template, "wasm");
     const bindgenDataURL = await readBindgenAsDataURL(template);
-    bindgenModule = await import(/* webpackIgnore: true */ bindgenDataURL);
+    const bindgenModule = await import(/* webpackIgnore: true */ bindgenDataURL);
+    bindgenModuleMap.set(template, bindgenModule);
     let initializedWasm = await bindgenModule.default(wasmBlob);
     resolve(initializedWasm);
   });
@@ -117,7 +121,9 @@ export async function executeOwnable(ownable_id, msg) {
   let idbStore = new IdbStore(ownable_id);
 
   await writeExecuteEventToIdb(ownable_id, newEvent, account);
-  bindgenModule.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
+
+  const bindgen = getBindgenModuleForOwnableId(ownable_id);
+  bindgen.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
     (resp) => {
       queryState(ownable_id, idbStore);
     },
@@ -125,8 +131,14 @@ export async function executeOwnable(ownable_id, msg) {
   );
 }
 
+function getBindgenModuleForOwnableId(ownable_id) {
+  const ownableType = localStorage.getItem(ownable_id);
+  return bindgenModuleMap.get(ownableType);
+}
+
 export async function deleteOwnable(ownable_id) {
   await deleteIndexedDb(ownable_id);
+  localStorage.removeItem(ownable_id);
   await syncDb();
 }
 
@@ -134,7 +146,8 @@ export function queryState(ownable_id, idbStore) {
   let msg = {
     "get_ownable_config": {},
   };
-  bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(
+  const bindgen = getBindgenModuleForOwnableId(ownable_id);
+  bindgen.query_contract_state(msg, getMessageInfo(), idbStore).then(
     (ownable) => {
       // decode binary response
       ownable = JSON.parse(atob(ownable));
@@ -150,7 +163,8 @@ export function queryMetadata(ownable_id) {
     };
     await initIndexedDb(ownable_id);
     let idbStore = new IdbStore(ownable_id);
-    bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(
+    const bindgen = getBindgenModuleForOwnableId(ownable_id);
+    bindgen.query_contract_state(msg, getMessageInfo(), idbStore).then(
       (metadata) => {
         // decode binary response
         metadata = JSON.parse(atob(metadata));
@@ -167,7 +181,7 @@ export async function issueOwnable(ownableType) {
     const msg = {
       ownable_id: chain.id,
     };
-
+    localStorage.setItem(msg.ownable_id, ownableType);
     let chainIds = JSON.parse(localStorage.chainIds);
     chainIds.push(msg.ownable_id);
     localStorage.chainIds = JSON.stringify(chainIds);
@@ -177,7 +191,8 @@ export async function issueOwnable(ownableType) {
 
     let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
     await writeInstantiateEventToIdb(db, newEvent);
-    const resp = await bindgenModule.instantiate_contract(msg, getMessageInfo(), idbStore);
+    const bindgen = getBindgenModuleForOwnableId(msg.ownable_id);
+    const resp = await bindgen.instantiate_contract(msg, getMessageInfo(), idbStore);
 
     if (resp) {
       await associateOwnableType(db, chain.id, ownableType);
@@ -211,7 +226,8 @@ export async function syncDb() {
       let msg = {
         "get_ownable_config": {},
       }
-      bindgenModule.query_contract_state(msg, getMessageInfo(), idbStore).then(async contractState => {
+      const bindgen = getBindgenModuleForOwnableId(chainIds[i]);
+      bindgen.query_contract_state(msg, getMessageInfo(), idbStore).then(async contractState => {
         contractState = JSON.parse(atob(contractState));
         if (document.getElementById(chainIds[i]) === null) {
           await initializeOwnableHTML(chainIds[i], contractState);
@@ -337,7 +353,8 @@ export async function transferOwnable(ownable_id) {
     if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
       await initIndexedDb(ownable_id);
       let idbStore = new IdbStore(ownable_id);
-      bindgenModule.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
+      const bindgen = getBindgenModuleForOwnableId(ownable_id);
+      bindgen.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
         (resp) => console.log(resp)
       )
     }
