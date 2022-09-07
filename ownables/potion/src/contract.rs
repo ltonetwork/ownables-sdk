@@ -1,9 +1,9 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
 use crate::state::{Config, CONFIG};
+use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use cosmwasm_std::{Binary, to_binary};
 use cw2::set_contract_version;
 
 // version info for migration info
@@ -30,7 +30,7 @@ pub fn instantiate(
         name: Some("Potion".to_string()),
         background_color: None,
         animation_url: None,
-        youtube_url: None
+        youtube_url: None,
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &state)?;
@@ -142,8 +142,8 @@ fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{Addr, coins};
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
+    use cosmwasm_std::{coins, Addr};
 
     #[test]
     fn proper_initialization() {
@@ -158,7 +158,7 @@ mod tests {
             name: None,
             background_color: None,
             animation_url: None,
-            youtube_url: None
+            youtube_url: None,
         };
         let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(1000, "earth"));
 
@@ -185,7 +185,7 @@ mod tests {
             name: None,
             background_color: None,
             animation_url: None,
-            youtube_url: None
+            youtube_url: None,
         };
         let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -234,7 +234,7 @@ mod tests {
             name: None,
             background_color: None,
             animation_url: None,
-            youtube_url: None
+            youtube_url: None,
         };
         let owner = "3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1";
         let random = "3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh";
@@ -260,7 +260,11 @@ mod tests {
         let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // verify new owner
-        let res: OwnableStateResponse = query(deps.as_ref(), QueryMsg::GetOwnableConfig {}).unwrap();
-        assert_eq!(res.owner, Addr::unchecked("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh"));
+        let res: OwnableStateResponse =
+            query(deps.as_ref(), QueryMsg::GetOwnableConfig {}).unwrap();
+        assert_eq!(
+            res.owner,
+            Addr::unchecked("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh")
+        );
     }
 }

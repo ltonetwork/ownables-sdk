@@ -1,8 +1,8 @@
+use crate::IdbStore;
 use cosmwasm_std::{MemoryStorage, Order, Record, Storage};
 use js_sys::{Array, Uint8Array};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-use crate::{IdbStore};
 
 pub struct IdbStorage {
     storage: MemoryStorage,
@@ -32,7 +32,6 @@ impl Storage for IdbStorage {
 }
 
 impl IdbStorage {
-
     pub async fn load(idb: &IdbStore) -> Self {
         let mut store = IdbStorage {
             storage: MemoryStorage::new(),
@@ -57,7 +56,6 @@ impl IdbStorage {
     }
 
     pub async fn load_to_mem_storage(&mut self, idb_store: &IdbStore) {
-
         let promise = idb_store.get_all_idb_keys();
         let future = JsFuture::from(promise);
         let result: JsValue = future.await.unwrap();

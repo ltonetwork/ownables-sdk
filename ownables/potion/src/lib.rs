@@ -3,7 +3,7 @@ use std::str;
 
 use contract::instantiate;
 use cosmwasm_std::MessageInfo;
-use js_sys::{Promise};
+use js_sys::Promise;
 use msg::{ExecuteMsg, InstantiateMsg};
 use serde_json::to_string;
 use wasm_bindgen::prelude::*;
@@ -16,7 +16,7 @@ pub mod msg;
 pub mod state;
 pub mod store;
 
-#[wasm_bindgen(module = "/www/idb-store.js")]
+#[wasm_bindgen(module = "idb-store.js")]
 extern "C" {
     pub type IdbStore;
 
@@ -41,7 +41,11 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb: IdbStore) -> Result<JsValue, JsError> {
+pub async fn instantiate_contract(
+    msg: JsValue,
+    info: JsValue,
+    idb: IdbStore,
+) -> Result<JsValue, JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
     let mut deps = load_lto_deps(&idb).await;
@@ -61,9 +65,7 @@ pub async fn instantiate_contract(msg: JsValue, info: JsValue, idb: IdbStore) ->
             deps.storage.sync_to_js_db(&idb).await;
             Ok(JsValue::from(to_string(&response).unwrap()))
         }
-        Err(error) => {
-            Err(JsError::from(error))
-        }
+        Err(error) => Err(JsError::from(error)),
     }
 }
 
@@ -72,7 +74,7 @@ pub async fn execute_contract(
     msg: JsValue,
     info: JsValue,
     ownable_id: String,
-    idb: IdbStore
+    idb: IdbStore,
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
@@ -105,7 +107,7 @@ pub async fn execute_contract(
 pub async fn query_contract_state(
     msg: JsValue,
     info: JsValue,
-    idb: IdbStore
+    idb: IdbStore,
 ) -> Result<JsValue, JsError> {
     let deps = load_lto_deps(&idb).await;
 
