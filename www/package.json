@@ -9,10 +9,8 @@
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server",
-    "build-ownable": "wasm-pack build ../ownables/$npm_package_config_path --target web"
-  },
-  "config": {
-    "path": "*"
+    "build-ownable": "wasm-pack build --target web ../ownables/$npm_config_path/",
+    "build-ownables": "for DIR in ../ownables/*; do npm run build-ownable --path=$DIR; done"
   },
   "repository": {
     "type": "git",
