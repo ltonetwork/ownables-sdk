@@ -13,113 +13,16 @@
       overflow: hidden;
     }
 
-    .ownable-actions {
-      display: flex;
-      flex-direction: column;
-      border-radius: 5%;
-      height: 19vh;
-      margin: 3vh 0 2vh;
+    video {
+      width: 100%;
+      height: 100%;
     }
-
-    .ownable-actions button {
-      border-radius: 5%;
-      background: #ffffff;
-      border: none;
-      height: 7vh;
-      width: 60%;
-      margin: 4vh auto 0;
-      font-size: 3vh;
-      color:#61677C;
-      box-shadow: -5px -5px 20px #ffffff,  5px 5px 20px #BABECC;
-      cursor: pointer;
-      font-weight: 500;
-      font-family: monospace;
-    }
-    .ownable-actions button:active {
-      box-shadow: inset 1px 1px 2px #BABECC, inset -1px -1px 2px #ffffff;
-    }
-
-    .three-dots {
-      top: 2%;
-      right: 2%;
-      padding: 1vw;
-      position: absolute;
-    }
-    .three-dots:after {
-      cursor: pointer;
-      color: #999999;
-      padding: 0;
-      content: '\22EE';
-      font-size: 5vh;
-      vertical-align: -50%;
-      font-weight: bold;
-    }
-    .general-actions {
-      top: 0;
-      right: 0;
-      padding: 1vh 1vw 0 1vw;
-      position: absolute;
-      display: none;
-      flex-direction: column;
-      box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 2px 0 rgb(0 0 0 / 14%), 0 1px 5px 0 rgb(0 0 0 / 12%);
-      border-radius: 1.5vw;
-    }
-    .general-actions button {
-      font-size: 3vh;
-      padding: 2vh 4vw;
-      background-color: #fff;
-      border: none;
-      border-bottom: 1px solid #999;
-      cursor: pointer;
-    }
-    .general-actions button:last-child {
-      border-bottom: none;
-    }
-
   </style>
 </head>
 <body>
-<video controls autoplay loop width="100%" height="100%">
-
-  <source id="ownablecar" type="video/mp4" src="ownable.mp4">
-  Sorry, your browser doesn't support embedded videos.
-</video>
-
-<div id="more-button" class="three-dots">
-  <div class="general-actions">
-    <button id="transfer-button">Transfer</button>
-    <button id="delete-button">Delete</button>
-    <button id="info-button">Info</button>
-  </div>
-</div>
-<script>
-  let ownable_id;
-
-  document.getElementById("transfer-button").addEventListener('click', () => {
-    window.parent.postMessage({type: "transfer", ownable_id}, "*");
-  });
-  document.getElementById("delete-button").addEventListener('click', () => {
-    window.parent.postMessage({type: "delete", ownable_id}, "*");
-  });
-  document.getElementById("info-button").addEventListener('click', () => {
-    window.parent.postMessage({type: "info", ownable_id}, "*");
-  });
-
-  const more = document.getElementById("more-button");
-  more.addEventListener('mouseover', () => {
-    document.getElementsByClassName("general-actions")[0].style.display = "flex";
-  });
-  more.addEventListener('mouseout', () => {
-    document.getElementsByClassName("general-actions")[0].style.display = "none";
-  });
-
-  window.addEventListener("message", (event) => {
-    console.log("iframe picked up event: ", event);
-
-    ownable_id = event.data.ownable_id;
-
-    const state = event.data.state;
-  });
-</script>
+  <video controls autoplay loop>
+    <source id="ownablecar" type="video/mp4" src="ownable.mp4">
+    Sorry, your browser doesn't support embedded videos.
+  </video>
 </body>
 </html>

@@ -1,7 +1,7 @@
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
 import {
   ASSETS_STORE,
-  deleteIndexedDb,
+  deleteIndexedDb, getEvents,
   initIndexedDb,
   writeExecuteEventToIdb,
   writeInstantiateEventToIdb
@@ -272,17 +272,15 @@ async function generateOwnable(ownable_id, type) {
 
   // wrap iframe in a grid-item and return
   const ownableElement = document.createElement('div');
+  ownableElement.style.position = "relative";
   ownableElement.classList.add('ownable');
+  ownableElement.appendChild(getOwnableActionsHTML(ownable_id));
   ownableElement.appendChild(ownableIframe);
 
   // wrap iframe in a grid-item and return
   const ownableGridItem = document.createElement('div');
   ownableGridItem.classList.add('grid-item');
   ownableGridItem.appendChild(ownableElement);
-
-  // TODO
-  // const generalOwnableActions = getOwnableActionsHTML(ownable_id);
-  // ownableGridItem.appendChild(generalOwnableActions);
 
   return ownableGridItem;
 }
@@ -293,24 +291,31 @@ function getOwnableActionsHTML(ownable_id) {
   transferButton.textContent = "Transfer";
   transferButton.addEventListener(
     'click',
-    () => { window.parent.postMessage({type: "transfer", ownable_id}, "*")
-  });
+    async () => await transferOwnable(ownable_id)
+  );
 
   const deleteButton = document.createElement("button");
   deleteButton.id = "delete-button";
   deleteButton.textContent = "Delete";
   deleteButton.addEventListener(
     'click',
-    () => { window.parent.postMessage({type: "delete", ownable_id}, "*")
-  });
+    async () => await deleteOwnable(ownable_id)
+  );
 
   const infoButton = document.createElement("button");
   infoButton.id = "info-button";
   infoButton.textContent = "Info";
   infoButton.addEventListener(
     'click',
-    () => { window.parent.postMessage({type: "info", ownable_id}, "*")
-  });
+    async () => {
+      let metadata = await queryMetadata(ownable_id);
+      let events = await getEvents(ownable_id);
+      let msg = `Name: ${metadata.name}\nDescription: ${metadata.description}\nEvent chain:\n`;
+      for (let i = 0; i < events.length; i++) {
+        msg = `${msg}${i}: ${JSON.stringify(events[i])}\n`;
+      }
+      window.alert(msg);
+    });
 
   const generalActions = document.createElement("div");
   generalActions.className = "general-actions";
