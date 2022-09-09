@@ -1,5 +1,5 @@
 [package]
-name = "ownable-demo"
+name = "ownable-potion"
 version = "0.1.0"
 authors = ["bekauz <bekauz@protonmail.com>"]
 edition = "2018"
