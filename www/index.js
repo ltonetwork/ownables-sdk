@@ -1,14 +1,11 @@
 import {
-  deleteOwnable,
   executeOwnable,
   initializeOwnableHTML,
   issueOwnable,
-  queryMetadata,
   syncDb,
-  transferOwnable
 } from "./wasm-wrappers";
 import {addOwnableOption, fetchTemplate, importAssets} from "./asset_import";
-import {ASSETS_STORE, getEvents} from "./event-chain";
+import {ASSETS_STORE} from "./event-chain";
 
 // if no chainIds found, init empty
 if (localStorage.getItem("chainIds") === null) {
@@ -147,31 +144,15 @@ setTimeout(async () => {
 
 window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;
-
   if (document.getElementById(event.data.ownable_id).contentWindow !== event.source) {
     throw Error("Not allowed to execute msg on other ownable");
   }
   switch (event.data.type) {
-    case eventType.TRANSFER:
-      await transferOwnable(event.data.ownable_id);
-      break;
-    case eventType.DELETE:
-      await deleteOwnable(event.data.ownable_id);
-      break;
     case eventType.EXECUTE:
       await executeOwnable(event.data.ownable_id, event.data.msg);
       break;
-    case eventType.INFO:
-      let metadata = await queryMetadata(event.data.ownable_id);
-      let events = await getEvents(event.data.ownable_id);
-      let msg = `
-Name: ${metadata.name}
-Description: ${metadata.description}
-Event chain:\n`;
-      for (let i = 0; i < events.length; i++) {
-        msg = `${msg} ${i}: ${JSON.stringify(events[i])}\n`;
-      }
-      window.alert(msg);
+    default:
+      console.log("unknown msg");
       break;
   }
 });

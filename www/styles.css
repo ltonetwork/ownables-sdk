@@ -170,3 +170,41 @@ button {
   display: flex;
   flex-direction: column;
 }
+
+.general-actions {
+  top: 2%;
+  right: 2%;
+  padding: 1vh 1vw 0 1vw;
+  position: absolute;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 2px 0 rgb(0 0 0 / 14%), 0 1px 5px 0 rgb(0 0 0 / 12%);
+  border-radius: 1.5vw;
+}
+.general-actions button {
+  font-size: 1vh;
+  padding: 0.5vh 1vw;
+  background-color: #fff;
+  border: none;
+  border-bottom: 1px solid #999;
+  cursor: pointer;
+}
+.general-actions button:last-child {
+  border-bottom: none;
+}
+
+.three-dots {
+  top: 2%;
+  right: 2%;
+  padding: 1vw;
+  position: absolute;
+}
+.three-dots:after {
+  cursor: pointer;
+  color: #999999;
+  padding: 0;
+  content: '\22EE';
+  font-size: 2vh;
+  vertical-align: -50%;
+  font-weight: bold;
+}

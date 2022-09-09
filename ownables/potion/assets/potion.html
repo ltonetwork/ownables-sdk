@@ -137,44 +137,6 @@
         border-radius: 50%;
         box-shadow: -1px -1px 2px white, -2px 2px 2px rgba(0, 0, 0, 0.3);
       }
-
-      .three-dots {
-        top: 2%;
-        right: 2%;
-        padding: 1vw;
-        position: absolute;
-      }
-      .three-dots:after {
-        cursor: pointer;
-        color: #999999;
-        padding: 0;
-        content: '\22EE';
-        font-size: 5vh;
-        vertical-align: -50%;
-        font-weight: bold;
-      }
-      .general-actions {
-        top: 0;
-        right: 0;
-        padding: 1vh 1vw 0 1vw;
-        position: absolute;
-        display: none;
-        flex-direction: column;
-        box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 2px 0 rgb(0 0 0 / 14%), 0 1px 5px 0 rgb(0 0 0 / 12%);
-        border-radius: 1.5vw;
-      }
-      .general-actions button {
-        font-size: 3vh;
-        padding: 2vh 4vw;
-        background-color: #fff;
-        border: none;
-        border-bottom: 1px solid #999;
-        cursor: pointer;
-      }
-      .general-actions button:last-child {
-        border-bottom: none;
-      }
-
     </style>
   </head>
   <body>
@@ -193,34 +155,10 @@
       </div>
       <button id="drink-button">Drink</button>
     </div>
-    <div id="more-button" class="three-dots">
-      <div class="general-actions">
-        <button id="transfer-button">Transfer</button>
-        <button id="delete-button">Delete</button>
-        <button id="info-button">Info</button>
-      </div>
-    </div>
     <script>
       let ownable_id;
 
       document.getElementById("drink-button").addEventListener('click', () => consume());
-      document.getElementById("transfer-button").addEventListener('click', () => {
-        window.parent.postMessage({type: "transfer", ownable_id}, "*");
-      });
-      document.getElementById("delete-button").addEventListener('click', () => {
-        window.parent.postMessage({type: "delete", ownable_id}, "*");
-      });
-      document.getElementById("info-button").addEventListener('click', () => {
-        window.parent.postMessage({type: "info", ownable_id}, "*");
-      });
-
-      const more = document.getElementById("more-button");
-      more.addEventListener('mouseover', () => {
-        document.getElementsByClassName("general-actions")[0].style.display = "flex";
-      });
-      more.addEventListener('mouseout', () => {
-        document.getElementsByClassName("general-actions")[0].style.display = "none";
-      });
 
       function updateTemplate(color, amt) {
         document.getElementsByClassName('juice')[0].style.backgroundColor = color;
@@ -229,12 +167,10 @@
         document.getElementsByClassName('amount')[0].textContent = amt;
       }
 
-
       window.addEventListener("message", (event) => {
         console.log("iframe picked up event: ", event);
 
         ownable_id = event.data.ownable_id;
-
         const state = event.data.state;
         updateTemplate(state.color_hex, state.current_amount)
       });
@@ -252,7 +188,6 @@
         };
 
         console.log("iframe posting msg: ", msg);
-
         window.parent.postMessage({type: "execute", ownable_id, msg}, "*");
       }
     </script>
