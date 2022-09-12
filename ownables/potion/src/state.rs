@@ -11,7 +11,7 @@ pub struct Config {
     pub issuer: Addr,
     pub max_capacity: u8,
     pub current_amount: u8,
-    pub color_hex: String,
+    pub color: String,
     // CW721 spec
     pub image: Option<String>,
     pub image_data: Option<String>,

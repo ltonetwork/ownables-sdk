@@ -22,7 +22,7 @@ pub fn instantiate(
         issuer: info.sender.clone(),
         max_capacity: 100,
         current_amount: 100,
-        color_hex: get_random_color(msg.ownable_id),
+        color: get_random_color(msg.ownable_id),
         image: None,
         image_data: None,
         external_url: None,
@@ -39,8 +39,8 @@ pub fn instantiate(
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender.clone())
         .add_attribute("issuer", info.sender)
-        .add_attribute("color", state.color_hex)
-        .add_attribute("capacity", state.max_capacity.to_string()))
+        .add_attribute("color", state.color)
+        .add_attribute("current_amount", state.max_capacity.to_string()))
 }
 
 fn get_random_color(hash: String) -> String {
@@ -121,7 +121,7 @@ fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
         issuer: config.issuer.into_string(),
         current_amount: config.current_amount,
         max_capacity: config.max_capacity,
-        color_hex: config.color_hex,
+        color: config.color,
     })
 }
 

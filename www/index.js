@@ -91,12 +91,6 @@ export function getOwnableTemplate(ownableType) {
   });
 }
 
-function extractAttributeValue(attributes, key) {
-  return attributes.filter(prop => {
-    return prop.key === key
-  })[0].value;
-}
-
 document.getElementById("inst").addEventListener('click', async event => {
   event.preventDefault();
   const modal = document.getElementById('inst-modal');
@@ -114,23 +108,45 @@ export async function instantiateOwnable(templateName) {
   return new Promise(async (resolve, reject) => {
     document.getElementById("inst-menu").classList.toggle("show");
     const ownable = await issueOwnable(templateName);
-    // TODO: generalize for all ownable types
-    if (templateName === "potion") {
-      let color_hex = extractAttributeValue(ownable.attributes, "color");
-      let current_amount = extractAttributeValue(ownable.attributes, "capacity");
-      let state = {
-        color_hex,
-        current_amount,
-      };
+    const instantiateMessageSchema = JSON.parse(await getInstantiateSchema(templateName));
+    let state = {};
+    ownable.attributes.forEach(attr => state[attr.key] = attr.value);
+
+    if (templateName) {
+      console.log("instantiating the ownable: ", state);
       await initializeOwnableHTML(ownable.ownable_id, state);
-      resolve();
-    } else if (templateName) {
-      await initializeOwnableHTML(ownable.ownable_id, {});
       resolve();
     } else {
       console.log("Unknown template: ", templateName);
       reject();
     }
+  });
+}
+
+async function getInstantiateSchema(templateName) {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open("assets");
+    request.onblocked = (event) => reject("idb blocked: ", event);
+    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
+    request.onupgradeneeded = (event) => {
+      if (!request.result.objectStoreNames.contains(templateName)) {
+        reject("no such object store");
+      }
+    }
+    request.onsuccess = async () => {
+      let db = request.result;
+      const objectStore = db.transaction(templateName, "readonly").objectStore(templateName);
+      const txn = objectStore.get("instantiate_msg.json");
+      txn.onsuccess = () => {
+        const fr = new FileReader();
+        fr.onloadend = () => {
+          db.close()
+          resolve(fr.result);
+        };
+        fr.readAsText(txn.result);
+      }
+      txn.onerror = (e) => reject(e);
+    };
   });
 }
 

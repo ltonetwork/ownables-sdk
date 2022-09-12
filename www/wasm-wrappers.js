@@ -232,7 +232,7 @@ export async function syncDb() {
         if (document.getElementById(chainIds[i]) === null) {
           await initializeOwnableHTML(chainIds[i], contractState);
         } else {
-          console.log('potion already initialized');
+          console.log('ownable already initialized');
         }
         idb.close();
         resolve();
@@ -246,7 +246,6 @@ export async function initializeOwnableHTML(ownable_id, state) {
     const ownableType = await getOwnableType(ownable_id);
     const ownableGrid = document.getElementsByClassName("grid-container")[0];
     ownableGrid.appendChild(await generateOwnable(ownable_id, ownableType));
-
     const iframe = document.getElementById(ownable_id);
     iframe.onload = () => {
       console.log("iframe loaded, posting: ", {ownable_id, state});
