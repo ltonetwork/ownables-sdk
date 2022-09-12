@@ -122,7 +122,6 @@ function writeTemplate(objectStore, template) {
         templateName = "html";
         break;
       case "text/javascript":
-        console.log(template);
         templateName = "bindgen";
         break;
       default:

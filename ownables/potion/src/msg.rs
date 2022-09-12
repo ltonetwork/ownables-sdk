@@ -40,7 +40,7 @@ pub struct OwnableStateResponse {
     pub issuer: String,
     pub current_amount: u8,
     pub max_capacity: u8,
-    pub color_hex: String,
+    pub color: String,
 }
 
 // from github.com/CosmWasm/cw-nfts/blob/main/contracts/cw721-metadata-onchain
