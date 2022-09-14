@@ -77,11 +77,8 @@ function storeTemplates(templates) {
     request.onsuccess = async () => {
       db = request.result;
       if (newImport) {
-        const objectStore = db.transaction([templateName], "readwrite")
-          .objectStore(templateName);
         for (let i = 0; i < templates.length; i++) {
-          console.log(templates[i]);
-          await writeTemplate(objectStore, templates[i]);
+          await writeTemplate(db, templateName, templates[i]);
         }
         const templateOptions = JSON.parse(localStorage.templates);
         templateOptions.push(templateName);
@@ -90,6 +87,8 @@ function storeTemplates(templates) {
       } else {
         console.log('existing template import');
       }
+      console.log("templates stored");
+      // await appendWorkerGlueCode(templateName);
       await initWasmTemplate(templateName);
       db.close();
       resolve();
@@ -111,8 +110,8 @@ export async function addOwnableOption(templateName) {
   document.getElementById("inst-menu").appendChild(ownableHtml);
 }
 
-function writeTemplate(objectStore, template) {
-  return new Promise((resolve, reject) => {
+function writeTemplate(db, ownableType, template) {
+  return new Promise(async (resolve, reject) => {
     let templateName;
     switch (template.type) {
       case "application/wasm":
@@ -128,12 +127,76 @@ function writeTemplate(objectStore, template) {
         templateName = template["name"];
         break;
     }
-    let tx = objectStore.put(template, templateName);
+    let tx = db
+      .transaction(ownableType, "readwrite")
+      .objectStore(ownableType)
+      .put(template, templateName);
     tx.onsuccess = () => resolve(tx.result);
     tx.onerror = (err) => reject(err);
     tx.onblocked = (err) => reject(err);
   });
 }
+
+
+
+function appendWorkerGlueCode(templateName) {
+  return new Promise((resolve, reject) => {
+    let db, template;
+    const request = window.indexedDB.open(ASSETS_STORE);
+    request.onsuccess = async () => {
+      db = request.result;
+      let templateTx = db.transaction(templateName, "readonly")
+        .objectStore(templateName)
+        .get("bindgen");
+      templateTx.onsuccess = () => {
+        template = templateTx.result;
+        const fr = new FileReader();
+        fr.onload = async () => {
+          let bindgenDataURL = fr.result;
+          let workerDataURL = await readWorkerGlueAsDataURL();
+          // append the worker glue code to bindgen glue code
+          let combinedDataURL = joinDataURLContents(bindgenDataURL, workerDataURL);
+          console.log(combinedDataURL);
+          let newTemplate = new File([combinedDataURL], template.name, { type: template.type });
+          let updateTemplateTx = db.transaction(templateName, "readwrite")
+            .objectStore(templateName)
+            .put(newTemplate, "bindgen");
+          updateTemplateTx.onsuccess = () => {
+            resolve(updateTemplateTx.result);
+          };
+        };
+        if (template) {
+          console.log("reading template data url");
+          fr.readAsDataURL(template);
+        } else {
+          reject();
+        }
+      }
+    }
+  });
+}
+
+
+function readWorkerGlueAsDataURL() {
+  return new Promise(async (resolve, reject) => {
+    let fr = new FileReader();
+    fr.onload = async (event) => {
+      resolve(fr.result);
+    };
+    let glueFile = await fetch("worker.js");
+    fr.readAsDataURL(await glueFile.blob());
+  });
+}
+
+function joinDataURLContents(first, second) {
+  const dataURLPrefix = 'data:text/javascript;base64,';
+  let firstSplit = first.split('base64,');
+  let secondSplit = second.split('base64,');
+  let joinedContents = atob(firstSplit[1]) + atob(secondSplit[1]);
+  let joinedB64 = btoa(joinedContents);
+  return dataURLPrefix + joinedB64;
+}
+
 
 export function dropFilenameExtension(filename) {
   return filename.substring(0, filename.indexOf("."));

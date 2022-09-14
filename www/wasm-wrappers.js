@@ -1,7 +1,8 @@
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
 import {
   ASSETS_STORE,
-  deleteIndexedDb, getEvents,
+  deleteIndexedDb,
+  getEvents,
   initIndexedDb,
   writeExecuteEventToIdb,
   writeInstantiateEventToIdb
@@ -15,6 +16,7 @@ const lto = new LTO('T');
 
 // Maps ownable type to its respective bindgen module
 let bindgenModuleMap = new Map();
+let bindgenDataURLMap = new Map();
 
 export function initWasmTemplate(template) {
   return new Promise(async (resolve, _) => {
@@ -22,6 +24,7 @@ export function initWasmTemplate(template) {
     const bindgenDataURL = await readBindgenAsDataURL(template);
     const bindgenModule = await import(/* webpackIgnore: true */ bindgenDataURL);
     bindgenModuleMap.set(template, bindgenModule);
+    bindgenDataURLMap.set(template, bindgenDataURL);
     let initializedWasm = await bindgenModule.default(wasmBlob);
     resolve(initializedWasm);
   });
@@ -191,7 +194,25 @@ export async function issueOwnable(ownableType) {
 
     let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
     await writeInstantiateEventToIdb(db, newEvent);
-    const bindgen = getBindgenModuleForOwnableId(msg.ownable_id);
+
+    // const bindgen = getBindgenModuleForOwnableId(msg.ownable_id);
+    const bindgen = bindgenModuleMap.get(ownableType);
+
+    // const ownableWorker = new Worker(workerGlue);
+    // let resp = {};
+    // ownableWorker.onmessage = (e) => {
+    //   console.log("response from worker: ");
+    //   console.log(e);
+    // };
+    // const workerMsg = {
+    //   type: "instantiate",
+    //   ownable_id: msg.ownable_id,
+    //   msg: msg,
+    //   info: getMessageInfo(),
+    //   idb: idbStore
+    // };
+    // ownableWorker.postMessage(workerMsg);
+
     const resp = await bindgen.instantiate_contract(msg, getMessageInfo(), idbStore);
 
     if (resp) {
