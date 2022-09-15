@@ -34,17 +34,7 @@ Basic compilation is done with `cargo wasm`.
 
 To help with the rust -> wasm workflow, install [wasm-pack](https://rustwasm.github.io/wasm-pack/).
 
-Project can be operated from the `www/` directory.
-
-To start the Demo Wallet, run `npm run start`.
-At this point you should be able to open [http://localhost:8080](http://localhost:8080) in your browser and be able to import, issue, and interact with Ownables.
-
-In order to import an Ownable, we will first need to build and package it.
-
-Building all Ownables in the `ownables/` directory is done with `npm run build-ownables`.
-
-Building a specific Ownable can be done by providing a `--path`, e.g.:
-`npm run build-ownable --path=potion`.
+Project can be operated (including producing the builds) from the `www/` directory. See the `README` there for more info.
 
 With the build in place, only thing left is to package the Ownable. It should contain:
 - The `.wasm` binary found under `/pkg/ownable_bg.wasm`
