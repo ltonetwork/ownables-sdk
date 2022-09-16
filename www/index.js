@@ -108,7 +108,9 @@ export async function instantiateOwnable(templateName) {
   return new Promise(async (resolve, reject) => {
     document.getElementById("inst-menu").classList.toggle("show");
     const ownable = await issueOwnable(templateName);
-    const instantiateMessageSchema = JSON.parse(await getInstantiateSchema(templateName));
+    console.log("ownable issued: ");
+    console.log(ownable);
+    // const instantiateMessageSchema = JSON.parse(await getInstantiateSchema(templateName));
     let state = {};
     ownable.attributes.forEach(attr => state[attr.key] = attr.value);
 
