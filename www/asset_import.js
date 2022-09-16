@@ -88,8 +88,6 @@ function storeTemplates(templates) {
         console.log('existing template import');
       }
       console.log("templates stored");
-      // await appendWorkerGlueCode(templateName);
-      await initWasmTemplate(templateName);
       db.close();
       resolve();
     }
@@ -105,6 +103,7 @@ export async function addOwnableOption(templateName) {
   ownableHtml.innerText = templateName;
   ownableHtml.type = "button";
   ownableHtml.addEventListener('click', async () => {
+    console.log(`instantiating ${templateName}`);
     await instantiateOwnable(templateName);
   });
   document.getElementById("inst-menu").appendChild(ownableHtml);
@@ -121,7 +120,7 @@ function writeTemplate(db, ownableType, template) {
         templateName = "html";
         break;
       case "text/javascript":
-        templateName = "bindgen";
+        templateName = "bindgen.js";
         break;
       default:
         templateName = template["name"];
@@ -147,7 +146,7 @@ function appendWorkerGlueCode(templateName) {
       db = request.result;
       let templateTx = db.transaction(templateName, "readonly")
         .objectStore(templateName)
-        .get("bindgen");
+        .get("bindgen.js");
       templateTx.onsuccess = () => {
         template = templateTx.result;
         const fr = new FileReader();
@@ -160,7 +159,7 @@ function appendWorkerGlueCode(templateName) {
           let newTemplate = new File([combinedDataURL], template.name, { type: template.type });
           let updateTemplateTx = db.transaction(templateName, "readwrite")
             .objectStore(templateName)
-            .put(newTemplate, "bindgen");
+            .put(newTemplate, "bindgen.js");
           updateTemplateTx.onsuccess = () => {
             resolve(updateTemplateTx.result);
           };

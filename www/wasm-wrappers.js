@@ -5,7 +5,6 @@ import {
   getEvents,
   initIndexedDb,
   writeExecuteEventToIdb,
-  writeInstantiateEventToIdb
 } from "./event-chain";
 import {IdbStore} from "./idb-store";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
@@ -14,19 +13,33 @@ import {associateOwnableType, getOwnableType} from "./asset_import";
 
 const lto = new LTO('T');
 
-// Maps ownable type to its respective bindgen module
-let bindgenModuleMap = new Map();
-let bindgenDataURLMap = new Map();
+// maps ownableId to the worker wrapping it
+let workerMap = new Map();
 
-export function initWasmTemplate(template) {
-  return new Promise(async (resolve, _) => {
-    const wasmBlob = await getBlobFromObjectStore(template, "wasm");
-    const bindgenDataURL = await readBindgenAsDataURL(template);
-    const bindgenModule = await import(/* webpackIgnore: true */ bindgenDataURL);
-    bindgenModuleMap.set(template, bindgenModule);
-    bindgenDataURLMap.set(template, bindgenDataURL);
-    let initializedWasm = await bindgenModule.default(wasmBlob);
-    resolve(initializedWasm);
+async function initWorker(ownableId, ownableType) {
+  return new Promise(async (resolve, reject) => {
+    const bindgenDataURL = await readBindgenAsDataURL(ownableType);
+    const blob = new Blob([bindgenDataURL], {type: `application/javascript`});
+    const blobURL = URL.createObjectURL(blob);
+
+    const worker = new Worker(blobURL);
+    worker.onmessage = (event) => {
+      console.log("msg from worker:");
+      console.log(event.data);
+      workerMap.set(ownableId, worker);
+      resolve(worker);
+    };
+    worker.onerror = (err) => reject(err);
+    worker.onmessageerror = (err) => reject(err);
+    console.log(worker);
+
+    const message = {
+      type: 'init',
+      wasm: await getBlobFromObjectStore(ownableType, "wasm")
+    };
+    console.log("posting init message to worker:");
+    console.log(message);
+    worker.postMessage(message, [message]);
   });
 }
 
@@ -39,7 +52,7 @@ function readBindgenAsDataURL(objectStore) {
       db = request.result;
       const tx = db.transaction([objectStore], "readonly")
         .objectStore(objectStore);
-      let bindgen = tx.get("bindgen");
+      let bindgen = tx.get("bindgen.js");
       bindgen.onsuccess = async (e) => {
         const fr = new FileReader();
         fr.onloadend = () => {
@@ -193,39 +206,28 @@ export async function issueOwnable(ownableType) {
     let idbStore = new IdbStore(msg.ownable_id);
 
     let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-    await writeInstantiateEventToIdb(db, newEvent);
 
-    // const bindgen = getBindgenModuleForOwnableId(msg.ownable_id);
-    const bindgen = bindgenModuleMap.get(ownableType);
+    console.log("initializing worker...");
+    const worker = await initWorker(msg.ownable_id, ownableType);
+    console.log(worker);
 
-    // const ownableWorker = new Worker(workerGlue);
-    // let resp = {};
-    // ownableWorker.onmessage = (e) => {
-    //   console.log("response from worker: ");
-    //   console.log(e);
-    // };
-    // const workerMsg = {
-    //   type: "instantiate",
-    //   ownable_id: msg.ownable_id,
-    //   msg: msg,
-    //   info: getMessageInfo(),
-    //   idb: idbStore
-    // };
-    // ownableWorker.postMessage(workerMsg);
-
-    const resp = await bindgen.instantiate_contract(msg, getMessageInfo(), idbStore);
-
-    if (resp) {
+    worker.addEventListener('message', async event => {
+      console.log("msg from worker:");
+      console.log(event.data);
       await associateOwnableType(db, chain.id, ownableType);
-    } else {
-      reject();
-    }
-    await db.close();
-
-    resolve({
-      ownable_id: msg.ownable_id,
-      ...JSON.parse(resp)
+      await db.close();
+      workerMap.set(msg.ownable_id, worker);
+      resolve(event);
     });
+    const workerMsg = {
+      type: "instantiate",
+      ownable_id: msg.ownable_id,
+      msg: msg,
+      info: getMessageInfo(),
+      idb: idbStore
+    };
+    console.log("posting message");
+    worker.postMessage(workerMsg, [workerMsg]);
   });
 }
 
@@ -235,29 +237,34 @@ export async function syncDb() {
     while (grid.firstChild) {
       grid.removeChild(grid.firstChild);
     }
-    if (!localStorage.chainIds) {
+    if (!localStorage.chainIds || workerMap.size === 0) {
       reject();
     }
-    await initAllWasmInstances();
     const chainIds = JSON.parse(localStorage.chainIds);
     console.log(chainIds, " are syncing");
     for (let i = 0; i < chainIds.length; i++) {
-      let idb = await initIndexedDb(chainIds[i]);
-      let idbStore = new IdbStore(chainIds[i]);
-      let msg = {
-        "get_ownable_config": {},
-      }
-      const bindgen = getBindgenModuleForOwnableId(chainIds[i]);
-      bindgen.query_contract_state(msg, getMessageInfo(), idbStore).then(async contractState => {
-        contractState = JSON.parse(atob(contractState));
-        if (document.getElementById(chainIds[i]) === null) {
-          await initializeOwnableHTML(chainIds[i], contractState);
-        } else {
-          console.log('ownable already initialized');
-        }
-        idb.close();
-        resolve();
-      });
+      const ownableId = chainIds[i];
+      let idb = await initIndexedDb(ownableId);
+      let idbStore = new IdbStore(ownableId);
+      let workerMessage = {
+        type: "query",
+        msg: {
+          "get_ownable_config": {},
+        },
+        info: getMessageInfo(),
+        idb: idbStore,
+      };
+      console.log("current workers: ");
+      console.log(workerMap);
+      const worker = workerMap.get(ownableId);
+
+      worker.onmessage = (msg) => {
+        console.log("msg from worker query:");
+        console.log(msg);
+        // TODO: parse the contract state and init
+      };
+
+      worker.postMessage(workerMessage);
     }
   });
 }
@@ -366,6 +373,15 @@ async function initAllWasmInstances() {
     await initWasmTemplate(templateNames[i]);
   }
 }
+
+async function initIndividualOwnableInstances() {
+  let ownableIds = localStorage.chainIds;
+  for (let i = 0; i < ownableIds.length; i++) {
+    const ownableId = ownableIds[i];
+    await initWorker(ownableId, localStorage.ownableId);
+  }
+}
+
 
 export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);
