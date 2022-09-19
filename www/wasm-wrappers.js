@@ -21,25 +21,23 @@ async function initWorker(ownableId, ownableType) {
     const bindgenDataURL = await readBindgenAsDataURL(ownableType);
     const blob = new Blob([bindgenDataURL], {type: `application/javascript`});
     const blobURL = URL.createObjectURL(blob);
-
-    const worker = new Worker(blobURL);
+    // TODO: switch back to dynamic imports
+    const worker = new Worker("./ownable_potion.js");
     worker.onmessage = (event) => {
-      console.log("msg from worker:");
       console.log(event.data);
       workerMap.set(ownableId, worker);
       resolve(worker);
     };
     worker.onerror = (err) => reject(err);
     worker.onmessageerror = (err) => reject(err);
-    console.log(worker);
-
+    const wasmArrayBuffer = await getBlobFromObjectStore(ownableType, "wasm");
     const message = {
       type: 'init',
-      wasm: await getBlobFromObjectStore(ownableType, "wasm")
+      wasm: wasmArrayBuffer,
     };
     console.log("posting init message to worker:");
     console.log(message);
-    worker.postMessage(message, [message]);
+    worker.postMessage(message, [wasmArrayBuffer]);
   });
 }
 
@@ -211,23 +209,24 @@ export async function issueOwnable(ownableType) {
     const worker = await initWorker(msg.ownable_id, ownableType);
     console.log(worker);
 
-    worker.addEventListener('message', async event => {
+    worker.addEventListener('message', event => {
       console.log("msg from worker:");
       console.log(event.data);
-      await associateOwnableType(db, chain.id, ownableType);
-      await db.close();
-      workerMap.set(msg.ownable_id, worker);
-      resolve(event);
+      associateOwnableType(db, chain.id, ownableType).then(() => {
+        db.close();
+        workerMap.set(msg.ownable_id, worker);
+        resolve(event);
+      }).catch((e) => reject(e));
     });
     const workerMsg = {
-      type: "instantiate",
-      ownable_id: msg.ownable_id,
-      msg: msg,
-      info: getMessageInfo(),
-      idb: idbStore
-    };
+      type: "instantiate"};
+    //   ownable_id: msg.ownable_id,
+    //   msg: msg,
+    //   info: getMessageInfo(),
+    //   idb: idbStore
+    // };
     console.log("posting message");
-    worker.postMessage(workerMsg, [workerMsg]);
+    worker.postMessage(workerMsg);
   });
 }
 
@@ -257,7 +256,7 @@ export async function syncDb() {
       console.log("current workers: ");
       console.log(workerMap);
       const worker = workerMap.get(ownableId);
-
+      console.log(worker);
       worker.onmessage = (msg) => {
         console.log("msg from worker query:");
         console.log(msg);
