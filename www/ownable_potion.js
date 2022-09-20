@@ -1,8 +1,14 @@
 // TODO: dynamically join this with the bg glue-code to pass it to worker
 addEventListener('message', (e) => {
-  console.log("worker msg received: ");
-  console.log(e.data);
-  switch (e.data.type) {
+  console.log("worker msg received:", e.data);
+  if (wasm === undefined) {
+    init(e.data).then(
+      resp => {
+        console.log(resp);
+        self.postMessage("WASM instantiated successfully");
+      }
+    );
+  } else switch (e.data.type) {
     case "instantiate":
       instantiate_contract(e.data.msg, e.data.info, e.data.idb).then(
         resp => {
@@ -23,14 +29,6 @@ addEventListener('message', (e) => {
       query_contract_state(e.data.msg, e.data.info, e.data.idb).then(
         resp => {
           console.log("Contract queried successfully");
-          self.postMessage(resp, [resp]);
-        }
-      );
-      break;
-    case "init":
-      init(e.data.wasm).then(
-        resp => {
-          console.log("WASM instantiated successfully");
           self.postMessage(resp, [resp]);
         }
       );
