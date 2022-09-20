@@ -20,24 +20,19 @@ async function initWorker(ownableId, ownableType) {
   return new Promise(async (resolve, reject) => {
     const bindgenDataURL = await readBindgenAsDataURL(ownableType);
     const blob = new Blob([bindgenDataURL], {type: `application/javascript`});
-    const blobURL = URL.createObjectURL(blob);
+    // const blobURL = URL.createObjectURL(blob);
     // TODO: switch back to dynamic imports
     const worker = new Worker("./ownable_potion.js");
     worker.onmessage = (event) => {
-      console.log(event.data);
+      console.log("msg from worker:", event);
       workerMap.set(ownableId, worker);
       resolve(worker);
     };
     worker.onerror = (err) => reject(err);
     worker.onmessageerror = (err) => reject(err);
-    const wasmArrayBuffer = await getBlobFromObjectStore(ownableType, "wasm");
-    const message = {
-      type: 'init',
-      wasm: wasmArrayBuffer,
-    };
-    console.log("posting init message to worker:");
-    console.log(message);
-    worker.postMessage(message, [wasmArrayBuffer]);
+    const wasmArrayBuffer = await getBlobFromObjectStoreAsArrayBuffer(ownableType, "wasm");
+    console.log("posting init message to worker:", wasmArrayBuffer);
+    worker.postMessage(wasmArrayBuffer, [wasmArrayBuffer]);
   });
 }
 
@@ -66,7 +61,7 @@ function readBindgenAsDataURL(objectStore) {
   });
 }
 
-function getBlobFromObjectStore(objectStore, type) {
+function getBlobFromObjectStoreAsArrayBuffer(objectStore, type) {
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(ASSETS_STORE);
     let db;
@@ -219,12 +214,12 @@ export async function issueOwnable(ownableType) {
       }).catch((e) => reject(e));
     });
     const workerMsg = {
-      type: "instantiate"};
-    //   ownable_id: msg.ownable_id,
-    //   msg: msg,
-    //   info: getMessageInfo(),
-    //   idb: idbStore
-    // };
+      type: "instantiate",
+      ownable_id: msg.ownable_id,
+      msg: msg,
+      info: getMessageInfo(),
+      idb: idbStore
+    };
     console.log("posting message");
     worker.postMessage(workerMsg);
   });
