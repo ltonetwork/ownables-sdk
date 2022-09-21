@@ -1,9 +1,5 @@
 use crate::store::IdbStorage;
-use crate::IdbStore;
-use cosmwasm_std::{
-    Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, OwnedDeps, Querier,
-    RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError,
-};
+use cosmwasm_std::{Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, MemoryStorage, OwnedDeps, Querier, RecoverPubkeyError, StdError, StdResult, Storage, Timestamp, VerificationError};
 use std::marker::PhantomData;
 
 pub fn set_panic_hook() {
@@ -25,9 +21,9 @@ pub fn create_lto_env() -> Env {
     }
 }
 
-pub async fn load_lto_deps(idb: &IdbStore) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
+pub fn load_lto_deps() -> OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier, Empty> {
     OwnedDeps {
-        storage: IdbStorage::load(idb).await, // Storage should now be our Storage implementation that uses local store
+        storage: MemoryStorage::default(),
         api: EmptyApi::default(),
         querier: EmptyQuerier::default(),
         custom_query_type: PhantomData,

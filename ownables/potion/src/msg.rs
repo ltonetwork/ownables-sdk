@@ -1,6 +1,8 @@
-use cosmwasm_std::Addr;
+use std::collections::HashMap;
+use cosmwasm_std::{Addr, Deps, MemoryStorage, Order, Storage};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::convert::FromWasmAbi;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -41,6 +43,26 @@ pub struct OwnableStateResponse {
     pub current_amount: u8,
     pub max_capacity: u8,
     pub color: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct IdbStateDump {
+    // map of the indexed db key value pairs of the state object store
+    pub state_dump: HashMap<Vec<u8>, Vec<u8>>,
+}
+
+impl IdbStateDump {
+    pub fn from(store: MemoryStorage) -> IdbStateDump {
+        let mut state: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
+
+        for (key, value) in store.range(None,None, Order::Ascending) {
+            state.insert(key, value);
+        }
+        IdbStateDump {
+            state_dump: state,
+        }
+    }
 }
 
 // from github.com/CosmWasm/cw-nfts/blob/main/contracts/cw721-metadata-onchain
