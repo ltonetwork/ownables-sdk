@@ -1,8 +1,9 @@
-use crate::IdbStore;
+use std::collections::HashMap;
 use cosmwasm_std::{MemoryStorage, Order, Record, Storage};
 use js_sys::{Array, Uint8Array};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
+use crate::IdbStateDump;
 
 pub struct IdbStorage {
     storage: MemoryStorage,
@@ -32,48 +33,29 @@ impl Storage for IdbStorage {
 }
 
 impl IdbStorage {
-    pub async fn load(idb: &IdbStore) -> Self {
+    pub fn load(idb: IdbStateDump) -> Self {
         let mut store = IdbStorage {
             storage: MemoryStorage::new(),
         };
-        store.load_to_mem_storage(idb).await;
+        store.load_to_mem_storage(idb);
         store
     }
 
-    pub async fn set_item(&self, idb: &IdbStore, key: &[u8], value: &[u8]) {
-        let promise = idb.put(&key, &value);
-        let future = JsFuture::from(promise);
-        let _result = future.await.unwrap();
+    pub fn set_item(&mut self, key: &[u8], value: &[u8]) {
+        self.storage.set(&key, &value);
     }
 
-    pub async fn get_item(&self, idb: &IdbStore, key: &[u8]) -> Vec<u8> {
-        let promise = idb.get(key);
-        let future = JsFuture::from(promise);
-        let result: JsValue = future.await.unwrap();
-        let array_data = Uint8Array::new(&result);
-        let val: Vec<u8> = array_data.to_vec();
-        val
-    }
-
-    pub async fn load_to_mem_storage(&mut self, idb_store: &IdbStore) {
-        let promise = idb_store.get_all_idb_keys();
-        let future = JsFuture::from(promise);
-        let result: JsValue = future.await.unwrap();
-        let arraydata: Array = JsCast::unchecked_from_js(result);
-
-        if arraydata.to_vec().is_empty() {
-            return;
-        }
-        for js_k in arraydata.iter() {
-            let k = Uint8Array::new(&js_k).to_vec();
-            let val = self.get_item(idb_store, &k).await;
-            self.storage.set(&k, &val);
+    pub fn get_item(&self, key: &[u8]) -> Vec<u8> {
+        let result = self.storage.get(key);
+        match result {
+            None => Vec::new(),
+            Some(val) => val
         }
     }
 
-    pub async fn sync_to_js_db(&self, idb: &IdbStore) {
-        for (key, value) in self.storage.range(None, None, Order::Ascending) {
-            self.set_item(idb, &key, &value).await;
+    pub fn load_to_mem_storage(&mut self, idb_state: IdbStateDump) {
+        for (k, v) in idb_state.state_dump.into_iter() {
+            self.storage.set(&k, &v);
         }
     }
 }
