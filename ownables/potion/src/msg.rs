@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use cosmwasm_std::{Addr, Deps, MemoryStorage, Order, Storage};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
+use serde::ser::SerializeMap;
 use wasm_bindgen::convert::FromWasmAbi;
+use serde_with::serde_as;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -45,10 +47,12 @@ pub struct OwnableStateResponse {
     pub color: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde_as]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct IdbStateDump {
     // map of the indexed db key value pairs of the state object store
+    #[serde_as(as = "Vec<(_, _)>")]
     pub state_dump: HashMap<Vec<u8>, Vec<u8>>,
 }
 
