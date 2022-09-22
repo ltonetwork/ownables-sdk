@@ -1,11 +1,15 @@
 pub mod utils;
+
+use std::collections::HashMap;
+use std::ops::Add;
 use std::str;
 
 use contract::instantiate;
 use cosmwasm_std::MessageInfo;
 use js_sys::Promise;
+use serde::Serialize;
 use msg::{ExecuteMsg, InstantiateMsg};
-use serde_json::to_string;
+use serde_json::{Map, to_string, Value};
 use wasm_bindgen::prelude::*;
 
 use utils::{create_lto_env, load_lto_deps};
@@ -29,11 +33,9 @@ extern "C" {
 pub async fn instantiate_contract(
     msg: JsValue,
     info: JsValue,
-    idb: JsValue,
 ) -> Result<JsValue, JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
-    let idb: IdbStateDump = idb.into_serde().unwrap();
     let mut deps = load_lto_deps();
 
     log(&format!(
@@ -48,8 +50,18 @@ pub async fn instantiate_contract(
                 "[contract] successfully instantiated msg. response {:}",
                 &to_string(&response).unwrap()
             ));
-            let state_dump: IdbStateDump = IdbStateDump::from(deps.storage);
-            Ok(JsValue::from(to_string(&response).unwrap()))
+            let state_dump= IdbStateDump::from(deps.storage);
+            let ownable_state = to_string(&response).unwrap();
+            let mut response_map = js_sys::Map::new();
+            response_map.set(
+                &JsValue::from_str("mem"),
+                &JsValue::from(serde_json::to_string(&state_dump).unwrap())
+            );
+            response_map.set(
+                &JsValue::from_str("state"),
+                &JsValue::from(ownable_state)
+            );
+            Ok(JsValue::from(response_map))
         }
         Err(error) => Err(JsError::from(error)),
     }

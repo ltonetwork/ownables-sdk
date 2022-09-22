@@ -1,6 +1,6 @@
 import {
   executeOwnable,
-  initializeOwnableHTML,
+  initializeOwnableHTML, initWorker,
   issueOwnable,
   syncDb,
 } from "./wasm-wrappers";

@@ -16,7 +16,7 @@ const lto = new LTO('T');
 // maps ownableId to the worker wrapping it
 let workerMap = new Map();
 
-async function initWorker(ownableId, ownableType) {
+export async function initWorker(ownableId, ownableType) {
   return new Promise(async (resolve, reject) => {
     const bindgenDataURL = await readBindgenAsDataURL(ownableType);
     const blob = new Blob([bindgenDataURL], {type: `application/javascript`});
@@ -31,7 +31,7 @@ async function initWorker(ownableId, ownableType) {
     worker.onerror = (err) => reject(err);
     worker.onmessageerror = (err) => reject(err);
     const wasmArrayBuffer = await getBlobFromObjectStoreAsArrayBuffer(ownableType, "wasm");
-    console.log("posting init message to worker:", wasmArrayBuffer);
+    console.log("posting wasm to worker:", wasmArrayBuffer);
     worker.postMessage(wasmArrayBuffer, [wasmArrayBuffer]);
   });
 }
@@ -196,21 +196,23 @@ export async function issueOwnable(ownableType) {
     localStorage.chainIds = JSON.stringify(chainIds);
 
     let db = await initIndexedDb(msg.ownable_id);
-    let idbStore = new IdbStore(msg.ownable_id);
-
     let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
 
-    console.log("initializing worker...");
-    const worker = await initWorker(msg.ownable_id, ownableType);
-    console.log(worker);
+    await initWorker(msg.ownable_id, ownableType);
+    const worker = workerMap.get(msg.ownable_id);
 
-    worker.addEventListener('message', event => {
-      console.log("msg from worker:");
-      console.log(event.data);
+    worker.addEventListener('message', async event => {
+      const state = JSON.parse(event.data.get('state'));
+      const mem = JSON.parse(event.data.get('mem'));
+      await saveOwnableStateDump(db, mem);
+
       associateOwnableType(db, chain.id, ownableType).then(() => {
         db.close();
         workerMap.set(msg.ownable_id, worker);
-        resolve(event);
+        resolve({
+          ownable_id: msg.ownable_id,
+          ...state
+        });
       }).catch((e) => reject(e));
     });
     const workerMsg = {
@@ -218,10 +220,23 @@ export async function issueOwnable(ownableType) {
       ownable_id: msg.ownable_id,
       msg: msg,
       info: getMessageInfo(),
-      idb: idbStore
     };
-    console.log("posting message");
     worker.postMessage(workerMsg);
+  });
+}
+
+export async function saveOwnableStateDump(db, mem) {
+  return new Promise(async (resolve, reject) => {
+    const memSlots = mem.state_dump;
+    for (let i = 0; i < memSlots.length; i++) {
+      const slot = memSlots[i];
+
+      let txn = db.transaction("state", "readwrite");
+      let store = txn.objectStore("state");
+      await store.put(slot[1], slot[0]);
+      await txn.complete
+    }
+    resolve();
   });
 }
 
