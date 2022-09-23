@@ -126,18 +126,31 @@ function getMessageInfo() {
 export async function executeOwnable(ownable_id, msg) {
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
 
-  await initIndexedDb(ownable_id);
-  let idbStore = new IdbStore(ownable_id);
+  let db = await initIndexedDb(ownable_id);
+  // await writeExecuteEventToIdb(ownable_id, newEvent, account);
 
-  await writeExecuteEventToIdb(ownable_id, newEvent, account);
 
-  const bindgen = getBindgenModuleForOwnableId(ownable_id);
-  bindgen.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
-    (resp) => {
-      queryState(ownable_id, idbStore);
-    },
-    (err) => window.alert("attempting to consume more than possible")
-  );
+  const worker = workerMap.get(ownable_id);
+
+  worker.addEventListener('message', async event => {
+    const state = JSON.parse(event.data.get('state'));
+    const mem = JSON.parse(event.data.get('mem'));
+    await saveOwnableStateDump(db, mem);
+
+    queryState(ownable_id, mem);
+  });
+
+  let state_dump = await getOwnableStateDump(ownable_id);
+
+  const workerMsg = {
+    type: "execute",
+    ownable_id: ownable_id,
+    msg: msg,
+    info: getMessageInfo(),
+    idb: state_dump,
+  };
+  console.log("posting msg: ", workerMsg);
+  worker.postMessage(workerMsg);
 }
 
 function getBindgenModuleForOwnableId(ownable_id) {
@@ -237,6 +250,20 @@ export async function saveOwnableStateDump(db, mem) {
       await txn.complete
     }
     resolve();
+  });
+}
+
+export async function getOwnableStateDump(ownable_id) {
+  return new Promise(async (resolve, reject) => {
+    let db = await initIndexedDb(ownable_id);
+
+    let txn = db.transaction("state", "readonly").objectStore("state");
+    let resp = txn.getAll();
+    resp.onsuccess = (r) => {
+      console.log(resp.result);
+      resolve(resp.result);
+    }
+    resp.onerror = (e) => reject(e);
   });
 }
 

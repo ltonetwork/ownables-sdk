@@ -6,7 +6,7 @@ use wasm_bindgen_futures::JsFuture;
 use crate::IdbStateDump;
 
 pub struct IdbStorage {
-    storage: MemoryStorage,
+    pub storage: MemoryStorage,
 }
 
 impl Storage for IdbStorage {

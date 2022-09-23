@@ -5,7 +5,7 @@ use std::ops::Add;
 use std::str;
 
 use contract::instantiate;
-use cosmwasm_std::MessageInfo;
+use cosmwasm_std::{MemoryStorage, MessageInfo, Response, Storage};
 use js_sys::Promise;
 use serde::Serialize;
 use msg::{ExecuteMsg, InstantiateMsg};
@@ -36,7 +36,7 @@ pub async fn instantiate_contract(
 ) -> Result<JsValue, JsError> {
     let msg: InstantiateMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
-    let mut deps = load_lto_deps();
+    let mut deps = load_lto_deps(None);
 
     log(&format!(
         "[contract] instantiate message {:?} for ownable_id #{:?}",
@@ -50,21 +50,26 @@ pub async fn instantiate_contract(
                 "[contract] successfully instantiated msg. response {:}",
                 &to_string(&response).unwrap()
             ));
-            let state_dump= IdbStateDump::from(deps.storage);
-            let ownable_state = to_string(&response).unwrap();
-            let mut response_map = js_sys::Map::new();
-            response_map.set(
-                &JsValue::from_str("mem"),
-                &JsValue::from(serde_json::to_string(&state_dump).unwrap())
-            );
-            response_map.set(
-                &JsValue::from_str("state"),
-                &JsValue::from(ownable_state)
-            );
-            Ok(JsValue::from(response_map))
+            let resp = get_json_response(deps.storage, response);
+            Ok(resp)
         }
         Err(error) => Err(JsError::from(error)),
     }
+}
+
+fn get_json_response(storage: MemoryStorage, response: Response) -> JsValue {
+    let state_dump= IdbStateDump::from(storage);
+    let ownable_state = to_string(&response).unwrap();
+    let mut response_map = js_sys::Map::new();
+    response_map.set(
+        &JsValue::from_str("mem"),
+        &JsValue::from(serde_json::to_string(&state_dump).unwrap())
+    );
+    response_map.set(
+        &JsValue::from_str("state"),
+        &JsValue::from(ownable_state)
+    );
+    JsValue::from(response_map)
 }
 
 #[wasm_bindgen]
@@ -76,7 +81,10 @@ pub async fn execute_contract(
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
-    let mut deps = load_lto_deps();
+    // TODO:
+    let state_dump: IdbStateDump = serde_json::from_str(&*idb.as_string().unwrap()).unwrap();
+
+    let mut deps = load_lto_deps(Some(state_dump.clone()));
 
     log(&format!(
         "[contract] executing message {:?} for ownable_id #{:?}",
@@ -107,7 +115,8 @@ pub async fn query_contract_state(
     info: JsValue,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
-    let deps = load_lto_deps();
+    let state_dump: IdbStateDump = idb.into_serde().unwrap();
+    let mut deps = load_lto_deps(Some(state_dump));
 
     let query_result = contract::query(deps.as_ref(), msg.into_serde().unwrap());
     match query_result {
