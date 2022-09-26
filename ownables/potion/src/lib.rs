@@ -81,10 +81,11 @@ pub async fn execute_contract(
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
-    // TODO:
-    let state_dump: IdbStateDump = serde_json::from_str(&*idb.as_string().unwrap()).unwrap();
+    log(&format!("serializing idb: {:?}", &idb));
+    let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
 
-    let mut deps = load_lto_deps(Some(state_dump.clone()));
+    log(&format!("loading lto deps"));
+    let mut deps = load_lto_deps(Some(state_dump));
 
     log(&format!(
         "[contract] executing message {:?} for ownable_id #{:?}",
@@ -99,8 +100,8 @@ pub async fn execute_contract(
                 "[contract] successfully executed msg. response {:}",
                 &to_string(&response).unwrap()
             ));
-            let state_dump: IdbStateDump = IdbStateDump::from(deps.storage);
-            Ok(JsValue::from(to_string(&response).unwrap()))
+            let resp = get_json_response(deps.storage, response);
+            Ok(resp)
         }
         Err(error) => {
             log("[contract] failed to execute msg");
@@ -112,10 +113,11 @@ pub async fn execute_contract(
 #[wasm_bindgen]
 pub async fn query_contract_state(
     msg: JsValue,
-    info: JsValue,
+    _info: JsValue,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
     let state_dump: IdbStateDump = idb.into_serde().unwrap();
+
     let mut deps = load_lto_deps(Some(state_dump));
 
     let query_result = contract::query(deps.as_ref(), msg.into_serde().unwrap());

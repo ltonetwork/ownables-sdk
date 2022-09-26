@@ -133,11 +133,11 @@ export async function executeOwnable(ownable_id, msg) {
   const worker = workerMap.get(ownable_id);
 
   worker.addEventListener('message', async event => {
+    console.log("contract executed: ", event);
     const state = JSON.parse(event.data.get('state'));
     const mem = JSON.parse(event.data.get('mem'));
     await saveOwnableStateDump(db, mem);
-
-    queryState(ownable_id, mem);
+    queryState(ownable_id, event.data.get('mem'));
   });
 
   let state_dump = await getOwnableStateDump(ownable_id);
@@ -215,8 +215,10 @@ export async function issueOwnable(ownableType) {
     const worker = workerMap.get(msg.ownable_id);
 
     worker.addEventListener('message', async event => {
+
       const state = JSON.parse(event.data.get('state'));
       const mem = JSON.parse(event.data.get('mem'));
+      console.log(mem);
       await saveOwnableStateDump(db, mem);
 
       associateOwnableType(db, chain.id, ownableType).then(() => {
@@ -240,10 +242,10 @@ export async function issueOwnable(ownableType) {
 
 export async function saveOwnableStateDump(db, mem) {
   return new Promise(async (resolve, reject) => {
-    const memSlots = mem.state_dump;
+    const memSlots = mem['state_dump'];
     for (let i = 0; i < memSlots.length; i++) {
       const slot = memSlots[i];
-
+      console.log("writing ", slot[0], slot[1]);
       let txn = db.transaction("state", "readwrite");
       let store = txn.objectStore("state");
       await store.put(slot[1], slot[0]);
@@ -256,13 +258,32 @@ export async function saveOwnableStateDump(db, mem) {
 export async function getOwnableStateDump(ownable_id) {
   return new Promise(async (resolve, reject) => {
     let db = await initIndexedDb(ownable_id);
-
+    let respObj = {
+      "state_dump": [],
+    };
     let txn = db.transaction("state", "readonly").objectStore("state");
-    let resp = txn.getAll();
-    resp.onsuccess = (r) => {
-      console.log(resp.result);
-      resolve(resp.result);
+    let resp = txn.getAllKeys();
+    resp.onsuccess = async () => {
+      const keys = resp.result;
+      for (let i = 0; i < keys.length; i++) {
+        let state_dump_entry = await getIdbStateDumpEntry(db, keys[i]);
+        respObj.state_dump.push(state_dump_entry);
+      }
+
+      resolve(respObj);
     }
+    resp.onerror = (e) => reject(e);
+  });
+}
+
+function getIdbStateDumpEntry(db, key) {
+  return new Promise((resolve, reject) => {
+    let txn = db.transaction("state", "readonly").objectStore("state");
+    let resp = txn.get(key);
+    resp.onsuccess = () => {
+      let state_dump_entry = [key, resp.result];
+      resolve(state_dump_entry);
+    };
     resp.onerror = (e) => reject(e);
   });
 }

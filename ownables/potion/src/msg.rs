@@ -49,7 +49,7 @@ pub struct OwnableStateResponse {
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-#[serde(rename_all = "snake_case")]
+// #[serde(rename_all = "snake_case")]
 pub struct IdbStateDump {
     // map of the indexed db key value pairs of the state object store
     #[serde_as(as = "Vec<(_, _)>")]
