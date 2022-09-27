@@ -137,8 +137,8 @@ export async function executeOwnable(ownable_id, msg) {
     const state = JSON.parse(event.data.get('state'));
     const mem = JSON.parse(event.data.get('mem'));
     await saveOwnableStateDump(db, mem);
-    queryState(ownable_id, event.data.get('mem'));
-  });
+    await queryState(ownable_id, await getOwnableStateDump(ownable_id));
+  }, { once: true });
 
   let state_dump = await getOwnableStateDump(ownable_id);
 
@@ -164,18 +164,35 @@ export async function deleteOwnable(ownable_id) {
   await syncDb();
 }
 
-export function queryState(ownable_id, idbStore) {
-  let msg = {
-    "get_ownable_config": {},
-  };
-  const bindgen = getBindgenModuleForOwnableId(ownable_id);
-  bindgen.query_contract_state(msg, getMessageInfo(), idbStore).then(
-    (ownable) => {
-      // decode binary response
-      ownable = JSON.parse(atob(ownable));
-      updateState(ownable_id, ownable);
-    }
-  );
+export function queryState(ownable_id, state_dump) {
+  return new Promise((resolve, reject) => {
+    console.log("querying contract:", state_dump);
+    let msg = {
+      "get_ownable_config": {},
+    };
+
+    const worker = workerMap.get(ownable_id);
+
+    worker.addEventListener('message', async event => {
+      console.log("contract queried: ", event);
+      const stateMap = (event.data.get('state'));
+      const decodedState = atob(JSON.parse(stateMap));
+      const state = JSON.parse(decodedState);
+      updateState(ownable_id, state);
+      resolve();
+    }, { once: true });
+
+    const workerMsg = {
+      type: "query",
+      ownable_id: ownable_id,
+      msg: msg,
+      info: getMessageInfo(),
+      idb: state_dump,
+    };
+
+    worker.postMessage(workerMsg);
+  });
+
 }
 
 export function queryMetadata(ownable_id) {
@@ -208,7 +225,6 @@ export async function issueOwnable(ownableType) {
     chainIds.push(msg.ownable_id);
     localStorage.chainIds = JSON.stringify(chainIds);
 
-    let db = await initIndexedDb(msg.ownable_id);
     let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
 
     await initWorker(msg.ownable_id, ownableType);
@@ -218,7 +234,7 @@ export async function issueOwnable(ownableType) {
 
       const state = JSON.parse(event.data.get('state'));
       const mem = JSON.parse(event.data.get('mem'));
-      console.log(mem);
+      let db = await initIndexedDb(msg.ownable_id);
       await saveOwnableStateDump(db, mem);
 
       associateOwnableType(db, chain.id, ownableType).then(() => {
@@ -229,7 +245,7 @@ export async function issueOwnable(ownableType) {
           ...state
         });
       }).catch((e) => reject(e));
-    });
+    }, { once: true });
     const workerMsg = {
       type: "instantiate",
       ownable_id: msg.ownable_id,
@@ -245,40 +261,52 @@ export async function saveOwnableStateDump(db, mem) {
     const memSlots = mem['state_dump'];
     for (let i = 0; i < memSlots.length; i++) {
       const slot = memSlots[i];
-      console.log("writing ", slot[0], slot[1]);
-      let txn = db.transaction("state", "readwrite");
-      let store = txn.objectStore("state");
-      await store.put(slot[1], slot[0]);
-      await txn.complete
+      await writeStateDumpPair(db, slot[0], slot[1]);
     }
     resolve();
   });
 }
 
-export async function getOwnableStateDump(ownable_id) {
-  return new Promise(async (resolve, reject) => {
-    let db = await initIndexedDb(ownable_id);
-    let respObj = {
-      "state_dump": [],
-    };
-    let txn = db.transaction("state", "readonly").objectStore("state");
-    let resp = txn.getAllKeys();
-    resp.onsuccess = async () => {
-      const keys = resp.result;
-      for (let i = 0; i < keys.length; i++) {
-        let state_dump_entry = await getIdbStateDumpEntry(db, keys[i]);
-        respObj.state_dump.push(state_dump_entry);
-      }
-
-      resolve(respObj);
-    }
+function writeStateDumpPair(db, key, val){
+  return new Promise((resolve, reject) => {
+    let txn = db.transaction("state", "readwrite").objectStore("state");
+    let resp = txn.put(val, key);
+    resp.onsuccess = () => resolve(resp.result);
     resp.onerror = (e) => reject(e);
   });
 }
 
-function getIdbStateDumpEntry(db, key) {
-  return new Promise((resolve, reject) => {
+export async function getOwnableStateDump(ownable_id) {
+  return new Promise(async (resolve, reject) => {
+    let respObj = {
+      "state_dump": [],
+    };
+
+    const keys = await getStateDumpKeys(ownable_id);
+    let db = await initIndexedDb(ownable_id);
+
+    for (let i = 0; i < keys.length; i++) {
+      let txn = db.transaction("state", "readonly").objectStore("state");
+      let state_dump_entry = await getIdbStateDumpEntry(txn, keys[i]);
+      respObj.state_dump.push(state_dump_entry);
+    }
+    db.close();
+    resolve(respObj);
+  });
+}
+
+function getStateDumpKeys(ownable_id) {
+  return new Promise(async (resolve, reject) => {
+    let db = await initIndexedDb(ownable_id);
     let txn = db.transaction("state", "readonly").objectStore("state");
+    let resp = txn.getAllKeys();
+    resp.onsuccess = () => resolve(resp.result);
+    resp.onerror = (e) => reject(e);
+  });
+}
+
+function getIdbStateDumpEntry(txn, key) {
+  return new Promise((resolve, reject) => {
     let resp = txn.get(key);
     resp.onsuccess = () => {
       let state_dump_entry = [key, resp.result];
