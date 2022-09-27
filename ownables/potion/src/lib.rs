@@ -97,7 +97,7 @@ pub async fn execute_contract(
     match result {
         Ok(response) => {
             log(&format!(
-                "[contract] successfully executed msg. response {:}",
+                "[contract] successfully executed msg. response {:?}",
                 &to_string(&response).unwrap()
             ));
             let resp = get_json_response(deps.storage, response);
@@ -116,13 +116,28 @@ pub async fn query_contract_state(
     _info: JsValue,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
-    let state_dump: IdbStateDump = idb.into_serde().unwrap();
+    log(&format!("serializing idb: {:?}", &idb));
+    let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
 
+    log(&format!("loading lto deps"));
     let mut deps = load_lto_deps(Some(state_dump));
 
     let query_result = contract::query(deps.as_ref(), msg.into_serde().unwrap());
     match query_result {
-        Ok(potion_response) => Ok(JsValue::from_serde(&potion_response).unwrap()),
+        Ok(potion_response) => {
+            log(&format!(
+                "[contract] successfully queried msg. response {:?}",
+                &to_string(&potion_response).unwrap()
+            ));
+
+            let ownable_state = to_string(&potion_response).unwrap();
+            let mut response_map = js_sys::Map::new();
+            response_map.set(
+                &JsValue::from_str("state"),
+                &JsValue::from(ownable_state)
+            );
+            Ok(JsValue::from(response_map))
+        },
         Err(error) => panic!("contract state query failed. error {:?}", error),
     }
 }
