@@ -6,7 +6,6 @@ import {
   initIndexedDb,
   writeExecuteEventToIdb, writeInstantiateEventToIdb,
 } from "./event-chain";
-import {IdbStore} from "./idb-store";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
 import {LTO} from '@ltonetwork/lto';
 import {associateOwnableType, getOwnableType} from "./asset_import";
@@ -19,10 +18,12 @@ let workerMap = new Map();
 export async function initWorker(ownableId, ownableType) {
   return new Promise(async (resolve, reject) => {
     const bindgenDataURL = await readBindgenAsDataURL(ownableType);
-    const blob = new Blob([bindgenDataURL], {type: `application/javascript`});
-    // const blobURL = URL.createObjectURL(blob);
-    // TODO: switch back to dynamic imports
-    const worker = new Worker("./ownable_potion.js");
+
+    const gluedBindgenDataURL = await appendWorkerToBindgenDataURL(bindgenDataURL);
+    const blob = new Blob([gluedBindgenDataURL], {type: `application/javascript`});
+    const blobURL = URL.createObjectURL(blob);
+    const worker = new Worker(blobURL);
+
     worker.onmessage = (event) => {
       console.log("msg from worker:", event);
       workerMap.set(ownableId, worker);
@@ -33,6 +34,22 @@ export async function initWorker(ownableId, ownableType) {
     const wasmArrayBuffer = await getBlobFromObjectStoreAsArrayBuffer(ownableType, "wasm");
     console.log("posting wasm to worker:", wasmArrayBuffer);
     worker.postMessage(wasmArrayBuffer, [wasmArrayBuffer]);
+  });
+}
+
+function appendWorkerToBindgenDataURL(bindgenDataURL) {
+  return new Promise(async (resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const dataURLSeparator = 'base64,';
+      const bindgenString = bindgenDataURL.split(dataURLSeparator);
+      const newBindgenContents = fr.result + "\n" + atob(bindgenString[1]);
+
+      resolve(newBindgenContents);
+    };
+    let workerGlue = await fetch("./worker.js");
+    let blob = await workerGlue.blob();
+    fr.readAsText(blob);
   });
 }
 
@@ -479,12 +496,26 @@ export async function transferOwnable(ownable_id) {
       },
     };
     if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
-      await initIndexedDb(ownable_id);
-      let idbStore = new IdbStore(ownable_id);
-      const bindgen = getBindgenModuleForOwnableId(ownable_id);
-      bindgen.execute_contract(msg, getMessageInfo(), ownable_id, idbStore).then(
-        (resp) => console.log(resp)
-      )
+      const worker = workerMap.get(ownable_id);
+
+      const state_dump = await getOwnableStateDump(ownable_id);
+      let workerMessage = {
+        type: "execute",
+        msg: msg,
+        info: getMessageInfo(),
+        ownable_id: ownable_id,
+        idb: state_dump,
+      };
+
+      worker.onmessage = async (msg) => {
+        const stateMap = (msg.data.get('state'));
+        const decodedState = atob(JSON.parse(stateMap));
+        const state = JSON.parse(decodedState);
+        const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+        await writeExecuteEventToIdb(ownable_id, newEvent, account);
+        console.log(msg);
+      };
+      worker.postMessage(workerMessage);
     }
   } else {
     alert(`${addr} is not a valid address`);

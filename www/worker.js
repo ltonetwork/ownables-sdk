@@ -1,25 +1,44 @@
-// TODO: dynamically join this with the bg glue-code to pass it to worker
-onmessage = async (e) => {
-  let resp, message;
-  console.log("worked picked up message:");
-  console.log(e);
-  switch (e.data.type) {
+
+addEventListener('message', async (e) => {
+  if (wasm === undefined) {
+    init(e.data).then(
+      resp => {
+        console.log(resp);
+        let responseMsg = {
+          success: true,
+          msg: "WASM instantiated successfully",
+        }
+        self.postMessage(responseMsg);
+      }
+    );
+  } else switch (e.data.type) {
     case "instantiate":
-      resp = await instantiate_contract(e.data.msg, e.data.info, e.data.idb);
-      message = "Contract instantiated successfully";
+      instantiate_contract(e.data.msg, e.data.info).then(
+        resp => {
+          console.log("Contract instantiated successfully");
+          self.postMessage(resp);
+        }
+      );
       break;
     case "execute":
-      resp = await execute_contract(e.data.msg, e.data.info, e.data.ownable_id, e.data.idb);
-      message = "Contract executed successfully";
+      execute_contract(e.data.msg, e.data.info, e.data.ownable_id, e.data.idb).then(
+        resp => {
+          console.log("Contract executed successfully");
+          self.postMessage(resp);
+        }
+      );
       break;
     case "query":
-      resp = await query_contract_state(e.data.msg, e.data.info, e.data.idb);
-      message = "Contract queried successfully";
+      query_contract_state(e.data.msg, e.data.info, e.data.idb).then(
+        resp => {
+          console.log("Contract queried successfully");
+          self.postMessage(resp);
+        }
+      );
       break;
     default:
-      resp = "unknown message type";
+      console.log("unknown message type");
       break;
   }
-  console.log(resp);
-  postMessage(message, resp);
-}
+});
+
