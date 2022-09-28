@@ -4,7 +4,7 @@ import {
   deleteIndexedDb,
   getEvents,
   initIndexedDb,
-  writeExecuteEventToIdb,
+  writeExecuteEventToIdb, writeInstantiateEventToIdb,
 } from "./event-chain";
 import {IdbStore} from "./idb-store";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
@@ -124,23 +124,23 @@ function getMessageInfo() {
 }
 
 export async function executeOwnable(ownable_id, msg) {
-  const newEvent = new Event({"@context": "execute_msg.json", ...msg});
-
-  let db = await initIndexedDb(ownable_id);
-  // await writeExecuteEventToIdb(ownable_id, newEvent, account);
-
 
   const worker = workerMap.get(ownable_id);
+  const state_dump = await getOwnableStateDump(ownable_id);
 
   worker.addEventListener('message', async event => {
     console.log("contract executed: ", event);
     const state = JSON.parse(event.data.get('state'));
     const mem = JSON.parse(event.data.get('mem'));
-    await saveOwnableStateDump(db, mem);
-    await queryState(ownable_id, await getOwnableStateDump(ownable_id));
-  }, { once: true });
 
-  let state_dump = await getOwnableStateDump(ownable_id);
+    let db = await initIndexedDb(ownable_id);
+    await saveOwnableStateDump(db, mem);
+    db.close();
+
+    await queryState(ownable_id, await getOwnableStateDump(ownable_id));
+    const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+    await writeExecuteEventToIdb(ownable_id, newEvent, account);
+  }, { once: true });
 
   const workerMsg = {
     type: "execute",
@@ -151,11 +151,6 @@ export async function executeOwnable(ownable_id, msg) {
   };
   console.log("posting msg: ", workerMsg);
   worker.postMessage(workerMsg);
-}
-
-function getBindgenModuleForOwnableId(ownable_id) {
-  const ownableType = localStorage.getItem(ownable_id);
-  return bindgenModuleMap.get(ownableType);
 }
 
 export async function deleteOwnable(ownable_id) {
@@ -200,16 +195,27 @@ export function queryMetadata(ownable_id) {
     let msg = {
       "get_ownable_metadata": {},
     };
-    await initIndexedDb(ownable_id);
-    let idbStore = new IdbStore(ownable_id);
-    const bindgen = getBindgenModuleForOwnableId(ownable_id);
-    bindgen.query_contract_state(msg, getMessageInfo(), idbStore).then(
-      (metadata) => {
-        // decode binary response
-        metadata = JSON.parse(atob(metadata));
-        resolve(metadata);
-      }
-    );
+
+    const state_dump = await getOwnableStateDump(ownable_id);
+    const worker = workerMap.get(ownable_id);
+
+    worker.addEventListener('message', async event => {
+      console.log("contract queried: ", event);
+      const metadataMap = (event.data.get('state'));
+      const decodedMetadata = atob(JSON.parse(metadataMap));
+      const metadata = JSON.parse(decodedMetadata);
+      resolve(metadata);
+    }, { once: true });
+
+    const workerMsg = {
+      type: "query",
+      ownable_id: ownable_id,
+      msg: msg,
+      info: getMessageInfo(),
+      idb: state_dump,
+    };
+
+    worker.postMessage(workerMsg);
   })
 }
 
@@ -220,13 +226,6 @@ export async function issueOwnable(ownableType) {
     const msg = {
       ownable_id: chain.id,
     };
-    localStorage.setItem(msg.ownable_id, ownableType);
-    let chainIds = JSON.parse(localStorage.chainIds);
-    chainIds.push(msg.ownable_id);
-    localStorage.chainIds = JSON.stringify(chainIds);
-
-    let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-
     await initWorker(msg.ownable_id, ownableType);
     const worker = workerMap.get(msg.ownable_id);
 
@@ -237,15 +236,19 @@ export async function issueOwnable(ownableType) {
       let db = await initIndexedDb(msg.ownable_id);
       await saveOwnableStateDump(db, mem);
 
-      associateOwnableType(db, chain.id, ownableType).then(() => {
-        db.close();
+      associateOwnableType(db, chain.id, ownableType).then(async () => {
         workerMap.set(msg.ownable_id, worker);
+        reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
+        let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
+        await writeInstantiateEventToIdb(db, newEvent);
+        db.close();
         resolve({
           ownable_id: msg.ownable_id,
           ...state
         });
       }).catch((e) => reject(e));
     }, { once: true });
+
     const workerMsg = {
       type: "instantiate",
       ownable_id: msg.ownable_id,
@@ -254,6 +257,15 @@ export async function issueOwnable(ownableType) {
     };
     worker.postMessage(workerMsg);
   });
+}
+
+function reflectOwnableIssuanceInLocalStore(ownableId, ownableType) {
+  // associate the type
+  localStorage.setItem(ownableId, ownableType);
+  // add to the list of existing chain ids
+  let chainIds = JSON.parse(localStorage.chainIds);
+  chainIds.push(ownableId);
+  localStorage.chainIds = JSON.stringify(chainIds);
 }
 
 export async function saveOwnableStateDump(db, mem) {
@@ -322,33 +334,40 @@ export async function syncDb() {
     while (grid.firstChild) {
       grid.removeChild(grid.firstChild);
     }
-    if (!localStorage.chainIds || workerMap.size === 0) {
+    if (!localStorage.chainIds) {
       reject();
     }
     const chainIds = JSON.parse(localStorage.chainIds);
     console.log(chainIds, " are syncing");
     for (let i = 0; i < chainIds.length; i++) {
       const ownableId = chainIds[i];
-      let idb = await initIndexedDb(ownableId);
-      let idbStore = new IdbStore(ownableId);
+      const state_dump = await getOwnableStateDump(ownableId);
       let workerMessage = {
         type: "query",
         msg: {
           "get_ownable_config": {},
         },
         info: getMessageInfo(),
-        idb: idbStore,
-      };
-      console.log("current workers: ");
-      console.log(workerMap);
-      const worker = workerMap.get(ownableId);
-      console.log(worker);
-      worker.onmessage = (msg) => {
-        console.log("msg from worker query:");
-        console.log(msg);
-        // TODO: parse the contract state and init
+        idb: state_dump,
       };
 
+      if (!workerMap.has(ownableId)) {
+        const ownableType = localStorage.getItem(ownableId);
+        await initWorker(ownableId, ownableType);
+      }
+
+      const worker = workerMap.get(ownableId);
+
+      worker.onmessage = async (msg) => {
+        const stateMap = (msg.data.get('state'));
+        const decodedState = atob(JSON.parse(stateMap));
+        const state = JSON.parse(decodedState);
+        if (document.getElementById(chainIds[i]) === null) {
+          await initializeOwnableHTML(chainIds[i], state);
+        } else {
+          console.log('ownable already initialized');
+        }
+      };
       worker.postMessage(workerMessage);
     }
   });
@@ -450,23 +469,6 @@ function getOwnableActionsHTML(ownable_id) {
 
   return threeDots;
 }
-
-async function initAllWasmInstances() {
-  let templateNames = JSON.parse(localStorage.templates);
-  console.log("initializing wasm instances: ", templateNames);
-  for (let i = 0; i < templateNames.length; i++) {
-    await initWasmTemplate(templateNames[i]);
-  }
-}
-
-async function initIndividualOwnableInstances() {
-  let ownableIds = localStorage.chainIds;
-  for (let i = 0; i < ownableIds.length; i++) {
-    const ownableId = ownableIds[i];
-    await initWorker(ownableId, localStorage.ownableId);
-  }
-}
-
 
 export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);
