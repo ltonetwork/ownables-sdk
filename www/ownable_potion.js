@@ -13,7 +13,7 @@ addEventListener('message', async (e) => {
     );
   } else switch (e.data.type) {
     case "instantiate":
-      instantiate_contract(e.data.msg, e.data.info, {}).then(
+      instantiate_contract(e.data.msg, e.data.info).then(
         resp => {
           console.log("Contract instantiated successfully");
           self.postMessage(resp);
@@ -41,6 +41,7 @@ addEventListener('message', async (e) => {
       break;
   }
 });
+
 
 let wasm;
 
@@ -286,12 +287,12 @@ function execute_contract(msg, info, ownable_id, idb) {
 
 /**
  * @param {any} msg
- * @param {any} _info
+ * @param {any} info
  * @param {any} idb
  * @returns {Promise<any>}
  */
-function query_contract_state(msg, _info, idb) {
-  const ret = wasm.query_contract_state(addHeapObject(msg), addHeapObject(_info), addHeapObject(idb));
+function query_contract_state(msg, info, idb) {
+  const ret = wasm.query_contract_state(addHeapObject(msg), addHeapObject(info), addHeapObject(idb));
   return takeObject(ret);
 }
 
