@@ -22,7 +22,7 @@ export async function initWorker(ownableId, ownableType) {
     const gluedBindgenDataURL = await appendWorkerToBindgenDataURL(bindgenDataURL);
     const blob = new Blob([gluedBindgenDataURL], {type: `application/javascript`});
     const blobURL = URL.createObjectURL(blob);
-    const worker = new Worker(blobURL);
+    const worker = new Worker(blobURL, { type: "module" });
 
     worker.onmessage = (event) => {
       console.log("msg from worker:", event);
@@ -32,7 +32,6 @@ export async function initWorker(ownableId, ownableType) {
     worker.onerror = (err) => reject(err);
     worker.onmessageerror = (err) => reject(err);
     const wasmArrayBuffer = await getBlobFromObjectStoreAsArrayBuffer(ownableType, "wasm");
-    console.log("posting wasm to worker:", wasmArrayBuffer);
     worker.postMessage(wasmArrayBuffer, [wasmArrayBuffer]);
   });
 }
@@ -43,14 +42,28 @@ function appendWorkerToBindgenDataURL(bindgenDataURL) {
     fr.onload = () => {
       const dataURLSeparator = 'base64,';
       const bindgenString = bindgenDataURL.split(dataURLSeparator);
-      const newBindgenContents = fr.result + "\n" + atob(bindgenString[1]);
-
+      let newBindgenContents = fr.result + "\n" + atob(bindgenString[1]);
+      // in case you are testing on firefox, uncomment the next line
+      // newBindgenContents = demodularizeScript(newBindgenContents);
       resolve(newBindgenContents);
     };
     let workerGlue = await fetch("./worker.js");
     let blob = await workerGlue.blob();
     fr.readAsText(blob);
   });
+}
+
+function demodularizeScript(script) {
+  /*  Bindgen generated gluecode contains some export statements.
+      Usually initializing the worker with { type: "module" } would permit that,
+      but firefox is still in development of supporting it.
+      Meanwhile this is a fix for it.
+   */
+  return script
+    .replaceAll("export function", "function")
+    .replace("export { initSync }", "")
+    .replace("export default init;", "")
+    .replace("new URL('ownable_potion_bg.wasm', import.meta.url);", 'null');
 }
 
 function readBindgenAsDataURL(objectStore) {
@@ -198,7 +211,6 @@ export function queryState(ownable_id, state_dump) {
       type: "query",
       ownable_id: ownable_id,
       msg: msg,
-      info: getMessageInfo(),
       idb: state_dump,
     };
 
@@ -228,7 +240,6 @@ export function queryMetadata(ownable_id) {
       type: "query",
       ownable_id: ownable_id,
       msg: msg,
-      info: getMessageInfo(),
       idb: state_dump,
     };
 

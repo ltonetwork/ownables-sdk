@@ -29,7 +29,7 @@ addEventListener('message', async (e) => {
       );
       break;
     case "query":
-      query_contract_state(e.data.msg, e.data.info, e.data.idb).then(
+      query_contract_state(e.data.msg, e.data.idb).then(
         resp => {
           console.log("Contract queried successfully");
           self.postMessage(resp);

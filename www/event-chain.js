@@ -46,10 +46,13 @@ export function getEvents(ownable_id) {
       let txn = objectStore.getAll();
       txn.onsuccess = () => {
         let eventsArray = [];
-        txn.result.forEach(r => {
-          let event = Object.assign(new Event(), JSON.parse(r));
-          eventsArray.push(event.getBody());
-        });
+        txn.result
+          .sort((a, b) => a.timestamp < b.timestamp)
+          .forEach(r => {
+            let event = Object.assign(new Event(), JSON.parse(r));
+            eventsArray.push(event.getBody());
+          }
+        );
         db.close();
         resolve(eventsArray);
       }
