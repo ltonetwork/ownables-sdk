@@ -81,10 +81,8 @@ pub async fn execute_contract(
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = msg.into_serde().unwrap();
     let info: MessageInfo = info.into_serde().unwrap();
-    log(&format!("serializing idb: {:?}", &idb));
-    let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
 
-    log(&format!("loading lto deps"));
+    let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
     let mut deps = load_lto_deps(Some(state_dump));
 
     log(&format!(
@@ -113,14 +111,9 @@ pub async fn execute_contract(
 #[wasm_bindgen]
 pub async fn query_contract_state(
     msg: JsValue,
-    info: JsValue,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
-    log(&format!("serializing idb: {:?}", &idb));
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
-    let info: MessageInfo = info.into_serde().unwrap();
-
-    log(&format!("loading lto deps"));
     let mut deps = load_lto_deps(Some(state_dump));
 
     let query_result = contract::query(deps.as_ref(), msg.into_serde().unwrap());
