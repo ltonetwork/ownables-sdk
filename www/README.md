@@ -11,6 +11,8 @@ Building all Ownables in the `ownables/` directory is done with `npm run build-o
 Building a specific Ownable can be done by providing a `--path`, e.g.:
 `npm run build-ownable --path=potion`.
 
+Both aforementioned ways will produce a `.zip` file under `/assets` directory.
+
 ## License
 
 Licensed under

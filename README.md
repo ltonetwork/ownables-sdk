@@ -36,13 +36,7 @@ To help with the rust -> wasm workflow, install [wasm-pack](https://rustwasm.git
 
 Project can be operated (including producing the builds) from the `www/` directory. See the `README` there for more info.
 
-With the build in place, only thing left is to package the Ownable. It should contain:
-- The `.wasm` binary found under `/pkg/ownable_bg.wasm`
-- The `.js` glue code found under `/pkg/ownable.js`
-- The `.html` template which should be under `/assets`
-- Any media files needed to for the `.html` file sources
-
-After compressing (zipping) the aforementioned files, the package should be importable into the Demo Wallet.
+After following the packaging instructions, the resulting package should be importable into the Demo Wallet.
 
 
 
