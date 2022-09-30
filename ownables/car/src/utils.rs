@@ -1,10 +1,7 @@
 use crate::store::IdbStorage;
-use cosmwasm_std::{
-    Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, OwnedDeps, Querier,
-    RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError,
-};
+use cosmwasm_std::{Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, MemoryStorage, OwnedDeps, Querier, RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError};
 use std::marker::PhantomData;
-use crate::IdbStore;
+use crate::IdbStateDump;
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
@@ -25,13 +22,25 @@ pub fn create_lto_env() -> Env {
     }
 }
 
-pub async fn load_lto_deps(idb: &IdbStore) -> OwnedDeps<IdbStorage, EmptyApi, EmptyQuerier, Empty> {
-    OwnedDeps {
-        storage: IdbStorage::load(idb).await, // Storage should now be our Storage implementation that uses local store
-        api: EmptyApi::default(),
-        querier: EmptyQuerier::default(),
-        custom_query_type: PhantomData,
+pub fn load_lto_deps(state_dump: Option<IdbStateDump>) -> OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier, Empty> {
+    match state_dump {
+        None => OwnedDeps {
+            storage: MemoryStorage::default(),
+            api: EmptyApi::default(),
+            querier: EmptyQuerier::default(),
+            custom_query_type: PhantomData,
+        },
+        Some(dump) => {
+            let idb_storage = IdbStorage::load(dump);
+            OwnedDeps {
+                storage: idb_storage.storage,
+                api: EmptyApi::default(),
+                querier: EmptyQuerier::default(),
+                custom_query_type: PhantomData,
+            }
+        }
     }
+
 }
 
 const CANONICAL_LENGTH: usize = 54;
