@@ -7,7 +7,7 @@ use cw2::set_contract_version;
 use crate::state::{Config, CONFIG};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:ownable.mp4-demo";
+const CONTRACT_NAME: &str = "crates.io:ownable-car-demo";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // #[cfg_attr(not(feature = "library"), entry_point)]
@@ -15,7 +15,7 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    msg: InstantiateMsg,
+    _msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let config = Config {
         owner: info.sender.clone(),
