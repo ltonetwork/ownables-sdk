@@ -10,7 +10,6 @@ use cw2::set_contract_version;
 const CONTRACT_NAME: &str = "crates.io:ownable-demo";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
@@ -58,7 +57,6 @@ fn rgb_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
 
-// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
     _env: Env,
@@ -90,7 +88,13 @@ pub fn try_consume(
         state.current_amount -= consumption_amount;
         Ok(state)
     })?;
-    Ok(Response::new().add_attribute("method", "try_consume"))
+    Ok(Response::new()
+        .add_attribute("method", "try_consume")
+        .add_attribute(
+            "new_amount",
+            CONFIG.load(deps.storage).unwrap().current_amount.to_string()
+        )
+    )
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
@@ -100,13 +104,15 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
                 val: "Unauthorized transfer attempt".to_string(),
             });
         }
-        config.owner = to;
+        config.owner = to.clone();
         Ok(config)
     })?;
-    Ok(Response::new().add_attribute("method", "try_transfer"))
+    Ok(Response::new()
+        .add_attribute("method", "try_transfer")
+        .add_attribute("new_owner", to.to_string())
+    )
 }
 
-// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
@@ -141,130 +147,150 @@ fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
 
 #[cfg(test)]
 mod tests {
+    use std::marker::PhantomData;
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
-    use cosmwasm_std::{coins, Addr};
+    use cosmwasm_std::{coins, Addr, OwnedDeps, MemoryStorage, Response, MessageInfo};
+    use crate::utils::{EmptyApi, EmptyQuerier};
 
-    #[test]
-    fn proper_initialization() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+    struct CommonTest {
+        deps: OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier>,
+        info: MessageInfo,
+        res: Response,
+    }
+    fn setup_test() -> CommonTest {
+        let mut deps = OwnedDeps {
+            storage: MemoryStorage::default(),
+            api: EmptyApi::default(),
+            querier: EmptyQuerier::default(),
+            custom_query_type: PhantomData,
+        };
+        let info = mock_info("sender-1", &[]);
 
         let msg = InstantiateMsg {
-            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
+            ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
             image: None,
             image_data: None,
             external_url: None,
-            description: None,
-            name: None,
+            description: Some("ownable to consume".to_string()),
+            name: Some("Potion".to_string()),
             background_color: None,
             animation_url: None,
-            youtube_url: None,
+            youtube_url: None
         };
-        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(1000, "earth"));
 
-        // we can just call .unwrap() to assert this was a success
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res: Response = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        CommonTest {
+            deps,
+            info,
+            res,
+        }
+    }
+
+    #[test]
+    fn test_initialize() {
+
+        let CommonTest {
+            deps,
+            info,
+            res,
+        } = setup_test();
+
         assert_eq!(0, res.messages.len());
-
-        // it worked, let's query the state
-        let res = query(deps.as_ref(), QueryMsg::GetOwnableConfig {}).unwrap();
-
-        assert_eq!(17, res.max_capacity);
+        assert_eq!(res.attributes.get(0).unwrap().value, "instantiate".to_string());
+        assert_eq!(res.attributes.get(1).unwrap().value, "sender-1".to_string());
+        assert_eq!(res.attributes.get(2).unwrap().value, "sender-1".to_string());
+        assert!(res.attributes.get(3).unwrap().value.starts_with("#"));
+        assert_eq!(res.attributes.get(3).unwrap().value.len(), 7);
+        assert_eq!(res.attributes.get(4).unwrap().value, "100".to_string());
     }
 
     #[test]
-    fn consume_some() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+    fn test_consume() {
+        let CommonTest {
+            mut deps,
+            info,
+            res,
+        } = setup_test();
+        let deps = deps.as_mut();
 
-        let msg = InstantiateMsg {
-            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
-            image: None,
-            image_data: None,
-            external_url: None,
-            description: None,
-            name: None,
-            background_color: None,
-            animation_url: None,
-            youtube_url: None,
-        };
-        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let msg = ExecuteMsg::Consume { amount: 50 };
+        let res: Response = execute(deps, mock_env(), info, msg).unwrap();
 
-        // should only allow owner to consume
-        let info = mock_info("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh", &coins(2, "token"));
-        let msg = ExecuteMsg::Consume { amount: 10 };
-        let res = execute(deps.as_mut(), mock_env(), info, msg);
-        match res {
-            Err(ContractError::Unauthorized { .. }) => {}
-            _ => panic!("Must return unauthorized error"),
-        }
-
-        // creator can consume it
-        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
-        let msg = ExecuteMsg::Consume { amount: 10 };
-        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // should decrease capacity by 10
-        let res = query(deps.as_ref(), QueryMsg::GetOwnableConfig {}).unwrap();
-        // let value: PotionStateResponse = res).unwrap();
-        assert_eq!(90, res.current_amount);
-
-        // should fail to consume more than available
-        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(2, "token"));
-        let msg = ExecuteMsg::Consume { amount: 95 };
-        let res = execute(deps.as_mut(), mock_env(), info, msg);
-        match res {
-            Err(ContractError::CustomError { val }) => {
-                assert_eq!(val, "attempt to consume more than possible")
-            }
-            _ => panic!("Must return custom error"),
-        }
+        assert_eq!(0, res.messages.len());
+        assert_eq!(res.attributes.get(0).unwrap().value, "try_consume".to_string());
+        assert_eq!(res.attributes.get(1).unwrap().value, "50".to_string());
     }
 
     #[test]
-    fn transfer() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+    fn test_consume_unauthorized() {
+        let CommonTest {
+            mut deps,
+            mut info,
+            res,
+        } = setup_test();
+        let deps = deps.as_mut();
+        info.sender = Addr::unchecked("not-the-owner".to_string());
+        let msg = ExecuteMsg::Consume { amount: 50 };
 
-        let msg = InstantiateMsg {
-            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
-            image: None,
-            image_data: None,
-            external_url: None,
-            description: None,
-            name: None,
-            background_color: None,
-            animation_url: None,
-            youtube_url: None,
-        };
-        let owner = "3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1";
-        let random = "3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh";
+        let err: ContractError = execute(deps, mock_env(), info, msg)
+            .unwrap_err();
 
-        let info = mock_info(owner, &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // should not allow random user to transfer what she does not own
-        let info = mock_info(random, &coins(2, "token"));
-        let msg = ExecuteMsg::Transfer {
-            to: Addr::unchecked(random),
-        };
-        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
-        match res {
-            Err(ContractError::Unauthorized { .. }) => {}
-            _ => panic!("Must return unauthorized error"),
-        }
-
-        let info = mock_info(owner, &coins(2, "token"));
-        let msg = ExecuteMsg::Transfer {
-            to: Addr::unchecked(random),
-        };
-        let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-
-        // verify new owner
-        let res: OwnableStateResponse =
-            query(deps.as_ref(), QueryMsg::GetOwnableConfig {}).unwrap();
-        assert_eq!(
-            res.owner,
-            Addr::unchecked("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh")
-        );
+        let expected_err_val = "Unauthorized consumption attempt".to_string();
+        assert!(matches!(err, ContractError::Unauthorized { val: expected_err_val }));
     }
+
+    #[test]
+    fn test_overconsume() {
+        let CommonTest {
+            mut deps,
+            info,
+            res,
+        } = setup_test();
+        let deps = deps.as_mut();
+        let msg = ExecuteMsg::Consume { amount: 150 };
+
+        let err: ContractError = execute(deps, mock_env(), info, msg)
+            .unwrap_err();
+
+        let expected_err_val = "attempt to consume more than possible".to_string();
+        assert!(matches!(err, ContractError::CustomError { val: expected_err_val }));
+    }
+
+    #[test]
+    fn test_transfer() {
+        let CommonTest {
+            mut deps,
+            info,
+            res,
+        } = setup_test();
+        let deps = deps.as_mut();
+
+        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("other-owner-1") };
+
+        let res: Response = execute(deps, mock_env(), info, msg).unwrap();
+
+        assert_eq!(res.attributes.get(0).unwrap().value, "try_transfer".to_string());
+        assert_eq!(res.attributes.get(1).unwrap().value, "other-owner-1".to_string());
+    }
+
+    #[test]
+    fn test_transfer_unauthorized() {
+        let CommonTest {
+            mut deps,
+            mut info,
+            res,
+        } = setup_test();
+        let deps = deps.as_mut();
+        info.sender = Addr::unchecked("not-the-owner".to_string());
+        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("not-the-owner") };
+
+        let err: ContractError = execute(deps, mock_env(), info, msg)
+            .unwrap_err();
+
+        let expected_err_val = "Unauthorized transfer attempt".to_string();
+        assert!(matches!(err, ContractError::Unauthorized { val: expected_err_val }));
+    }
+
 }
