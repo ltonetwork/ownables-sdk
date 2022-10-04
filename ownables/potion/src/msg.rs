@@ -6,14 +6,12 @@ use serde_with::serde_as;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    // pub max_capacity: u8,
     pub ownable_id: String,
     pub image: Option<String>,
     pub image_data: Option<String>,
     pub external_url: Option<String>,
     pub description: Option<String>,
     pub name: Option<String>,
-    // pub attributes: Option<Vec<Trait>>,
     pub background_color: Option<String>,
     pub animation_url: Option<String>,
     pub youtube_url: Option<String>,
