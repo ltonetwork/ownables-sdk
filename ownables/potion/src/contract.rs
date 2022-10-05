@@ -149,8 +149,8 @@ fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
 mod tests {
     use std::marker::PhantomData;
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
-    use cosmwasm_std::{coins, Addr, OwnedDeps, MemoryStorage, Response, MessageInfo};
+    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::{Addr, OwnedDeps, MemoryStorage, Response, MessageInfo};
     use crate::utils::{EmptyApi, EmptyQuerier};
 
     struct CommonTest {
@@ -192,8 +192,8 @@ mod tests {
     fn test_initialize() {
 
         let CommonTest {
-            deps,
-            info,
+            deps: _,
+            info: _,
             res,
         } = setup_test();
 
@@ -211,7 +211,7 @@ mod tests {
         let CommonTest {
             mut deps,
             info,
-            res,
+            res: _,
         } = setup_test();
         let deps = deps.as_mut();
 
@@ -228,7 +228,7 @@ mod tests {
         let CommonTest {
             mut deps,
             mut info,
-            res,
+            res: _,
         } = setup_test();
         let deps = deps.as_mut();
         info.sender = Addr::unchecked("not-the-owner".to_string());
@@ -237,8 +237,8 @@ mod tests {
         let err: ContractError = execute(deps, mock_env(), info, msg)
             .unwrap_err();
 
-        let expected_err_val = "Unauthorized consumption attempt".to_string();
-        assert!(matches!(err, ContractError::Unauthorized { val: expected_err_val }));
+        let _expected_err_val = "Unauthorized consumption attempt".to_string();
+        assert!(matches!(err, ContractError::Unauthorized { val: _expected_err_val, }));
     }
 
     #[test]
@@ -246,7 +246,7 @@ mod tests {
         let CommonTest {
             mut deps,
             info,
-            res,
+            res: _,
         } = setup_test();
         let deps = deps.as_mut();
         let msg = ExecuteMsg::Consume { amount: 150 };
@@ -254,8 +254,8 @@ mod tests {
         let err: ContractError = execute(deps, mock_env(), info, msg)
             .unwrap_err();
 
-        let expected_err_val = "attempt to consume more than possible".to_string();
-        assert!(matches!(err, ContractError::CustomError { val: expected_err_val }));
+        let _expected_err_val = "attempt to consume more than possible".to_string();
+        assert!(matches!(err, ContractError::CustomError { val: _expected_err_val }));
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod tests {
         let CommonTest {
             mut deps,
             info,
-            res,
+            res: _,
         } = setup_test();
         let deps = deps.as_mut();
 
@@ -280,7 +280,7 @@ mod tests {
         let CommonTest {
             mut deps,
             mut info,
-            res,
+            res: _,
         } = setup_test();
         let deps = deps.as_mut();
         info.sender = Addr::unchecked("not-the-owner".to_string());
@@ -289,8 +289,40 @@ mod tests {
         let err: ContractError = execute(deps, mock_env(), info, msg)
             .unwrap_err();
 
-        let expected_err_val = "Unauthorized transfer attempt".to_string();
-        assert!(matches!(err, ContractError::Unauthorized { val: expected_err_val }));
+        let _expected_err_val = "Unauthorized transfer attempt".to_string();
+        assert!(matches!(err, ContractError::Unauthorized { val: _expected_err_val }));
+    }
+
+    #[test]
+    fn test_query_config() {
+        let CommonTest {
+            deps,
+            info: _,
+            res: _,
+        } = setup_test();
+
+        let msg = QueryMsg::GetOwnableConfig {};
+        let resp: Binary = query(deps.as_ref(), msg).unwrap();
+        let json: String = "{\"owner\":\"sender-1\",\"issuer\":\"sender-1\",\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
+        let expected_binary = Binary::from(json.as_bytes());
+
+        assert_eq!(resp, expected_binary);
+    }
+
+    #[test]
+    fn test_query_metadata() {
+        let CommonTest {
+            deps,
+            info: _,
+            res: _,
+        } = setup_test();
+
+        let msg = QueryMsg::GetOwnableMetadata {};
+        let resp: Binary = query(deps.as_ref(), msg).unwrap();
+        let json: String = "{\"image\":null,\"image_data\":null,\"external_url\":null,\"description\":\"Ownable potion that can be consumed\",\"name\":\"Potion\",\"background_color\":null,\"animation_url\":null,\"youtube_url\":null}".to_string();
+        let expected_binary = Binary::from(json.as_bytes());
+
+        assert_eq!(resp, expected_binary);
     }
 
 }
