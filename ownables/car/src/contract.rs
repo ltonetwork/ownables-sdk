@@ -10,7 +10,6 @@ use crate::state::{Config, CONFIG};
 const CONTRACT_NAME: &str = "crates.io:ownable-car-demo";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
@@ -38,7 +37,6 @@ pub fn instantiate(
         .add_attribute("issuer", info.sender))
 }
 
-// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
     _env: Env,
@@ -57,13 +55,15 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
                 val: "Unauthorized transfer attempt".to_string(),
             });
         }
-        config.owner = to;
+        config.owner = to.clone();
         Ok(config)
     })?;
-    Ok(Response::new().add_attribute("method", "try_transfer"))
+    Ok(Response::new()
+        .add_attribute("method", "try_transfer")
+        .add_attribute("new_owner", to.to_string())
+    )
 }
 
-// #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
@@ -95,59 +95,127 @@ fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
 
 #[cfg(test)]
 mod tests {
+    use std::marker::PhantomData;
     use super::*;
-    use cosmwasm_std::{Addr, coins};
-    use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
+    use cosmwasm_std::{Addr, MemoryStorage, MessageInfo, OwnedDeps, Response};
+    use cosmwasm_std::testing::{mock_env, mock_info};
+    use crate::utils::{EmptyApi, EmptyQuerier};
 
-    #[test]
-    fn proper_initialization() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
-
-        let msg = InstantiateMsg {
-            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
-        };
-        let info = mock_info("3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1", &coins(1000, "earth"));
-
-        // we can just call .unwrap() to assert this was a success
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // it worked, let's query the state
-        let res = query(deps.as_ref(), QueryMsg::GetOwnableState {}).unwrap();
+    struct CommonTest {
+        deps: OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier>,
+        info: MessageInfo,
+        res: Response,
     }
-
-    #[test]
-    fn transfer() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+    fn setup_test() -> CommonTest {
+        let mut deps = OwnedDeps {
+            storage: MemoryStorage::default(),
+            api: EmptyApi::default(),
+            querier: EmptyQuerier::default(),
+            custom_query_type: PhantomData,
+        };
+        let info = mock_info("sender-1", &[]);
 
         let msg = InstantiateMsg {
-            ownable_id: "mD6PjEigks2pY3P819F8HFX96nsD8q8pyyLNN3pH28o".to_string(),
+            ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
+            image: None,
+            image_data: None,
+            external_url: None,
+            description: Some("visual car ownable".to_string()),
+            name: Some("Car".to_string()),
+            background_color: None,
+            animation_url: None,
+            youtube_url: None
         };
-        let owner = "3MqSr5YNmLyvjdCZdHveabdE9fSxLXccNr1";
-        let random = "3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh";
 
-        let info = mock_info(owner, &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res: Response = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-        // should not allow random user to transfer what she does not own
-        let info = mock_info(random, &coins(2, "token"));
-        let msg = ExecuteMsg::Transfer {
-            to: Addr::unchecked(random),
-        };
-        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
-        match res {
-            Err(ContractError::Unauthorized { .. }) => {}
-            _ => panic!("Must return unauthorized error"),
+        CommonTest {
+            deps,
+            info,
+            res,
         }
-
-        let info = mock_info(owner, &coins(2, "token"));
-        let msg = ExecuteMsg::Transfer {
-            to: Addr::unchecked(random),
-        };
-        let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-
-        // verify new owner
-        let res: OwnableStateResponse = query(deps.as_ref(), QueryMsg::GetOwnableState {}).unwrap();
-        assert_eq!(res.owner, Addr::unchecked("3MpM7ZJfgavsA9wB6rpvagJ2dBGehXjomTh"));
     }
+
+    #[test]
+    fn test_initialize() {
+
+        let CommonTest {
+            deps: _,
+            info: _,
+            res,
+        } = setup_test();
+
+        assert_eq!(0, res.messages.len());
+        assert_eq!(res.attributes.get(0).unwrap().value, "instantiate".to_string());
+        assert_eq!(res.attributes.get(1).unwrap().value, "sender-1".to_string());
+        assert_eq!(res.attributes.get(2).unwrap().value, "sender-1".to_string());
+    }
+
+    #[test]
+    fn test_transfer() {
+        let CommonTest {
+            mut deps,
+            info,
+            res: _,
+        } = setup_test();
+        let deps = deps.as_mut();
+
+        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("other-owner-1") };
+
+        let res: Response = execute(deps, mock_env(), info, msg).unwrap();
+
+        assert_eq!(res.attributes.get(0).unwrap().value, "try_transfer".to_string());
+        assert_eq!(res.attributes.get(1).unwrap().value, "other-owner-1".to_string());
+    }
+
+    #[test]
+    fn test_transfer_unauthorized() {
+        let CommonTest {
+            mut deps,
+            mut info,
+            res: _,
+        } = setup_test();
+        let deps = deps.as_mut();
+        info.sender = Addr::unchecked("not-the-owner".to_string());
+        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("not-the-owner") };
+
+        let err: ContractError = execute(deps, mock_env(), info, msg)
+            .unwrap_err();
+
+        let _expected_err_val = "Unauthorized transfer attempt".to_string();
+        assert!(matches!(err, ContractError::Unauthorized { val: _expected_err_val }));
+    }
+
+    #[test]
+    fn test_query_config() {
+        let CommonTest {
+            deps,
+            info: _,
+            res: _,
+        } = setup_test();
+
+        let msg = QueryMsg::GetOwnableConfig {};
+        let resp: Binary = query(deps.as_ref(), msg).unwrap();
+        let json: String = "{\"owner\":\"sender-1\",\"issuer\":\"sender-1\"}".to_string();
+        let expected_binary = Binary::from(json.as_bytes());
+
+        assert_eq!(resp, expected_binary);
+    }
+
+    #[test]
+    fn test_query_metadata() {
+        let CommonTest {
+            deps,
+            info: _,
+            res: _,
+        } = setup_test();
+
+        let msg = QueryMsg::GetOwnableMetadata {};
+        let resp: Binary = query(deps.as_ref(), msg).unwrap();
+        let json: String = "{\"image\":null,\"image_data\":null,\"external_url\":null,\"description\":\"Ownable car\",\"name\":\"Car\",\"background_color\":null,\"animation_url\":null,\"youtube_url\":null}".to_string();
+        let expected_binary = Binary::from(json.as_bytes());
+
+        assert_eq!(resp, expected_binary);
+    }
+
 }
