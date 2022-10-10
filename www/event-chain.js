@@ -1,5 +1,7 @@
 import {EventChain} from "@ltonetwork/lto/lib/events";
 import {Event} from "@ltonetwork/lto/lib/events";
+import {decode} from "@ltonetwork/lto/lib/utils/encoder";
+import {Anchor} from "@ltonetwork/lto";
 
 const EVENTS_STORE = "events";
 const CHAIN_STORE = "chain";
@@ -32,6 +34,13 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
     };
     request.onerror = (e) => reject(e);
   });
+}
+
+export async function anchorEventToChain(event, LTO, account) {
+  // decode b58 hash into uint8array
+  let eventUint8Array = decode(event.hash);
+  let tx = new Anchor(eventUint8Array).signWith(account);
+  return await tx.broadcastTo(LTO.node);
 }
 
 export function getEvents(ownable_id) {
