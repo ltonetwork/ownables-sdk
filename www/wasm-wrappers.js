@@ -1,5 +1,6 @@
 import {Event, EventChain} from "@ltonetwork/lto/lib/events";
 import {
+  anchorEventToChain,
   ASSETS_STORE,
   deleteIndexedDb,
   getEvents,
@@ -7,7 +8,7 @@ import {
   writeExecuteEventToIdb, writeInstantiateEventToIdb,
 } from "./event-chain";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
-import {LTO} from '@ltonetwork/lto';
+import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
 import {associateOwnableType, getOwnableType} from "./asset_import";
 
 const lto = new LTO('T');
@@ -120,8 +121,14 @@ function getAccount() {
   let existingSeed = localStorage.encryptedSeed;
   let account;
   if (existingSeed === undefined) {
+    const phrase = window.prompt("import seed phrase", "");
     const pw = window.prompt("Setup a password for your account", "");
-    account = lto.account();
+    if (phrase === "") {
+      account = lto.account();
+    } else {
+      let accountFactory = new AccountFactoryED25519('T');
+      account = accountFactory.createFromSeed(phrase);
+    }
     localStorage.encryptedSeed = account.encryptSeed(pw);
   } else {
     account = attemptToDecryptSeed(existingSeed);
@@ -168,7 +175,9 @@ export async function executeOwnable(ownable_id, msg) {
     db.close();
 
     await queryState(ownable_id, await getOwnableStateDump(ownable_id));
-    const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+    const newEvent = new Event({"@context": "execute_msg.json", ...msg}).signWith(account);
+    let anchorTx = await anchorEventToChain(newEvent, lto, account);
+    console.log("event anchored: ", anchorTx);
     await writeExecuteEventToIdb(ownable_id, newEvent, account);
   }, { once: true });
 
@@ -268,6 +277,8 @@ export async function issueOwnable(ownableType) {
         workerMap.set(msg.ownable_id, worker);
         reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
         let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
+        let anchorTx = await anchorEventToChain(newEvent, lto, account);
+        console.log("event anchored: ", anchorTx);
         await writeInstantiateEventToIdb(db, newEvent);
         db.close();
         resolve({
@@ -522,7 +533,9 @@ export async function transferOwnable(ownable_id) {
         const stateMap = (msg.data.get('state'));
         const decodedState = atob(JSON.parse(stateMap));
         const state = JSON.parse(decodedState);
-        const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+        const newEvent = new Event({"@context": "execute_msg.json", ...msg}).signWith(account);
+        let anchorTx = await anchorEventToChain(newEvent, lto, account);
+        console.log("event anchored: ", anchorTx);
         await writeExecuteEventToIdb(ownable_id, newEvent, account);
         console.log(msg);
       };
