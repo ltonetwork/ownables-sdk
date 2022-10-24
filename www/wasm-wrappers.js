@@ -276,7 +276,8 @@ export async function issueOwnable(ownableType) {
       associateOwnableType(db, chain.id, ownableType).then(async () => {
         workerMap.set(msg.ownable_id, worker);
         reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
-        let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
+        let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
+        newEvent.addTo(chain).signWith(account);
         let anchorTx = await anchorEventToChain(newEvent, lto, account);
         console.log("event anchored: ", anchorTx);
         await writeInstantiateEventToIdb(db, newEvent);
@@ -480,11 +481,42 @@ function getOwnableActionsHTML(ownable_id) {
     async () => {
       let metadata = await queryMetadata(ownable_id);
       let events = await getEvents(ownable_id);
-      let msg = `Name: ${metadata.name}\nDescription: ${metadata.description}\nEvent chain:\n`;
+      console.log(metadata, events);
+      const modalContent = document.createElement('div');
+      const header = document.createElement('h2');
+      header.innerText = `ID: ${metadata.ownable_id}`;
+      modalContent.appendChild(header);
+
+      const eventsHeader = document.createElement('div');
+      eventsHeader.innerText = (events.length) ? "Events:" : "No events found.";
+      modalContent.appendChild(eventsHeader);
+
       for (let i = 0; i < events.length; i++) {
-        msg = `${msg}${i}: ${JSON.stringify(events[i])}\n`;
+        console.log(events[i])
+        const eventElement = document.createElement('div');
+        eventElement.append(`${i} HASH: ${events[i].hash}`);
+        eventElement.append(`\nPrevious: ${events[i].previous}`);
+        eventElement.append(`\nEvent date: ${events[i].timestamp}`);
+        eventElement.append(`\nEvent signature: ${events[i].signature}`);
+        eventElement.append(`\nEvent body (b64): ${events[i].data}`);
+
+        modalContent.appendChild(eventElement);
       }
-      window.alert(msg);
+
+      console.log(modalContent);
+      const modal = document.getElementById('event-chain-modal');
+
+      modal.getElementsByClassName("modal-container")[0].appendChild(modalContent);
+      modal.classList.add('open');
+
+      const exits = modal.querySelectorAll('.modal-bg, .close');
+      exits.forEach(function (exit) {
+        exit.addEventListener('click', function (event) {
+          event.preventDefault();
+          modal.classList.remove('open');
+          modal.getElementsByClassName("modal-container")[0].removeChild(modalContent);
+        });
+      });
     });
 
   const generalActions = document.createElement("div");
