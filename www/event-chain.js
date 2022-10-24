@@ -37,9 +37,7 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
 }
 
 export async function anchorEventToChain(event, LTO, account) {
-  // decode b58 hash into uint8array
-  let eventUint8Array = decode(event.hash);
-  let tx = new Anchor(eventUint8Array).signWith(account);
+  let tx = new Anchor(event.hash).signWith(account);
   return await tx.broadcastTo(LTO.node);
 }
 
@@ -58,8 +56,7 @@ export function getEvents(ownable_id) {
         txn.result
           .sort((a, b) => a.timestamp < b.timestamp)
           .forEach(r => {
-            let event = Object.assign(new Event(), JSON.parse(r));
-            eventsArray.push(event.getBody());
+            eventsArray.push(JSON.parse(r));
           }
         );
         db.close();
