@@ -5,7 +5,7 @@ import {
   deleteIndexedDb,
   getEvents,
   initIndexedDb,
-  writeExecuteEventToIdb, writeInstantiateEventToIdb,
+  writeExecuteEventToIdb, writeInstantiatedChainToIdb,
 } from "./event-chain";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
@@ -175,9 +175,7 @@ export async function executeOwnable(ownable_id, msg) {
     db.close();
 
     await queryState(ownable_id, await getOwnableStateDump(ownable_id));
-    const newEvent = new Event({"@context": "execute_msg.json", ...msg}).signWith(account);
-    let anchorTx = await anchorEventToChain(newEvent, lto, account);
-    console.log("event anchored: ", anchorTx);
+    const newEvent = new Event({"@context": "execute_msg.json", ...msg});
     await writeExecuteEventToIdb(ownable_id, newEvent, account);
   }, { once: true });
 
@@ -280,7 +278,7 @@ export async function issueOwnable(ownableType) {
         newEvent.addTo(chain).signWith(account);
         let anchorTx = await anchorEventToChain(newEvent, lto, account);
         console.log("event anchored: ", anchorTx);
-        await writeInstantiateEventToIdb(db, newEvent);
+        await writeInstantiatedChainToIdb(db, chain);
         db.close();
         resolve({
           ownable_id: msg.ownable_id,
@@ -481,29 +479,27 @@ function getOwnableActionsHTML(ownable_id) {
     async () => {
       let metadata = await queryMetadata(ownable_id);
       let events = await getEvents(ownable_id);
-      console.log(metadata, events);
       const modalContent = document.createElement('div');
+      modalContent.style.padding = "5%";
       const header = document.createElement('h2');
-      header.innerText = `ID: ${metadata.ownable_id}`;
+      header.innerText = metadata.name;
+      const description = document.createElement('h4');
+      description.innerText = metadata.description;
+      const id = document.createElement('h5');
+      id.innerText = `ID: ${ownable_id}`;
       modalContent.appendChild(header);
+      modalContent.appendChild(description);
+      modalContent.appendChild(id);
 
       const eventsHeader = document.createElement('div');
       eventsHeader.innerText = (events.length) ? "Events:" : "No events found.";
       modalContent.appendChild(eventsHeader);
 
       for (let i = 0; i < events.length; i++) {
-        console.log(events[i])
-        const eventElement = document.createElement('div');
-        eventElement.append(`${i} HASH: ${events[i].hash}`);
-        eventElement.append(`\nPrevious: ${events[i].previous}`);
-        eventElement.append(`\nEvent date: ${events[i].timestamp}`);
-        eventElement.append(`\nEvent signature: ${events[i].signature}`);
-        eventElement.append(`\nEvent body (b64): ${events[i].data}`);
-
-        modalContent.appendChild(eventElement);
+        const eventHTML = buildHTMLForEventDisplay(events[i]);
+        modalContent.appendChild(eventHTML);
       }
 
-      console.log(modalContent);
       const modal = document.getElementById('event-chain-modal');
 
       modal.getElementsByClassName("modal-container")[0].appendChild(modalContent);
@@ -539,6 +535,25 @@ function getOwnableActionsHTML(ownable_id) {
   threeDots.appendChild(generalActions);
 
   return threeDots;
+}
+
+function buildHTMLForEventDisplay(event) {
+  const eventElement = document.createElement('div');
+  event = event.toJSON();
+  const hash = document.createElement('div');
+  hash.innerHTML = `<strong>Hash:</strong> ${event.hash}`;
+  const previous = document.createElement('div');
+  previous.innerHTML = `<strong>Previous:</strong> ${event.previous}`;
+  const timestamp = document.createElement('div');
+  timestamp.innerHTML = `<strong>Date (timestamp):</strong> ${new Date(event.timestamp)}`;
+  const signature = document.createElement('div');
+  signature.innerHTML = `<strong>Signature:</strong> ${event.signature}`;
+  const body = document.createElement('div');
+  const eventData = atob(event.data.toString().substring(7));
+  body.innerHTML = `<strong>Data:</strong> <pre>${JSON.stringify(JSON.parse(eventData), undefined, 2)}</pre>`;
+  eventElement.append(hash, previous, timestamp, signature, body);
+  eventElement.append(document.createElement('br'));
+  return eventElement;
 }
 
 export async function transferOwnable(ownable_id) {

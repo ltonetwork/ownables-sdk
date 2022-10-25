@@ -1,6 +1,4 @@
 import {EventChain} from "@ltonetwork/lto/lib/events";
-import {Event} from "@ltonetwork/lto/lib/events";
-import {decode} from "@ltonetwork/lto/lib/utils/encoder";
 import {Anchor} from "@ltonetwork/lto";
 
 const EVENTS_STORE = "events";
@@ -19,16 +17,16 @@ export function validateIndexedDBSupport() {
 export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
   validateIndexedDBSupport();
   return new Promise((resolve, reject) => {
-    let chain = new EventChain('');
     const request = window.indexedDB.open(ownable_id);
     request.onsuccess = async () => {
       const db = request.result;
       const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
-      const latestEvent = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
-      chain.set(JSON.parse(latestEvent));
-      let signedEvent = chain.add(newEvent).signWith(signer);
-      await promisifyIdbPutTxn(db, EVENTS_STORE, signedEvent.hash, JSON.stringify(signedEvent));
-      await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, signedEvent.hash);
+      const currentChainJSON = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
+      const eventChain = EventChain.from(currentChainJSON);
+      newEvent.addTo(eventChain).signWith(signer);
+
+      await promisifyIdbPutTxn(db, EVENTS_STORE, eventChain.id, eventChain.toJSON());
+      await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, eventChain.id);
       db.close();
       resolve();
     };
@@ -47,31 +45,22 @@ export function getEvents(ownable_id) {
     const request = window.indexedDB.open(ownable_id);
     request.onsuccess = async () => {
       const db = request.result;
-      // const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
-      // const latestEvent = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
-      const objectStore = db.transaction(EVENTS_STORE, READ_WRITE).objectStore(EVENTS_STORE);
-      let txn = objectStore.getAll();
-      txn.onsuccess = () => {
-        let eventsArray = [];
-        txn.result
-          .sort((a, b) => a.timestamp < b.timestamp)
-          .forEach(r => {
-            eventsArray.push(JSON.parse(r));
-          }
-        );
-        db.close();
-        resolve(eventsArray);
-      }
-      txn.onerror = (e) => reject(e);
+      const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
+      console.log("latest event chain hash: ", latestEventChainHash);
+      const currentChainJSON = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
+      const eventChain = EventChain.from(currentChainJSON);
+      console.log("event chain:" ,eventChain);
+      db.close();
+      resolve(eventChain.events);
     }
     request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
     request.onblocked = (event) => reject("idb blocked: " + event)
   });
 }
 
-export async function writeInstantiateEventToIdb(db, eventObj) {
-  await promisifyIdbPutTxn(db, EVENTS_STORE, eventObj.hash, JSON.stringify(eventObj));
-  await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, eventObj.hash);
+export async function writeInstantiatedChainToIdb(db, chain) {
+  await promisifyIdbPutTxn(db, EVENTS_STORE, chain.id, chain.toJSON());
+  await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, chain.id);
   await promisifyIdbPutTxn(db, CHAIN_STORE, "network", "T");
 }
 
