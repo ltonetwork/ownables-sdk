@@ -14,7 +14,7 @@ export function validateIndexedDBSupport() {
   }
 }
 
-export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
+export function getLatestChain(ownable_id) {
   validateIndexedDBSupport();
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(ownable_id);
@@ -23,12 +23,23 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
       const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
       const currentChainJSON = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
       const eventChain = EventChain.from(currentChainJSON);
-      newEvent.addTo(eventChain).signWith(signer);
-
-      await promisifyIdbPutTxn(db, EVENTS_STORE, eventChain.id, eventChain.toJSON());
-      await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, eventChain.id);
       db.close();
-      resolve();
+      resolve(eventChain);
+    };
+    request.onerror = (e) => reject(e);
+  });
+}
+
+export function writeLatestChain(ownable_id, chain) {
+  validateIndexedDBSupport();
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(ownable_id);
+    request.onsuccess = async () => {
+      const db = request.result;
+      await promisifyIdbPutTxn(db, EVENTS_STORE, chain.id, chain.toJSON());
+      await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, chain.id);
+      db.close();
+      resolve(chain);
     };
     request.onerror = (e) => reject(e);
   });
@@ -37,25 +48,6 @@ export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
 export async function anchorEventToChain(event, LTO, account) {
   let tx = new Anchor(event.hash).signWith(account);
   return await tx.broadcastTo(LTO.node);
-}
-
-export function getEvents(ownable_id) {
-  validateIndexedDBSupport();
-  return new Promise(async (resolve, reject) => {
-    const request = window.indexedDB.open(ownable_id);
-    request.onsuccess = async () => {
-      const db = request.result;
-      const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
-      console.log("latest event chain hash: ", latestEventChainHash);
-      const currentChainJSON = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
-      const eventChain = EventChain.from(currentChainJSON);
-      console.log("event chain:" ,eventChain);
-      db.close();
-      resolve(eventChain.events);
-    }
-    request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
-    request.onblocked = (event) => reject("idb blocked: " + event)
-  });
 }
 
 export async function writeInstantiatedChainToIdb(db, chain) {
