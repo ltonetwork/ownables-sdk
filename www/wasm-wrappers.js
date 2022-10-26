@@ -3,9 +3,9 @@ import {
   anchorEventToChain,
   ASSETS_STORE,
   deleteIndexedDb,
-  getEvents,
+  getEvents, getLatestChain,
   initIndexedDb,
-  writeExecuteEventToIdb, writeInstantiatedChainToIdb,
+  writeInstantiatedChainToIdb, writeLatestChain,
 } from "./event-chain";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
@@ -176,7 +176,11 @@ export async function executeOwnable(ownable_id, msg) {
 
     await queryState(ownable_id, await getOwnableStateDump(ownable_id));
     const newEvent = new Event({"@context": "execute_msg.json", ...msg});
-    await writeExecuteEventToIdb(ownable_id, newEvent, account);
+    const latestChain = await getLatestChain(ownable_id);
+    newEvent.addTo(latestChain).signWith(account);
+    await writeLatestChain(ownable_id, latestChain);
+    const anchor = await anchorEventToChain(newEvent, lto, account);
+    console.log("anchor: ", anchor);
   }, { once: true });
 
   const workerMsg = {
@@ -276,8 +280,8 @@ export async function issueOwnable(ownableType) {
         reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
         let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
         newEvent.addTo(chain).signWith(account);
-        let anchorTx = await anchorEventToChain(newEvent, lto, account);
-        console.log("event anchored: ", anchorTx);
+
+        await anchorEventToChain(newEvent, lto, account);
         await writeInstantiatedChainToIdb(db, chain);
         db.close();
         resolve({
@@ -478,7 +482,8 @@ function getOwnableActionsHTML(ownable_id) {
     'click',
     async () => {
       let metadata = await queryMetadata(ownable_id);
-      let events = await getEvents(ownable_id);
+      let latestChain = await getLatestChain(ownable_id);
+      const events = latestChain.events;
       const modalContent = document.createElement('div');
       modalContent.style.padding = "5%";
       const header = document.createElement('h2');
@@ -559,32 +564,29 @@ function buildHTMLForEventDisplay(event) {
 export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);
   if (lto.isValidAddress(addr)) {
-    const msg = {
+    const chainMessage = {
       transfer: {
         to: addr,
       },
     };
-    if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
+    if (confirm(`Confirm:\n${JSON.stringify(chainMessage)}`)) {
       const worker = workerMap.get(ownable_id);
 
       const state_dump = await getOwnableStateDump(ownable_id);
       let workerMessage = {
         type: "execute",
-        msg: msg,
+        msg: chainMessage,
         info: getMessageInfo(),
         ownable_id: ownable_id,
         idb: state_dump,
-      };
+      }
 
       worker.onmessage = async (msg) => {
-        const stateMap = (msg.data.get('state'));
-        const decodedState = atob(JSON.parse(stateMap));
-        const state = JSON.parse(decodedState);
-        const newEvent = new Event({"@context": "execute_msg.json", ...msg}).signWith(account);
-        let anchorTx = await anchorEventToChain(newEvent, lto, account);
-        console.log("event anchored: ", anchorTx);
-        await writeExecuteEventToIdb(ownable_id, newEvent, account);
-        console.log(msg);
+        const newEvent = new Event({"@context": "execute_msg.json", ...chainMessage});
+        const eventChain = await getLatestChain(ownable_id);
+        newEvent.addTo(eventChain).signWith(account);
+        await writeLatestChain(ownable_id, eventChain);
+        await anchorEventToChain(newEvent, lto, account);
       };
       worker.postMessage(workerMessage);
     }
