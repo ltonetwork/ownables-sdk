@@ -208,3 +208,46 @@ button {
   vertical-align: -50%;
   font-weight: bold;
 }
+
+.event-chain-modal {
+  padding: 5%;
+  background: url('./assets/background.svg') no-repeat center;
+  background-size: cover;
+}
+
+.event-chain {
+  padding: 10px;
+  background-color: white;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.2);
+}
+
+.chain-connector {
+  font-size: 12px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  height: 50px;
+}
+
+.connector-hash, .connector-previous {
+  background-color: white;
+  padding: 5px;
+}
+.chain-connector .connector-hash {
+  align-self: flex-start;
+  box-shadow: 3px 3px 3px -3px #999,
+              3px 3px 3px -3px #999,
+              -3px 3px 3px -3px #999;
+}
+
+.chain-connector .connector-previous {
+  align-self: flex-end;
+  box-shadow: -3px -3px 3px -3px #999,
+              3px -3px 3px -3px #999,
+              -3px -3px 3px -3px #999;
+}
+
+.connector-link {
+  font-size: 20px;
+  align-self: center;
+}
