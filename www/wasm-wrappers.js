@@ -485,7 +485,8 @@ function getOwnableActionsHTML(ownable_id) {
       let latestChain = await getLatestChain(ownable_id);
       const events = latestChain.events;
       const modalContent = document.createElement('div');
-      modalContent.style.padding = "5%";
+      modalContent.className ='event-chain-modal';
+
       const header = document.createElement('h2');
       header.innerText = metadata.name;
       const description = document.createElement('h4');
@@ -496,13 +497,26 @@ function getOwnableActionsHTML(ownable_id) {
       modalContent.appendChild(description);
       modalContent.appendChild(id);
 
-      const eventsHeader = document.createElement('div');
+      const eventsHeader = document.createElement('h3');
       eventsHeader.innerText = (events.length) ? "Events:" : "No events found.";
       modalContent.appendChild(eventsHeader);
 
+
       for (let i = 0; i < events.length; i++) {
-        const eventHTML = buildHTMLForEventDisplay(events[i]);
+        const eventJSON = events[i].toJSON();
+        const eventHTML = buildHTMLForEventDisplay(i, eventJSON);
+        let connectorDiv = document.createElement('div');
+        if (i > 0) {
+          connectorDiv = buildConnectorHTML(events[i - 1].toJSON().hash, eventJSON.previous);
+        }
+
+        connectorDiv.className = 'chain-connector';
+        modalContent.appendChild(connectorDiv);
         modalContent.appendChild(eventHTML);
+      }
+
+      if (events.length > 0) {
+        modalContent.appendChild(buildConnectorHTML(events[events.length - 1].toJSON().hash, null));
       }
 
       const modal = document.getElementById('event-chain-modal');
@@ -542,21 +556,46 @@ function getOwnableActionsHTML(ownable_id) {
   return threeDots;
 }
 
-function buildHTMLForEventDisplay(event) {
+function buildConnectorHTML(hash, previous) {
+  const connectorDiv = document.createElement('div');
+  connectorDiv.className = 'chain-connector';
+
+  if (hash) {
+    const hashDiv = document.createElement('div');
+    hashDiv.className = 'connector-hash';
+    hashDiv.innerHTML = `<strong>HASH:</strong> <i>${hash}</i>`;
+    connectorDiv.append(hashDiv);
+  }
+
+  if (previous) {
+    const link = document.createElement('div');
+    link.className = 'connector-link';
+    link.innerHTML = '&#128279;';
+
+    const previousDiv = document.createElement('div');
+    previousDiv.className = 'connector-previous';
+    previousDiv.innerHTML = `<strong>Previous:</strong> <i>${previous}</i>`
+    connectorDiv.append(link, previousDiv);
+  }
+
+  return connectorDiv;
+}
+
+function buildHTMLForEventDisplay(index, event) {
   const eventElement = document.createElement('div');
-  event = event.toJSON();
-  const hash = document.createElement('div');
-  hash.innerHTML = `<strong>Hash:</strong> ${event.hash}`;
-  const previous = document.createElement('div');
-  previous.innerHTML = `<strong>Previous:</strong> ${event.previous}`;
+  eventElement.className = 'event-chain';
+
   const timestamp = document.createElement('div');
-  timestamp.innerHTML = `<strong>Date (timestamp):</strong> ${new Date(event.timestamp)}`;
+  timestamp.innerHTML = `<strong>Event date:</strong></br><i>${new Date(event.timestamp).toLocaleString()}</i></br>`;
+
   const signature = document.createElement('div');
-  signature.innerHTML = `<strong>Signature:</strong> ${event.signature}`;
+  signature.innerHTML = `<strong>Event signature:</strong></br><i>${event.signature}</i></br>`;
+
   const body = document.createElement('div');
   const eventData = atob(event.data.toString().substring(7));
-  body.innerHTML = `<strong>Data:</strong> <pre>${JSON.stringify(JSON.parse(eventData), undefined, 2)}</pre>`;
-  eventElement.append(hash, previous, timestamp, signature, body);
+  body.innerHTML = `<strong>Event body</strong></br><pre>${JSON.stringify(JSON.parse(eventData), undefined, 2)}</pre>`;
+
+  eventElement.append(timestamp, signature, body);
   eventElement.append(document.createElement('br'));
   return eventElement;
 }
