@@ -10,6 +10,7 @@ import {
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
 import {associateOwnableType, getOwnableType} from "./asset_import";
+import JSONView from "json-view";
 
 const lto = new LTO('T');
 
@@ -562,8 +563,8 @@ function buildConnectorHTML(hash, previous) {
 
   if (hash) {
     const hashDiv = document.createElement('div');
-    hashDiv.className = 'connector-hash';
-    hashDiv.innerHTML = `<strong>HASH:</strong> <i>${hash}</i>`;
+    hashDiv.className = 'connector-hash truncate';
+    hashDiv.innerHTML = `<strong>HASH:</strong><i>${hash}</i>`;
     connectorDiv.append(hashDiv);
   }
 
@@ -573,8 +574,8 @@ function buildConnectorHTML(hash, previous) {
     link.innerHTML = '&#128279;';
 
     const previousDiv = document.createElement('div');
-    previousDiv.className = 'connector-previous';
-    previousDiv.innerHTML = `<strong>Previous:</strong> <i>${previous}</i>`
+    previousDiv.className = 'connector-previous truncate';
+    previousDiv.innerHTML = `<strong>Previous:</strong><i>${previous}</i>`
     connectorDiv.append(link, previousDiv);
   }
 
@@ -583,21 +584,83 @@ function buildConnectorHTML(hash, previous) {
 
 function buildHTMLForEventDisplay(index, event) {
   const eventElement = document.createElement('div');
-  eventElement.className = 'event-chain';
+  eventElement.className = `event-chain event-${index}`;
 
   const timestamp = document.createElement('div');
-  timestamp.innerHTML = `<strong>Event date:</strong></br><i>${new Date(event.timestamp).toLocaleString()}</i></br>`;
+  timestamp.innerHTML = `<strong>Date: </strong><i>${new Date(event.timestamp)}</i>`;
 
   const signature = document.createElement('div');
-  signature.innerHTML = `<strong>Event signature:</strong></br><i>${event.signature}</i></br>`;
+  signature.className = 'truncate';
+  signature.innerHTML = `<strong>Event signature: </strong><i>${event.signature}</i>`;
+
+  const signer = document.createElement('div');
+  signer.className = 'truncate';
+  signer.innerHTML = `<strong>Signer: </strong><i>${event.signKey.publicKey}</i>`;
+
+  const mediaType = document.createElement('div');
+  mediaType.innerHTML = `<strong>Media type: </strong><i>${event.mediaType}</i>`;
 
   const body = document.createElement('div');
-  const eventData = atob(event.data.toString().substring(7));
-  body.innerHTML = `<strong>Event body</strong></br><pre>${JSON.stringify(JSON.parse(eventData), undefined, 2)}</pre>`;
+  const toggleSwitch = getToggleSwitch();
+  const toggleCheckbox = toggleSwitch.firstChild;
+  toggleCheckbox.addEventListener('change', e => {
+    console.log(e.target);
+  });
+  body.style.lineHeight = '20px';
+  body.innerHTML = `<strong>Event body</strong>: Base64${toggleSwitch.outerHTML}JSON</br>`;
 
-  eventElement.append(timestamp, signature, body);
-  eventElement.append(document.createElement('br'));
+  let eventData = event.data.toString();
+  if (eventData.startsWith('base64:')) {
+    eventData = eventData.substring(7);
+    try {
+      eventData = JSON.parse(atob(eventData));
+    } catch (e) {
+      console.log("b64 does not decode into json");
+    }
+  }
+
+  // append b64 regardless
+  const b64 = document.createElement('div');
+  b64.innerHTML = event.data.toString();
+  b64.className = `data-b64 truncate`;
+  body.appendChild(b64);
+
+  if (eventData instanceof Object) {
+    var JSONView = require('json-view');
+    var view = new JSONView('body', eventData);
+
+    // Listen for change events
+    view.on('change', function(key, oldValue, newValue){
+      console.log('change', key, oldValue, '=>', newValue);
+    });
+    // Expand recursively
+    view.expand(true);
+    view.collapse();
+
+    const jsonViewer = document.createElement('div');
+    jsonViewer.className = `data-json`;
+    jsonViewer.appendChild(view.dom);
+
+    body.appendChild(jsonViewer);
+  }
+
+  eventElement.append(timestamp, signature, signer, mediaType, body);
+
   return eventElement;
+}
+
+function getToggleSwitch() {
+  const switchLabel = document.createElement('label');
+  switchLabel.className = 'switch';
+
+  const checkBox = document.createElement('input');
+  checkBox.type = 'checkbox';
+
+  const slider = document.createElement('span');
+  slider.className = 'slider round';
+
+  switchLabel.append(checkBox, slider);
+  return switchLabel;
 }
 
 export async function transferOwnable(ownable_id) {
