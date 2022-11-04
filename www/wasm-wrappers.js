@@ -416,6 +416,7 @@ export async function syncDb() {
   });
 }
 
+
 export async function initializeOwnableHTML(ownable_id, state) {
   return new Promise(async (resolve, reject) => {
     const ownableType = await getOwnableType(ownable_id);
@@ -601,66 +602,87 @@ function buildHTMLForEventDisplay(index, event) {
   mediaType.innerHTML = `<strong>Media type: </strong><i>${event.mediaType}</i>`;
 
   const body = document.createElement('div');
-  const toggleSwitch = getToggleSwitch();
+  const toggleSwitch = getToggleSwitch(index);
   const toggleCheckbox = toggleSwitch.firstChild;
-  toggleCheckbox.addEventListener('change', e => {
-    console.log(e.target);
-  });
-  body.style.lineHeight = '20px';
-  body.innerHTML = `<strong>Event body</strong>: Base64${toggleSwitch.outerHTML}JSON</br>`;
 
+  const b64 = document.createElement('div');
+  b64.innerHTML = event.data.toString();
+  b64.className = `data-b64 truncate`;
+
+  let jsonViewer = document.createElement('div');
   let eventData = event.data.toString();
   if (eventData.startsWith('base64:')) {
     eventData = eventData.substring(7);
     try {
       eventData = JSON.parse(atob(eventData));
+      if (eventData instanceof Object) {
+        var JSONView = require('json-view');
+        var view = new JSONView('body', eventData);
+        view.expand(true);
+        view.collapse();
+
+        jsonViewer.className = `data-json`;
+        jsonViewer.appendChild(view.dom);
+      }
     } catch (e) {
       console.log("b64 does not decode into json");
+      jsonViewer = undefined;
+      toggleCheckbox.disabled = true;
     }
   }
 
-  // append b64 regardless
-  const b64 = document.createElement('div');
-  b64.innerHTML = event.data.toString();
-  b64.className = `data-b64 truncate`;
-  body.appendChild(b64);
+  const bodyContent = document.createElement('div');
+  bodyContent.appendChild(b64);
 
-  if (eventData instanceof Object) {
-    var JSONView = require('json-view');
-    var view = new JSONView('body', eventData);
+  body.style.lineHeight = '20px';
+  body.innerHTML = `<strong>Event body</strong>:`;
+  body.appendChild(toggleSwitch);
+  body.appendChild(bodyContent);
 
-    // Listen for change events
-    view.on('change', function(key, oldValue, newValue){
-      console.log('change', key, oldValue, '=>', newValue);
-    });
-    // Expand recursively
-    view.expand(true);
-    view.collapse();
-
-    const jsonViewer = document.createElement('div');
-    jsonViewer.className = `data-json`;
-    jsonViewer.appendChild(view.dom);
-
-    body.appendChild(jsonViewer);
-  }
+  toggleCheckbox.addEventListener('click', () => {
+    bodyContent.innerHTML = '';
+    if (toggleCheckbox.value === 'json') {
+      toggleCheckbox.value = 'b64';
+      bodyContent.appendChild(b64);
+      toggleSwitch.getElementsByClassName('b64-on')[0].style.display = 'block';
+      toggleSwitch.getElementsByClassName('json-on')[0].style.display = 'none';
+    } else if (jsonViewer !== undefined) {
+      toggleCheckbox.value = 'json';
+      bodyContent.appendChild(jsonViewer);
+      toggleSwitch.getElementsByClassName('b64-on')[0].style.display = 'none';
+      toggleSwitch.getElementsByClassName('json-on')[0].style.display = 'block';
+    }
+  });
 
   eventElement.append(timestamp, signature, signer, mediaType, body);
 
   return eventElement;
 }
 
-function getToggleSwitch() {
-  const switchLabel = document.createElement('label');
-  switchLabel.className = 'switch';
+function getToggleSwitch(id) {
 
-  const checkBox = document.createElement('input');
-  checkBox.type = 'checkbox';
+  const inputElement = document.createElement('input');
+  inputElement.type = 'checkbox';
+  inputElement.id = `checkbox-id-${id}`;
+  inputElement.name = `checkbox-${id}`;
+  inputElement.value = 'b64';
+
+  const label = document.createElement('label');
+  label.htmlFor = `checkbox-id-${id}`;
+  label.className = 'switch';
 
   const slider = document.createElement('span');
   slider.className = 'slider round';
+  const jsonText = document.createElement('span');
+  jsonText.className = 'json-on';
+  jsonText.innerHTML = 'JSON';
+  const b64Text = document.createElement('span');
+  b64Text.className = 'b64-on';
+  b64Text.innerHTML = 'B64';
+  slider.append(jsonText, b64Text);
 
-  switchLabel.append(checkBox, slider);
-  return switchLabel;
+  label.append(inputElement, slider);
+  return label;
 }
 
 export async function transferOwnable(ownable_id) {
