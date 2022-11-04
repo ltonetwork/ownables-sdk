@@ -153,6 +153,8 @@ button {
   background: #fff;
   position: relative;
   overflow: hidden;
+  max-width: 75vw;
+  min-width: 75vw;
 }
 .modal button {
   border-radius: 0;
@@ -265,7 +267,23 @@ button {
 }
 
 .data-json {
+  display: block;
+}
+
+.b64-on, .json-on {
+  font-size: 10px;
+}
+
+.b64-on {
+  display: block;
+  text-align: right;
+  padding-right: 5px;
+}
+
+.json-on {
   display: none;
+  text-align: left;
+  padding-left: 5px;
 }
 
 /*json viewer*/
@@ -285,7 +303,7 @@ button {
   display: inline-block;
 }
 
-.jsonView>.children, .jsonView.insert{
+.jsonView>.children{
   display: block;
 }
 
@@ -335,72 +353,12 @@ button {
   content: '\25BC';
 }
 
-.jsonView>.edit{
-  padding: 0px 5px 0px 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  background-color: transparent;
-}
-
-.jsonView>.edit br{
-  display: none;
-}
-
-.jsonView>.edit *{
-  display: inline;
-  white-space: nowrap;
-}
-
-.jsonView>.value.edit{
-  color: rgb(0, 0, 0);
-}
-
-.jsonView>.delete:before{
-  content: 'X';
-}
-
-.jsonView>.delete{
-  opacity: 0;
-  display: inline;
-  padding: 3px;
-  margin-left: 20px;
-  cursor: pointer;
-  color: rgb(150, 150, 150);
-}
-
-.jsonView>.delete:hover{
-  opacity: 1;
-  color: rgb(0, 0, 0);
-  background: rgb(220, 220, 220);
-}
-
-.jsonView>.insert:before{
-  content: '+';
-}
-
-.jsonView>.insert{
-  display: none;
-  color: rgb(150, 150, 150);
-  cursor: pointer;
-}
-
-.jsonView.expanded>.insert, .jsonView.expanded>.insert{
-  display: inline-block;
-  margin-left: 20px;
-  padding: 3px;
-}
-
-.jsonView>.insert:hover{
-  color: rgb(0, 0, 0);
-  background: rgb(220, 220, 220);
-}
-
 /*toggle switch*/
 /* The switch - the box around the slider */
 .switch {
   position: relative;
   display: inline-block;
-  width: 30px;
+  width: 50px;
   height: 17px;
 }
 
@@ -445,9 +403,9 @@ input:focus + .slider {
 }
 
 input:checked + .slider:before {
-  -webkit-transform: translateX(13px);
-  -ms-transform: translateX(13px);
-  transform: translateX(13px);
+  -webkit-transform: translateX(33px);
+  -ms-transform: translateX(33px);
+  transform: translateX(33px);
 }
 
 /* Rounded sliders */
