@@ -153,9 +153,8 @@ button {
   background: #fff;
   position: relative;
   overflow: hidden;
-  max-width: 75vw;
-  min-width: 75vw;
 }
+
 .modal button {
   border-radius: 0;
   border: none;
@@ -215,6 +214,11 @@ button {
   padding: 5%;
   background: url('./assets/background.svg') no-repeat center;
   background-size: cover;
+}
+
+#event-chain-modal .modal-container {
+  max-width: 75vw;
+  min-width: 75vw;
 }
 
 .event-chain {
