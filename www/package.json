@@ -37,7 +37,6 @@
   },
   "dependencies": {
     "@ltonetwork/lto": "^0.9.4",
-    "json-view": "^0.4.0",
     "jszip": "^3.10.0"
   }
 }

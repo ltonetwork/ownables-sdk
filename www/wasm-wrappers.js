@@ -10,7 +10,7 @@ import {
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
 import {associateOwnableType, getOwnableType} from "./asset_import";
-import JSONView from "json-view";
+import JSONView from "./JSONView";
 
 const lto = new LTO('T');
 
@@ -616,13 +616,8 @@ function buildHTMLForEventDisplay(index, event) {
     try {
       eventData = JSON.parse(atob(eventData));
       if (eventData instanceof Object) {
-        var JSONView = require('json-view');
         var view = new JSONView('body', eventData);
-        view.valueEditable = false;
-        view.nameEditable = false;
-        view.expand(true);
         view.collapse();
-
 
         jsonViewer.className = `data-json`;
         jsonViewer.appendChild(view.dom);
