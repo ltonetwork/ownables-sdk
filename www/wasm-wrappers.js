@@ -8,7 +8,7 @@ import {
   writeInstantiatedChainToIdb, writeLatestChain,
 } from "./event-chain";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
-import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
+import {LTO} from '@ltonetwork/lto';
 import {associateOwnableType, getOwnableType} from "./asset_import";
 import JSONView from "./JSONView";
 
@@ -280,7 +280,9 @@ export async function issueOwnable(ownableType) {
         workerMap.set(msg.ownable_id, worker);
         reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
         let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
-        newEvent.addTo(chain).signWith(account);
+        newEvent
+          .addTo(chain)
+          .signWith(account);
 
         await anchorEventToChain(newEvent, lto, account);
         await writeInstantiatedChainToIdb(db, chain);
@@ -482,59 +484,8 @@ function getOwnableActionsHTML(ownable_id) {
   infoButton.textContent = "Info";
   infoButton.addEventListener(
     'click',
-    async () => {
-      let metadata = await queryMetadata(ownable_id);
-      let latestChain = await getLatestChain(ownable_id);
-      const events = latestChain.events;
-      const modalContent = document.createElement('div');
-      modalContent.className ='event-chain-modal';
-
-      const header = document.createElement('h2');
-      header.innerText = metadata.name;
-      const description = document.createElement('h4');
-      description.innerText = metadata.description;
-      const id = document.createElement('h5');
-      id.innerText = `ID: ${ownable_id}`;
-      modalContent.appendChild(header);
-      modalContent.appendChild(description);
-      modalContent.appendChild(id);
-
-      const eventsHeader = document.createElement('h3');
-      eventsHeader.innerText = (events.length) ? "Events:" : "No events found.";
-      modalContent.appendChild(eventsHeader);
-
-
-      for (let i = 0; i < events.length; i++) {
-        const eventJSON = events[i].toJSON();
-        const eventHTML = buildHTMLForEventDisplay(i, eventJSON);
-        let connectorDiv = document.createElement('div');
-        if (i > 0) {
-          connectorDiv = buildConnectorHTML(events[i - 1].toJSON().hash, eventJSON.previous);
-        }
-
-        connectorDiv.className = 'chain-connector';
-        modalContent.appendChild(connectorDiv);
-        modalContent.appendChild(eventHTML);
-      }
-
-      if (events.length > 0) {
-        modalContent.appendChild(buildConnectorHTML(events[events.length - 1].toJSON().hash, null));
-      }
-
-      const modal = document.getElementById('event-chain-modal');
-
-      modal.getElementsByClassName("modal-container")[0].appendChild(modalContent);
-      modal.classList.add('open');
-
-      const exits = modal.querySelectorAll('.modal-bg, .close');
-      exits.forEach(function (exit) {
-        exit.addEventListener('click', function (event) {
-          event.preventDefault();
-          modal.classList.remove('open');
-          modal.getElementsByClassName("modal-container")[0].removeChild(modalContent);
-        });
-      });
-    });
+    async () => await getOwnableInfo(ownable_id)
+  );
 
   const generalActions = document.createElement("div");
   generalActions.className = "general-actions";
@@ -556,6 +507,60 @@ function getOwnableActionsHTML(ownable_id) {
   threeDots.appendChild(generalActions);
 
   return threeDots;
+}
+
+async function getOwnableInfo(ownable_id) {
+  let metadata = await queryMetadata(ownable_id);
+  let latestChain = await getLatestChain(ownable_id);
+  const events = latestChain.events;
+  const modalContent = document.createElement('div');
+  modalContent.className = 'event-chain-modal';
+
+  const header = document.createElement('h2');
+  header.innerText = metadata.name;
+  const description = document.createElement('h4');
+  description.innerText = metadata.description;
+  const id = document.createElement('h5');
+  id.innerText = `ID: ${ownable_id}`;
+  modalContent.appendChild(header);
+  modalContent.appendChild(description);
+  modalContent.appendChild(id);
+
+  const eventsHeader = document.createElement('h3');
+  eventsHeader.innerText = (events.length) ? "Events:" : "No events found.";
+  modalContent.appendChild(eventsHeader);
+
+
+  for (let i = 0; i < events.length; i++) {
+    const eventJSON = events[i].toJSON();
+    const eventHTML = buildHTMLForEventDisplay(i, eventJSON);
+    let connectorDiv = document.createElement('div');
+    if (i > 0) {
+      connectorDiv = buildConnectorHTML(events[i - 1].toJSON().hash, eventJSON.previous);
+    }
+
+    connectorDiv.className = 'chain-connector';
+    modalContent.appendChild(connectorDiv);
+    modalContent.appendChild(eventHTML);
+  }
+
+  if (events.length > 0) {
+    modalContent.appendChild(buildConnectorHTML(events[events.length - 1].toJSON().hash, null));
+  }
+
+  const modal = document.getElementById('event-chain-modal');
+
+  modal.getElementsByClassName("modal-container")[0].appendChild(modalContent);
+  modal.classList.add('open');
+
+  const exits = modal.querySelectorAll('.modal-bg, .close');
+  exits.forEach(function (exit) {
+    exit.addEventListener('click', function (event) {
+      event.preventDefault();
+      modal.classList.remove('open');
+      modal.getElementsByClassName("modal-container")[0].removeChild(modalContent);
+    });
+  });
 }
 
 function buildConnectorHTML(hash, previous) {
@@ -691,7 +696,8 @@ export async function transferOwnable(ownable_id) {
         to: addr,
       },
     };
-    if (confirm(`Confirm:\n${JSON.stringify(chainMessage)}`)) {
+    let metadata = await queryMetadata(ownable_id);
+    if (confirm(`Are you sure you want to transfer the ownership of this ${metadata.name} ownable to ${addr}?`)) {
       const worker = workerMap.get(ownable_id);
 
       const state_dump = await getOwnableStateDump(ownable_id);
