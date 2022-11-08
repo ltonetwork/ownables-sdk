@@ -1,5 +1,5 @@
 import {EventChain} from "@ltonetwork/lto/lib/events";
-import {Anchor} from "@ltonetwork/lto";
+import {MappedAnchor} from "@ltonetwork/lto/lib/transactions";
 
 const EVENTS_STORE = "events";
 const CHAIN_STORE = "chain";
@@ -46,7 +46,7 @@ export function writeLatestChain(ownable_id, chain) {
 }
 
 export async function anchorEventToChain(event, LTO, account) {
-  let tx = new Anchor(event.hash).signWith(account);
+  let tx = new MappedAnchor(event.hash).signWith(account);
   return await tx.broadcastTo(LTO.node);
 }
 
