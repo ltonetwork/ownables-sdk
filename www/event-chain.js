@@ -45,15 +45,17 @@ export function writeLatestChain(ownable_id, chain) {
   });
 }
 
-export async function anchorEventToChain(event, LTO, account) {
-  let tx = new MappedAnchor(event.hash).signWith(account);
-  return await tx.broadcastTo(LTO.node);
+export async function anchorEventToChain(chain, event, node, account) {
+  const addedEvent = event.addTo(chain).signWith(account);
+  return await new MappedAnchor(chain.startingWith(addedEvent).anchorMap)
+    .signWith(account)
+    .broadcastTo(node);
 }
 
 export async function writeInstantiatedChainToIdb(db, chain) {
   await promisifyIdbPutTxn(db, EVENTS_STORE, chain.id, chain.toJSON());
   await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, chain.id);
-  await promisifyIdbPutTxn(db, CHAIN_STORE, "network", "T");
+  await promisifyIdbPutTxn(db, CHAIN_STORE, "network", chain.networkId);
 }
 
 function promisifyIdbPutTxn(db, store, key, val) {
