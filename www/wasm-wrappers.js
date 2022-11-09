@@ -3,7 +3,7 @@ import {
   anchorEventToChain,
   ASSETS_STORE,
   deleteIndexedDb,
-  getEvents, getLatestChain,
+  getLatestChain,
   initIndexedDb,
   writeInstantiatedChainToIdb, writeLatestChain,
 } from "./event-chain";
@@ -178,9 +178,8 @@ export async function executeOwnable(ownable_id, msg) {
     await queryState(ownable_id, await getOwnableStateDump(ownable_id));
     const newEvent = new Event({"@context": "execute_msg.json", ...msg});
     const latestChain = await getLatestChain(ownable_id);
-    newEvent.addTo(latestChain).signWith(account);
+    const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
     await writeLatestChain(ownable_id, latestChain);
-    const anchor = await anchorEventToChain(newEvent, lto, account);
     console.log("anchor: ", anchor);
   }, { once: true });
 
@@ -280,11 +279,7 @@ export async function issueOwnable(ownableType) {
         workerMap.set(msg.ownable_id, worker);
         reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
         let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
-        newEvent
-          .addTo(chain)
-          .signWith(account);
-
-        await anchorEventToChain(newEvent, lto, account);
+        await anchorEventToChain(chain, newEvent, lto.node, account);
         await writeInstantiatedChainToIdb(db, chain);
         db.close();
         resolve({
@@ -712,9 +707,8 @@ export async function transferOwnable(ownable_id) {
       worker.onmessage = async (msg) => {
         const newEvent = new Event({"@context": "execute_msg.json", ...chainMessage});
         const eventChain = await getLatestChain(ownable_id);
-        newEvent.addTo(eventChain).signWith(account);
+        await anchorEventToChain(eventChain, newEvent, lto.node, account);
         await writeLatestChain(ownable_id, eventChain);
-        await anchorEventToChain(newEvent, lto, account);
       };
       worker.postMessage(workerMessage);
     }
