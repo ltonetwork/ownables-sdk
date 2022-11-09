@@ -3,13 +3,14 @@ import {
   anchorEventToChain,
   ASSETS_STORE,
   deleteIndexedDb,
-  getEvents,
+  getLatestChain,
   initIndexedDb,
-  writeExecuteEventToIdb, writeInstantiateEventToIdb,
+  writeInstantiatedChainToIdb, writeLatestChain,
 } from "./event-chain";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
-import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
+import {LTO} from '@ltonetwork/lto';
 import {associateOwnableType, getOwnableType} from "./asset_import";
+import JSONView from "./JSONView";
 
 const lto = new LTO('T');
 
@@ -175,10 +176,11 @@ export async function executeOwnable(ownable_id, msg) {
     db.close();
 
     await queryState(ownable_id, await getOwnableStateDump(ownable_id));
-    const newEvent = new Event({"@context": "execute_msg.json", ...msg}).signWith(account);
-    let anchorTx = await anchorEventToChain(newEvent, lto, account);
-    console.log("event anchored: ", anchorTx);
-    await writeExecuteEventToIdb(ownable_id, newEvent, account);
+    const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+    const latestChain = await getLatestChain(ownable_id);
+    const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
+    await writeLatestChain(ownable_id, latestChain);
+    console.log("anchor: ", anchor);
   }, { once: true });
 
   const workerMsg = {
@@ -276,10 +278,9 @@ export async function issueOwnable(ownableType) {
       associateOwnableType(db, chain.id, ownableType).then(async () => {
         workerMap.set(msg.ownable_id, worker);
         reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
-        let newEvent = chain.add(new Event({"@context": "instantiate_msg.json", ...msg})).signWith(account);
-        let anchorTx = await anchorEventToChain(newEvent, lto, account);
-        console.log("event anchored: ", anchorTx);
-        await writeInstantiateEventToIdb(db, newEvent);
+        let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
+        await anchorEventToChain(chain, newEvent, lto.node, account);
+        await writeInstantiatedChainToIdb(db, chain);
         db.close();
         resolve({
           ownable_id: msg.ownable_id,
@@ -412,6 +413,7 @@ export async function syncDb() {
   });
 }
 
+
 export async function initializeOwnableHTML(ownable_id, state) {
   return new Promise(async (resolve, reject) => {
     const ownableType = await getOwnableType(ownable_id);
@@ -477,15 +479,8 @@ function getOwnableActionsHTML(ownable_id) {
   infoButton.textContent = "Info";
   infoButton.addEventListener(
     'click',
-    async () => {
-      let metadata = await queryMetadata(ownable_id);
-      let events = await getEvents(ownable_id);
-      let msg = `Name: ${metadata.name}\nDescription: ${metadata.description}\nEvent chain:\n`;
-      for (let i = 0; i < events.length; i++) {
-        msg = `${msg}${i}: ${JSON.stringify(events[i])}\n`;
-      }
-      window.alert(msg);
-    });
+    async () => await getOwnableInfo(ownable_id)
+  );
 
   const generalActions = document.createElement("div");
   generalActions.className = "general-actions";
@@ -509,35 +504,211 @@ function getOwnableActionsHTML(ownable_id) {
   return threeDots;
 }
 
+async function getOwnableInfo(ownable_id) {
+  let metadata = await queryMetadata(ownable_id);
+  let latestChain = await getLatestChain(ownable_id);
+  const events = latestChain.events;
+  const modalContent = document.createElement('div');
+  modalContent.className = 'event-chain-modal';
+
+  const header = document.createElement('h2');
+  header.innerText = metadata.name;
+  const description = document.createElement('h4');
+  description.innerText = metadata.description;
+  const id = document.createElement('h5');
+  id.innerText = `ID: ${ownable_id}`;
+  modalContent.appendChild(header);
+  modalContent.appendChild(description);
+  modalContent.appendChild(id);
+
+  const eventsHeader = document.createElement('h3');
+  eventsHeader.innerText = (events.length) ? "Events:" : "No events found.";
+  modalContent.appendChild(eventsHeader);
+
+
+  for (let i = 0; i < events.length; i++) {
+    const eventJSON = events[i].toJSON();
+    const eventHTML = buildHTMLForEventDisplay(i, eventJSON);
+    let connectorDiv = document.createElement('div');
+    if (i > 0) {
+      connectorDiv = buildConnectorHTML(events[i - 1].toJSON().hash, eventJSON.previous);
+    }
+
+    connectorDiv.className = 'chain-connector';
+    modalContent.appendChild(connectorDiv);
+    modalContent.appendChild(eventHTML);
+  }
+
+  if (events.length > 0) {
+    modalContent.appendChild(buildConnectorHTML(events[events.length - 1].toJSON().hash, null));
+  }
+
+  const modal = document.getElementById('event-chain-modal');
+
+  modal.getElementsByClassName("modal-container")[0].appendChild(modalContent);
+  modal.classList.add('open');
+
+  const exits = modal.querySelectorAll('.modal-bg, .close');
+  exits.forEach(function (exit) {
+    exit.addEventListener('click', function (event) {
+      event.preventDefault();
+      modal.classList.remove('open');
+      modal.getElementsByClassName("modal-container")[0].removeChild(modalContent);
+    });
+  });
+}
+
+function buildConnectorHTML(hash, previous) {
+  const connectorDiv = document.createElement('div');
+  connectorDiv.className = 'chain-connector';
+
+  if (hash) {
+    const hashDiv = document.createElement('div');
+    hashDiv.className = 'connector-hash truncate';
+    hashDiv.innerHTML = `<strong>HASH:</strong><i>${hash}</i>`;
+    connectorDiv.append(hashDiv);
+  }
+
+  if (previous) {
+    const link = document.createElement('div');
+    link.className = 'connector-link';
+    link.innerHTML = '&#128279;';
+
+    const previousDiv = document.createElement('div');
+    previousDiv.className = 'connector-previous truncate';
+    previousDiv.innerHTML = `<strong>Previous:</strong><i>${previous}</i>`
+    connectorDiv.append(link, previousDiv);
+  }
+
+  return connectorDiv;
+}
+
+function buildHTMLForEventDisplay(index, event) {
+  const eventElement = document.createElement('div');
+  eventElement.className = `event-chain event-${index}`;
+
+  const timestamp = document.createElement('div');
+  timestamp.innerHTML = `<strong>Date: </strong><i>${new Date(event.timestamp)}</i>`;
+
+  const signature = document.createElement('div');
+  signature.className = 'truncate';
+  signature.innerHTML = `<strong>Event signature: </strong><i>${event.signature}</i>`;
+
+  const signer = document.createElement('div');
+  signer.className = 'truncate';
+  signer.innerHTML = `<strong>Signer: </strong><i>${event.signKey.publicKey}</i>`;
+
+  const mediaType = document.createElement('div');
+  mediaType.innerHTML = `<strong>Media type: </strong><i>${event.mediaType}</i>`;
+
+  const body = document.createElement('div');
+  const toggleSwitch = getToggleSwitch(index);
+  const toggleCheckbox = toggleSwitch.firstChild;
+
+  const b64 = document.createElement('div');
+  b64.innerHTML = event.data.toString();
+  b64.className = `data-b64 truncate`;
+
+  let jsonViewer = document.createElement('div');
+  let eventData = event.data.toString();
+  if (eventData.startsWith('base64:')) {
+    eventData = eventData.substring(7);
+    try {
+      eventData = JSON.parse(atob(eventData));
+      if (eventData instanceof Object) {
+        var view = new JSONView('body', eventData);
+        view.collapse();
+
+        jsonViewer.className = `data-json`;
+        jsonViewer.appendChild(view.dom);
+      }
+    } catch (e) {
+      console.log("b64 does not decode into json");
+      jsonViewer = undefined;
+      toggleCheckbox.disabled = true;
+    }
+  }
+
+  const bodyContent = document.createElement('div');
+  bodyContent.appendChild(b64);
+
+  body.style.lineHeight = '20px';
+  body.innerHTML = `<strong>Event body</strong>:`;
+  body.appendChild(toggleSwitch);
+  body.appendChild(bodyContent);
+
+  toggleCheckbox.addEventListener('click', () => {
+    bodyContent.innerHTML = '';
+    if (toggleCheckbox.value === 'json') {
+      toggleCheckbox.value = 'b64';
+      bodyContent.appendChild(b64);
+      toggleSwitch.getElementsByClassName('b64-on')[0].style.display = 'block';
+      toggleSwitch.getElementsByClassName('json-on')[0].style.display = 'none';
+    } else if (jsonViewer !== undefined) {
+      toggleCheckbox.value = 'json';
+      bodyContent.appendChild(jsonViewer);
+      toggleSwitch.getElementsByClassName('b64-on')[0].style.display = 'none';
+      toggleSwitch.getElementsByClassName('json-on')[0].style.display = 'block';
+    }
+  });
+
+  eventElement.append(timestamp, signature, signer, mediaType, body);
+
+  return eventElement;
+}
+
+function getToggleSwitch(id) {
+
+  const inputElement = document.createElement('input');
+  inputElement.type = 'checkbox';
+  inputElement.id = `checkbox-id-${id}`;
+  inputElement.name = `checkbox-${id}`;
+  inputElement.value = 'b64';
+
+  const label = document.createElement('label');
+  label.htmlFor = `checkbox-id-${id}`;
+  label.className = 'switch';
+
+  const slider = document.createElement('span');
+  slider.className = 'slider round';
+  const jsonText = document.createElement('span');
+  jsonText.className = 'json-on';
+  jsonText.innerHTML = 'JSON';
+  const b64Text = document.createElement('span');
+  b64Text.className = 'b64-on';
+  b64Text.innerHTML = 'B64';
+  slider.append(jsonText, b64Text);
+
+  label.append(inputElement, slider);
+  return label;
+}
+
 export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);
   if (lto.isValidAddress(addr)) {
-    const msg = {
+    const chainMessage = {
       transfer: {
         to: addr,
       },
     };
-    if (confirm(`Confirm:\n${JSON.stringify(msg)}`)) {
+    let metadata = await queryMetadata(ownable_id);
+    if (confirm(`Are you sure you want to transfer the ownership of this ${metadata.name} ownable to ${addr}?`)) {
       const worker = workerMap.get(ownable_id);
 
       const state_dump = await getOwnableStateDump(ownable_id);
       let workerMessage = {
         type: "execute",
-        msg: msg,
+        msg: chainMessage,
         info: getMessageInfo(),
         ownable_id: ownable_id,
         idb: state_dump,
-      };
+      }
 
       worker.onmessage = async (msg) => {
-        const stateMap = (msg.data.get('state'));
-        const decodedState = atob(JSON.parse(stateMap));
-        const state = JSON.parse(decodedState);
-        const newEvent = new Event({"@context": "execute_msg.json", ...msg}).signWith(account);
-        let anchorTx = await anchorEventToChain(newEvent, lto, account);
-        console.log("event anchored: ", anchorTx);
-        await writeExecuteEventToIdb(ownable_id, newEvent, account);
-        console.log(msg);
+        const newEvent = new Event({"@context": "execute_msg.json", ...chainMessage});
+        const eventChain = await getLatestChain(ownable_id);
+        await anchorEventToChain(eventChain, newEvent, lto.node, account);
+        await writeLatestChain(ownable_id, eventChain);
       };
       worker.postMessage(workerMessage);
     }
