@@ -1,7 +1,5 @@
 import {EventChain} from "@ltonetwork/lto/lib/events";
-import {Event} from "@ltonetwork/lto/lib/events";
-import {decode} from "@ltonetwork/lto/lib/utils/encoder";
-import {Anchor} from "@ltonetwork/lto";
+import {MappedAnchor} from "@ltonetwork/lto/lib/transactions";
 
 const EVENTS_STORE = "events";
 const CHAIN_STORE = "chain";
@@ -16,66 +14,48 @@ export function validateIndexedDBSupport() {
   }
 }
 
-export function writeExecuteEventToIdb(ownable_id, newEvent, signer) {
+export function getLatestChain(ownable_id) {
   validateIndexedDBSupport();
   return new Promise((resolve, reject) => {
-    let chain = new EventChain('');
     const request = window.indexedDB.open(ownable_id);
     request.onsuccess = async () => {
       const db = request.result;
       const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
-      const latestEvent = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
-      chain.set(JSON.parse(latestEvent));
-      let signedEvent = chain.add(newEvent).signWith(signer);
-      await promisifyIdbPutTxn(db, EVENTS_STORE, signedEvent.hash, JSON.stringify(signedEvent));
-      await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, signedEvent.hash);
+      const currentChainJSON = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
+      const eventChain = EventChain.from(currentChainJSON);
       db.close();
-      resolve();
+      resolve(eventChain);
     };
     request.onerror = (e) => reject(e);
   });
 }
 
-export async function anchorEventToChain(event, LTO, account) {
-  // decode b58 hash into uint8array
-  let eventUint8Array = decode(event.hash);
-  let tx = new Anchor(eventUint8Array).signWith(account);
-  return await tx.broadcastTo(LTO.node);
-}
-
-export function getEvents(ownable_id) {
+export function writeLatestChain(ownable_id, chain) {
   validateIndexedDBSupport();
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(ownable_id);
     request.onsuccess = async () => {
       const db = request.result;
-      // const latestEventChainHash = await promisifyIdbGetTxn(db, CHAIN_STORE, LATEST);
-      // const latestEvent = await promisifyIdbGetTxn(db, EVENTS_STORE, latestEventChainHash);
-      const objectStore = db.transaction(EVENTS_STORE, READ_WRITE).objectStore(EVENTS_STORE);
-      let txn = objectStore.getAll();
-      txn.onsuccess = () => {
-        let eventsArray = [];
-        txn.result
-          .sort((a, b) => a.timestamp < b.timestamp)
-          .forEach(r => {
-            let event = Object.assign(new Event(), JSON.parse(r));
-            eventsArray.push(event.getBody());
-          }
-        );
-        db.close();
-        resolve(eventsArray);
-      }
-      txn.onerror = (e) => reject(e);
-    }
-    request.onerror = (event) => reject('failed to open indexeddb: ' + event.errorCode);
-    request.onblocked = (event) => reject("idb blocked: " + event)
+      await promisifyIdbPutTxn(db, EVENTS_STORE, chain.id, chain.toJSON());
+      await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, chain.id);
+      db.close();
+      resolve(chain);
+    };
+    request.onerror = (e) => reject(e);
   });
 }
 
-export async function writeInstantiateEventToIdb(db, eventObj) {
-  await promisifyIdbPutTxn(db, EVENTS_STORE, eventObj.hash, JSON.stringify(eventObj));
-  await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, eventObj.hash);
-  await promisifyIdbPutTxn(db, CHAIN_STORE, "network", "T");
+export async function anchorEventToChain(chain, event, node, account) {
+  const addedEvent = event.addTo(chain).signWith(account);
+  return await new MappedAnchor(chain.startingWith(addedEvent).anchorMap)
+    .signWith(account)
+    .broadcastTo(node);
+}
+
+export async function writeInstantiatedChainToIdb(db, chain) {
+  await promisifyIdbPutTxn(db, EVENTS_STORE, chain.id, chain.toJSON());
+  await promisifyIdbPutTxn(db, CHAIN_STORE, LATEST, chain.id);
+  await promisifyIdbPutTxn(db, CHAIN_STORE, "network", chain.networkId);
 }
 
 function promisifyIdbPutTxn(db, store, key, val) {

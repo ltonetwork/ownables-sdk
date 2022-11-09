@@ -36,7 +36,7 @@
     "webpack-dev-server": "^3.1.5"
   },
   "dependencies": {
-    "@ltonetwork/lto": "^0.8.9",
+    "@ltonetwork/lto": "^0.10.0",
     "jszip": "^3.10.0"
   }
 }
