@@ -1,120 +1,39 @@
-import {Event, EventChain} from "@ltonetwork/lto/lib/events";
-import {
-  anchorEventToChain,
-  ASSETS_STORE,
-  deleteIndexedDb,
-  getLatestChain,
-  initIndexedDb,
-  writeInstantiatedChainToIdb, writeLatestChain,
-} from "./event-chain";
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
-import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
 import {associateOwnableType, getOwnableType} from "./asset_import";
 import JSONView from "./JSONView";
 
-const lto = new LTO('T');
+let worker;
 
-// maps ownableId to the worker wrapping it
-let workerMap = new Map();
+addEventListener('message', async (e) => {
+  switch (e.data.method) {
+    case "initWorker":
+      await initWorker(e.data.args[0], e.data.args[1], e.data.args[2]);
+      break;
+    case "executeOwnable":
+      await executeOwnable(e.data.args[0], e.data.args[1]);
+      break;
+    default:
+      break;
+  }
+});
 
-export async function initWorker(ownableId, ownableType) {
+export async function initWorker(ownableId, javascript, wasm) {
   return new Promise(async (resolve, reject) => {
-    const ownableIframe = document.getElementById(ownableId);
 
-    const bindgenDataURL = await readBindgenAsDataURL(ownableType);
-    const gluedBindgenDataURL = await appendWorkerToBindgenDataURL(bindgenDataURL);
+    const blob = new Blob([javascript], {type: `application/javascript`});
+    const blobURL = URL.createObjectURL(blob);
+    worker = new Worker(blobURL, { type: "module" });
 
-    const wasmArrayBuffer = await getBlobFromObjectStoreAsArrayBuffer(ownableType, "wasm");
-    const b64WASM = Buffer.of(wasmArrayBuffer).toString('base64');
-    const msg = {
-      method: 'initWorker',
-      args: [
-        ownableId,
-        gluedBindgenDataURL,
-        b64WASM,
-      ],
+    worker.onmessage = (event) => {
+      console.log("msg from worker:", event);
+      resolve(worker);
     };
-    ownableIframe.postMessage(msg);
-  });
-}
+    worker.onerror = (err) => reject(err);
+    worker.onmessageerror = (err) => reject(err);
 
-function appendWorkerToBindgenDataURL(bindgenDataURL) {
-  return new Promise(async (resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => {
-      const dataURLSeparator = 'base64,';
-      const bindgenString = bindgenDataURL.split(dataURLSeparator);
-      let newBindgenContents = fr.result + "\n" + atob(bindgenString[1]);
-      // in case you are testing on firefox, uncomment the next line
-      // newBindgenContents = demodularizeScript(newBindgenContents);
-      resolve(newBindgenContents);
-    };
-    let workerGlue = await fetch("./worker.js");
-    let blob = await workerGlue.blob();
-    fr.readAsText(blob);
-  });
-}
+    const wasmBuffer = Buffer.from(wasm, "base64");
 
-function demodularizeScript(script) {
-  /*  Bindgen generated gluecode contains some export statements.
-      Usually initializing the worker with { type: "module" } would permit that,
-      but firefox is still in development of supporting it.
-      Meanwhile this is a fix for it.
-   */
-  return script
-    .replaceAll("export function", "function")
-    .replace("export { initSync }", "")
-    .replace("export default init;", "")
-    .replace("new URL('ownable_potion_bg.wasm', import.meta.url);", 'null');
-}
-
-function readBindgenAsDataURL(objectStore) {
-  return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(ASSETS_STORE);
-    let db;
-
-    request.onsuccess = async () => {
-      db = request.result;
-      const tx = db.transaction([objectStore], "readonly")
-        .objectStore(objectStore);
-      let bindgen = tx.get("bindgen.js");
-      bindgen.onsuccess = async (e) => {
-        const fr = new FileReader();
-        fr.onloadend = () => {
-          db.close()
-          resolve(fr.result);
-        };
-        fr.readAsDataURL(bindgen.result);
-      }
-      bindgen.onerror = (e) => reject(e);
-    }
-    request.onblocked = (event) => reject("idb blocked: ", event);
-    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
-  });
-}
-
-function getBlobFromObjectStoreAsArrayBuffer(objectStore, type) {
-  return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(ASSETS_STORE);
-    let db;
-
-    request.onsuccess = async () => {
-      db = request.result;
-      const tx = db.transaction([objectStore], "readonly")
-        .objectStore(objectStore);
-      let wasm_file = tx.get(type);
-      wasm_file.onsuccess = async (e) => {
-        const fr = new FileReader();
-        fr.onload = () => {
-          db.close();
-          resolve(fr.result);
-        };
-        fr.readAsArrayBuffer(e.target.result);
-      }
-      wasm_file.onerror = (e) => reject(e);
-    }
-    request.onblocked = (event) => reject("idb blocked: ", event);
-    request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
+    worker.postMessage(wasmBuffer, [wasmBuffer]);
   });
 }
 
@@ -163,27 +82,27 @@ function getMessageInfo() {
 
 export async function executeOwnable(ownable_id, msg) {
 
-  const ownableIframe = document.getElementById(ownableId);
 
-  const state_dump = await getOwnableStateDump(ownable_id);
+  worker.addEventListener('message', async event => {
+    console.log("contract executed: ", event);
+    const state = JSON.parse(event.data.get('state'));
+    const mem = JSON.parse(event.data.get('mem'));
 
-  const workerMsg = {
-    type: "execute",
-    ownable_id: ownable_id,
-    msg: msg,
-    info: getMessageInfo(),
-    idb: state_dump,
-  };
+    // TODO: do outside of here
+    // let db = await initIndexedDb(ownable_id);
+    // await saveOwnableStateDump(db, mem);
+    // db.close();
+    //
+    // await queryState(ownable_id, await getOwnableStateDump(ownable_id));
+    // const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+    // const latestChain = await getLatestChain(ownable_id);
+    // const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
+    // await writeLatestChain(ownable_id, latestChain);
+    // console.log("anchor: ", anchor);
+  }, { once: true });
 
-  const postMsg = {
-    method: 'executeOwnable',
-    args: [
-      ownable_id,
-      workerMsg,
-    ],
-  };
-
-  ownableIframe.postMessage(postMsg);
+  console.log("posting msg: ", msg);
+  worker.postMessage(msg);
 }
 
 export async function deleteOwnable(ownable_id) {
@@ -486,11 +405,11 @@ function getOwnableActionsHTML(ownable_id) {
   threeDots.addEventListener(
     'mouseover',
     () => { generalActions.style.display = "flex"
-  });
+    });
   threeDots.addEventListener(
     'mouseout',
     () => { generalActions.style.display = "none"
-  });
+    });
   threeDots.appendChild(generalActions);
 
   return threeDots;
