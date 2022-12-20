@@ -14,12 +14,14 @@ import JSONView from "./JSONView";
 
 const lto = new LTO('T');
 
-// maps ownableId to the worker wrapping it
-let workerMap = new Map();
-
 export async function initWorker(ownableId, ownableType) {
   return new Promise(async (resolve, reject) => {
-    const ownableIframe = document.getElementById(ownableId);
+    if (!document.getElementById(ownableId)) {
+      const ownableType = await getOwnableType(ownableId);
+      const ownableGrid = document.getElementsByClassName("grid-container")[0];
+      ownableGrid.appendChild(await generateOwnable(ownableId, ownableType));
+    }
+    let ownableIframe = document.getElementById(ownableId);
 
     const bindgenDataURL = await readBindgenAsDataURL(ownableType);
     const gluedBindgenDataURL = await appendWorkerToBindgenDataURL(bindgenDataURL);
@@ -34,7 +36,7 @@ export async function initWorker(ownableId, ownableType) {
         b64WASM,
       ],
     };
-    ownableIframe.postMessage(msg);
+    ownableIframe.contentWindow.postMessage(msg);
   });
 }
 
@@ -394,7 +396,7 @@ export async function syncDb() {
       const ownableId = chainIds[i];
       const state_dump = await getOwnableStateDump(ownableId);
       let workerMessage = {
-        type: "query",
+        method: "queryState",
         msg: {
           "get_ownable_config": {},
         },
@@ -402,14 +404,13 @@ export async function syncDb() {
         idb: state_dump,
       };
 
-      if (!workerMap.has(ownableId)) {
+      if (!document.getElementById(ownableId)) {
         const ownableType = localStorage.getItem(ownableId);
         await initWorker(ownableId, ownableType);
       }
+      let iframe = document.getElementById(ownableId);
 
-      const worker = workerMap.get(ownableId);
-
-      worker.onmessage = async (msg) => {
+      iframe.onmessage = async (msg) => {
         const stateMap = (msg.data.get('state'));
         const decodedState = atob(JSON.parse(stateMap));
         const state = JSON.parse(decodedState);
@@ -419,7 +420,7 @@ export async function syncDb() {
           console.log('ownable already initialized');
         }
       };
-      worker.postMessage(workerMessage);
+      iframe.postMessage(workerMessage);
     }
   });
 }
