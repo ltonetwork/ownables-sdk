@@ -1,16 +1,29 @@
 import {findMediaSources, getOwnableTemplate, updateState} from "./index";
-import {associateOwnableType, getOwnableType} from "./asset_import";
+import {getOwnableType} from "./asset_import";
 import JSONView from "./JSONView";
 
 let worker;
 
 addEventListener('message', async (e) => {
+  let args = e.data.args;
   switch (e.data.method) {
     case "initWorker":
-      await initWorker(e.data.args[0], e.data.args[1], e.data.args[2]);
+      await initWorker(args[0], args[1], args[2]);
+      break;
+    case "instantiateOwnable":
+      await issueOwnable(args[0], args[1], args[2]);
       break;
     case "executeOwnable":
-      await executeOwnable(e.data.args[0], e.data.args[1]);
+      await executeOwnable(args[0], args[1]);
+      break;
+    case "transferOwnable":
+      await transferOwnable(args[0], args[1], args[2], args[3]);
+      break;
+    case "queryState":
+      await queryState(args[0], args[1], args[2]);
+      break;
+    case "queryMetadata":
+      await queryMetadata(args[0], args[1], args[2]);
       break;
     default:
       break;
@@ -37,95 +50,25 @@ export async function initWorker(ownableId, javascript, wasm) {
   });
 }
 
-function getAccount() {
-  let existingSeed = localStorage.encryptedSeed;
-  let account;
-  if (existingSeed === undefined) {
-    const phrase = window.prompt("import seed phrase", "");
-    const pw = window.prompt("Setup a password for your account", "");
-    if (phrase === "") {
-      account = lto.account();
-    } else {
-      let accountFactory = new AccountFactoryED25519('T');
-      account = accountFactory.createFromSeed(phrase);
-    }
-    localStorage.encryptedSeed = account.encryptSeed(pw);
-  } else {
-    account = attemptToDecryptSeed(existingSeed);
-  }
-  return account;
-}
-
-function attemptToDecryptSeed(seed, promptMsg = "Enter your password") {
-  let account;
-  while (account === undefined) {
-    const pw = window.prompt(promptMsg, "");
-    const settings = {
-      seed: seed,
-      seedPassword: pw,
-    };
-    try {
-      account = lto.account(settings);
-      return account;
-    } catch (e) {
-      promptMsg = "Invalid password, try again";
-    }
-  }
-}
-
-function getMessageInfo() {
-  return {
-    sender: account.address,
-    funds: [],
-  }
-}
-
 export async function executeOwnable(ownable_id, msg) {
-
-
   worker.addEventListener('message', async event => {
-    console.log("contract executed: ", event);
     const state = JSON.parse(event.data.get('state'));
     const mem = JSON.parse(event.data.get('mem'));
-
-    // TODO: do outside of here
-    // let db = await initIndexedDb(ownable_id);
-    // await saveOwnableStateDump(db, mem);
-    // db.close();
-    //
-    // await queryState(ownable_id, await getOwnableStateDump(ownable_id));
-    // const newEvent = new Event({"@context": "execute_msg.json", ...msg});
-    // const latestChain = await getLatestChain(ownable_id);
-    // const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
-    // await writeLatestChain(ownable_id, latestChain);
-    // console.log("anchor: ", anchor);
+    self.postMessage({state, mem})
   }, { once: true });
 
-  console.log("posting msg: ", msg);
   worker.postMessage(msg);
 }
 
-export async function deleteOwnable(ownable_id) {
-  await deleteIndexedDb(ownable_id);
-  localStorage.removeItem(ownable_id);
-  await syncDb();
-}
-
-export function queryState(ownable_id, state_dump) {
+export function queryState(ownable_id, msg, state_dump) {
   return new Promise((resolve, reject) => {
-    console.log("querying contract:", state_dump);
-    let msg = {
-      "get_ownable_config": {},
-    };
-
-    const worker = workerMap.get(ownable_id);
-
     worker.addEventListener('message', async event => {
       console.log("contract queried: ", event);
       const stateMap = (event.data.get('state'));
       const decodedState = atob(JSON.parse(stateMap));
       const state = JSON.parse(decodedState);
       updateState(ownable_id, state);
+      self.postMessage(state);
       resolve();
     }, { once: true });
 
@@ -141,21 +84,16 @@ export function queryState(ownable_id, state_dump) {
 
 }
 
-export function queryMetadata(ownable_id) {
+export function queryMetadata(ownable_id, msg, state_dump) {
   return new Promise(async (resolve, reject) => {
-    let msg = {
-      "get_ownable_metadata": {},
-    };
-
-    const state_dump = await getOwnableStateDump(ownable_id);
-    const worker = workerMap.get(ownable_id);
 
     worker.addEventListener('message', async event => {
       console.log("contract queried: ", event);
       const metadataMap = (event.data.get('state'));
       const decodedMetadata = atob(JSON.parse(metadataMap));
       const metadata = JSON.parse(decodedMetadata);
-      resolve(metadata);
+      self.postMessage(metadata);
+      resolve();
     }, { once: true });
 
     const workerMsg = {
@@ -169,113 +107,21 @@ export function queryMetadata(ownable_id) {
   })
 }
 
-export async function issueOwnable(ownableType) {
+export async function issueOwnable(ownable_id, msg, messageInfo) {
   return new Promise(async (resolve, reject) => {
-    // issue a new event chain
-    const chain = EventChain.create(account);
-    const msg = {
-      ownable_id: chain.id,
-    };
-    await initWorker(msg.ownable_id, ownableType);
-    const worker = workerMap.get(msg.ownable_id);
 
     worker.addEventListener('message', async event => {
-
-      const state = JSON.parse(event.data.get('state'));
-      const mem = JSON.parse(event.data.get('mem'));
-      let db = await initIndexedDb(msg.ownable_id);
-      await saveOwnableStateDump(db, mem);
-
-      associateOwnableType(db, chain.id, ownableType).then(async () => {
-        workerMap.set(msg.ownable_id, worker);
-        reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
-        let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
-        await anchorEventToChain(chain, newEvent, lto.node, account);
-        await writeInstantiatedChainToIdb(db, chain);
-        db.close();
-        resolve({
-          ownable_id: msg.ownable_id,
-          ...state
-        });
-      }).catch((e) => reject(e));
+      self.postMessage(event.data);
+      resolve();
     }, { once: true });
 
     const workerMsg = {
       type: "instantiate",
-      ownable_id: msg.ownable_id,
+      ownable_id: ownable_id,
       msg: msg,
-      info: getMessageInfo(),
+      info: messageInfo,
     };
     worker.postMessage(workerMsg);
-  });
-}
-
-function reflectOwnableIssuanceInLocalStore(ownableId, ownableType) {
-  // associate the type
-  localStorage.setItem(ownableId, ownableType);
-  // add to the list of existing chain ids
-  let chainIds = JSON.parse(localStorage.chainIds);
-  chainIds.push(ownableId);
-  localStorage.chainIds = JSON.stringify(chainIds);
-}
-
-export async function saveOwnableStateDump(db, mem) {
-  return new Promise(async (resolve, reject) => {
-    const memSlots = mem['state_dump'];
-    for (let i = 0; i < memSlots.length; i++) {
-      const slot = memSlots[i];
-      await writeStateDumpPair(db, slot[0], slot[1]);
-    }
-    resolve();
-  });
-}
-
-function writeStateDumpPair(db, key, val){
-  return new Promise((resolve, reject) => {
-    let txn = db.transaction("state", "readwrite").objectStore("state");
-    let resp = txn.put(val, key);
-    resp.onsuccess = () => resolve(resp.result);
-    resp.onerror = (e) => reject(e);
-  });
-}
-
-export async function getOwnableStateDump(ownable_id) {
-  return new Promise(async (resolve, reject) => {
-    let respObj = {
-      "state_dump": [],
-    };
-
-    const keys = await getStateDumpKeys(ownable_id);
-    let db = await initIndexedDb(ownable_id);
-
-    for (let i = 0; i < keys.length; i++) {
-      let txn = db.transaction("state", "readonly").objectStore("state");
-      let state_dump_entry = await getIdbStateDumpEntry(txn, keys[i]);
-      respObj.state_dump.push(state_dump_entry);
-    }
-    db.close();
-    resolve(respObj);
-  });
-}
-
-function getStateDumpKeys(ownable_id) {
-  return new Promise(async (resolve, reject) => {
-    let db = await initIndexedDb(ownable_id);
-    let txn = db.transaction("state", "readonly").objectStore("state");
-    let resp = txn.getAllKeys();
-    resp.onsuccess = () => resolve(resp.result);
-    resp.onerror = (e) => reject(e);
-  });
-}
-
-function getIdbStateDumpEntry(txn, key) {
-  return new Promise((resolve, reject) => {
-    let resp = txn.get(key);
-    resp.onsuccess = () => {
-      let state_dump_entry = [key, resp.result];
-      resolve(state_dump_entry);
-    };
-    resp.onerror = (e) => reject(e);
   });
 }
 
@@ -594,39 +440,18 @@ function getToggleSwitch(id) {
   return label;
 }
 
-export async function transferOwnable(ownable_id) {
-  let addr = window.prompt("Transfer the Ownable to: ", null);
-  if (lto.isValidAddress(addr)) {
-    const chainMessage = {
-      transfer: {
-        to: addr,
-      },
-    };
-    let metadata = await queryMetadata(ownable_id);
-    if (confirm(`Are you sure you want to transfer the ownership of this ${metadata.name} ownable to ${addr}?`)) {
-      const worker = workerMap.get(ownable_id);
+export async function transferOwnable(ownable_id, chainMessage, messageInfo, state_dump) {
 
-      const state_dump = await getOwnableStateDump(ownable_id);
-      let workerMessage = {
-        type: "execute",
-        msg: chainMessage,
-        info: getMessageInfo(),
-        ownable_id: ownable_id,
-        idb: state_dump,
-      }
-
-      worker.onmessage = async (msg) => {
-        const newEvent = new Event({"@context": "execute_msg.json", ...chainMessage});
-        const eventChain = await getLatestChain(ownable_id);
-        await anchorEventToChain(eventChain, newEvent, lto.node, account);
-        await writeLatestChain(ownable_id, eventChain);
-      };
-      worker.postMessage(workerMessage);
+    let workerMessage = {
+      type: "execute",
+      msg: chainMessage,
+      info: messageInfo,
+      ownable_id: ownable_id,
+      idb: state_dump,
     }
-  } else {
-    alert(`${addr} is not a valid address`);
-  }
-}
 
-// Todo I want to be moved
-let account = getAccount();
+    worker.onmessage = async (msg) => {
+      self.postMessage(msg);
+    };
+    worker.postMessage(workerMessage);
+}
