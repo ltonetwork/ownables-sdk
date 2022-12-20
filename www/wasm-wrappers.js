@@ -163,12 +163,28 @@ function getMessageInfo() {
 
 export async function executeOwnable(ownable_id, msg) {
 
-  const ownableIframe = document.getElementById(ownableId);
+  const ownableIframe = document.getElementById(ownable_id);
+  ownableIframe.addEventListener('message', async event => {
+    console.log("contract executed: ", event);
+    const state = JSON.parse(event.data.get('state'));
+    const mem = JSON.parse(event.data.get('mem'));
+
+    let db = await initIndexedDb(ownable_id);
+    await saveOwnableStateDump(db, mem);
+    db.close();
+
+    await queryState(ownable_id, await getOwnableStateDump(ownable_id));
+    const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+    const latestChain = await getLatestChain(ownable_id);
+    const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
+    await writeLatestChain(ownable_id, latestChain);
+    console.log("anchor: ", anchor);
+  });
 
   const state_dump = await getOwnableStateDump(ownable_id);
 
   const workerMsg = {
-    type: "execute",
+    type: "executeOwnable",
     ownable_id: ownable_id,
     msg: msg,
     info: getMessageInfo(),
@@ -194,14 +210,15 @@ export async function deleteOwnable(ownable_id) {
 
 export function queryState(ownable_id, state_dump) {
   return new Promise((resolve, reject) => {
+    const ownableIframe = document.getElementById(ownable_id);
+
     console.log("querying contract:", state_dump);
     let msg = {
       "get_ownable_config": {},
     };
 
-    const worker = workerMap.get(ownable_id);
 
-    worker.addEventListener('message', async event => {
+    ownableIframe.addEventListener('message', async event => {
       console.log("contract queried: ", event);
       const stateMap = (event.data.get('state'));
       const decodedState = atob(JSON.parse(stateMap));
@@ -210,43 +227,43 @@ export function queryState(ownable_id, state_dump) {
       resolve();
     }, { once: true });
 
-    const workerMsg = {
-      type: "query",
-      ownable_id: ownable_id,
-      msg: msg,
-      idb: state_dump,
+    const queryMsg = {
+      method: "queryState",
+      args: [
+        ownable_id,
+        msg,
+        state_dump,
+      ],
     };
 
-    worker.postMessage(workerMsg);
+    ownableIframe.postMessage(queryMsg);
   });
 
 }
 
 export function queryMetadata(ownable_id) {
   return new Promise(async (resolve, reject) => {
+    const ownableIframe = document.getElementById(ownable_id);
+
     let msg = {
       "get_ownable_metadata": {},
     };
-
     const state_dump = await getOwnableStateDump(ownable_id);
-    const worker = workerMap.get(ownable_id);
 
-    worker.addEventListener('message', async event => {
+    ownableIframe.addEventListener('message', async event => {
       console.log("contract queried: ", event);
-      const metadataMap = (event.data.get('state'));
-      const decodedMetadata = atob(JSON.parse(metadataMap));
-      const metadata = JSON.parse(decodedMetadata);
+      const metadata = JSON.parse(event.data);
       resolve(metadata);
     }, { once: true });
 
     const workerMsg = {
-      type: "query",
+      method: "queryMetadata",
       ownable_id: ownable_id,
       msg: msg,
       idb: state_dump,
     };
 
-    worker.postMessage(workerMsg);
+    ownableIframe.postMessage(workerMsg);
   })
 }
 
@@ -258,9 +275,10 @@ export async function issueOwnable(ownableType) {
       ownable_id: chain.id,
     };
     await initWorker(msg.ownable_id, ownableType);
-    const worker = workerMap.get(msg.ownable_id);
 
-    worker.addEventListener('message', async event => {
+    const iframe = document.getElementById(msg.ownable_id);
+
+    iframe.addEventListener('message', async event => {
 
       const state = JSON.parse(event.data.get('state'));
       const mem = JSON.parse(event.data.get('mem'));
@@ -268,7 +286,6 @@ export async function issueOwnable(ownableType) {
       await saveOwnableStateDump(db, mem);
 
       associateOwnableType(db, chain.id, ownableType).then(async () => {
-        workerMap.set(msg.ownable_id, worker);
         reflectOwnableIssuanceInLocalStore(msg.ownable_id, ownableType);
         let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
         await anchorEventToChain(chain, newEvent, lto.node, account);
@@ -282,12 +299,14 @@ export async function issueOwnable(ownableType) {
     }, { once: true });
 
     const workerMsg = {
-      type: "instantiate",
-      ownable_id: msg.ownable_id,
-      msg: msg,
-      info: getMessageInfo(),
+      type: "instantiateOwnable",
+      args: [
+        msg.ownable_id,
+        msg,
+        getMessageInfo(),
+      ],
     };
-    worker.postMessage(workerMsg);
+    iframe.postMessage(workerMsg);
   });
 }
 
@@ -685,24 +704,26 @@ export async function transferOwnable(ownable_id) {
     };
     let metadata = await queryMetadata(ownable_id);
     if (confirm(`Are you sure you want to transfer the ownership of this ${metadata.name} ownable to ${addr}?`)) {
-      const worker = workerMap.get(ownable_id);
+      const iframe = document.getElementById(ownable_id);
 
       const state_dump = await getOwnableStateDump(ownable_id);
       let workerMessage = {
-        type: "execute",
-        msg: chainMessage,
-        info: getMessageInfo(),
-        ownable_id: ownable_id,
-        idb: state_dump,
+        method: "transferOwnable",
+        args: [
+          ownable_id,
+          chainMessage,
+          getMessageInfo(),
+          state_dump,
+        ],
       }
 
-      worker.onmessage = async (msg) => {
+      iframe.onmessage = async (msg) => {
         const newEvent = new Event({"@context": "execute_msg.json", ...chainMessage});
         const eventChain = await getLatestChain(ownable_id);
         await anchorEventToChain(eventChain, newEvent, lto.node, account);
         await writeLatestChain(ownable_id, eventChain);
       };
-      worker.postMessage(workerMessage);
+      iframe.postMessage(workerMessage);
     }
   } else {
     alert(`${addr} is not a valid address`);
