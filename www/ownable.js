@@ -1,14 +1,19 @@
-import {updateState} from "./index";
-
 let worker;
 
 addEventListener('message', async (e) => {
+  // only accept msgs from document source
+  if (e.origin === "null") {
+    window.parent.postMessage(e.data, "*");
+    return;
+  }
+
   let args = e.data.args;
+  console.log("msg in ownable.js", e.data);
   switch (e.data.method) {
     case "initWorker":
       await initWorker(args[0], args[1], args[2]);
       break;
-    case "instantiateOwnable":
+    case "issueOwnable":
       await issueOwnable(args[0], args[1], args[2]);
       break;
     case "executeOwnable":
@@ -24,11 +29,13 @@ addEventListener('message', async (e) => {
       await queryMetadata(args[0], args[1], args[2]);
       break;
     default:
+      console.log(e);
+      throw new Error(`Unsupported RPC function ${e.data.method}`)
       break;
   }
 });
 
-export async function initWorker(ownableId, javascript, wasm) {
+async function initWorker(ownableId, javascript, wasm) {
   return new Promise(async (resolve, reject) => {
 
     const blob = new Blob([javascript], {type: `application/javascript`});
@@ -42,13 +49,19 @@ export async function initWorker(ownableId, javascript, wasm) {
     worker.onerror = (err) => reject(err);
     worker.onmessageerror = (err) => reject(err);
 
-    const wasmBuffer = Buffer.from(wasm, "base64");
+    const wasmBuffer = Array.from(atob(wasm), c => c.charCodeAt(0));
+    const buffer = new Uint8Array(wasmBuffer).buffer;
 
-    worker.postMessage(wasmBuffer, [wasmBuffer]);
+    worker.postMessage(buffer, [buffer]);
   });
 }
 
-export async function executeOwnable(ownable_id, msg) {
+function updateState(ownable_id, state) {
+  const iframe = document.getElementById(ownable_id);
+  iframe.contentWindow.postMessage({ownable_id, state}, "*");
+}
+
+async function executeOwnable(ownable_id, msg) {
   worker.addEventListener('message', async event => {
     const state = JSON.parse(event.data.get('state'));
     const mem = JSON.parse(event.data.get('mem'));
@@ -58,7 +71,7 @@ export async function executeOwnable(ownable_id, msg) {
   worker.postMessage(msg);
 }
 
-export function queryState(ownable_id, msg, state_dump) {
+function queryState(ownable_id, msg, state_dump) {
   return new Promise((resolve, reject) => {
     worker.addEventListener('message', async event => {
       console.log("contract queried: ", event);
@@ -82,7 +95,7 @@ export function queryState(ownable_id, msg, state_dump) {
 
 }
 
-export function queryMetadata(ownable_id, msg, state_dump) {
+function queryMetadata(ownable_id, msg, state_dump) {
   return new Promise(async (resolve, reject) => {
 
     worker.addEventListener('message', async event => {
@@ -105,7 +118,7 @@ export function queryMetadata(ownable_id, msg, state_dump) {
   })
 }
 
-export async function issueOwnable(ownable_id, msg, messageInfo) {
+async function issueOwnable(ownable_id, msg, messageInfo) {
   return new Promise(async (resolve, reject) => {
 
     worker.addEventListener('message', async event => {
@@ -123,7 +136,7 @@ export async function issueOwnable(ownable_id, msg, messageInfo) {
   });
 }
 
-export async function transferOwnable(ownable_id, chainMessage, messageInfo, state_dump) {
+async function transferOwnable(ownable_id, chainMessage, messageInfo, state_dump) {
 
     let workerMessage = {
       type: "execute",
