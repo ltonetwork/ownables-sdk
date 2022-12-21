@@ -1,7 +1,6 @@
 import {ASSETS_STORE} from "./event-chain";
 import JSZip from "jszip";
-import {instantiateOwnable} from "./index";
-import {initWasmTemplate} from "./wasm-wrappers";
+import {createNewOwnable} from "./ownable-manager";
 
 
 export function importAssets() {
@@ -104,7 +103,8 @@ export async function addOwnableOption(templateName) {
   ownableHtml.type = "button";
   ownableHtml.addEventListener('click', async () => {
     console.log(`instantiating ${templateName}`);
-    await instantiateOwnable(templateName);
+    document.getElementById("inst-menu").classList.toggle("show");
+    await createNewOwnable(templateName);
   });
   document.getElementById("inst-menu").appendChild(ownableHtml);
 }
@@ -226,6 +226,7 @@ export function associateOwnableType(db, ownableId, ownableType) {
 }
 
 export function getOwnableType(ownableId) {
+  console.log("getting ownable type")
   return new Promise((resolve, reject) => {
     let dbTx = indexedDB.open(ownableId);
     dbTx.onsuccess = (e) => {
