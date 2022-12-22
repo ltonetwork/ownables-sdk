@@ -1,7 +1,6 @@
 
 addEventListener('message', async (e) => {
   if (wasm === undefined) {
-    console.log("calling init with src: ", e.data);
     init(e.data).then(
       resp => {
         console.log(resp);

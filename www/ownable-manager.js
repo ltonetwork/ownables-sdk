@@ -38,10 +38,9 @@ function getOwnableFrame(ownableId) {
 async function postToOwnableFrame(ownableId, msg) {
   return new Promise(resolve => {
     const ownableIframe = getOwnableFrame(ownableId);
-    ownableIframe.addEventListener('message', (e) => {
+    window.addEventListener('message', (e) => {
       resolve(e.data);
     }, {once: true});
-    console.log("posting rpc call: ", msg);
     ownableIframe.contentWindow.postMessage(msg, "*");
   });
 }
@@ -51,7 +50,7 @@ export async function initWorker(ownableId, ownableType) {
   const gluedBindgenDataURL = await appendWorkerToBindgenDataURL(bindgenDataURL);
 
   const wasmArrayBuffer = await getBlobFromObjectStoreAsArrayBuffer(ownableType, "wasm");
-  var b64WASM = btoa(
+  const b64WASM = btoa(
     new Uint8Array(wasmArrayBuffer)
       .reduce((data, byte) => data + String.fromCharCode(byte), '')
   );
@@ -180,7 +179,7 @@ export async function executeOwnable(ownable_id, msg) {
   const state_dump = await getOwnableStateDump(ownable_id);
 
   const workerMsg = {
-    type: "executeOwnable",
+    type: "execute",
     ownable_id: ownable_id,
     msg: msg,
     info: getMessageInfo(),
@@ -228,7 +227,7 @@ export async function queryState(ownable_id) {
       "get_ownable_config": {},
     };
 
-    ownableIframe.addEventListener('message', async event => {
+    window.addEventListener('message', async event => {
       console.log("contract queried: ", event);
       const stateMap = (event.data.get('state'));
       const decodedState = atob(JSON.parse(stateMap));
@@ -245,7 +244,7 @@ export async function queryState(ownable_id) {
       ],
     };
 
-    ownableIframe.postMessage(queryMsg);
+    ownableIframe.contentWindow.postMessage(queryMsg, "*");
   });
 
 }
@@ -277,30 +276,25 @@ export function queryMetadata(ownable_id) {
 }
 
 export async function issueOwnable(ownableType, chain) {
-  return new Promise(async (resolve, reject) => {
-    const msg = {
-      ownable_id: chain.id,
-    };
+  const msg = {
+    ownable_id: chain.id,
+  };
 
-    const iframe = getOwnableFrame(chain.id);
+  const workerMsg = {
+    method: "issueOwnable",
+    args: [
+      msg.ownable_id,
+      msg,
+      getMessageInfo(),
+    ],
+  };
 
-    iframe.addEventListener('message', async event => {
-      const state = JSON.parse(event.data.get('state'));
-      const mem = JSON.parse(event.data.get('mem'));
+  const data = await postToOwnableFrame(chain.id, workerMsg);
 
-      resolve({mem, state, msg});
-    }, { once: true });
+  const state = JSON.parse(data.get('state'));
+  const mem = JSON.parse(data.get('mem'));
 
-    const workerMsg = {
-      method: "issueOwnable",
-      args: [
-        msg.ownable_id,
-        msg,
-        getMessageInfo(),
-      ],
-    };
-    iframe.contentWindow.postMessage(workerMsg);
-  });
+  return {mem, state, msg};
 }
 
 export async function createNewOwnable(templateName) {
@@ -308,7 +302,6 @@ export async function createNewOwnable(templateName) {
   await createOwnableFrame(chain.id, templateName);
 
   await initWorker(chain.id, templateName);
-
   const {mem, msg} = await issueOwnable(templateName, chain);
 
   let db = await initIndexedDb(chain.id);
