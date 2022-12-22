@@ -226,7 +226,6 @@ export function associateOwnableType(db, ownableId, ownableType) {
 }
 
 export function getOwnableType(ownableId) {
-  console.log("getting ownable type")
   return new Promise((resolve, reject) => {
     let dbTx = indexedDB.open(ownableId);
     dbTx.onsuccess = (e) => {
