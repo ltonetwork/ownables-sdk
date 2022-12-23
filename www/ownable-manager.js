@@ -220,21 +220,10 @@ export async function deleteOwnable(ownable_id) {
 export async function queryState(ownable_id) {
   const state_dump = await getOwnableStateDump(ownable_id);
 
-  return new Promise((resolve, reject) => {
-    const ownableIframe = document.getElementById(ownable_id);
-
-    console.log("querying contract:", state_dump);
+  return new Promise(async (resolve, reject) => {
     let msg = {
       "get_ownable_config": {},
     };
-
-    window.addEventListener('message', async event => {
-      console.log("contract queried: ", event);
-      const stateMap = (event.data.get('state'));
-      const decodedState = atob(JSON.parse(stateMap));
-      const state = JSON.parse(decodedState);
-      resolve(state);
-    }, { once: true });
 
     const queryMsg = {
       method: "queryState",
@@ -244,8 +233,12 @@ export async function queryState(ownable_id) {
         state_dump,
       ],
     };
+    let resp = await postToOwnableFrame(ownable_id, queryMsg);
 
-    ownableIframe.contentWindow.postMessage(queryMsg, "*");
+    const stateMap = JSON.parse(resp.get('state'));
+    const state = JSON.parse(atob(stateMap));
+    console.log('state queried: ', state);
+    resolve(state);
   });
 
 }
@@ -316,9 +309,8 @@ export async function createNewOwnable(templateName) {
   let db = await initIndexedDb(chain.id);
   await saveOwnableStateDump(db, mem);
 
-  const ownableType = await getOwnableType(chain.id);
-  await associateOwnableType(db, chain.id, ownableType);
-  reflectOwnableIssuanceInLocalStore(chain.id, ownableType);
+  await associateOwnableType(db, chain.id, templateName);
+  reflectOwnableIssuanceInLocalStore(chain.id, templateName);
 
   let newEvent = new Event({"@context": "instantiate_msg.json", ...msg});
   await anchorEventToChain(chain, newEvent, lto.node, account);
@@ -328,7 +320,6 @@ export async function createNewOwnable(templateName) {
 
 async function instantiateOwnable(ownableId) {
   const ownableType = localStorage.getItem(ownableId);
-
   await createOwnableFrame(ownableId, ownableType);
   await initWorker(ownableId, ownableType);
 
@@ -365,6 +356,7 @@ async function getInstantiateSchema(templateName) {
 function reflectOwnableIssuanceInLocalStore(ownableId, ownableType) {
   // associate the type
   localStorage.setItem(ownableId, ownableType);
+  console.log("setting ownable id type", ownableId, ownableType)
   // add to the list of existing chain ids
   let chainIds = JSON.parse(localStorage.chainIds);
   chainIds.push(ownableId);
@@ -436,10 +428,11 @@ export async function syncDb() {
     if (!localStorage.chainIds) {
       reject();
     }
-
+    console.log('syncing ownables')
     clearOwnableFrames();
 
     const chainIds = JSON.parse(localStorage.chainIds);
+    console.log("chain ids:", chainIds)
     return Promise.all(chainIds.map(instantiateOwnable));
   });
 }
@@ -471,6 +464,7 @@ export async function replaceSources(element, db, templateName) {
     const currentSrc = element.getAttribute("src");
     const fr = new FileReader();
     // query the idb for that media and update the template
+    console.log(templateName)
     fetchTemplate(db, currentSrc, templateName).then(mediaFile => {
       if (!mediaFile) {
         resolve();
