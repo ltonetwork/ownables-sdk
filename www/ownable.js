@@ -10,6 +10,7 @@ addEventListener('message', async (e) => {
   }
 
   let args = e.data.args;
+  console.log(e);
   switch (e.data.method) {
     case "initWorker":
       await initWorker(args[0], args[1], args[2]);
@@ -98,11 +99,10 @@ function queryMetadata(ownable_id, msg, state_dump) {
   return new Promise(async (resolve, reject) => {
 
     worker.addEventListener('message', async event => {
-      console.log("contract queried: ", event);
-      const metadataMap = (event.data.get('state'));
-      const decodedMetadata = atob(JSON.parse(metadataMap));
-      const metadata = JSON.parse(decodedMetadata);
-      self.postMessage(metadata);
+      const metadataString = atob(JSON.parse(event.data.get('state')));
+      const metadata = JSON.parse(metadataString);
+      console.log("contract metadata: ", metadata);
+      window.parent.postMessage(metadata);
       resolve();
     }, { once: true });
 
