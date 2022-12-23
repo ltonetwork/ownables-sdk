@@ -9,6 +9,7 @@ import {
 } from "./event-chain";
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
 import {associateOwnableType, fetchTemplate, getOwnableType} from "./asset_import";
+import {getOwnableInfo} from "./index";
 
 const lto = new LTO('T');
 
@@ -251,27 +252,35 @@ export async function queryState(ownable_id) {
 
 export function queryMetadata(ownable_id) {
   return new Promise(async (resolve, reject) => {
+    const state_dump = await getOwnableStateDump(ownable_id);
     const ownableIframe = document.getElementById(ownable_id);
 
     let msg = {
       "get_ownable_metadata": {},
     };
-    const state_dump = await getOwnableStateDump(ownable_id);
 
-    ownableIframe.addEventListener('message', async event => {
-      console.log("contract queried: ", event);
-      const metadata = JSON.parse(event.data);
-      resolve(metadata);
-    }, { once: true });
+    // ownableIframe.addEventListener('message', async event => {
+    //   console.log("ownable-manager metadata callback: ", event);
+    //   const metadata = JSON.parse(event.data);
+    //   console.log(metadata);
+    //   resolve(metadata);
+    // }, { once: true });
 
     const workerMsg = {
       method: "queryMetadata",
-      ownable_id: ownable_id,
-      msg: msg,
-      idb: state_dump,
+      args: [
+        ownable_id,
+        msg,
+        state_dump,
+      ],
     };
 
-    ownableIframe.postMessage(workerMsg);
+    let resp = await postToOwnableFrame(ownable_id, workerMsg);
+    const metadataString = atob(JSON.parse(resp.get('state')));
+    const metadata = JSON.parse(metadataString);
+    console.log
+    resolve(metadata);
+    // ownableIframe.contentWindow.postMessage(workerMsg, "*");
   })
 }
 

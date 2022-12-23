@@ -66,7 +66,7 @@ window.addEventListener("message", async event => {
   }
 });
 
-async function getOwnableInfo(ownable_id) {
+export async function getOwnableInfo(ownable_id) {
   let metadata = await queryMetadata(ownable_id);
   let latestChain = await getLatestChain(ownable_id);
   const events = latestChain.events;
