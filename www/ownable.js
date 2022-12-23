@@ -139,17 +139,17 @@ async function issueOwnable(ownable_id, msg, messageInfo) {
 }
 
 async function transferOwnable(ownable_id, chainMessage, messageInfo, state_dump) {
+  let workerMessage = {
+    type: "execute",
+    msg: chainMessage,
+    info: messageInfo,
+    ownable_id: ownable_id,
+    idb: state_dump,
+  }
 
-    let workerMessage = {
-      type: "execute",
-      msg: chainMessage,
-      info: messageInfo,
-      ownable_id: ownable_id,
-      idb: state_dump,
-    }
+  worker.addEventListener('message', async event => {
+    window.parent.postMessage(event.data, "*");
+  }, { once: true });
 
-    worker.onmessage = async (msg) => {
-      self.postMessage(msg);
-    };
-    worker.postMessage(workerMessage);
+  worker.postMessage(workerMessage);
 }

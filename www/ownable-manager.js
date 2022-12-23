@@ -604,37 +604,39 @@ function getOwnableActionsHTML(ownable_id) {
 
 export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);
-  if (lto.isValidAddress(addr)) {
+
+  if (!lto.isValidAddress(addr)) {
+    alert(`${addr} is not a valid address`);
+    return;
+  }
+
+  let metadata = await queryMetadata(ownable_id);
+
+  if (confirm(`Are you sure you want to transfer the ownership of this ${metadata.name} ownable to ${addr}?`)) {
     const chainMessage = {
       transfer: {
         to: addr,
       },
     };
-    let metadata = await queryMetadata(ownable_id);
-    if (confirm(`Are you sure you want to transfer the ownership of this ${metadata.name} ownable to ${addr}?`)) {
-      const iframe = document.getElementById(ownable_id);
 
-      const state_dump = await getOwnableStateDump(ownable_id);
-      let workerMessage = {
-        method: "transferOwnable",
-        args: [
-          ownable_id,
-          chainMessage,
-          getMessageInfo(),
-          state_dump,
-        ],
-      }
+    const state_dump = await getOwnableStateDump(ownable_id);
+    let workerMessage = {
+      method: "transferOwnable",
+      args: [
+        ownable_id,
+        chainMessage,
+        getMessageInfo(),
+        state_dump,
+      ],
+    };
 
-      iframe.onmessage = async (msg) => {
-        const newEvent = new Event({"@context": "execute_msg.json", ...chainMessage});
-        const eventChain = await getLatestChain(ownable_id);
-        await anchorEventToChain(eventChain, newEvent, lto.node, account);
-        await writeLatestChain(ownable_id, eventChain);
-      };
-      iframe.postMessage(workerMessage);
-    }
-  } else {
-    alert(`${addr} is not a valid address`);
+    await postToOwnableFrame(ownable_id, workerMessage);
+
+    const newEvent = new Event({"@context": "execute_msg.json", ...chainMessage});
+    const eventChain = await getLatestChain(ownable_id);
+    let mappedAnchor = await anchorEventToChain(eventChain, newEvent, lto.node, account);
+    await writeLatestChain(ownable_id, eventChain);
+    console.log("mappedAnchor:", mappedAnchor);
   }
 }
 
