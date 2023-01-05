@@ -1,4 +1,4 @@
-# Ownable demo
+# Ownable SDK
 
 ![ownables](https://user-images.githubusercontent.com/100821/177121121-a1c3dc8c-8108-4c07-9e15-b83ebfdf8f98.png)
 
