@@ -22,6 +22,9 @@ pub struct Config {
     pub background_color: Option<String>,
     pub animation_url: Option<String>,
     pub youtube_url: Option<String>,
+
+    // bridge address
+    pub bridge: Option<Addr>,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

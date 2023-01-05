@@ -110,6 +110,21 @@ pub async fn execute_contract(
 }
 
 #[wasm_bindgen]
+pub async fn get_bridge_address() -> Result<JsValue, JsError> {
+    // TODO
+}
+
+#[wasm_bindgen]
+pub async fn bridge() -> Result<JsValue, JsError> {
+    // TODO
+}
+
+#[wasm_bindgen]
+pub async fn query_bridge_address() -> Result<JsValue, JsError> {
+    // TODO
+}
+
+#[wasm_bindgen]
 pub async fn query_contract_state(
     msg: JsValue,
     idb: JsValue,

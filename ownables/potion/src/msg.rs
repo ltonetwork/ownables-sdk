@@ -24,6 +24,10 @@ pub enum ExecuteMsg {
     Consume { amount: u8 },
     // transfers ownership
     Transfer { to: Addr },
+    // set bridge
+    SetBridge { bridge: Addr },
+    // bridges the ownable
+    Bridge {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -31,6 +35,8 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     GetOwnableConfig {},
     GetOwnableMetadata {},
+    GetBridgeAddress {},
+    IsBridged {},
 }
 
 // We define a custom struct for each query response
