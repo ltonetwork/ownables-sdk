@@ -66,6 +66,8 @@ pub fn execute(
     match msg {
         ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
+        ExecuteMsg::SetBridge { bridge } => {},
+        ExecuteMsg::Bridge { } => {},
     }
 }
 
@@ -117,6 +119,8 @@ pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
+        QueryMsg::GetBridgeAddress {} => {},
+        QueryMsg::IsBridged {} => {},
     }
 }
 
