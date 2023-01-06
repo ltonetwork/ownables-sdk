@@ -78,7 +78,7 @@ pub fn execute(
 
 pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
     // only ownable owner can bridge it
-    let mut config = CONFIG.load(deps)?;
+    let mut config = CONFIG.load(deps.storage)?;
     if info.sender != config.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized".into(),
@@ -86,7 +86,7 @@ pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, Contract
     }
 
     // validate bridge is set
-    let mut bridge = BRIDGE.load(deps)?;
+    let mut bridge = BRIDGE.load(deps.storage)?;
     if let None = bridge.bridge {
         return Err(ContractError::BridgeError {
             val: "No bridge set".to_string(),
@@ -94,7 +94,7 @@ pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, Contract
     }
 
     // transfer ownership to bridge and update bridge state
-    let bridge_addr = bridge.bridge.unwrap();
+    let bridge_addr = bridge.clone().bridge.unwrap();
     config.owner = bridge_addr;
     bridge.is_bridged = true;
     CONFIG.save(deps.storage, &config)?;
@@ -102,12 +102,12 @@ pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, Contract
 
     Ok(Response::new()
         .add_attribute("method", "try_bridge")
-        .add_attribute("is_bridged", bridge.is_bridged)
+        .add_attribute("is_bridged", bridge.is_bridged.to_string())
     )
 }
 
 pub fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
-    let mut bridge = BRIDGE.load(deps)?;
+    let mut bridge = BRIDGE.load(deps.storage)?;
     match bridge.bridge {
         // validate bridge is set
         None => return Err(ContractError::BridgeError {
@@ -124,7 +124,7 @@ pub fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respons
     }
 
     // transfer ownership and clear the bridge
-    let mut config = CONFIG.load(deps)?;
+    let mut config = CONFIG.load(deps.storage)?;
     config.owner = to;
     bridge.is_bridged = false;
     bridge.bridge = None;
@@ -134,8 +134,8 @@ pub fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respons
 
     Ok(Response::new()
         .add_attribute("method", "try_release")
-        .add_attribute("is_bridged", bridge.is_bridged)
-        .add_attribute("owner", config.owner)
+        .add_attribute("is_bridged", bridge.is_bridged.to_string())
+        .add_attribute("owner", config.owner.to_string())
     )
 }
 
@@ -144,6 +144,13 @@ pub fn try_consume(
     deps: DepsMut,
     consumption_amount: u8,
 ) -> Result<Response, ContractError> {
+    let bridge = BRIDGE.load(deps.storage)?;
+    if bridge.is_bridged {
+        return Err(ContractError::BridgeError {
+            val: "Unable to consume a bridged ownable".to_string(),
+        });
+    }
+
     CONFIG.update(deps.storage, |mut state| -> Result<_, ContractError> {
         if info.sender != state.owner {
             return Err(ContractError::Unauthorized {
@@ -168,6 +175,13 @@ pub fn try_consume(
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
+    let bridge = BRIDGE.load(deps.storage)?;
+    if bridge.is_bridged {
+        return Err(ContractError::BridgeError {
+            val: "Unable to transfer a bridged ownable".to_string(),
+        });
+    }
+
     CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
         if info.sender != config.owner {
             return Err(ContractError::Unauthorized {
@@ -183,7 +197,7 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
     )
 }
 
-pub fn try_set_bridge(info: MessageInfo, deps: Deps, addr: Option<Addr>) -> Result<Response, ContractError> {
+pub fn try_set_bridge(info: MessageInfo, deps: DepsMut, addr: Option<Addr>) -> Result<Response, ContractError> {
     let owner = CONFIG.load(deps.storage)?.owner;
     if info.sender != owner {
         return Err(ContractError::Unauthorized {
@@ -194,18 +208,19 @@ pub fn try_set_bridge(info: MessageInfo, deps: Deps, addr: Option<Addr>) -> Resu
     let mut resp = Response::new()
         .add_attribute("method", "try_set_bridge");
 
-    BRIDGE.update(deps.storage, |mut bridge| {
-        match bridge.bridge {
-            Some(b) => {
-                resp = resp.add_attribute("addr", b);
-            },
-            None => {
-                resp = resp.add_attribute("addr", "None");
-            }
+    let bridge = Bridge {
+        bridge: addr,
+        is_bridged: false
+    };
+    BRIDGE.save(deps.storage, &bridge)?;
+    match bridge.bridge {
+        Some(b) => {
+            resp = resp.add_attribute("addr", b.to_string());
+        },
+        None => {
+            resp = resp.add_attribute("addr", "None".to_string());
         }
-        bridge.bridge = addr;
-        Ok(bridge)
-    })?;
+    }
     Ok(resp)
 }
 

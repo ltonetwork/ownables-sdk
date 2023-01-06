@@ -24,6 +24,7 @@ pub struct Config {
     pub youtube_url: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Bridge {
     pub bridge: Option<Addr>,
     pub is_bridged: bool,
