@@ -110,18 +110,66 @@ pub async fn execute_contract(
 }
 
 #[wasm_bindgen]
-pub async fn get_bridge_address() -> Result<JsValue, JsError> {
-    // TODO
+pub async fn get_bridge_address(
+    msg: JsValue,
+    idb: JsValue,
+) -> Result<JsValue, JsError> {
+    let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
+    let deps = load_lto_deps(Some(state_dump));
+
+    let query_result = contract::query(
+        deps.as_ref(),
+        serde_wasm_bindgen::from_value(msg).unwrap()
+    );
+    match query_result {
+        Ok(bridge_response) => {
+            log(&format!(
+                "[contract] successfully queried bridge address: {:?}",
+                &to_string(&bridge_response).unwrap()
+            ));
+
+            let bridge = to_string(&bridge_response).unwrap();
+            let response_map = js_sys::Map::new();
+            response_map.set(
+                &JsValue::from_str("bridge"),
+                &JsValue::from(bridge)
+            );
+            Ok(JsValue::from(response_map))
+        },
+        Err(error) => panic!("bridge address query failed. error {:?}", error),
+    }
 }
 
-#[wasm_bindgen]
-pub async fn bridge() -> Result<JsValue, JsError> {
-    // TODO
-}
 
 #[wasm_bindgen]
-pub async fn query_bridge_address() -> Result<JsValue, JsError> {
-    // TODO
+pub async fn query_bridge_state(
+    msg: JsValue,
+    idb: JsValue,
+) -> Result<JsValue, JsError> {
+    let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
+    let deps = load_lto_deps(Some(state_dump));
+
+    let query_result = contract::query(
+        deps.as_ref(),
+        serde_wasm_bindgen::from_value(msg).unwrap()
+    );
+    match query_result {
+        Ok(bridge_response) => {
+            log(&format!(
+                "[contract] successfully queried bridge state: {:?}",
+                &to_string(&bridge_response).unwrap()
+            ));
+
+            let is_bridged = to_string(&bridge_response).unwrap();
+            let response_map = js_sys::Map::new();
+            response_map.set(
+                &JsValue::from_str("is_bridged"),
+                &JsValue::from(is_bridged)
+            );
+            Ok(JsValue::from(response_map))
+        },
+        Err(error) => panic!("bridge address query failed. error {:?}", error),
+    }
 }
 
 #[wasm_bindgen]

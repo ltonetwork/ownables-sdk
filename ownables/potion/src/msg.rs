@@ -51,9 +51,6 @@ pub struct OwnableStateResponse {
     pub color: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-pub struct BridgeStateResponse
-
 #[serde_as]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct IdbStateDump {
