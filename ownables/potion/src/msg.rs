@@ -25,9 +25,11 @@ pub enum ExecuteMsg {
     // transfers ownership
     Transfer { to: Addr },
     // set bridge
-    SetBridge { bridge: Addr },
+    SetBridge { bridge: Option<Addr> },
     // bridges the ownable
     Bridge {},
+    // releases the bridged ownable
+    Release { to: Addr },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -48,6 +50,9 @@ pub struct OwnableStateResponse {
     pub max_capacity: u8,
     pub color: String,
 }
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct BridgeStateResponse
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]

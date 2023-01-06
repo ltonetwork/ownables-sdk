@@ -22,9 +22,12 @@ pub struct Config {
     pub background_color: Option<String>,
     pub animation_url: Option<String>,
     pub youtube_url: Option<String>,
-
-    // bridge address
-    pub bridge: Option<Addr>,
 }
 
+pub struct Bridge {
+    pub bridge: Option<Addr>,
+    pub is_bridged: bool,
+}
+
+pub const BRIDGE: Item<Bridge> = Item::new("bridge");
 pub const CONFIG: Item<Config> = Item::new("config");
