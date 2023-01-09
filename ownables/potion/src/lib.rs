@@ -17,6 +17,9 @@ pub mod msg;
 pub mod state;
 pub mod store;
 
+#[cfg(test)]
+mod tests;
+
 #[wasm_bindgen]
 extern "C" {
     pub fn alert(s: &str);
@@ -119,6 +122,7 @@ pub async fn get_bridge_address(
 
     let query_result = contract::query(
         deps.as_ref(),
+        create_lto_env(),
         serde_wasm_bindgen::from_value(msg).unwrap()
     );
     match query_result {
@@ -151,6 +155,7 @@ pub async fn query_bridge_state(
 
     let query_result = contract::query(
         deps.as_ref(),
+        create_lto_env(),
         serde_wasm_bindgen::from_value(msg).unwrap()
     );
     match query_result {
@@ -180,7 +185,12 @@ pub async fn query_contract_state(
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
     let deps = load_lto_deps(Some(state_dump));
 
-    let query_result = contract::query(deps.as_ref(), serde_wasm_bindgen::from_value(msg).unwrap());
+    let query_result = contract::query(
+        deps.as_ref(),
+        create_lto_env(),
+        serde_wasm_bindgen::from_value(msg).unwrap()
+    );
+
     match query_result {
         Ok(potion_response) => {
             log(&format!(
