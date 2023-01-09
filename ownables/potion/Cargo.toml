@@ -59,6 +59,7 @@ indexed_db_futures = "0.2.3"
 futures = "0.3.21"
 rand = "0.8"
 bs58 = "0.4.0"
+cw-multi-test = "0.13.2"
 
 [dependencies.web-sys]
 version = "0.3"
@@ -68,4 +69,3 @@ features = [
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"
-cw-multi-test = "0.13.2"
