@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary};
+use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary, to_binary, from_binary};
 use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
 use crate::contract::{execute, query};
 use crate::error::ContractError;
-use crate::msg::QueryMsg;
+use crate::msg::{OwnableStateResponse, QueryMsg};
 use crate::utils::{EmptyApi, EmptyQuerier};
 
 struct CommonTest {
@@ -177,4 +177,277 @@ fn test_query_metadata() {
     let expected_binary = Binary::from(json.as_bytes());
 
     assert_eq!(resp, expected_binary);
+}
+
+#[test]
+fn test_set_bridge() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+
+    let msg = ExecuteMsg::SetBridge {
+        bridge: Some(bridge_addr.clone())
+    };
+     execute(
+         deps.as_mut(),
+         create_lto_env(),
+         info.clone(),
+         msg
+     ).unwrap();
+
+    let resp = query(
+        deps.as_ref(),
+        create_lto_env(),
+        QueryMsg::GetBridgeAddress {},
+    );
+    assert_eq!(resp, to_binary(&bridge_addr));
+}
+
+#[test]
+fn test_set_bridge_unauthorized() {
+    let CommonTest {
+        mut deps,
+        info: _,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    let msg = ExecuteMsg::SetBridge {
+        bridge: Some(bridge_addr.clone())
+    };
+    let err: ContractError = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info("unauthorized_sender", &[]),
+        msg
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::Unauthorized { .. }));
+}
+
+#[test]
+fn test_set_bridge_on_bridged_ownable() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    // attempt to set the bridge address
+    let err = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info(bridge_addr.as_str(), &[]),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::BridgeError { .. }));
+}
+
+#[test]
+fn test_bridge() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info,
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    let resp = query(
+        deps.as_ref(),
+        create_lto_env(),
+        QueryMsg::GetOwnableConfig {}
+    ).unwrap();
+
+    let response: OwnableStateResponse = from_binary(&resp).unwrap();
+    // assert bridge owns the ownable
+    assert_eq!(bridge_addr.to_string(), response.owner);
+}
+
+#[test]
+fn test_bridge_unauthorized() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // attempt to bridge the ownable
+    let err = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info("unauthorized", &[]),
+        ExecuteMsg::Bridge {},
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::Unauthorized { .. }));
+}
+
+#[test]
+fn test_bridge_no_bridge_set() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    // attempt to bridge the ownable
+    let err = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info,
+        ExecuteMsg::Bridge {},
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::BridgeError { .. }));
+}
+
+#[test]
+fn test_release() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    let resp = query(
+        deps.as_ref(),
+        create_lto_env(),
+        QueryMsg::GetOwnableConfig {}
+    ).unwrap();
+
+    let response: OwnableStateResponse = from_binary(&resp).unwrap();
+    // assert bridge owns the ownable
+    assert_eq!(bridge_addr.to_string(), response.owner);
+
+    // release the ownable to a new owner
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info(bridge_addr.as_str(), &[]),
+        ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
+    ).unwrap();
+
+    let resp = query(
+        deps.as_ref(),
+        create_lto_env(),
+        QueryMsg::GetOwnableConfig {}
+    ).unwrap();
+
+    let response: OwnableStateResponse = from_binary(&resp).unwrap();
+    // assert new owner owns the ownable
+    assert_eq!("new_owner".to_string(), response.owner);
+}
+
+
+
+#[test]
+fn test_release_unauthorized() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    // release the ownable to a new owner as the new owner
+    let err = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info("new_owner", &[]),
+        ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::Unauthorized { .. }));
 }

@@ -108,18 +108,13 @@ pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, Contract
 
 pub fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
     let mut bridge = BRIDGE.load(deps.storage)?;
-    match bridge.bridge {
-        // validate bridge is set
-        None => return Err(ContractError::BridgeError {
-            val: "No bridge set".to_string() }
-        ),
-        Some(addr) => {
-            // validate bridge is releasing the ownable
-            if info.sender != addr {
-                return Err(ContractError::BridgeError {
-                    val: "Only bridge can release the ownable".to_string() }
-                )
-            }
+
+    // validate bridge is releasing the ownable
+    if let Some(addr) = bridge.bridge {
+        if info.sender != addr {
+            return Err(ContractError::Unauthorized {
+                val: "Only bridge can release the ownable".to_string() }
+            )
         }
     }
 
@@ -201,7 +196,14 @@ pub fn try_set_bridge(info: MessageInfo, deps: DepsMut, addr: Option<Addr>) -> R
     let owner = CONFIG.load(deps.storage)?.owner;
     if info.sender != owner {
         return Err(ContractError::Unauthorized {
-            val: "Unauthorized".into(),
+            val: "Unauthorized".to_string(),
+        });
+    }
+
+    let bridge = BRIDGE.load(deps.storage)?;
+    if bridge.is_bridged {
+        return Err(ContractError::BridgeError {
+            val: "Cannot set bridge if ownable is bridged".to_string(),
         });
     }
 
