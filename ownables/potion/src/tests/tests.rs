@@ -7,6 +7,8 @@ use crate::error::ContractError;
 use crate::msg::{OwnableStateResponse, QueryMsg};
 use crate::utils::{EmptyApi, EmptyQuerier};
 
+const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
+
 struct CommonTest {
     deps: OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier>,
     info: MessageInfo,
@@ -96,6 +98,46 @@ fn test_consume_unauthorized() {
 }
 
 #[test]
+fn test_consume_bridged() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    // attempt to consume a bridged ownable
+    let err = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info("bridge_address", &[]),
+        ExecuteMsg::Consume {
+            amount: 10,
+        },
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::BridgeError { .. }));
+}
+
+#[test]
 fn test_overconsume() {
     let CommonTest {
         mut deps,
@@ -127,6 +169,46 @@ fn test_transfer() {
 
     assert_eq!(res.attributes.get(0).unwrap().value, "try_transfer".to_string());
     assert_eq!(res.attributes.get(1).unwrap().value, "other-owner-1".to_string());
+}
+
+#[test]
+fn test_transfer_bridged() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    // attempt to transfer a bridged ownable
+    let err = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info("bridge_address", &[]),
+        ExecuteMsg::Transfer {
+            to: Addr::unchecked(LTO_USER)
+        },
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::BridgeError { .. }));
 }
 
 #[test]
@@ -451,3 +533,4 @@ fn test_release_unauthorized() {
 
     assert!(matches!(err, ContractError::Unauthorized { .. }));
 }
+
