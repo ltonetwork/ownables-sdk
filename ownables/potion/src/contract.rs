@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
+use crate::msg::{EventType, ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
 use crate::state::{BRIDGE, Bridge, Config, CONFIG};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
@@ -73,7 +73,31 @@ pub fn execute(
         ExecuteMsg::SetBridge { bridge } => try_set_bridge(info, deps, bridge),
         ExecuteMsg::Bridge {} => try_bridge(info, deps),
         ExecuteMsg::Release { to } => try_release(info, deps, to),
+        ExecuteMsg::RegisterExternalEvent { event } => try_register_external_event(info, deps, event),
     }
+}
+
+pub fn try_register_external_event(
+    info: MessageInfo,
+    deps: DepsMut,
+    event: ExternalEvent,
+) -> Result<Response, ContractError> {
+    match event.event_type {
+        EventType::Lock => try_register_lock(info, deps, event),
+    };
+
+    Ok(Response::new()
+           .add_attribute("method", "register_external_event")
+           .add_attribute("event_type", event.event_type.to_string())
+    )
+}
+
+pub fn try_register_lock(
+    info: MessageInfo,
+    deps: DepsMut,
+    event: ExternalEvent,
+) {
+    unimplemented!()
 }
 
 pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
