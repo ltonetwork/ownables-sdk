@@ -82,14 +82,16 @@ pub fn try_register_external_event(
     deps: DepsMut,
     event: ExternalEvent,
 ) -> Result<Response, ContractError> {
-    match event.event_type {
-        EventType::Lock => try_register_lock(info, deps, event),
+    let mut response = Response::new()
+        .add_attribute("method", "register_external_event");
+    match event.event_type.clone() {
+        EventType::Lock => {
+            try_register_lock(info, deps, event);
+            response = response.add_attribute("event_type", "lock");
+        },
     };
 
-    Ok(Response::new()
-           .add_attribute("method", "register_external_event")
-           .add_attribute("event_type", event.event_type.to_string())
-    )
+    Ok(response)
 }
 
 pub fn try_register_lock(
