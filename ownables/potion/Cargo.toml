@@ -60,6 +60,9 @@ futures = "0.3.21"
 rand = "0.8"
 bs58 = "0.4.0"
 cw-multi-test = "0.13.2"
+rust-crypto = "0.2.36"
+rustc-serialize = "0.3.24"
+blake2 = "0.10.6"
 
 [dependencies.web-sys]
 version = "0.3"

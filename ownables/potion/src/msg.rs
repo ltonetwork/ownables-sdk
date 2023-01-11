@@ -35,14 +35,15 @@ pub enum ExecuteMsg {
     RegisterExternalEvent { event: ExternalEvent },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct ExternalEvent {
     pub network: String,
     pub address: String,
     pub event_type: EventType,
-    pub args: JsValue,
+    pub args: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub enum EventType {
     Lock,
 }

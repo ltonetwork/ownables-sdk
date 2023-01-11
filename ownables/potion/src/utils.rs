@@ -1,7 +1,15 @@
 use crate::store::IdbStorage;
 use cosmwasm_std::{Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, MemoryStorage, OwnedDeps, Querier, RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError};
 use std::marker::PhantomData;
+use std::str::from_utf8;
+use blake2::Blake2bVar;
+use blake2::digest::{Update, VariableOutput};
+use crypto::digest::Digest;
 use crate::IdbStateDump;
+use crypto::sha3::Sha3;
+use rustc_serialize::hex::ToHex;
+use crypto::blake2b;
+use crypto::sha2::Sha256;
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
@@ -41,6 +49,45 @@ pub fn load_lto_deps(state_dump: Option<IdbStateDump>) -> OwnedDeps<MemoryStorag
         }
     }
 
+}
+
+pub fn address_eip155(mut public_key: String) -> Addr {
+    if public_key.starts_with("0x") {
+        public_key = public_key[2..].parse().unwrap();
+    }
+    let mut hasher = Sha3::keccak256();
+    hasher.input_str(public_key.as_str());
+    // gives back hex
+    let hasher_result = hasher.result_str();
+
+    // take last 20 bytes of the hash
+    let wallet_addr = "0x".to_owned() + &hasher_result[hasher_result.len() - 40..];
+    Addr::unchecked(wallet_addr)
+}
+
+pub fn address_lto(network: String, public_key: String) -> Addr {
+    let mut hasher = Blake2bVar::new(32).unwrap();
+    hasher.update(public_key.as_bytes());
+    let mut buf = [0u8; 32];
+    hasher.finalize_variable(&mut buf).unwrap();
+
+    // get the blake2b_256 of public key
+    let blake2b_256 = buf.to_hex();
+
+    // get the sha256 of blake
+    let mut hasher = Sha256::new();
+    hasher.input_str(blake2b_256.as_str());
+    let secure_hash = hasher.result_str();
+
+    // get the first 20 bytes of the securehash
+    let address_bytes = &secure_hash.as_bytes().to_vec()[0..20];
+
+    // let mut blake2b256 = Blake2b256::new(Blake2bOption::default());
+    // blake2b256
+    //     .update(public_key.as_bytes())
+    //     .expect("unable to update");
+
+    Addr::unchecked("")
 }
 
 const CANONICAL_LENGTH: usize = 54;
@@ -164,5 +211,25 @@ impl Api for EmptyApi {
 
     fn debug(&self, message: &str) {
         println!("{}", message);
+    }
+}
+
+#[cfg(test)]
+mod utils {
+    use crate::utils::{address_eip155, address_lto};
+
+    #[test]
+    fn test_derive_eip155_address() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_derive_lto_address() {
+        let result = address_lto(
+            "T".to_string(),
+            "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
+        );
+
+        assert_eq!(result.to_string(), "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe");
     }
 }
