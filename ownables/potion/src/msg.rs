@@ -3,6 +3,7 @@ use cosmwasm_std::{Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use wasm_bindgen::JsValue;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -30,6 +31,20 @@ pub enum ExecuteMsg {
     Bridge {},
     // releases the bridged ownable
     Release { to: Addr },
+    // registers an external event
+    RegisterExternalEvent { event: ExternalEvent },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ExternalEvent {
+    pub network: String,
+    pub address: String,
+    pub event_type: EventType,
+    pub args: JsValue,
+}
+
+pub enum EventType {
+    Lock,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
