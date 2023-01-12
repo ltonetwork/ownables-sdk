@@ -1,14 +1,11 @@
 use crate::store::IdbStorage;
 use cosmwasm_std::{Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env, MemoryStorage, OwnedDeps, Querier, RecoverPubkeyError, StdError, StdResult, Timestamp, VerificationError};
 use std::marker::PhantomData;
-use std::str::from_utf8;
 use blake2::Blake2bVar;
 use blake2::digest::{Update, VariableOutput};
 use crypto::digest::Digest;
 use crate::IdbStateDump;
 use crypto::sha3::Sha3;
-use rustc_serialize::hex::ToHex;
-use crypto::blake2b;
 use crypto::sha2::Sha256;
 
 pub fn set_panic_hook() {
@@ -52,6 +49,8 @@ pub fn load_lto_deps(state_dump: Option<IdbStateDump>) -> OwnedDeps<MemoryStorag
 }
 
 pub fn address_eip155(mut public_key: String) -> Addr {
+    // decode b58
+
     if public_key.starts_with("0x") {
         public_key = public_key[2..].parse().unwrap();
     }
@@ -65,29 +64,51 @@ pub fn address_eip155(mut public_key: String) -> Addr {
     Addr::unchecked(wallet_addr)
 }
 
-pub fn address_lto(network: String, public_key: String) -> Addr {
+pub fn address_lto(public_key: String) -> Addr {
+    // decode b58 of pubkey into byte array
+    let public_key = bs58::decode(public_key).into_vec().unwrap();
+
+    let pub_key_secure_hash = secure_hash(public_key.as_slice());
+    // get the first 20 bytes of the securehash
+    let address_bytes = &pub_key_secure_hash[0..20];
+    let version = &1_u8.to_be_bytes();
+    // TODO: detect network from ownable config
+    let network = &76_u8.to_be_bytes();
+
+    let checksum_input:Vec<u8> = [version, network, address_bytes].concat();
+
+    // checksum is the first 4 bytes of secureHash of version, chain_id, and hash
+    let checksum = &secure_hash(checksum_input.as_slice())
+        .to_vec()[0..4];
+
+    let addr_fields = [
+        version,
+        network,
+        address_bytes,
+        checksum
+    ];
+
+    let address: Vec<u8> = addr_fields.concat();
+    Addr::unchecked(base58(address.as_slice()))
+}
+
+fn base58(input: &[u8]) -> String {
+    bs58::encode(input).into_string()
+}
+
+fn secure_hash(m: &[u8]) -> Vec<u8> {
     let mut hasher = Blake2bVar::new(32).unwrap();
-    hasher.update(public_key.as_bytes());
+    hasher.update(m);
     let mut buf = [0u8; 32];
     hasher.finalize_variable(&mut buf).unwrap();
 
-    // get the blake2b_256 of public key
-    let blake2b_256 = buf.to_hex();
-
     // get the sha256 of blake
     let mut hasher = Sha256::new();
-    hasher.input_str(blake2b_256.as_str());
-    let secure_hash = hasher.result_str();
+    hasher.input(&buf);
 
-    // get the first 20 bytes of the securehash
-    let address_bytes = &secure_hash.as_bytes().to_vec()[0..20];
-
-    // let mut blake2b256 = Blake2b256::new(Blake2bOption::default());
-    // blake2b256
-    //     .update(public_key.as_bytes())
-    //     .expect("unable to update");
-
-    Addr::unchecked("")
+    let mut buf = [0u8; 32];
+    hasher.result(&mut buf);
+    buf.to_vec()
 }
 
 const CANONICAL_LENGTH: usize = 54;
@@ -216,7 +237,7 @@ impl Api for EmptyApi {
 
 #[cfg(test)]
 mod utils {
-    use crate::utils::{address_eip155, address_lto};
+    use crate::utils::{address_lto};
 
     #[test]
     fn test_derive_eip155_address() {
@@ -226,7 +247,6 @@ mod utils {
     #[test]
     fn test_derive_lto_address() {
         let result = address_lto(
-            "T".to_string(),
             "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
         );
 

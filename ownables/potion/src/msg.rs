@@ -3,7 +3,6 @@ use cosmwasm_std::{Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use wasm_bindgen::JsValue;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
