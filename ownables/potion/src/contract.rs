@@ -95,9 +95,9 @@ pub fn try_register_external_event(
 }
 
 pub fn try_register_lock(
-    info: MessageInfo,
-    deps: DepsMut,
-    event: ExternalEvent,
+    _info: MessageInfo,
+    _deps: DepsMut,
+    _event: ExternalEvent,
 ) {
     unimplemented!()
 }
