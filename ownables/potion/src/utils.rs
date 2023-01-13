@@ -49,18 +49,19 @@ pub fn load_lto_deps(state_dump: Option<IdbStateDump>) -> OwnedDeps<MemoryStorag
 }
 
 pub fn address_eip155(mut public_key: String) -> Addr {
-    // decode b58
-
-    if public_key.starts_with("0x") {
-        public_key = public_key[2..].parse().unwrap();
+    // indicates uncompressed point public key prefix
+    if public_key.starts_with("0x04") {
+        public_key = public_key.split_off(4);
     }
+
+    let public_key_bytes = public_key.as_bytes();
+
     let mut hasher = Sha3::keccak256();
-    hasher.input_str(public_key.as_str());
-    // gives back hex
-    let hasher_result = hasher.result_str();
+    hasher.input(hex::decode(public_key_bytes).unwrap().as_slice());
+    let result = hasher.result_str();
 
     // take last 20 bytes of the hash
-    let wallet_addr = "0x".to_owned() + &hasher_result[hasher_result.len() - 40..];
+    let wallet_addr = "0x".to_owned() + &result[result.len() - 40..];
     Addr::unchecked(wallet_addr)
 }
 
@@ -237,11 +238,14 @@ impl Api for EmptyApi {
 
 #[cfg(test)]
 mod utils {
-    use crate::utils::{address_lto};
+    use crate::utils::{address_eip155, address_lto};
 
     #[test]
     fn test_derive_eip155_address() {
-        unimplemented!()
+        let pub_key = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
+
+        let result = address_eip155(pub_key.to_string());
+        assert_eq!(result.to_string(), "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7");
     }
 
     #[test]
