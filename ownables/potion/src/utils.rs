@@ -54,29 +54,58 @@ pub fn address_eip155(mut public_key: String) -> Addr {
         public_key = public_key.split_off(4);
     }
 
-    let public_key_bytes = public_key.as_bytes();
-
     let mut hasher = Sha3::keccak256();
-    hasher.input(hex::decode(public_key_bytes).unwrap().as_slice());
-    let result = hasher.result_str();
+    hasher.input(hex::decode(public_key.as_bytes())
+        .unwrap()
+        .as_slice()
+    );
+    let hashed_addr = hasher.result_str();
+    let result = &hashed_addr[hashed_addr.len() - 40..];
 
-    // take last 20 bytes of the hash
-    let wallet_addr = "0x".to_owned() + &result[result.len() - 40..];
-    Addr::unchecked(wallet_addr)
+    let checksum_addr = "0x".to_owned() + eip_55_checksum(result).as_str();
+
+    Addr::unchecked(checksum_addr)
 }
 
-pub fn address_lto(public_key: String) -> Addr {
+fn eip_55_checksum(addr: &str) -> String {
+    let mut checksum_hasher = Sha3::keccak256();
+    checksum_hasher.input(&addr[addr.len() - 40..].as_bytes());
+    let hashed_addr = checksum_hasher.result_str();
+
+    let mut checksum_buff = "".to_owned();
+    let result_chars: Vec<char> = addr.chars()
+        .into_iter()
+        .collect();
+    let keccak_chars: Vec<char> = hashed_addr.chars()
+        .into_iter()
+        .collect();
+    for i in 0..addr.len() {
+        let mut char = result_chars[i];
+        if char.is_alphabetic() {
+            let keccak_digit = keccak_chars[i]
+                .to_digit(16)
+                .unwrap();
+            // if the corresponding hex digit >= 8, convert to uppercase
+            if keccak_digit >= 8 {
+                char = char.to_ascii_uppercase();
+            }
+        }
+        checksum_buff += char.to_string().as_str();
+    }
+
+    checksum_buff
+}
+
+pub fn address_lto(network_id: char, public_key: String) -> Addr {
     // decode b58 of pubkey into byte array
     let public_key = bs58::decode(public_key).into_vec().unwrap();
-
+    // get the ascii value from network char
+    let network_id = network_id as u8;
     let pub_key_secure_hash = secure_hash(public_key.as_slice());
     // get the first 20 bytes of the securehash
     let address_bytes = &pub_key_secure_hash[0..20];
     let version = &1_u8.to_be_bytes();
-    // TODO: detect network from ownable config
-    let network = &76_u8.to_be_bytes();
-
-    let checksum_input:Vec<u8> = [version, network, address_bytes].concat();
+    let checksum_input:Vec<u8> = [version, &[network_id], address_bytes].concat();
 
     // checksum is the first 4 bytes of secureHash of version, chain_id, and hash
     let checksum = &secure_hash(checksum_input.as_slice())
@@ -84,7 +113,7 @@ pub fn address_lto(public_key: String) -> Addr {
 
     let addr_fields = [
         version,
-        network,
+        &[network_id],
         address_bytes,
         checksum
     ];
@@ -251,6 +280,7 @@ mod utils {
     #[test]
     fn test_derive_lto_address() {
         let result = address_lto(
+            'L',
             "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
         );
 
