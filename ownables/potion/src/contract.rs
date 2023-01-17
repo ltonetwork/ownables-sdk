@@ -1,10 +1,11 @@
 use crate::error::ContractError;
-use crate::msg::{EventType, ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
+use crate::msg::{EventType, ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, Network, OwnableStateResponse, QueryMsg};
 use crate::state::{BRIDGE, Bridge, Config, CONFIG};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use crate::utils::{address_eip155, address_lto};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-demo";
@@ -34,8 +35,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &state)?;
     BRIDGE.save(deps.storage, &Bridge {
-        bridge: None,
-        is_bridged: false,
+        is_locked: false,
+        network: msg.network_id,
     })?;
 
     Ok(Response::new()
@@ -70,8 +71,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
-        ExecuteMsg::SetBridge { bridge } => try_set_bridge(info, deps, bridge),
-        ExecuteMsg::Bridge {} => try_bridge(info, deps),
+        ExecuteMsg::Bridge {} => try_lock(info, deps),
         ExecuteMsg::Release { to } => try_release(info, deps, to),
         ExecuteMsg::RegisterExternalEvent { event } => try_register_external_event(info, deps, event),
     }
@@ -84,6 +84,7 @@ pub fn try_register_external_event(
 ) -> Result<Response, ContractError> {
     let mut response = Response::new()
         .add_attribute("method", "register_external_event");
+
     match event.event_type.clone() {
         EventType::Lock => {
             try_register_lock(info, deps, event);
@@ -94,15 +95,28 @@ pub fn try_register_external_event(
     Ok(response)
 }
 
-pub fn try_register_lock(
-    _info: MessageInfo,
-    _deps: DepsMut,
-    _event: ExternalEvent,
+fn try_register_lock(
+    info: MessageInfo,
+    deps: DepsMut,
+    event: ExternalEvent,
 ) {
-    unimplemented!()
+    // registering a lock event should
+    // validate the locking on some blockchain,
+
+    match event.network {
+        Network::Ethereum => {
+            let address = address_eip155(event.public_key);
+            try_release(info, deps, address).unwrap();
+        },
+        Network::LTO => {
+            let bridge = BRIDGE.load(deps.storage).unwrap();
+            let address = address_lto(bridge.network, event.public_key);
+            try_release(info, deps, address).unwrap();
+        },
+    }
 }
 
-pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
     // only ownable owner can bridge it
     let mut config = CONFIG.load(deps.storage)?;
     if info.sender != config.owner {
@@ -111,51 +125,36 @@ pub fn try_bridge(info: MessageInfo, deps: DepsMut) -> Result<Response, Contract
         });
     }
 
-    // validate bridge is set
-    let mut bridge = BRIDGE.load(deps.storage)?;
-    if let None = bridge.bridge {
-        return Err(ContractError::BridgeError {
-            val: "No bridge set".to_string(),
-        });
-    }
-
-    // transfer ownership to bridge and update bridge state
-    let bridge_addr = bridge.clone().bridge.unwrap();
-    config.owner = bridge_addr;
-    bridge.is_bridged = true;
-    CONFIG.save(deps.storage, &config)?;
-    BRIDGE.save(deps.storage, &bridge)?;
+    let mut bridge = BRIDGE.update(
+        deps.storage,
+        |mut b| -> Result<_, ContractError> {
+            b.is_locked = true;
+            Ok(b)
+        })?;
 
     Ok(Response::new()
         .add_attribute("method", "try_bridge")
-        .add_attribute("is_bridged", bridge.is_bridged.to_string())
+        .add_attribute("is_locked", bridge.is_locked.to_string())
     )
 }
 
-pub fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
+fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
     let mut bridge = BRIDGE.load(deps.storage)?;
-
-    // validate bridge is releasing the ownable
-    if let Some(addr) = bridge.bridge {
-        if info.sender != addr {
-            return Err(ContractError::Unauthorized {
-                val: "Only bridge can release the ownable".to_string() }
-            )
-        }
+    if !bridge.is_locked {
+        return Err(ContractError::BridgeError { val: "Not bridged".to_string() });
     }
 
     // transfer ownership and clear the bridge
     let mut config = CONFIG.load(deps.storage)?;
     config.owner = to;
-    bridge.is_bridged = false;
-    bridge.bridge = None;
+    bridge.is_locked = false;
 
     CONFIG.save(deps.storage, &config)?;
     BRIDGE.save(deps.storage, &bridge)?;
 
     Ok(Response::new()
         .add_attribute("method", "try_release")
-        .add_attribute("is_bridged", bridge.is_bridged.to_string())
+        .add_attribute("is_bridged", bridge.is_locked.to_string())
         .add_attribute("owner", config.owner.to_string())
     )
 }
@@ -166,7 +165,7 @@ pub fn try_consume(
     consumption_amount: u8,
 ) -> Result<Response, ContractError> {
     let bridge = BRIDGE.load(deps.storage)?;
-    if bridge.is_bridged {
+    if bridge.is_locked {
         return Err(ContractError::BridgeError {
             val: "Unable to consume a bridged ownable".to_string(),
         });
@@ -197,7 +196,7 @@ pub fn try_consume(
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
     let bridge = BRIDGE.load(deps.storage)?;
-    if bridge.is_bridged {
+    if bridge.is_locked {
         return Err(ContractError::BridgeError {
             val: "Unable to transfer a bridged ownable".to_string(),
         });
@@ -218,57 +217,17 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
     )
 }
 
-pub fn try_set_bridge(info: MessageInfo, deps: DepsMut, addr: Option<Addr>) -> Result<Response, ContractError> {
-    let owner = CONFIG.load(deps.storage)?.owner;
-    if info.sender != owner {
-        return Err(ContractError::Unauthorized {
-            val: "Unauthorized".to_string(),
-        });
-    }
-
-    let bridge = BRIDGE.load(deps.storage)?;
-    if bridge.is_bridged {
-        return Err(ContractError::BridgeError {
-            val: "Cannot set bridge if ownable is bridged".to_string(),
-        });
-    }
-
-    let mut resp = Response::new()
-        .add_attribute("method", "try_set_bridge");
-
-    let bridge = Bridge {
-        bridge: addr,
-        is_bridged: false
-    };
-    BRIDGE.save(deps.storage, &bridge)?;
-    match bridge.bridge {
-        Some(b) => {
-            resp = resp.add_attribute("addr", b.to_string());
-        },
-        None => {
-            resp = resp.add_attribute("addr", "None".to_string());
-        }
-    }
-    Ok(resp)
-}
-
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::GetBridgeAddress {} => query_bridge_address(deps),
         QueryMsg::IsBridged {} => query_bridge_state(deps),
     }
 }
 
-fn query_bridge_address(deps: Deps) -> StdResult<Binary> {
-    let bridge = BRIDGE.load(deps.storage)?;
-    to_binary(&bridge.bridge)
-}
-
 fn query_bridge_state(deps: Deps) -> StdResult<Binary> {
     let bridge = BRIDGE.load(deps.storage)?;
-    to_binary(&bridge.is_bridged)
+    to_binary(&bridge.is_locked)
 }
 
 fn query_ownable_config(deps: Deps) -> StdResult<Binary> {

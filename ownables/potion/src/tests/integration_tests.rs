@@ -46,7 +46,8 @@ fn proper_instantiate() -> (App, Addr) {
         name: None,
         background_color: None,
         animation_url: None,
-        youtube_url: None
+        youtube_url: None,
+        network_id: 'T'
     };
     let ownable_addr = app
         .instantiate_contract(

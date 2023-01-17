@@ -26,8 +26,8 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Bridge {
-    pub bridge: Option<Addr>,
-    pub is_bridged: bool,
+    pub is_locked: bool,
+    pub network: char,
 }
 
 pub const BRIDGE: Item<Bridge> = Item::new("bridge");

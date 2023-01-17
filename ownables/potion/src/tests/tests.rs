@@ -4,7 +4,7 @@ use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary
 use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
 use crate::contract::{execute, query};
 use crate::error::ContractError;
-use crate::msg::{OwnableStateResponse, QueryMsg};
+use crate::msg::{EventType, ExternalEvent, Network, OwnableStateResponse, QueryMsg};
 use crate::utils::{EmptyApi, EmptyQuerier};
 
 const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
@@ -32,7 +32,8 @@ fn setup_test() -> CommonTest {
         name: Some("Potion".to_string()),
         background_color: None,
         animation_url: None,
-        youtube_url: None
+        youtube_url: None,
+        network_id: 'T'
     };
 
     let res: Response = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
@@ -534,3 +535,60 @@ fn test_release_unauthorized() {
     assert!(matches!(err, ContractError::Unauthorized { .. }));
 }
 
+#[test]
+fn test_register_lock_external_event() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let bridge_addr = Addr::unchecked("bridge_address".to_string());
+    // set the bridge
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::SetBridge {
+            bridge: Some(bridge_addr.clone())
+        },
+    ).unwrap();
+
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    let eth_public_key = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
+
+    let info = MessageInfo {
+        sender: Addr::unchecked(eth_public_key),
+        funds: vec![],
+    };
+
+    let lock_event = ExternalEvent {
+        network: Network::Ethereum,
+        public_key: eth_public_key.to_string(),
+        event_type: EventType::Lock,
+        args: "{}".to_string()
+    };
+
+    // ownable should become claimable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info,
+        ExecuteMsg::RegisterExternalEvent { event: lock_event, },
+    ).unwrap();
+
+
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info("new_owner", &[]),
+        ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
+    ).unwrap_err();
+}

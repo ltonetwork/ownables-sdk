@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod utils;
 
 use std::str;
