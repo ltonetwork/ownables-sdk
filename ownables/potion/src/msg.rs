@@ -15,6 +15,7 @@ pub struct InstantiateMsg {
     pub background_color: Option<String>,
     pub animation_url: Option<String>,
     pub youtube_url: Option<String>,
+    pub network_id: char,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -24,8 +25,6 @@ pub enum ExecuteMsg {
     Consume { amount: u8 },
     // transfers ownership
     Transfer { to: Addr },
-    // set bridge
-    SetBridge { bridge: Option<Addr> },
     // bridges the ownable
     Bridge {},
     // releases the bridged ownable
@@ -36,10 +35,16 @@ pub enum ExecuteMsg {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct ExternalEvent {
-    pub network: String,
-    pub address: String,
+    pub network: Network,
+    pub public_key: String,
     pub event_type: EventType,
     pub args: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub enum Network {
+    Ethereum,
+    LTO,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -52,7 +57,6 @@ pub enum EventType {
 pub enum QueryMsg {
     GetOwnableConfig {},
     GetOwnableMetadata {},
-    GetBridgeAddress {},
     IsBridged {},
 }
 
