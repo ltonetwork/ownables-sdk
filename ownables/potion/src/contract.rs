@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::msg::{EventType, ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, Network, OwnableStateResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
 use crate::state::{BRIDGE, Bridge, Config, CONFIG};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
@@ -72,7 +72,6 @@ pub fn execute(
         ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Bridge {} => try_lock(info, deps),
-        ExecuteMsg::Release { to } => try_release(info, deps, to),
         ExecuteMsg::RegisterExternalEvent { event } => try_register_external_event(info, deps, event),
     }
 }
@@ -85,11 +84,24 @@ pub fn try_register_external_event(
     let mut response = Response::new()
         .add_attribute("method", "register_external_event");
 
-    match event.event_type.clone() {
-        EventType::Lock => {
-            try_register_lock(info, deps, event);
+    match event.event_type.as_str() {
+        "lock" => {
+            let owner = event.args.get("owner")
+                .unwrap()
+                .to_string();
+            let ownable_id = event.args.get("token_id")
+                .unwrap()
+                .to_string();
+            try_register_lock(
+                info,
+                deps,
+                event.chain_id,
+                owner,
+                ownable_id,
+            ).unwrap();
             response = response.add_attribute("event_type", "lock");
         },
+        _ => return Err(ContractError::MatchEventError { val: event.event_type }),
     };
 
     Ok(response)
@@ -98,22 +110,23 @@ pub fn try_register_external_event(
 fn try_register_lock(
     info: MessageInfo,
     deps: DepsMut,
-    event: ExternalEvent,
-) {
-    // registering a lock event should
-    // validate the locking on some blockchain,
-
-    match event.network {
-        Network::Ethereum => {
-            let address = address_eip155(event.public_key);
+    chain_id: String,
+    owner: String,
+    _ownable_id: String,
+) -> Result<Response, ContractError> {
+    match chain_id.as_str() {
+        "eip155:1" => {
+            let address = address_eip155(owner);
             try_release(info, deps, address).unwrap();
         },
-        Network::LTO => {
+        "lto:1" => {
             let bridge = BRIDGE.load(deps.storage).unwrap();
-            let address = address_lto(bridge.network, event.public_key);
+            let address = address_lto(bridge.network, owner);
             try_release(info, deps, address).unwrap();
         },
+        _ => return Err(ContractError::MatchChainIdError { val: chain_id }),
     }
+    Ok(())
 }
 
 pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {

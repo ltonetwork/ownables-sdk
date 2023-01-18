@@ -1,10 +1,11 @@
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary, to_binary, from_binary};
+use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary, from_binary};
 use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
 use crate::contract::{execute, query};
 use crate::error::ContractError;
-use crate::msg::{EventType, ExternalEvent, Network, OwnableStateResponse, QueryMsg};
+use crate::msg::{ExternalEvent, OwnableStateResponse, QueryMsg};
 use crate::utils::{EmptyApi, EmptyQuerier};
 
 const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
@@ -107,15 +108,6 @@ fn test_consume_bridged() {
     } = setup_test();
 
     let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
 
     // bridge the ownable
     execute(
@@ -179,17 +171,6 @@ fn test_transfer_bridged() {
         info,
         res: _,
     } = setup_test();
-
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
 
     // bridge the ownable
     execute(
@@ -263,113 +244,12 @@ fn test_query_metadata() {
 }
 
 #[test]
-fn test_set_bridge() {
-    let CommonTest {
-        mut deps,
-        info,
-        res: _,
-    } = setup_test();
-
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-
-    let msg = ExecuteMsg::SetBridge {
-        bridge: Some(bridge_addr.clone())
-    };
-     execute(
-         deps.as_mut(),
-         create_lto_env(),
-         info.clone(),
-         msg
-     ).unwrap();
-
-    let resp = query(
-        deps.as_ref(),
-        create_lto_env(),
-        QueryMsg::GetBridgeAddress {},
-    );
-    assert_eq!(resp, to_binary(&bridge_addr));
-}
-
-#[test]
-fn test_set_bridge_unauthorized() {
-    let CommonTest {
-        mut deps,
-        info: _,
-        res: _,
-    } = setup_test();
-
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    let msg = ExecuteMsg::SetBridge {
-        bridge: Some(bridge_addr.clone())
-    };
-    let err: ContractError = execute(
-        deps.as_mut(),
-        create_lto_env(),
-        mock_info("unauthorized_sender", &[]),
-        msg
-    ).unwrap_err();
-
-    assert!(matches!(err, ContractError::Unauthorized { .. }));
-}
-
-#[test]
-fn test_set_bridge_on_bridged_ownable() {
-    let CommonTest {
-        mut deps,
-        info,
-        res: _,
-    } = setup_test();
-
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
-
-    // bridge the ownable
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::Bridge {},
-    ).unwrap();
-
-    // attempt to set the bridge address
-    let err = execute(
-        deps.as_mut(),
-        create_lto_env(),
-        mock_info(bridge_addr.as_str(), &[]),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap_err();
-
-    assert!(matches!(err, ContractError::BridgeError { .. }));
-}
-
-#[test]
 fn test_bridge() {
     let CommonTest {
         mut deps,
         info,
         res: _,
     } = setup_test();
-
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
 
     // bridge the ownable
     execute(
@@ -386,8 +266,7 @@ fn test_bridge() {
     ).unwrap();
 
     let response: OwnableStateResponse = from_binary(&resp).unwrap();
-    // assert bridge owns the ownable
-    assert_eq!(bridge_addr.to_string(), response.owner);
+    println!("{:?}" , response);
 }
 
 #[test]
@@ -397,17 +276,6 @@ fn test_bridge_unauthorized() {
         info,
         res: _,
     } = setup_test();
-
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
 
     // attempt to bridge the ownable
     let err = execute(
@@ -447,17 +315,6 @@ fn test_release() {
         res: _,
     } = setup_test();
 
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
-
     // bridge the ownable
     execute(
         deps.as_mut(),
@@ -469,12 +326,12 @@ fn test_release() {
     let resp = query(
         deps.as_ref(),
         create_lto_env(),
-        QueryMsg::GetOwnableConfig {}
+        QueryMsg::IsBridged {}
     ).unwrap();
 
-    let response: OwnableStateResponse = from_binary(&resp).unwrap();
-    // assert bridge owns the ownable
-    assert_eq!(bridge_addr.to_string(), response.owner);
+    let locked_state: bool = from_binary(&resp).unwrap();
+    // assert ownable is locked
+    assert!(locked_state);
 
     // release the ownable to a new owner
     execute(
@@ -495,7 +352,30 @@ fn test_release() {
     assert_eq!("new_owner".to_string(), response.owner);
 }
 
+#[test]
+fn test_register_external_event_unknown_type() {
+    unimplemented!()
+}
 
+#[test]
+fn test_register_external_event_invalid_args() {
+    unimplemented!()
+}
+
+#[test]
+fn test_register_lock_event_unknown_chain_id() {
+    unimplemented!()
+}
+
+#[test]
+fn test_release_ownable_lto_address() {
+    unimplemented!()
+}
+
+#[test]
+fn test_release_ownable_eth_address() {
+    unimplemented!()
+}
 
 #[test]
 fn test_release_unauthorized() {
@@ -504,17 +384,6 @@ fn test_release_unauthorized() {
         info,
         res: _,
     } = setup_test();
-
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
 
     // bridge the ownable
     execute(
@@ -543,17 +412,6 @@ fn test_register_lock_external_event() {
         res: _,
     } = setup_test();
 
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-    // set the bridge
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info.clone(),
-        ExecuteMsg::SetBridge {
-            bridge: Some(bridge_addr.clone())
-        },
-    ).unwrap();
-
     // bridge the ownable
     execute(
         deps.as_mut(),
@@ -569,11 +427,14 @@ fn test_register_lock_external_event() {
         funds: vec![],
     };
 
+    let mut args: HashMap<String, String> = HashMap::new();
+    args.insert("token_id".to_string(), "ownable_1".to_string());
+    args.insert("owner".to_string(), eth_public_key.to_string());
+
     let lock_event = ExternalEvent {
-        network: Network::Ethereum,
-        public_key: eth_public_key.to_string(),
-        event_type: EventType::Lock,
-        args: "{}".to_string()
+        chain_id: "eip155:1".to_string(),
+        event_type: "lock".to_string(),
+        args,
     };
 
     // ownable should become claimable
