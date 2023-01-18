@@ -14,6 +14,10 @@ pub enum ContractError {
 
     #[error("Bridge error: {val:?}")]
     BridgeError { val: String },
-    // Add any other custom errors you like here.
-    // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
+
+    #[error("Unknown event type: {val:?}")]
+    MatchEventError { val: String },
+
+    #[error("Unknown chain id: {val:?}")]
+    MatchChainIdError { val: String },
 }

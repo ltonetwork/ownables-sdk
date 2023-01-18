@@ -27,29 +27,17 @@ pub enum ExecuteMsg {
     Transfer { to: Addr },
     // bridges the ownable
     Bridge {},
-    // releases the bridged ownable
-    Release { to: Addr },
     // registers an external event
     RegisterExternalEvent { event: ExternalEvent },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct ExternalEvent {
-    pub network: Network,
-    pub public_key: String,
-    pub event_type: EventType,
-    pub args: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub enum Network {
-    Ethereum,
-    LTO,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub enum EventType {
-    Lock,
+    // CAIP-2 format: <namespace + ":" + reference>
+    // e.g. ethereum: eip155:1
+    pub chain_id: String,
+    pub event_type: String,
+    pub args: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
