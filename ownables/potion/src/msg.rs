@@ -15,7 +15,7 @@ pub struct InstantiateMsg {
     pub background_color: Option<String>,
     pub animation_url: Option<String>,
     pub youtube_url: Option<String>,
-    pub network_id: char,
+    pub network_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

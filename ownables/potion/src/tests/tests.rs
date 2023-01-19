@@ -9,6 +9,10 @@ use crate::msg::{ExternalEvent, OwnableStateResponse, QueryMsg};
 use crate::utils::{EmptyApi, EmptyQuerier};
 
 const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
+const ETH_PUBLIC_KEY: &str = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
+const ETH_ADDRESS: &str = "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7";
+const LTO_PUBLIC_KEY: &str = "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
+const LTO_ADDRESS: &str = "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe";
 
 struct CommonTest {
     deps: OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier>,
@@ -34,7 +38,7 @@ fn setup_test() -> CommonTest {
         background_color: None,
         animation_url: None,
         youtube_url: None,
-        network_id: 'T'
+        network_id: "T".to_string(),
     };
 
     let res: Response = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
@@ -107,8 +111,6 @@ fn test_consume_bridged() {
         res: _,
     } = setup_test();
 
-    let bridge_addr = Addr::unchecked("bridge_address".to_string());
-
     // bridge the ownable
     execute(
         deps.as_mut(),
@@ -121,7 +123,7 @@ fn test_consume_bridged() {
     let err = execute(
         deps.as_mut(),
         create_lto_env(),
-        mock_info("bridge_address", &[]),
+        mock_info(LTO_USER, &[]),
         ExecuteMsg::Consume {
             amount: 10,
         },
@@ -184,7 +186,7 @@ fn test_transfer_bridged() {
     let err = execute(
         deps.as_mut(),
         create_lto_env(),
-        mock_info("bridge_address", &[]),
+        mock_info("sender-1", &[]),
         ExecuteMsg::Transfer {
             to: Addr::unchecked(LTO_USER)
         },
@@ -262,11 +264,11 @@ fn test_bridge() {
     let resp = query(
         deps.as_ref(),
         create_lto_env(),
-        QueryMsg::GetOwnableConfig {}
+        QueryMsg::IsBridged {}
     ).unwrap();
 
-    let response: OwnableStateResponse = from_binary(&resp).unwrap();
-    println!("{:?}" , response);
+    let response: bool = from_binary(&resp).unwrap();
+    assert!(response);
 }
 
 #[test]
@@ -289,26 +291,7 @@ fn test_bridge_unauthorized() {
 }
 
 #[test]
-fn test_bridge_no_bridge_set() {
-    let CommonTest {
-        mut deps,
-        info,
-        res: _,
-    } = setup_test();
-
-    // attempt to bridge the ownable
-    let err = execute(
-        deps.as_mut(),
-        create_lto_env(),
-        info,
-        ExecuteMsg::Bridge {},
-    ).unwrap_err();
-
-    assert!(matches!(err, ContractError::BridgeError { .. }));
-}
-
-#[test]
-fn test_release() {
+fn test_bridge_already_bridged() {
     let CommonTest {
         mut deps,
         info,
@@ -323,58 +306,159 @@ fn test_release() {
         ExecuteMsg::Bridge {},
     ).unwrap();
 
-    let resp = query(
-        deps.as_ref(),
-        create_lto_env(),
-        QueryMsg::IsBridged {}
-    ).unwrap();
-
-    let locked_state: bool = from_binary(&resp).unwrap();
-    // assert ownable is locked
-    assert!(locked_state);
-
-    // release the ownable to a new owner
-    execute(
+    // attempt to bridge the ownable again
+    let err: ContractError = execute(
         deps.as_mut(),
         create_lto_env(),
-        mock_info(bridge_addr.as_str(), &[]),
-        ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
-    ).unwrap();
+        info,
+        ExecuteMsg::Bridge {},
+    ).unwrap_err();
 
-    let resp = query(
-        deps.as_ref(),
-        create_lto_env(),
-        QueryMsg::GetOwnableConfig {}
-    ).unwrap();
-
-    let response: OwnableStateResponse = from_binary(&resp).unwrap();
-    // assert new owner owns the ownable
-    assert_eq!("new_owner".to_string(), response.owner);
+    assert!(matches!(err, ContractError::BridgeError { .. }));
 }
 
 #[test]
 fn test_register_external_event_unknown_type() {
-    unimplemented!()
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let msg = ExecuteMsg::RegisterExternalEvent {
+        event: ExternalEvent {
+            chain_id: "eip155:1".to_string(),
+            event_type: "<3".to_string(),
+            args: HashMap::new(),
+        }
+    };
+
+    // bridge the ownable
+    let err: ContractError = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        msg,
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::MatchEventError { .. }));
 }
 
 #[test]
 fn test_register_external_event_invalid_args() {
-    unimplemented!()
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let mut args = HashMap::new();
+    args.insert("key".to_string(), "val".to_string());
+    args.insert("key1".to_string(), "val1".to_string());
+    args.insert("key2".to_string(), "val2".to_string());
+
+    let msg = ExecuteMsg::RegisterExternalEvent {
+        event: ExternalEvent {
+            chain_id: "eip155:1".to_string(),
+            event_type: "lock".to_string(),
+            args,
+        }
+    };
+
+    let err: ContractError = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        msg,
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::InvalidExternalEventArgs { .. }));
 }
 
 #[test]
-fn test_register_lock_event_unknown_chain_id() {
-    unimplemented!()
+fn test_register_external_lock_event_unknown_chain_id() {
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
+
+    let mut args = HashMap::new();
+    args.insert("owner".to_string(), "val".to_string());
+    args.insert("token_id".to_string(), "val1".to_string());
+
+    let msg = ExecuteMsg::RegisterExternalEvent {
+        event: ExternalEvent {
+            chain_id: "wrongid:1".to_string(),
+            event_type: "lock".to_string(),
+            args,
+        }
+    };
+
+    let err: ContractError = execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        msg,
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::MatchChainIdError { .. }));
 }
 
 #[test]
 fn test_release_ownable_lto_address() {
-    unimplemented!()
-}
+    let CommonTest {
+        mut deps,
+        info,
+        res: _,
+    } = setup_test();
 
-#[test]
-fn test_release_ownable_eth_address() {
-    unimplemented!()
+    // bridge the ownable
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        info.clone(),
+        ExecuteMsg::Bridge {},
+    ).unwrap();
+
+    let mut args: HashMap<String, String> = HashMap::new();
+    args.insert("token_id".to_string(), "ownable_1".to_string());
+    args.insert("owner".to_string(), LTO_PUBLIC_KEY.to_string());
+
+    let lock_event = ExternalEvent {
+        chain_id: "lto:L".to_string(),
+        event_type: "lock".to_string(),
+        args,
+    };
+
+    // ownable should be claimed to eip:155 representation of the public key
+    execute(
+        deps.as_mut(),
+        create_lto_env(),
+        mock_info(LTO_PUBLIC_KEY, &[]),
+        ExecuteMsg::RegisterExternalEvent { event: lock_event, },
+    ).unwrap();
+
+    let resp = query(
+        deps.as_ref(),
+        create_lto_env(),
+        QueryMsg::GetOwnableConfig {},
+    ).unwrap();
+
+    // validate that the owner is eip:155 representation of pub key used
+    // to register the external event
+    let ownable_config: OwnableStateResponse = from_binary(&resp).unwrap();
+    assert_eq!(ownable_config.owner, LTO_ADDRESS);
+
+    let resp = query(
+        deps.as_ref(),
+        create_lto_env(),
+        QueryMsg::IsBridged {},
+    ).unwrap();
+    // validate that ownable is no longer locked
+    let is_locked: bool = from_binary(&resp).unwrap();
+    assert_eq!(is_locked, false);
+
 }
 
 #[test]
@@ -392,20 +476,20 @@ fn test_release_unauthorized() {
         info.clone(),
         ExecuteMsg::Bridge {},
     ).unwrap();
-
-    // release the ownable to a new owner as the new owner
-    let err = execute(
-        deps.as_mut(),
-        create_lto_env(),
-        mock_info("new_owner", &[]),
-        ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
-    ).unwrap_err();
-
-    assert!(matches!(err, ContractError::Unauthorized { .. }));
+    //
+    // // release the ownable to a new owner as the new owner
+    // let err = execute(
+    //     deps.as_mut(),
+    //     create_lto_env(),
+    //     mock_info("new_owner", &[]),
+    //     ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
+    // ).unwrap_err();
+    //
+    // assert!(matches!(err, ContractError::Unauthorized { .. }));
 }
 
 #[test]
-fn test_register_lock_external_event() {
+fn test_release_ownable_eth_address() {
     let CommonTest {
         mut deps,
         info,
@@ -420,16 +504,9 @@ fn test_register_lock_external_event() {
         ExecuteMsg::Bridge {},
     ).unwrap();
 
-    let eth_public_key = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
-
-    let info = MessageInfo {
-        sender: Addr::unchecked(eth_public_key),
-        funds: vec![],
-    };
-
     let mut args: HashMap<String, String> = HashMap::new();
     args.insert("token_id".to_string(), "ownable_1".to_string());
-    args.insert("owner".to_string(), eth_public_key.to_string());
+    args.insert("owner".to_string(), ETH_PUBLIC_KEY.to_string());
 
     let lock_event = ExternalEvent {
         chain_id: "eip155:1".to_string(),
@@ -437,19 +514,30 @@ fn test_register_lock_external_event() {
         args,
     };
 
-    // ownable should become claimable
+    // ownable should be claimed to eip:155 representation of the public key
     execute(
         deps.as_mut(),
         create_lto_env(),
-        info,
+        mock_info(ETH_PUBLIC_KEY, &[]),
         ExecuteMsg::RegisterExternalEvent { event: lock_event, },
     ).unwrap();
 
-
-    execute(
-        deps.as_mut(),
+    let resp = query(
+        deps.as_ref(),
         create_lto_env(),
-        mock_info("new_owner", &[]),
-        ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
-    ).unwrap_err();
+        QueryMsg::GetOwnableConfig {},
+    ).unwrap();
+    // validate that the owner is eip:155 representation of pub key used
+    // to register the external event
+    let ownable_config: OwnableStateResponse = from_binary(&resp).unwrap();
+    assert_eq!(ownable_config.owner, ETH_ADDRESS);
+
+    let resp = query(
+        deps.as_ref(),
+        create_lto_env(),
+        QueryMsg::IsBridged {},
+    ).unwrap();
+    // validate that ownable is no longer locked
+    let is_locked: bool = from_binary(&resp).unwrap();
+    assert_eq!(is_locked, false);
 }

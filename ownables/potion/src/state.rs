@@ -24,11 +24,5 @@ pub struct Config {
     pub youtube_url: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Bridge {
-    pub is_locked: bool,
-    pub network: char,
-}
-
-pub const BRIDGE: Item<Bridge> = Item::new("bridge");
+pub const BRIDGE: Item<bool> = Item::new("bridge");
 pub const CONFIG: Item<Config> = Item::new("config");
