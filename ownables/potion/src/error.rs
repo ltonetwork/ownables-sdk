@@ -20,4 +20,7 @@ pub enum ContractError {
 
     #[error("Unknown chain id: {val:?}")]
     MatchChainIdError { val: String },
+
+    #[error("Invalid external event args")]
+    InvalidExternalEventArgs {},
 }
