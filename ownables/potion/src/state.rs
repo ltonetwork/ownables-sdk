@@ -31,6 +31,6 @@ pub const CONFIG: Item<Config> = Item::new("config");
 pub struct Bridge {
     pub is_bridged: bool,
     pub network: String,    // eip155:1
-    pub nft_id: Option<Uint128>,
-    pub nft_contract_address: Option<String>, // 0x341...
+    pub nft_id: Uint128,
+    pub nft_contract_address: String, // 0x341...
 }

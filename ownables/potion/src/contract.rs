@@ -35,8 +35,8 @@ pub fn instantiate(
     let bridge = Bridge {
         is_bridged: false,
         network: msg.network,
-        nft_id: Some(msg.nft_id),
-        nft_contract_address: Some(msg.nft_contract),
+        nft_id: msg.nft_id,
+        nft_contract_address: msg.nft_contract,
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &state)?;
@@ -91,12 +91,18 @@ pub fn try_register_external_event(
         "lock" => {
             let owner = event.args.get("owner")
                 .cloned()
-                .unwrap_or("".to_string());
-            let ownable_id = event.args.get("token_id")
+                .unwrap_or_default();
+            let nft_id = event.args.get("token_id")
                 .cloned()
-                .unwrap_or("".to_string());
+                .unwrap_or_default();
+            let locking_contract_addr = event.args.get("source_contract")
+                .cloned()
+                .unwrap_or_default();
 
-            if owner.clone().is_empty() || ownable_id.clone().is_empty() || event.args.len() > 2 {
+            if owner.is_empty() ||
+                nft_id.is_empty() ||
+                locking_contract_addr.is_empty() ||
+                event.args.len() > 3 {
                 return Err(ContractError::InvalidExternalEventArgs {});
             }
 
@@ -105,7 +111,8 @@ pub fn try_register_external_event(
                 deps,
                 event.chain_id,
                 owner.to_string(),
-                ownable_id.to_string(),
+                nft_id.to_string(),
+                locking_contract_addr,
             )?;
             response = response.add_attribute("event_type", "lock");
         },
@@ -120,19 +127,42 @@ fn try_register_lock(
     deps: DepsMut,
     chain_id: String,
     owner: String,
-    _ownable_id: String,
+    nft_id: String,
+    locking_contract_addr: String,
 ) -> Result<Response, ContractError> {
-    match chain_id.as_str() {
-        "eip155:1" => {
+    let bridge = BRIDGE.load(deps.storage).unwrap();
+    if bridge.nft_id.to_string() != nft_id {
+        return Err(ContractError::BridgeError {
+            val: "nft_id mismatch".to_string()
+        });
+    } else if bridge.network != chain_id {
+        return Err(ContractError::BridgeError {
+            val: "network mismatch".to_string()
+        });
+    } else if bridge.nft_contract_address != locking_contract_addr {
+        return Err(ContractError::BridgeError {
+            val: "locking contract mismatch".to_string()
+        });
+    }
+
+    let caip_2_fields: Vec<&str> = chain_id.split(":").collect();
+    let namespace = caip_2_fields.get(0).unwrap();
+    let reference = caip_2_fields.get(1).unwrap();
+    println!("{:?}", namespace);
+    match *namespace {
+        "eip155" => {
             let address = address_eip155(owner);
             try_release(info, deps, address).unwrap();
-        },
-        "lto:L" => {
-            let bridge = BRIDGE.load(deps.storage).unwrap();
-            let network_id = 'L';
-            let address = address_lto(network_id, owner);
+        }
+        "lto" => {
+            let network_fields: Vec<char> = reference.chars().collect();
+            if network_fields.len() > 1 {
+                return Err(ContractError::MatchChainIdError { val: chain_id });
+            }
+            let network_id = network_fields.get(0).unwrap();
+            let address = address_lto(*network_id, owner);
             try_release(info, deps, address).unwrap();
-        },
+        }
         _ => return Err(ContractError::MatchChainIdError { val: chain_id }),
     }
     Ok(Response::new())

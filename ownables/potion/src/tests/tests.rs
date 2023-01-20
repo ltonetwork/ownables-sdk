@@ -20,7 +20,7 @@ struct CommonTest {
     info: MessageInfo,
     res: Response,
 }
-fn setup_test() -> CommonTest {
+fn setup_test(network: String) -> CommonTest {
     let mut deps = OwnedDeps {
         storage: MemoryStorage::default(),
         api: EmptyApi::default(),
@@ -32,8 +32,8 @@ fn setup_test() -> CommonTest {
     let msg = InstantiateMsg {
         ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
         nft_id: Uint128::one(),
-        network: "eip:155".to_string(),
-        nft_contract: "nft-contract-address".to_string(),
+        network,
+        nft_contract: "nft_contract".to_string(),
         image: None,
         image_data: None,
         external_url: None,
@@ -60,7 +60,7 @@ fn test_initialize() {
         deps: _,
         info: _,
         res,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     assert_eq!(0, res.messages.len());
     assert_eq!(res.attributes.get(0).unwrap().value, "instantiate".to_string());
@@ -77,7 +77,7 @@ fn test_consume() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
     let deps = deps.as_mut();
 
     let msg = ExecuteMsg::Consume { amount: 50 };
@@ -94,7 +94,7 @@ fn test_consume_unauthorized() {
         mut deps,
         mut info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
     let deps = deps.as_mut();
     info.sender = Addr::unchecked("not-the-owner".to_string());
     let msg = ExecuteMsg::Consume { amount: 50 };
@@ -112,7 +112,7 @@ fn test_consume_bridged() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     // bridge the ownable
     execute(
@@ -141,7 +141,7 @@ fn test_overconsume() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
     let deps = deps.as_mut();
     let msg = ExecuteMsg::Consume { amount: 150 };
 
@@ -158,7 +158,7 @@ fn test_transfer() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
     let deps = deps.as_mut();
 
     let msg = ExecuteMsg::Transfer { to: Addr::unchecked("other-owner-1") };
@@ -175,7 +175,7 @@ fn test_transfer_bridged() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     // bridge the ownable
     execute(
@@ -204,7 +204,7 @@ fn test_transfer_unauthorized() {
         mut deps,
         mut info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
     let deps = deps.as_mut();
     info.sender = Addr::unchecked("not-the-owner".to_string());
     let msg = ExecuteMsg::Transfer { to: Addr::unchecked("not-the-owner") };
@@ -222,7 +222,7 @@ fn test_query_config() {
         deps,
         info: _,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     let msg = QueryMsg::GetOwnableConfig {};
     let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
@@ -238,7 +238,7 @@ fn test_query_metadata() {
         deps,
         info: _,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     let msg = QueryMsg::GetOwnableMetadata {};
     let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
@@ -254,7 +254,7 @@ fn test_bridge() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     // bridge the ownable
     execute(
@@ -280,7 +280,7 @@ fn test_bridge_unauthorized() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     // attempt to bridge the ownable
     let err = execute(
@@ -299,7 +299,7 @@ fn test_bridge_already_bridged() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     // bridge the ownable
     execute(
@@ -326,7 +326,7 @@ fn test_register_external_event_unknown_type() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     let msg = ExecuteMsg::RegisterExternalEvent {
         event: ExternalEvent {
@@ -353,7 +353,7 @@ fn test_register_external_event_invalid_args() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     let mut args = HashMap::new();
     args.insert("key".to_string(), "val".to_string());
@@ -384,11 +384,12 @@ fn test_register_external_lock_event_unknown_chain_id() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     let mut args = HashMap::new();
     args.insert("owner".to_string(), "val".to_string());
-    args.insert("token_id".to_string(), "val1".to_string());
+    args.insert("token_id".to_string(), "1".to_string());
+    args.insert("source_contract".to_string(), "nft_contract".to_string());
 
     let msg = ExecuteMsg::RegisterExternalEvent {
         event: ExternalEvent {
@@ -405,7 +406,7 @@ fn test_register_external_lock_event_unknown_chain_id() {
         msg,
     ).unwrap_err();
 
-    assert!(matches!(err, ContractError::MatchChainIdError { .. }));
+    assert!(matches!(err, ContractError::BridgeError { .. }));
 }
 
 #[test]
@@ -414,7 +415,7 @@ fn test_release_ownable_lto_address() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("lto:L".to_string());
 
     // bridge the ownable
     execute(
@@ -425,8 +426,9 @@ fn test_release_ownable_lto_address() {
     ).unwrap();
 
     let mut args: HashMap<String, String> = HashMap::new();
-    args.insert("token_id".to_string(), "ownable_1".to_string());
     args.insert("owner".to_string(), LTO_PUBLIC_KEY.to_string());
+    args.insert("token_id".to_string(), "1".to_string());
+    args.insert("source_contract".to_string(), "nft_contract".to_string());
 
     let lock_event = ExternalEvent {
         chain_id: "lto:L".to_string(),
@@ -434,7 +436,7 @@ fn test_release_ownable_lto_address() {
         args,
     };
 
-    // ownable should be claimed to eip:155 representation of the public key
+    // ownable should be claimed to eip155:1 representation of the public key
     execute(
         deps.as_mut(),
         create_lto_env(),
@@ -448,7 +450,7 @@ fn test_release_ownable_lto_address() {
         QueryMsg::GetOwnableConfig {},
     ).unwrap();
 
-    // validate that the owner is eip:155 representation of pub key used
+    // validate that the owner is eip155:1 representation of pub key used
     // to register the external event
     let ownable_config: OwnableStateResponse = from_binary(&resp).unwrap();
     assert_eq!(ownable_config.owner, LTO_ADDRESS);
@@ -470,7 +472,7 @@ fn test_release_unauthorized() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     // bridge the ownable
     execute(
@@ -497,7 +499,7 @@ fn test_release_ownable_eth_address() {
         mut deps,
         info,
         res: _,
-    } = setup_test();
+    } = setup_test("eip155:1".to_string());
 
     // bridge the ownable
     execute(
@@ -508,8 +510,9 @@ fn test_release_ownable_eth_address() {
     ).unwrap();
 
     let mut args: HashMap<String, String> = HashMap::new();
-    args.insert("token_id".to_string(), "ownable_1".to_string());
     args.insert("owner".to_string(), ETH_PUBLIC_KEY.to_string());
+    args.insert("token_id".to_string(), "1".to_string());
+    args.insert("source_contract".to_string(), "nft_contract".to_string());
 
     let lock_event = ExternalEvent {
         chain_id: "eip155:1".to_string(),
@@ -517,7 +520,7 @@ fn test_release_ownable_eth_address() {
         args,
     };
 
-    // ownable should be claimed to eip:155 representation of the public key
+    // ownable should be claimed to eip155:1 representation of the public key
     execute(
         deps.as_mut(),
         create_lto_env(),
@@ -530,7 +533,7 @@ fn test_release_ownable_eth_address() {
         create_lto_env(),
         QueryMsg::GetOwnableConfig {},
     ).unwrap();
-    // validate that the owner is eip:155 representation of pub key used
+    // validate that the owner is eip155:1 representation of pub key used
     // to register the external event
     let ownable_config: OwnableStateResponse = from_binary(&resp).unwrap();
     assert_eq!(ownable_config.owner, ETH_ADDRESS);
