@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary, from_binary};
+use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary, from_binary, Uint128};
 use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
 use crate::contract::{execute, query};
 use crate::error::ContractError;
 use crate::msg::{ExternalEvent, OwnableStateResponse, QueryMsg};
+use crate::state::Bridge;
 use crate::utils::{EmptyApi, EmptyQuerier};
 
 const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
@@ -30,6 +31,9 @@ fn setup_test() -> CommonTest {
 
     let msg = InstantiateMsg {
         ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
+        nft_id: Uint128::one(),
+        network: "eip:155".to_string(),
+        nft_contract: "nft-contract-address".to_string(),
         image: None,
         image_data: None,
         external_url: None,
@@ -38,7 +42,6 @@ fn setup_test() -> CommonTest {
         background_color: None,
         animation_url: None,
         youtube_url: None,
-        network_id: "T".to_string(),
     };
 
     let res: Response = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
@@ -267,8 +270,8 @@ fn test_bridge() {
         QueryMsg::IsBridged {}
     ).unwrap();
 
-    let response: bool = from_binary(&resp).unwrap();
-    assert!(response);
+    let response: Bridge = from_binary(&resp).unwrap();
+    assert!(response.is_bridged);
 }
 
 #[test]
@@ -456,8 +459,8 @@ fn test_release_ownable_lto_address() {
         QueryMsg::IsBridged {},
     ).unwrap();
     // validate that ownable is no longer locked
-    let is_locked: bool = from_binary(&resp).unwrap();
-    assert_eq!(is_locked, false);
+    let bridge: Bridge = from_binary(&resp).unwrap();
+    assert!(!bridge.is_bridged);
 
 }
 
@@ -538,6 +541,6 @@ fn test_release_ownable_eth_address() {
         QueryMsg::IsBridged {},
     ).unwrap();
     // validate that ownable is no longer locked
-    let is_locked: bool = from_binary(&resp).unwrap();
-    assert_eq!(is_locked, false);
+    let bridge: Bridge = from_binary(&resp).unwrap();
+    assert!(!bridge.is_bridged);
 }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use cosmwasm_std::{Addr};
+use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -7,6 +7,9 @@ use serde_with::serde_as;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub ownable_id: String,
+    pub nft_id: Uint128,
+    pub network: String,
+    pub nft_contract: String,
     pub image: Option<String>,
     pub image_data: Option<String>,
     pub external_url: Option<String>,
@@ -15,7 +18,6 @@ pub struct InstantiateMsg {
     pub background_color: Option<String>,
     pub animation_url: Option<String>,
     pub youtube_url: Option<String>,
-    pub network_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

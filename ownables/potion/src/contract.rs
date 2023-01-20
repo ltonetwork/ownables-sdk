@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
-use crate::state::{BRIDGE, Config, CONFIG};
+use crate::state::{BRIDGE, Bridge, Config, CONFIG};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -32,9 +32,15 @@ pub fn instantiate(
         animation_url: None,
         youtube_url: None,
     };
+    let bridge = Bridge {
+        is_bridged: false,
+        network: msg.network,
+        nft_id: Some(msg.nft_id),
+        nft_contract_address: Some(msg.nft_contract),
+    };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &state)?;
-    BRIDGE.save(deps.storage, &false)?;
+    BRIDGE.save(deps.storage, &bridge)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -144,38 +150,38 @@ pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractEr
     let mut bridge = BRIDGE.update(
         deps.storage,
         |mut b| -> Result<_, ContractError> {
-            if b {
+            if b.is_bridged {
                 return Err(
                     ContractError::BridgeError { val: "Already bridged".to_string() }
                 );
             }
-            b = true;
+            b.is_bridged = true;
             Ok(b)
         })?;
 
     Ok(Response::new()
         .add_attribute("method", "try_bridge")
-        .add_attribute("is_locked", bridge.to_string())
+        .add_attribute("is_locked", bridge.is_bridged.to_string())
     )
 }
 
 fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
-    let mut is_bridged = BRIDGE.load(deps.storage)?;
-    if !is_bridged {
+    let mut bridge = BRIDGE.load(deps.storage)?;
+    if !bridge.is_bridged {
         return Err(ContractError::BridgeError { val: "Not bridged".to_string() });
     }
 
     // transfer ownership and clear the bridge
     let mut config = CONFIG.load(deps.storage)?;
     config.owner = to;
-    is_bridged = false;
+    bridge.is_bridged = false;
 
     CONFIG.save(deps.storage, &config)?;
-    BRIDGE.save(deps.storage, &is_bridged)?;
+    BRIDGE.save(deps.storage, &bridge)?;
 
     Ok(Response::new()
         .add_attribute("method", "try_release")
-        .add_attribute("is_bridged", is_bridged.to_string())
+        .add_attribute("is_bridged", bridge.is_bridged.to_string())
         .add_attribute("owner", config.owner.to_string())
     )
 }
@@ -185,8 +191,8 @@ pub fn try_consume(
     deps: DepsMut,
     consumption_amount: u8,
 ) -> Result<Response, ContractError> {
-    let is_bridged = BRIDGE.load(deps.storage)?;
-    if is_bridged {
+    let bridge = BRIDGE.load(deps.storage)?;
+    if bridge.is_bridged {
         return Err(ContractError::BridgeError {
             val: "Unable to consume a bridged ownable".to_string(),
         });
@@ -216,8 +222,8 @@ pub fn try_consume(
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
-    let is_bridged = BRIDGE.load(deps.storage)?;
-    if is_bridged {
+    let bridge = BRIDGE.load(deps.storage)?;
+    if bridge.is_bridged {
         return Err(ContractError::BridgeError {
             val: "Unable to transfer a bridged ownable".to_string(),
         });
@@ -247,8 +253,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 fn query_bridge_state(deps: Deps) -> StdResult<Binary> {
-    let is_bridged = BRIDGE.load(deps.storage)?;
-    to_binary(&is_bridged)
+    let bridge = BRIDGE.load(deps.storage)?;
+    to_binary(&bridge)
 }
 
 fn query_ownable_config(deps: Deps) -> StdResult<Binary> {

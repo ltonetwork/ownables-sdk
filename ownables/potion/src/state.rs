@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::Item;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -24,5 +24,13 @@ pub struct Config {
     pub youtube_url: Option<String>,
 }
 
-pub const BRIDGE: Item<bool> = Item::new("bridge");
+pub const BRIDGE: Item<Bridge> = Item::new("bridge");
 pub const CONFIG: Item<Config> = Item::new("config");
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Bridge {
+    pub is_bridged: bool,
+    pub network: String,    // eip155:1
+    pub nft_id: Option<Uint128>,
+    pub nft_contract_address: Option<String>, // 0x341...
+}
