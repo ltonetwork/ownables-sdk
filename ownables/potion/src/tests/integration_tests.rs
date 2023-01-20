@@ -39,6 +39,9 @@ fn proper_instantiate() -> (App, Addr) {
     // TODO: replace LTO_USER with another address for ownable_id
     let msg = InstantiateMsg {
         ownable_id: LTO_USER.to_string(),
+        nft_id: Uint128::one(),
+        network: "eip:155".to_string(),
+        nft_contract: "nft-contract-address".to_string(),
         image: None,
         image_data: None,
         external_url: None,
@@ -47,7 +50,6 @@ fn proper_instantiate() -> (App, Addr) {
         background_color: None,
         animation_url: None,
         youtube_url: None,
-        network_id: "T".to_string()
     };
     let ownable_addr = app
         .instantiate_contract(
