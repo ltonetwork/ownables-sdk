@@ -148,11 +148,11 @@ fn try_register_lock(
     let caip_2_fields: Vec<&str> = chain_id.split(":").collect();
     let namespace = caip_2_fields.get(0).unwrap();
     let reference = caip_2_fields.get(1).unwrap();
-    println!("{:?}", namespace);
+
     match *namespace {
         "eip155" => {
-            let address = address_eip155(owner);
-            try_release(info, deps, address).unwrap();
+            let address = address_eip155(owner)?;
+            Ok(try_release(info, deps, address)?)
         }
         "lto" => {
             let network_fields: Vec<char> = reference.chars().collect();
@@ -160,24 +160,23 @@ fn try_register_lock(
                 return Err(ContractError::MatchChainIdError { val: chain_id });
             }
             let network_id = network_fields.get(0).unwrap();
-            let address = address_lto(*network_id, owner);
-            try_release(info, deps, address).unwrap();
+            let address = address_lto(*network_id, owner)?;
+            Ok(try_release(info, deps, address)?)
         }
         _ => return Err(ContractError::MatchChainIdError { val: chain_id }),
     }
-    Ok(Response::new())
 }
 
 pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
     // only ownable owner can bridge it
-    let mut config = CONFIG.load(deps.storage)?;
+    let config = CONFIG.load(deps.storage)?;
     if info.sender != config.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized".into(),
         });
     }
 
-    let mut bridge = BRIDGE.update(
+    let bridge = BRIDGE.update(
         deps.storage,
         |mut b| -> Result<_, ContractError> {
             if b.is_bridged {
@@ -195,7 +194,7 @@ pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractEr
     )
 }
 
-fn try_release(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
+fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
     let mut bridge = BRIDGE.load(deps.storage)?;
     if !bridge.is_bridged {
         return Err(ContractError::BridgeError { val: "Not bridged".to_string() });

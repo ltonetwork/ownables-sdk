@@ -48,10 +48,18 @@ pub fn load_lto_deps(state_dump: Option<IdbStateDump>) -> OwnedDeps<MemoryStorag
 
 }
 
-pub fn address_eip155(mut public_key: String) -> Addr {
+pub fn address_eip155(mut public_key: String) -> Result<Addr, StdError> {
+    if public_key.is_empty() {
+        return Err(StdError::not_found("empty input"));
+    }
+
     // indicates uncompressed point public key prefix
     if public_key.starts_with("0x04") {
         public_key = public_key.split_off(4);
+    }
+
+    if let Err(err) = hex::decode(public_key.clone()) {
+        return Err(StdError::generic_err(err.to_string()));
     }
 
     let mut hasher = Sha3::keccak256();
@@ -64,7 +72,7 @@ pub fn address_eip155(mut public_key: String) -> Addr {
 
     let checksum_addr = "0x".to_owned() + eip_55_checksum(result).as_str();
 
-    Addr::unchecked(checksum_addr)
+    Ok(Addr::unchecked(checksum_addr))
 }
 
 fn eip_55_checksum(addr: &str) -> String {
@@ -96,7 +104,14 @@ fn eip_55_checksum(addr: &str) -> String {
     checksum_buff
 }
 
-pub fn address_lto(network_id: char, public_key: String) -> Addr {
+pub fn address_lto(network_id: char, public_key: String) -> Result<Addr, StdError> {
+    if network_id != 'L' && network_id != 'T' {
+        return Err(StdError::generic_err("unrecognized network_id"));
+    }
+    if public_key.len() != 44 || bs58::decode(public_key.clone()).into_vec().is_err() {
+        return Err(StdError::generic_err("invalid public key"));
+    }
+
     // decode b58 of pubkey into byte array
     let public_key = bs58::decode(public_key).into_vec().unwrap();
     // get the ascii value from network char
@@ -119,7 +134,7 @@ pub fn address_lto(network_id: char, public_key: String) -> Addr {
     ];
 
     let address: Vec<u8> = addr_fields.concat();
-    Addr::unchecked(base58(address.as_slice()))
+    Ok(Addr::unchecked(base58(address.as_slice())))
 }
 
 fn base58(input: &[u8]) -> String {
@@ -267,14 +282,31 @@ impl Api for EmptyApi {
 
 #[cfg(test)]
 mod utils {
+    use cosmwasm_std::StdError;
     use crate::utils::{address_eip155, address_lto};
 
     #[test]
     fn test_derive_eip155_address() {
         let pub_key = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
 
-        let result = address_eip155(pub_key.to_string());
+        let result = address_eip155(pub_key.to_string()).unwrap();
         assert_eq!(result.to_string(), "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7");
+    }
+
+    #[test]
+    fn test_eip155_empty_input() {
+        let pub_key = "";
+        let err = address_eip155(pub_key.to_string()).unwrap_err();
+
+        assert!(matches!(err, StdError::NotFound {..}));
+    }
+
+    #[test]
+    fn test_eip155_invalid_hex() {
+        let pub_key = "!?";
+        let err = address_eip155(pub_key.to_string()).unwrap_err();
+
+        assert!(matches!(err, StdError::GenericErr {..}));
     }
 
     #[test]
@@ -282,8 +314,28 @@ mod utils {
         let result = address_lto(
             'L',
             "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
-        );
+        ).unwrap();
 
         assert_eq!(result.to_string(), "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe");
+    }
+
+    #[test]
+    fn test_derive_lto_address_invalid_network_id() {
+        let err = address_lto(
+            'A',
+            "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
+        ).unwrap_err();
+
+        assert!(matches!(err, StdError::GenericErr { .. }));
+    }
+
+    #[test]
+    fn test_derive_lto_address_invalid_pub_key() {
+        let err = address_lto(
+            'L',
+            "GjSacB6a5Dl1iINEHjDSmnQsrRStKYzkahPH67wyrhAY".to_string(),
+        ).unwrap_err();
+
+        assert!(matches!(err, StdError::GenericErr { .. }));
     }
 }
