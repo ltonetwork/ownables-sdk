@@ -278,7 +278,7 @@ fn test_bridge() {
 fn test_bridge_unauthorized() {
     let CommonTest {
         mut deps,
-        info,
+        info: _,
         res: _,
     } = setup_test("eip155:1".to_string());
 
