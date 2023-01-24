@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
-use crate::state::{BRIDGE, Bridge, Config, CONFIG, Cw721, CW721};
+use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -17,9 +17,13 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    let derived_addr = address_eip155(info.sender)?;
+
     let state = Config {
-        owner: info.sender.clone(),
-        issuer: info.sender.clone(),
+        owner: derived_addr.clone(),
+        issuer: derived_addr.clone(),
         max_capacity: 100,
         current_amount: 100,
         color: get_random_color(msg.ownable_id),
@@ -36,16 +40,12 @@ pub fn instantiate(
         youtube_url: None,
     };
 
-    let bridge = Bridge {
-        is_bridged: false,
-        network: msg.network,
-        nft_id: msg.nft_id,
-        nft_contract_address: msg.nft_contract,
-    };
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     CONFIG.save(deps.storage, &state)?;
-    BRIDGE.save(deps.storage, &bridge)?;
+    NFT.save(deps.storage, &msg.nft)?;
     CW721.save(deps.storage, &cw721)?;
+    LOCKED.save(deps.storage, &false)?;
+    NETWORK_ID.save(deps.storage, &msg.network_id)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -79,8 +79,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
-        ExecuteMsg::Bridge {} => try_lock(info, deps),
-        ExecuteMsg::RegisterExternalEvent { event } => try_register_external_event(info, deps, event),
+        ExecuteMsg::Lock {} => try_lock(info, deps),
     }
 }
 
@@ -100,14 +99,11 @@ pub fn try_register_external_event(
             let nft_id = event.args.get("token_id")
                 .cloned()
                 .unwrap_or_default();
-            let locking_contract_addr = event.args.get("source_contract")
+            let contract_addr = event.args.get("contract")
                 .cloned()
                 .unwrap_or_default();
 
-            if owner.is_empty() ||
-                nft_id.is_empty() ||
-                locking_contract_addr.is_empty() ||
-                event.args.len() > 3 {
+            if owner.is_empty() || nft_id.is_empty() || contract_addr.is_empty() {
                 return Err(ContractError::InvalidExternalEventArgs {});
             }
 
@@ -117,7 +113,7 @@ pub fn try_register_external_event(
                 event.chain_id,
                 owner.to_string(),
                 nft_id.to_string(),
-                locking_contract_addr,
+                contract_addr,
             )?;
             response = response.add_attribute("event_type", "lock");
         },
@@ -135,37 +131,37 @@ fn try_register_lock(
     nft_id: String,
     locking_contract_addr: String,
 ) -> Result<Response, ContractError> {
-    let bridge = BRIDGE.load(deps.storage).unwrap();
-    if bridge.nft_id.to_string() != nft_id {
-        return Err(ContractError::BridgeError {
+    let nft = NFT.load(deps.storage).unwrap();
+    if nft.nft_id.to_string() != nft_id {
+        return Err(ContractError::LockError {
             val: "nft_id mismatch".to_string()
         });
-    } else if bridge.network != chain_id {
-        return Err(ContractError::BridgeError {
+    } else if nft.network != chain_id {
+        return Err(ContractError::LockError {
             val: "network mismatch".to_string()
         });
-    } else if bridge.nft_contract_address != locking_contract_addr {
-        return Err(ContractError::BridgeError {
+    } else if nft.nft_contract_address != locking_contract_addr {
+        return Err(ContractError::LockError {
             val: "locking contract mismatch".to_string()
         });
     }
 
     let caip_2_fields: Vec<&str> = chain_id.split(":").collect();
     let namespace = caip_2_fields.get(0).unwrap();
-    let reference = caip_2_fields.get(1).unwrap();
+    // let reference = caip_2_fields.get(1).unwrap();
 
     match *namespace {
         "eip155" => {
-            let address = address_eip155(owner)?;
-            Ok(try_release(info, deps, address)?)
-        }
-        "lto" => {
-            let network_fields: Vec<char> = reference.chars().collect();
-            if network_fields.len() > 1 {
-                return Err(ContractError::MatchChainIdError { val: chain_id });
+            // assert that owner address is the eip155 of info.sender pk
+            let address = address_eip155(info.sender)?;
+            if address.to_string() != owner {
+                return Err(ContractError::Unauthorized {
+                    val: "Only the owner can release an ownable".to_string(),
+                });
             }
-            let network_id = network_fields.get(0).unwrap();
-            let address = address_lto(*network_id, owner)?;
+
+            let network_id = NETWORK_ID.load(deps.storage)?;
+            let address = address_lto(network_id, owner)?;
             Ok(try_release(info, deps, address)?)
         }
         _ => return Err(ContractError::MatchChainIdError { val: chain_id }),
@@ -173,45 +169,47 @@ fn try_register_lock(
 }
 
 pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
-    // only ownable owner can bridge it
+    // only ownable owner can lock it
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.owner {
+    let network_id = NETWORK_ID.load(deps.storage)?;
+    if address_lto(network_id, info.sender)? != config.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized".into(),
         });
     }
 
-    let bridge = BRIDGE.update(
+    let is_locked = LOCKED.update(
         deps.storage,
-        |mut b| -> Result<_, ContractError> {
-            if b.is_bridged {
+        |mut is_locked| -> Result<_, ContractError> {
+            if is_locked {
                 return Err(
-                    ContractError::BridgeError { val: "Already bridged".to_string() }
+                    ContractError::LockError { val: "Already bridged".to_string() }
                 );
             }
-            b.is_bridged = true;
-            Ok(b)
-        })?;
+            is_locked = true;
+            Ok(is_locked)
+        }
+    )?;
 
     Ok(Response::new()
-        .add_attribute("method", "try_bridge")
-        .add_attribute("is_locked", bridge.is_bridged.to_string())
+        .add_attribute("method", "try_lock")
+        .add_attribute("is_locked", is_locked.to_string())
     )
 }
 
 fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
-    let mut bridge = BRIDGE.load(deps.storage)?;
-    if !bridge.is_bridged {
-        return Err(ContractError::BridgeError { val: "Not bridged".to_string() });
+    let mut is_locked = LOCKED.load(deps.storage)?;
+    if !is_locked {
+        return Err(ContractError::LockError { val: "Not locked".to_string() });
     }
 
     // transfer ownership and clear the bridge
     let mut config = CONFIG.load(deps.storage)?;
     config.owner = to;
-    bridge.is_bridged = false;
+    is_locked = false;
 
     CONFIG.save(deps.storage, &config)?;
-    BRIDGE.save(deps.storage, &bridge)?;
+    NFT.save(deps.storage, &bridge)?;
 
     Ok(Response::new()
         .add_attribute("method", "try_release")
@@ -225,19 +223,20 @@ pub fn try_consume(
     deps: DepsMut,
     consumption_amount: u8,
 ) -> Result<Response, ContractError> {
-    let bridge = BRIDGE.load(deps.storage)?;
-    if bridge.is_bridged {
-        return Err(ContractError::BridgeError {
-            val: "Unable to consume a bridged ownable".to_string(),
+    let is_locked = LOCKED.load(deps.storage)?;
+    if is_locked {
+        return Err(ContractError::LockError {
+            val: "Unable to consume a locked ownable".to_string(),
         });
     }
-
-    CONFIG.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if info.sender != state.owner {
+    let network_id = NETWORK_ID.load(deps.storage)?;
+    let config = CONFIG.update(deps.storage, |mut state| -> Result<_, ContractError> {
+        if address_lto(network_id, info.sender)? != state.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized consumption attempt".into(),
             });
         }
+
         if state.current_amount < consumption_amount {
             return Err(ContractError::CustomError {
                 val: "attempt to consume more than possible".into(),
@@ -250,21 +249,22 @@ pub fn try_consume(
         .add_attribute("method", "try_consume")
         .add_attribute(
             "new_amount",
-            CONFIG.load(deps.storage).unwrap().current_amount.to_string()
+            config.current_amount.to_string()
         )
     )
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
-    let bridge = BRIDGE.load(deps.storage)?;
-    if bridge.is_bridged {
-        return Err(ContractError::BridgeError {
-            val: "Unable to transfer a bridged ownable".to_string(),
+    let is_locked = LOCKED.load(deps.storage)?;
+    if is_locked {
+        return Err(ContractError::LockError {
+            val: "Unable to transfer a locked ownable".to_string(),
         });
     }
 
+    let network_id = NETWORK_ID.load(deps.storage)?;
     CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if info.sender != config.owner {
+        if address_lto(network_id, info.sender)? != config.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });
@@ -282,13 +282,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::IsBridged {} => query_bridge_state(deps),
+        QueryMsg::IsBridged {} => query_nft_state(deps),
     }
 }
 
-fn query_bridge_state(deps: Deps) -> StdResult<Binary> {
-    let bridge = BRIDGE.load(deps.storage)?;
-    to_binary(&bridge)
+fn query_nft_state(deps: Deps) -> StdResult<Binary> {
+    let nft = NFT.load(deps.storage)?;
+    to_binary(&nft)
 }
 
 fn query_ownable_config(deps: Deps) -> StdResult<Binary> {

@@ -12,8 +12,8 @@ pub enum ContractError {
     #[error("Custom Error val: {val:?}")]
     CustomError { val: String },
 
-    #[error("Bridge error: {val:?}")]
-    BridgeError { val: String },
+    #[error("Lock error: {val:?}")]
+    LockError { val: String },
 
     #[error("Unknown event type: {val:?}")]
     MatchEventError { val: String },

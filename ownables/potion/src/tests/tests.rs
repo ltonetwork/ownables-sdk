@@ -6,7 +6,7 @@ use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
 use crate::contract::{execute, query};
 use crate::error::ContractError;
 use crate::msg::{ExternalEvent, OwnableStateResponse, QueryMsg};
-use crate::state::Bridge;
+use crate::state::NFT;
 use crate::utils::{EmptyApi, EmptyQuerier};
 
 const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
@@ -119,7 +119,7 @@ fn test_consume_bridged() {
         deps.as_mut(),
         create_lto_env(),
         info.clone(),
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap();
 
     // attempt to consume a bridged ownable
@@ -132,7 +132,7 @@ fn test_consume_bridged() {
         },
     ).unwrap_err();
 
-    assert!(matches!(err, ContractError::BridgeError { .. }));
+    assert!(matches!(err, ContractError::LockError { .. }));
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn test_transfer_bridged() {
         deps.as_mut(),
         create_lto_env(),
         info.clone(),
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap();
 
     // attempt to transfer a bridged ownable
@@ -195,7 +195,7 @@ fn test_transfer_bridged() {
         },
     ).unwrap_err();
 
-    assert!(matches!(err, ContractError::BridgeError { .. }));
+    assert!(matches!(err, ContractError::LockError { .. }));
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn test_bridge() {
         deps.as_mut(),
         create_lto_env(),
         info,
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap();
 
     let resp = query(
@@ -270,7 +270,7 @@ fn test_bridge() {
         QueryMsg::IsBridged {}
     ).unwrap();
 
-    let response: Bridge = from_binary(&resp).unwrap();
+    let response: NFT = from_binary(&resp).unwrap();
     assert!(response.is_bridged);
 }
 
@@ -287,7 +287,7 @@ fn test_bridge_unauthorized() {
         deps.as_mut(),
         create_lto_env(),
         mock_info("unauthorized", &[]),
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap_err();
 
     assert!(matches!(err, ContractError::Unauthorized { .. }));
@@ -306,7 +306,7 @@ fn test_bridge_already_bridged() {
         deps.as_mut(),
         create_lto_env(),
         info.clone(),
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap();
 
     // attempt to bridge the ownable again
@@ -314,10 +314,10 @@ fn test_bridge_already_bridged() {
         deps.as_mut(),
         create_lto_env(),
         info,
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap_err();
 
-    assert!(matches!(err, ContractError::BridgeError { .. }));
+    assert!(matches!(err, ContractError::LockError { .. }));
 }
 
 #[test]
@@ -406,7 +406,7 @@ fn test_register_external_lock_event_unknown_chain_id() {
         msg,
     ).unwrap_err();
 
-    assert!(matches!(err, ContractError::BridgeError { .. }));
+    assert!(matches!(err, ContractError::LockError { .. }));
 }
 
 #[test]
@@ -422,7 +422,7 @@ fn test_release_ownable_lto_address() {
         deps.as_mut(),
         create_lto_env(),
         info.clone(),
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap();
 
     let mut args: HashMap<String, String> = HashMap::new();
@@ -461,7 +461,7 @@ fn test_release_ownable_lto_address() {
         QueryMsg::IsBridged {},
     ).unwrap();
     // validate that ownable is no longer locked
-    let bridge: Bridge = from_binary(&resp).unwrap();
+    let bridge: NFT = from_binary(&resp).unwrap();
     assert!(!bridge.is_bridged);
 
 }
@@ -479,7 +479,7 @@ fn test_release_unauthorized() {
         deps.as_mut(),
         create_lto_env(),
         info.clone(),
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap();
     //
     // // release the ownable to a new owner as the new owner
@@ -506,7 +506,7 @@ fn test_release_ownable_eth_address() {
         deps.as_mut(),
         create_lto_env(),
         info.clone(),
-        ExecuteMsg::Bridge {},
+        ExecuteMsg::Lock {},
     ).unwrap();
 
     let mut args: HashMap<String, String> = HashMap::new();
@@ -544,6 +544,6 @@ fn test_release_ownable_eth_address() {
         QueryMsg::IsBridged {},
     ).unwrap();
     // validate that ownable is no longer locked
-    let bridge: Bridge = from_binary(&resp).unwrap();
+    let bridge: NFT = from_binary(&resp).unwrap();
     assert!(!bridge.is_bridged);
 }
