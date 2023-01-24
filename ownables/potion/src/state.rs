@@ -28,13 +28,14 @@ pub struct Cw721 {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Bridge {
-    pub is_bridged: bool,
+pub struct NFT {
     pub network: String,    // eip155:1
     pub nft_id: Uint128,
     pub nft_contract_address: String, // 0x341...
 }
 
-pub const BRIDGE: Item<Bridge> = Item::new("bridge");
+pub const NFT: Item<NFT> = Item::new("nft");
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const CW721: Item<Cw721> = Item::new("cw721");
+pub const LOCKED: Item<bool> = Item::new("is_locked");
+pub const NETWORK_ID: Item<char> = Item::new("network_id");

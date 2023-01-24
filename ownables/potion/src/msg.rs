@@ -3,13 +3,13 @@ use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use crate::state::NFT;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub ownable_id: String,
-    pub nft_id: Uint128,
-    pub network: String,
-    pub nft_contract: String,
+    pub nft: NFT,
+    pub network_id: char, // T/L
     pub image: Option<String>,
     pub image_data: Option<String>,
     pub external_url: Option<String>,
@@ -27,11 +27,13 @@ pub enum ExecuteMsg {
     Consume { amount: u8 },
     // transfers ownership
     Transfer { to: Addr },
-    // bridges the ownable
-    Bridge {},
+    // locks the ownable
+    Lock {},
     // registers an external event
-    RegisterExternalEvent { event: ExternalEvent },
+    // RegisterExternalEvent { event: ExternalEvent },
 }
+
+
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct ExternalEvent {
