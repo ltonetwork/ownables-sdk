@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
-use crate::state::{BRIDGE, Bridge, Config, CONFIG};
+use crate::state::{BRIDGE, Bridge, Config, CONFIG, Cw721, CW721};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -23,6 +23,9 @@ pub fn instantiate(
         max_capacity: 100,
         current_amount: 100,
         color: get_random_color(msg.ownable_id),
+    };
+
+    let cw721 = Cw721 {
         image: None,
         image_data: None,
         external_url: None,
@@ -32,6 +35,7 @@ pub fn instantiate(
         animation_url: None,
         youtube_url: None,
     };
+
     let bridge = Bridge {
         is_bridged: false,
         network: msg.network,
@@ -41,6 +45,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &state)?;
     BRIDGE.save(deps.storage, &bridge)?;
+    CW721.save(deps.storage, &cw721)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -298,15 +303,15 @@ fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
-    let config = CONFIG.load(deps.storage)?;
+    let cw721 = CW721.load(deps.storage)?;
     to_binary(&Metadata {
-        image: config.image,
-        image_data: config.image_data,
-        external_url: config.external_url,
-        description: config.description,
-        name: config.name,
-        background_color: config.background_color,
-        animation_url: config.animation_url,
-        youtube_url: config.youtube_url,
+        image: cw721.image,
+        image_data: cw721.image_data,
+        external_url: cw721.external_url,
+        description: cw721.description,
+        name: cw721.name,
+        background_color: cw721.background_color,
+        animation_url: cw721.animation_url,
+        youtube_url: cw721.youtube_url,
     })
 }
