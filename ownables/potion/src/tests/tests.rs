@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary, from_binary, Uint128};
 use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
-use crate::contract::{execute, query};
+use crate::contract::{execute, query, register_external_event};
 use crate::error::ContractError;
 use crate::msg::{ExternalEvent, OwnableStateResponse, QueryMsg};
 use crate::state::NFT;
@@ -13,6 +13,7 @@ const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9
 const ETH_PUBLIC_KEY: &str = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
 const ETH_ADDRESS: &str = "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7";
 const LTO_PUBLIC_KEY: &str = "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
+const LTO_PUBLIC_KEY_ALT: &str = "GjSbdB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
 const LTO_ADDRESS: &str = "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe";
 
 struct CommonTest {
@@ -27,13 +28,16 @@ fn setup_test(network: String) -> CommonTest {
         querier: EmptyQuerier::default(),
         custom_query_type: PhantomData,
     };
-    let info = mock_info("sender-1", &[]);
-
+    let info = mock_info(LTO_PUBLIC_KEY, &[]);
+    let nft = NFT {
+        nft_id: Uint128::one(),
+        network: network.to_string(),
+        nft_contract_address: "nft-contract-address".to_string(),
+    };
     let msg = InstantiateMsg {
         ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
-        nft_id: Uint128::one(),
-        network,
-        nft_contract: "nft_contract".to_string(),
+        nft,
+        network_id: 'L',
         image: None,
         image_data: None,
         external_url: None,
@@ -44,7 +48,12 @@ fn setup_test(network: String) -> CommonTest {
         youtube_url: None,
     };
 
-    let res: Response = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    let res: Response = instantiate(
+        deps.as_mut(),
+        mock_env(),
+        info.clone(),
+        msg
+    ).unwrap();
 
     CommonTest {
         deps,
@@ -64,8 +73,8 @@ fn test_initialize() {
 
     assert_eq!(0, res.messages.len());
     assert_eq!(res.attributes.get(0).unwrap().value, "instantiate".to_string());
-    assert_eq!(res.attributes.get(1).unwrap().value, "sender-1".to_string());
-    assert_eq!(res.attributes.get(2).unwrap().value, "sender-1".to_string());
+    assert_eq!(res.attributes.get(1).unwrap().value, LTO_PUBLIC_KEY.to_string());
+    assert_eq!(res.attributes.get(2).unwrap().value, LTO_PUBLIC_KEY.to_string());
     assert!(res.attributes.get(3).unwrap().value.starts_with("#"));
     assert_eq!(res.attributes.get(3).unwrap().value.len(), 7);
     assert_eq!(res.attributes.get(4).unwrap().value, "100".to_string());
@@ -102,8 +111,10 @@ fn test_consume_unauthorized() {
     let err: ContractError = execute(deps, mock_env(), info, msg)
         .unwrap_err();
 
-    let _expected_err_val = "Unauthorized consumption attempt".to_string();
-    assert!(matches!(err, ContractError::Unauthorized { val: _expected_err_val, }));
+    let _expected_err = ContractError::Unauthorized {
+        val: "Unauthorized consumption attempt".to_string(),
+    };
+    assert!(matches!(err, _expected_err));
 }
 
 #[test]
@@ -212,8 +223,10 @@ fn test_transfer_unauthorized() {
     let err: ContractError = execute(deps, mock_env(), info, msg)
         .unwrap_err();
 
-    let _expected_err_val = "Unauthorized transfer attempt".to_string();
-    assert!(matches!(err, ContractError::Unauthorized { val: _expected_err_val }));
+    let _expected_err = ContractError::Unauthorized {
+        val: "Unauthorized transfer attempt".to_string(),
+    };
+    assert!(matches!(err, _expected_err));
 }
 
 #[test]
@@ -226,7 +239,7 @@ fn test_query_config() {
 
     let msg = QueryMsg::GetOwnableConfig {};
     let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
-    let json: String = "{\"owner\":\"sender-1\",\"issuer\":\"sender-1\",\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
+    let json: String = "{\"owner\":\"3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe\",\"issuer\":\"3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe\",\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
     let expected_binary = Binary::from(json.as_bytes());
 
     assert_eq!(resp, expected_binary);
@@ -267,11 +280,11 @@ fn test_bridge() {
     let resp = query(
         deps.as_ref(),
         create_lto_env(),
-        QueryMsg::IsBridged {}
+        QueryMsg::IsLocked {}
     ).unwrap();
 
-    let response: NFT = from_binary(&resp).unwrap();
-    assert!(response.is_bridged);
+    let is_locked: bool = from_binary(&resp).unwrap();
+    assert!(is_locked);
 }
 
 #[test]
@@ -286,11 +299,14 @@ fn test_bridge_unauthorized() {
     let err = execute(
         deps.as_mut(),
         create_lto_env(),
-        mock_info("unauthorized", &[]),
+        mock_info(LTO_PUBLIC_KEY_ALT, &[]),
         ExecuteMsg::Lock {},
     ).unwrap_err();
 
-    assert!(matches!(err, ContractError::Unauthorized { .. }));
+    let _expected_err = ContractError::Unauthorized {
+        val: "Unauthorized".to_string(),
+    };
+    assert!(matches!(err, _expected_err));
 }
 
 #[test]
@@ -328,20 +344,17 @@ fn test_register_external_event_unknown_type() {
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    let msg = ExecuteMsg::RegisterExternalEvent {
-        event: ExternalEvent {
-            chain_id: "eip155:1".to_string(),
-            event_type: "<3".to_string(),
-            args: HashMap::new(),
-        }
+    let event = ExternalEvent {
+        chain_id: "eip155:1".to_string(),
+        event_type: "<3".to_string(),
+        args: HashMap::new(),
     };
 
     // bridge the ownable
-    let err: ContractError = execute(
-        deps.as_mut(),
-        create_lto_env(),
+    let err: ContractError = register_external_event(
         info.clone(),
-        msg,
+        deps.as_mut(),
+        event,
     ).unwrap_err();
 
     assert!(matches!(err, ContractError::MatchEventError { .. }));
@@ -360,19 +373,16 @@ fn test_register_external_event_invalid_args() {
     args.insert("key1".to_string(), "val1".to_string());
     args.insert("key2".to_string(), "val2".to_string());
 
-    let msg = ExecuteMsg::RegisterExternalEvent {
-        event: ExternalEvent {
-            chain_id: "eip155:1".to_string(),
-            event_type: "lock".to_string(),
-            args,
-        }
+    let event = ExternalEvent {
+        chain_id: "eip155:1".to_string(),
+        event_type: "lock".to_string(),
+        args,
     };
 
-    let err: ContractError = execute(
-        deps.as_mut(),
-        create_lto_env(),
+    let err: ContractError = register_external_event(
         info.clone(),
-        msg,
+        deps.as_mut(),
+        event,
     ).unwrap_err();
 
     assert!(matches!(err, ContractError::InvalidExternalEventArgs { .. }));
@@ -391,22 +401,23 @@ fn test_register_external_lock_event_unknown_chain_id() {
     args.insert("token_id".to_string(), "1".to_string());
     args.insert("source_contract".to_string(), "nft_contract".to_string());
 
-    let msg = ExecuteMsg::RegisterExternalEvent {
-        event: ExternalEvent {
-            chain_id: "wrongid:1".to_string(),
-            event_type: "lock".to_string(),
-            args,
-        }
+    let event = ExternalEvent {
+        chain_id: "wrongid:1".to_string(),
+        event_type: "lock".to_string(),
+        args,
     };
 
-    let err: ContractError = execute(
-        deps.as_mut(),
-        create_lto_env(),
+    let err: ContractError = register_external_event(
         info.clone(),
-        msg,
+        deps.as_mut(),
+        event,
     ).unwrap_err();
 
-    assert!(matches!(err, ContractError::LockError { .. }));
+    let _expected_err = ContractError::LockError {
+        val: "network mismatch".to_string(),
+    };
+
+    assert!(matches!(err, _expected_err));
 }
 
 #[test]
@@ -428,7 +439,7 @@ fn test_release_ownable_lto_address() {
     let mut args: HashMap<String, String> = HashMap::new();
     args.insert("owner".to_string(), LTO_PUBLIC_KEY.to_string());
     args.insert("token_id".to_string(), "1".to_string());
-    args.insert("source_contract".to_string(), "nft_contract".to_string());
+    args.insert("contract".to_string(), "nft-contract-address".to_string());
 
     let lock_event = ExternalEvent {
         chain_id: "lto:L".to_string(),
@@ -437,11 +448,10 @@ fn test_release_ownable_lto_address() {
     };
 
     // ownable should be claimed to eip155:1 representation of the public key
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
+    register_external_event(
         mock_info(LTO_PUBLIC_KEY, &[]),
-        ExecuteMsg::RegisterExternalEvent { event: lock_event, },
+        deps.as_mut(),
+        lock_event,
     ).unwrap();
 
     let resp = query(
@@ -458,11 +468,11 @@ fn test_release_ownable_lto_address() {
     let resp = query(
         deps.as_ref(),
         create_lto_env(),
-        QueryMsg::IsBridged {},
+        QueryMsg::IsLocked {},
     ).unwrap();
     // validate that ownable is no longer locked
-    let bridge: NFT = from_binary(&resp).unwrap();
-    assert!(!bridge.is_bridged);
+    let is_locked: bool = from_binary(&resp).unwrap();
+    assert!(!is_locked);
 
 }
 
@@ -512,7 +522,7 @@ fn test_release_ownable_eth_address() {
     let mut args: HashMap<String, String> = HashMap::new();
     args.insert("owner".to_string(), ETH_PUBLIC_KEY.to_string());
     args.insert("token_id".to_string(), "1".to_string());
-    args.insert("source_contract".to_string(), "nft_contract".to_string());
+    args.insert("contract".to_string(), "nft-contract-address".to_string());
 
     let lock_event = ExternalEvent {
         chain_id: "eip155:1".to_string(),
@@ -521,11 +531,10 @@ fn test_release_ownable_eth_address() {
     };
 
     // ownable should be claimed to eip155:1 representation of the public key
-    execute(
-        deps.as_mut(),
-        create_lto_env(),
+    register_external_event(
         mock_info(ETH_PUBLIC_KEY, &[]),
-        ExecuteMsg::RegisterExternalEvent { event: lock_event, },
+        deps.as_mut(),
+        lock_event,
     ).unwrap();
 
     let resp = query(
@@ -541,9 +550,9 @@ fn test_release_ownable_eth_address() {
     let resp = query(
         deps.as_ref(),
         create_lto_env(),
-        QueryMsg::IsBridged {},
+        QueryMsg::IsLocked {},
     ).unwrap();
     // validate that ownable is no longer locked
-    let bridge: NFT = from_binary(&resp).unwrap();
-    assert!(!bridge.is_bridged);
+    let is_locked: bool = from_binary(&resp).unwrap();
+    assert!(!is_locked);
 }
