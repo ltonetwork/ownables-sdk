@@ -2,6 +2,7 @@ use crate::msg::InstantiateMsg;
 use cosmwasm_std::{Addr, Coin, Empty, Uint128};
 use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
 use crate::msg::ExecuteMsg;
+use crate::state::NFT;
 
 pub fn contract_template() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
@@ -36,12 +37,16 @@ fn proper_instantiate() -> (App, Addr) {
     let mut app = mock_app();
     let cw_template_id = app.store_code(contract_template());
 
+    let nft = NFT {
+        nft_id: Uint128::one(),
+        network: "eip:155".to_string(),
+        nft_contract_address: "nft-contract-address".to_string(),
+    };
     // TODO: replace LTO_USER with another address for ownable_id
     let msg = InstantiateMsg {
         ownable_id: LTO_USER.to_string(),
-        nft_id: Uint128::one(),
-        network: "eip:155".to_string(),
-        nft_contract: "nft-contract-address".to_string(),
+        nft,
+        network_id: 'T',
         image: None,
         image_data: None,
         external_url: None,

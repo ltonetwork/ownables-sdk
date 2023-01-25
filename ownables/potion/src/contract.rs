@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
-use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID};
+use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK, Network};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -19,14 +19,14 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let derived_addr = address_eip155(info.sender)?;
+    let derived_addr = address_lto(msg.network_id, info.sender.to_string())?;
 
     let state = Config {
         owner: derived_addr.clone(),
         issuer: derived_addr.clone(),
         max_capacity: 100,
         current_amount: 100,
-        color: get_random_color(msg.ownable_id),
+        color: get_random_color(msg.clone().ownable_id),
     };
 
     let cw721 = Cw721 {
@@ -39,18 +39,19 @@ pub fn instantiate(
         animation_url: None,
         youtube_url: None,
     };
-
-
+    let network = Network {
+        id: u32::from(msg.network_id),
+    };
     CONFIG.save(deps.storage, &state)?;
+    NETWORK.save(deps.storage, &network)?;
     NFT.save(deps.storage, &msg.nft)?;
     CW721.save(deps.storage, &cw721)?;
     LOCKED.save(deps.storage, &false)?;
-    NETWORK_ID.save(deps.storage, &msg.network_id)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
-        .add_attribute("owner", info.sender.clone())
-        .add_attribute("issuer", info.sender)
+        .add_attribute("owner", info.clone().sender.to_string())
+        .add_attribute("issuer", info.sender.to_string())
         .add_attribute("color", state.color)
         .add_attribute("current_amount", state.max_capacity.to_string()))
 }
@@ -83,7 +84,7 @@ pub fn execute(
     }
 }
 
-pub fn try_register_external_event(
+pub fn register_external_event(
     info: MessageInfo,
     deps: DepsMut,
     event: ExternalEvent,
@@ -93,27 +94,10 @@ pub fn try_register_external_event(
 
     match event.event_type.as_str() {
         "lock" => {
-            let owner = event.args.get("owner")
-                .cloned()
-                .unwrap_or_default();
-            let nft_id = event.args.get("token_id")
-                .cloned()
-                .unwrap_or_default();
-            let contract_addr = event.args.get("contract")
-                .cloned()
-                .unwrap_or_default();
-
-            if owner.is_empty() || nft_id.is_empty() || contract_addr.is_empty() {
-                return Err(ContractError::InvalidExternalEventArgs {});
-            }
-
             try_register_lock(
                 info,
                 deps,
-                event.chain_id,
-                owner.to_string(),
-                nft_id.to_string(),
-                contract_addr,
+                event,
             )?;
             response = response.add_attribute("event_type", "lock");
         },
@@ -126,53 +110,64 @@ pub fn try_register_external_event(
 fn try_register_lock(
     info: MessageInfo,
     deps: DepsMut,
-    chain_id: String,
-    owner: String,
-    nft_id: String,
-    locking_contract_addr: String,
+    event: ExternalEvent,
 ) -> Result<Response, ContractError> {
+    let owner = event.args.get("owner")
+        .cloned()
+        .unwrap_or_default();
+    let nft_id = event.args.get("token_id")
+        .cloned()
+        .unwrap_or_default();
+    let contract_addr = event.args.get("contract")
+        .cloned()
+        .unwrap_or_default();
+
+    if owner.is_empty() || nft_id.is_empty() || contract_addr.is_empty() {
+        return Err(ContractError::InvalidExternalEventArgs {});
+    }
+
     let nft = NFT.load(deps.storage).unwrap();
     if nft.nft_id.to_string() != nft_id {
         return Err(ContractError::LockError {
             val: "nft_id mismatch".to_string()
         });
-    } else if nft.network != chain_id {
+    } else if nft.network != event.chain_id.clone() {
         return Err(ContractError::LockError {
             val: "network mismatch".to_string()
         });
-    } else if nft.nft_contract_address != locking_contract_addr {
+    } else if nft.nft_contract_address != contract_addr {
         return Err(ContractError::LockError {
             val: "locking contract mismatch".to_string()
         });
     }
 
-    let caip_2_fields: Vec<&str> = chain_id.split(":").collect();
+    let caip_2_fields: Vec<&str> = event.chain_id.split(":").collect();
     let namespace = caip_2_fields.get(0).unwrap();
-    // let reference = caip_2_fields.get(1).unwrap();
 
     match *namespace {
         "eip155" => {
             // assert that owner address is the eip155 of info.sender pk
-            let address = address_eip155(info.sender)?;
+            let address = address_eip155(info.sender.to_string())?;
             if address.to_string() != owner {
                 return Err(ContractError::Unauthorized {
                     val: "Only the owner can release an ownable".to_string(),
                 });
             }
 
-            let network_id = NETWORK_ID.load(deps.storage)?;
-            let address = address_lto(network_id, owner)?;
+            let network = NETWORK.load(deps.storage)?;
+            let address = address_lto(char::from_u32(network.id).unwrap(), owner)?;
             Ok(try_release(info, deps, address)?)
         }
-        _ => return Err(ContractError::MatchChainIdError { val: chain_id }),
+        _ => return Err(ContractError::MatchChainIdError { val: event.chain_id }),
     }
 }
 
 pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
     // only ownable owner can lock it
     let config = CONFIG.load(deps.storage)?;
-    let network_id = NETWORK_ID.load(deps.storage)?;
-    if address_lto(network_id, info.sender)? != config.owner {
+    let network = NETWORK.load(deps.storage)?;
+    let network_id = char::from_u32(network.id).unwrap();
+    if address_lto(network_id, info.sender.to_string())? != config.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized".into(),
         });
@@ -209,11 +204,11 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
     is_locked = false;
 
     CONFIG.save(deps.storage, &config)?;
-    NFT.save(deps.storage, &bridge)?;
+    LOCKED.save(deps.storage, &is_locked)?;
 
     Ok(Response::new()
         .add_attribute("method", "try_release")
-        .add_attribute("is_bridged", bridge.is_bridged.to_string())
+        .add_attribute("is_locked", is_locked.to_string())
         .add_attribute("owner", config.owner.to_string())
     )
 }
@@ -229,9 +224,9 @@ pub fn try_consume(
             val: "Unable to consume a locked ownable".to_string(),
         });
     }
-    let network_id = NETWORK_ID.load(deps.storage)?;
+    let network = NETWORK.load(deps.storage)?;
     let config = CONFIG.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if address_lto(network_id, info.sender)? != state.owner {
+        if address_lto(char::from_u32(network.id).unwrap(), info.sender.to_string())? != state.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized consumption attempt".into(),
             });
@@ -262,9 +257,9 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
         });
     }
 
-    let network_id = NETWORK_ID.load(deps.storage)?;
+    let network = NETWORK.load(deps.storage)?;
     CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if address_lto(network_id, info.sender)? != config.owner {
+        if address_lto(char::from_u32(network.id).unwrap(), info.sender.to_string())? != config.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });
@@ -282,24 +277,25 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::IsBridged {} => query_nft_state(deps),
+        QueryMsg::IsLocked {} => query_lock_state(deps),
     }
 }
 
-fn query_nft_state(deps: Deps) -> StdResult<Binary> {
-    let nft = NFT.load(deps.storage)?;
-    to_binary(&nft)
+fn query_lock_state(deps: Deps) -> StdResult<Binary> {
+    let is_locked = LOCKED.load(deps.storage)?;
+    to_binary(&is_locked)
 }
 
 fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
-    to_binary(&OwnableStateResponse {
+    let resp = OwnableStateResponse {
         owner: config.owner.into_string(),
         issuer: config.issuer.into_string(),
         current_amount: config.current_amount,
         max_capacity: config.max_capacity,
         color: config.color,
-    })
+    };
+    to_binary(&resp)
 }
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {

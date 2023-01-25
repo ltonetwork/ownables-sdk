@@ -34,8 +34,14 @@ pub struct NFT {
     pub nft_contract_address: String, // 0x341...
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Network {
+    // ascii code of char
+    pub id: u32,
+}
+
 pub const NFT: Item<NFT> = Item::new("nft");
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const CW721: Item<Cw721> = Item::new("cw721");
 pub const LOCKED: Item<bool> = Item::new("is_locked");
-pub const NETWORK_ID: Item<char> = Item::new("network_id");
+pub const NETWORK: Item<Network> = Item::new("network");

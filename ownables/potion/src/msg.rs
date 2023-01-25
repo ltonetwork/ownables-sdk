@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -49,7 +49,7 @@ pub struct ExternalEvent {
 pub enum QueryMsg {
     GetOwnableConfig {},
     GetOwnableMetadata {},
-    IsBridged {},
+    IsLocked {},
 }
 
 // We define a custom struct for each query response
