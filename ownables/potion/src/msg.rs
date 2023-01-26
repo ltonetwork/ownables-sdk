@@ -9,7 +9,7 @@ use crate::state::NFT;
 pub struct InstantiateMsg {
     pub ownable_id: String,
     pub nft: NFT,
-    pub network_id: char, // T/L
+    pub network_id: u8, // T/L in ascii: 76/84
     pub image: Option<String>,
     pub image_data: Option<String>,
     pub external_url: Option<String>,

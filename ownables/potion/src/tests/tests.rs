@@ -37,7 +37,7 @@ fn setup_test(network: String) -> CommonTest {
     let msg = InstantiateMsg {
         ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
         nft,
-        network_id: 'L',
+        network_id: 76,
         image: None,
         image_data: None,
         external_url: None,
@@ -426,9 +426,9 @@ fn test_release_ownable_lto_address() {
         mut deps,
         info,
         res: _,
-    } = setup_test("lto:L".to_string());
+    } = setup_test("eip155:1".to_string());
 
-    // bridge the ownable
+    // lock the ownable
     execute(
         deps.as_mut(),
         create_lto_env(),
@@ -437,19 +437,19 @@ fn test_release_ownable_lto_address() {
     ).unwrap();
 
     let mut args: HashMap<String, String> = HashMap::new();
-    args.insert("owner".to_string(), LTO_PUBLIC_KEY.to_string());
+    args.insert("owner".to_string(), ETH_PUBLIC_KEY.to_string());
     args.insert("token_id".to_string(), "1".to_string());
     args.insert("contract".to_string(), "nft-contract-address".to_string());
 
     let lock_event = ExternalEvent {
-        chain_id: "lto:L".to_string(),
+        chain_id: "eip155:1".to_string(),
         event_type: "lock".to_string(),
         args,
     };
 
     // ownable should be claimed to eip155:1 representation of the public key
     register_external_event(
-        mock_info(LTO_PUBLIC_KEY, &[]),
+        mock_info(ETH_PUBLIC_KEY, &[]),
         deps.as_mut(),
         lock_event,
     ).unwrap();
