@@ -52,7 +52,6 @@ pub fn address_eip155(mut public_key: String) -> Result<Addr, StdError> {
     if public_key.is_empty() {
         return Err(StdError::not_found("empty input"));
     }
-
     // indicates uncompressed point public key prefix
     if public_key.starts_with("0x04") {
         public_key = public_key.split_off(4);
@@ -108,7 +107,7 @@ pub fn address_lto(network_id: char, public_key: String) -> Result<Addr, StdErro
     if network_id != 'L' && network_id != 'T' {
         return Err(StdError::generic_err("unrecognized network_id"));
     }
-    if public_key.len() != 44 || bs58::decode(public_key.clone()).into_vec().is_err() {
+    if bs58::decode(public_key.clone()).into_vec().is_err() {
         return Err(StdError::generic_err("invalid public key"));
     }
 
@@ -282,12 +281,44 @@ impl Api for EmptyApi {
 
 #[cfg(test)]
 mod utils {
+    use bip39::{Language, Mnemonic, MnemonicType};
     use cosmwasm_std::StdError;
+    use secp256k1::{PublicKey, Secp256k1};
     use crate::utils::{address_eip155, address_lto};
+
+    struct UtilsTest {
+        mnemonic: String,
+        pk: String,
+        pk_uncompressed: String,
+    }
+
+    fn build_test() -> UtilsTest {
+        let phrase = "manage manual recall harvest series desert melt police rose hollow moral pledge kitten position add";
+
+
+        // let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();
+        let seed = "ETYQWXzC2h8VXahYdeUTXNPXEkan3vi9ikXbn912ijiw";
+
+        // let pk = PublicKey::from_slice(seed.as_bytes());
+
+        UtilsTest {
+            mnemonic: phrase.to_string(),
+            pk: "todo".to_string(),
+            pk_uncompressed: "todo".to_string(),
+        }
+    }
 
     #[test]
     fn test_derive_eip155_address() {
         let pub_key = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
+
+        let result = address_eip155(pub_key.to_string()).unwrap();
+        assert_eq!(result.to_string(), "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7");
+    }
+
+    #[test]
+    fn test_derive_eip155_address_compressed_pk() {
+        let pub_key = "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
 
         let result = address_eip155(pub_key.to_string()).unwrap();
         assert_eq!(result.to_string(), "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7");
@@ -315,6 +346,10 @@ mod utils {
             'L',
             "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
         ).unwrap();
+        // let result = address_lto(
+        //     'L',
+        //     "e7ab22c376286ccb0616888217bc41ec31eafb090fb77900a3946e39eb5c7fa374c8d5fe191f8001d287e678567bc8058eb49729780d2ac9090ffccbc506a754".to_string(),
+        // ).unwrap();
 
         assert_eq!(result.to_string(), "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe");
     }

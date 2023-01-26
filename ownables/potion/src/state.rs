@@ -37,7 +37,7 @@ pub struct NFT {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Network {
     // ascii code of char
-    pub id: u32,
+    pub id: u8,
 }
 
 pub const NFT: Item<NFT> = Item::new("nft");

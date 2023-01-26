@@ -19,7 +19,10 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let derived_addr = address_lto(msg.network_id, info.sender.to_string())?;
+    let derived_addr = address_lto(
+        msg.network_id as char,
+        info.sender.to_string()
+    )?;
 
     let state = Config {
         owner: derived_addr.clone(),
@@ -40,7 +43,7 @@ pub fn instantiate(
         youtube_url: None,
     };
     let network = Network {
-        id: u32::from(msg.network_id),
+        id: msg.network_id,
     };
     CONFIG.save(deps.storage, &state)?;
     NETWORK.save(deps.storage, &network)?;
@@ -148,14 +151,14 @@ fn try_register_lock(
         "eip155" => {
             // assert that owner address is the eip155 of info.sender pk
             let address = address_eip155(info.sender.to_string())?;
-            if address.to_string() != owner {
+            if address != address_eip155(owner.clone())? {
                 return Err(ContractError::Unauthorized {
                     val: "Only the owner can release an ownable".to_string(),
                 });
             }
 
             let network = NETWORK.load(deps.storage)?;
-            let address = address_lto(char::from_u32(network.id).unwrap(), owner)?;
+            let address = address_lto(network.id as char, owner)?;
             Ok(try_release(info, deps, address)?)
         }
         _ => return Err(ContractError::MatchChainIdError { val: event.chain_id }),
@@ -166,7 +169,7 @@ pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractEr
     // only ownable owner can lock it
     let config = CONFIG.load(deps.storage)?;
     let network = NETWORK.load(deps.storage)?;
-    let network_id = char::from_u32(network.id).unwrap();
+    let network_id = network.id as char;
     if address_lto(network_id, info.sender.to_string())? != config.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized".into(),
@@ -226,7 +229,7 @@ pub fn try_consume(
     }
     let network = NETWORK.load(deps.storage)?;
     let config = CONFIG.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if address_lto(char::from_u32(network.id).unwrap(), info.sender.to_string())? != state.owner {
+        if address_lto(network.id as char, info.sender.to_string())? != state.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized consumption attempt".into(),
             });
@@ -259,7 +262,7 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 
     let network = NETWORK.load(deps.storage)?;
     CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if address_lto(char::from_u32(network.id).unwrap(), info.sender.to_string())? != config.owner {
+        if address_lto(network.id as char, info.sender.to_string())? != config.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });

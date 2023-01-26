@@ -14,8 +14,9 @@ pub fn contract_template() -> Box<dyn Contract<Empty>> {
 }
 
 const ADMIN: &str = "ADMIN";
-const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
+const LTO_USER: &str = "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
 const NATIVE_DENOM: &str = "denom";
+// const LTO_ADDRESS: &str = "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe";
 
 fn mock_app() -> App {
     AppBuilder::new().build(|router, _, storage| {
@@ -39,14 +40,14 @@ fn proper_instantiate() -> (App, Addr) {
 
     let nft = NFT {
         nft_id: Uint128::one(),
-        network: "eip:155".to_string(),
+        network: "eip155:1".to_string(),
         nft_contract_address: "nft-contract-address".to_string(),
     };
-    // TODO: replace LTO_USER with another address for ownable_id
+
     let msg = InstantiateMsg {
         ownable_id: LTO_USER.to_string(),
         nft,
-        network_id: 'T',
+        network_id: 76,
         image: None,
         image_data: None,
         external_url: None,
