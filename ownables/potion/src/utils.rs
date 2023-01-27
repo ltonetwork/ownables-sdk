@@ -48,24 +48,21 @@ pub fn load_lto_deps(state_dump: Option<IdbStateDump>) -> OwnedDeps<MemoryStorag
 
 }
 
+/// takes a b58 of compressed secp256k1 pk
 pub fn address_eip155(mut public_key: String) -> Result<Addr, StdError> {
     if public_key.is_empty() {
         return Err(StdError::not_found("empty input"));
     }
-    // indicates uncompressed point public key prefix
-    if public_key.starts_with("0x04") {
-        public_key = public_key.split_off(4);
-    }
 
-    if let Err(err) = hex::decode(public_key.clone()) {
-        return Err(StdError::generic_err(err.to_string()));
-    }
+    // decode b58 pk
+    let pk = bs58::decode(public_key.as_bytes()).into_vec().unwrap();
+
+    // instantiate secp256k1 public key from input
+    let public_key = secp256k1::PublicKey::from_slice(pk.as_slice()).unwrap();
 
     let mut hasher = Sha3::keccak256();
-    hasher.input(hex::decode(public_key.as_bytes())
-        .unwrap()
-        .as_slice()
-    );
+    // pass uncompres
+    hasher.input(public_key.serialize_uncompressed().as_slice());
     let hashed_addr = hasher.result_str();
     let result = &hashed_addr[hashed_addr.len() - 40..];
 
@@ -279,12 +276,31 @@ impl Api for EmptyApi {
     }
 }
 
+fn generate_seed(mnemonic: &str, nonce: u32) -> Vec<u8> {
+    let nonce_bytes = [
+        ((nonce >> 24) & 0xff) as u8,
+        ((nonce >> 16) & 0xff) as u8,
+        ((nonce >> 8) & 0xff) as u8,
+        ((nonce >> 0) & 0xff) as u8,
+    ];
+    let seed_input: Vec<u8> = [
+        nonce_bytes.as_slice().to_vec(),
+        mnemonic.as_bytes().to_vec()
+    ].concat();
+
+    secure_hash(seed_input.as_slice())
+}
+
 #[cfg(test)]
 mod utils {
-    use bip39::{Language, Mnemonic, MnemonicType};
+    use std::convert::TryInto;
+    use std::io::Read;
+    use std::str::FromStr;
     use cosmwasm_std::StdError;
-    use secp256k1::{PublicKey, Secp256k1};
-    use crate::utils::{address_eip155, address_lto};
+    use cw_storage_plus::KeyDeserialize;
+    use ed25519_compact::{KeyPair, Seed};
+    use secp256k1::{PublicKey, Secp256k1, SecretKey};
+    use crate::utils::{address_eip155, address_lto, base58, generate_seed, secure_hash};
 
     struct UtilsTest {
         mnemonic: String,
@@ -292,28 +308,36 @@ mod utils {
         pk_uncompressed: String,
     }
 
-    fn build_test() -> UtilsTest {
+    #[test]
+    fn tests() {
         let phrase = "manage manual recall harvest series desert melt police rose hollow moral pledge kitten position add";
+        let nonce: u32 = 0;
 
+        let seed = generate_seed(phrase, nonce);
+        assert_eq!(
+            bs58::encode(seed.as_slice()).into_string(),
+            "93dvzDQ8KBe4y7Nw89xsguWe8ZTVYGAA5kjvJ7miQS1v"
+        );
+        let kp = KeyPair::from_slice(seed.as_slice()).unwrap();
 
-        // let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();
-        let seed = "ETYQWXzC2h8VXahYdeUTXNPXEkan3vi9ikXbn912ijiw";
+        let keypair = ed25519_compact::KeyPair::from_seed(
+            Seed::from_slice(seed.as_slice()).unwrap()
+        );
+        // let secret = keypair.sk.as_slice();
+        // let public = keypair.pk.as_slice();
 
-        // let pk = PublicKey::from_slice(seed.as_bytes());
-
-        UtilsTest {
-            mnemonic: phrase.to_string(),
-            pk: "todo".to_string(),
-            pk_uncompressed: "todo".to_string(),
-        }
     }
 
     #[test]
     fn test_derive_eip155_address() {
-        let pub_key = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
+        // let pk_hex = "025A2146590B80D1F0D97CC7104E702011AFFF21BFAF817F5C7002446369BA9DDC";
+        let compressed_pk_hex = "0252972572d465d016d4c501887b8df303eee3ed602c056b1eb09260dfa0da0ab2";
 
-        let result = address_eip155(pub_key.to_string()).unwrap();
-        assert_eq!(result.to_string(), "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7");
+        let decoded_pk = hex::decode(compressed_pk_hex).unwrap();
+        let bs58_pk = bs58::encode(decoded_pk).into_string();
+        let result = address_eip155(bs58_pk.to_string()).unwrap();
+
+        assert_eq!(result.to_string(), "0x6eDBe1F6D48FbF1b053D6c9FA7997C710B84f55F");
     }
 
     #[test]
