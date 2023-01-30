@@ -49,23 +49,29 @@ pub fn load_lto_deps(state_dump: Option<IdbStateDump>) -> OwnedDeps<MemoryStorag
 }
 
 /// takes a b58 of compressed secp256k1 pk
-pub fn address_eip155(mut public_key: String) -> Result<Addr, StdError> {
+pub fn address_eip155(public_key: String) -> Result<Addr, StdError> {
     if public_key.is_empty() {
         return Err(StdError::not_found("empty input"));
     }
 
     // decode b58 pk
-    let pk = bs58::decode(public_key.as_bytes()).into_vec().unwrap();
+    let pk = bs58::decode(public_key.as_bytes()).into_vec().unwrap_o();
 
     // instantiate secp256k1 public key from input
     let public_key = secp256k1::PublicKey::from_slice(pk.as_slice()).unwrap();
+    let mut uncompressed_hex_pk = hex::encode(public_key.serialize_uncompressed());
+    if uncompressed_hex_pk.starts_with("04") {
+        uncompressed_hex_pk = uncompressed_hex_pk.split_off(2);
+    }
+
+    // pass the raw bytes to keccak256
+    let uncompressed_raw_pk = hex::decode(uncompressed_hex_pk).unwrap();
 
     let mut hasher = Sha3::keccak256();
-    // pass uncompres
-    hasher.input(public_key.serialize_uncompressed().as_slice());
+    hasher.input(uncompressed_raw_pk.as_slice());
     let hashed_addr = hasher.result_str();
-    let result = &hashed_addr[hashed_addr.len() - 40..];
 
+    let result = &hashed_addr[hashed_addr.len() - 40..];
     let checksum_addr = "0x".to_owned() + eip_55_checksum(result).as_str();
 
     Ok(Addr::unchecked(checksum_addr))
@@ -294,58 +300,19 @@ fn generate_seed(mnemonic: &str, nonce: u32) -> Vec<u8> {
 #[cfg(test)]
 mod utils {
     use std::convert::TryInto;
-    use std::io::Read;
     use std::str::FromStr;
     use cosmwasm_std::StdError;
     use cw_storage_plus::KeyDeserialize;
     use ed25519_compact::{KeyPair, Seed};
-    use secp256k1::{PublicKey, Secp256k1, SecretKey};
     use crate::utils::{address_eip155, address_lto, base58, generate_seed, secure_hash};
-
-    struct UtilsTest {
-        mnemonic: String,
-        pk: String,
-        pk_uncompressed: String,
-    }
-
-    #[test]
-    fn tests() {
-        let phrase = "manage manual recall harvest series desert melt police rose hollow moral pledge kitten position add";
-        let nonce: u32 = 0;
-
-        let seed = generate_seed(phrase, nonce);
-        assert_eq!(
-            bs58::encode(seed.as_slice()).into_string(),
-            "93dvzDQ8KBe4y7Nw89xsguWe8ZTVYGAA5kjvJ7miQS1v"
-        );
-        let kp = KeyPair::from_slice(seed.as_slice()).unwrap();
-
-        let keypair = ed25519_compact::KeyPair::from_seed(
-            Seed::from_slice(seed.as_slice()).unwrap()
-        );
-        // let secret = keypair.sk.as_slice();
-        // let public = keypair.pk.as_slice();
-
-    }
 
     #[test]
     fn test_derive_eip155_address() {
-        // let pk_hex = "025A2146590B80D1F0D97CC7104E702011AFFF21BFAF817F5C7002446369BA9DDC";
-        let compressed_pk_hex = "0252972572d465d016d4c501887b8df303eee3ed602c056b1eb09260dfa0da0ab2";
+        let compressed_b58_pk = "v3KjemAaDRYztCiwdT9X72waHdpTq6tHBxyqqCBfFCf7";
 
-        let decoded_pk = hex::decode(compressed_pk_hex).unwrap();
-        let bs58_pk = bs58::encode(decoded_pk).into_string();
-        let result = address_eip155(bs58_pk.to_string()).unwrap();
+        let result = address_eip155(compressed_b58_pk.to_string()).unwrap();
 
-        assert_eq!(result.to_string(), "0x6eDBe1F6D48FbF1b053D6c9FA7997C710B84f55F");
-    }
-
-    #[test]
-    fn test_derive_eip155_address_compressed_pk() {
-        let pub_key = "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
-
-        let result = address_eip155(pub_key.to_string()).unwrap();
-        assert_eq!(result.to_string(), "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7");
+        assert_eq!(result.to_string(), "0x6464FD2B55cACE128748CB0c9889fD5E37787526");
     }
 
     #[test]
@@ -357,8 +324,8 @@ mod utils {
     }
 
     #[test]
-    fn test_eip155_invalid_hex() {
-        let pub_key = "!?";
+    fn test_eip155_invalid_b58() {
+        let pub_key = "v3KjemAaDRYztCiwdT9X70waHdpTq6tHBxyqqCBfFCf7";
         let err = address_eip155(pub_key.to_string()).unwrap_err();
 
         assert!(matches!(err, StdError::GenericErr {..}));
@@ -367,15 +334,11 @@ mod utils {
     #[test]
     fn test_derive_lto_address() {
         let result = address_lto(
-            'L',
-            "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
+            'T',
+            "v3KjemAaDRYztCiwdT9X72waHdpTq6tHBxyqqCBfFCf7".to_string(),
         ).unwrap();
-        // let result = address_lto(
-        //     'L',
-        //     "e7ab22c376286ccb0616888217bc41ec31eafb090fb77900a3946e39eb5c7fa374c8d5fe191f8001d287e678567bc8058eb49729780d2ac9090ffccbc506a754".to_string(),
-        // ).unwrap();
 
-        assert_eq!(result.to_string(), "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe");
+        assert_eq!(result.to_string(), "3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW");
     }
 
     #[test]
