@@ -55,7 +55,7 @@ pub fn address_eip155(public_key: String) -> Result<Addr, StdError> {
     }
 
     // decode b58 pk
-    let pk = bs58::decode(public_key.as_bytes()).into_vec().unwrap_o();
+    let pk = bs58::decode(public_key.as_bytes()).into_vec().unwrap();
 
     // instantiate secp256k1 public key from input
     let public_key = secp256k1::PublicKey::from_slice(pk.as_slice()).unwrap();
@@ -282,6 +282,7 @@ impl Api for EmptyApi {
     }
 }
 
+#[allow(dead_code)]
 fn generate_seed(mnemonic: &str, nonce: u32) -> Vec<u8> {
     let nonce_bytes = [
         ((nonce >> 24) & 0xff) as u8,
@@ -299,12 +300,8 @@ fn generate_seed(mnemonic: &str, nonce: u32) -> Vec<u8> {
 
 #[cfg(test)]
 mod utils {
-    use std::convert::TryInto;
-    use std::str::FromStr;
     use cosmwasm_std::StdError;
-    use cw_storage_plus::KeyDeserialize;
-    use ed25519_compact::{KeyPair, Seed};
-    use crate::utils::{address_eip155, address_lto, base58, generate_seed, secure_hash};
+    use crate::utils::{address_eip155, address_lto,};
 
     #[test]
     fn test_derive_eip155_address() {
@@ -347,7 +344,6 @@ mod utils {
             'A',
             "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY".to_string(),
         ).unwrap_err();
-
         assert!(matches!(err, StdError::GenericErr { .. }));
     }
 
