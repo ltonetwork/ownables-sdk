@@ -10,11 +10,9 @@ use crate::state::NFT;
 use crate::utils::{EmptyApi, EmptyQuerier};
 
 const LTO_USER: &str = "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY";
-const ETH_PUBLIC_KEY: &str = "0x04e71a3edcf033799698c988125fcd4ff49e6eb3e944d8b595da98fa5e7f4b9a34f1c40b96d736d17910f9cd6225fae3af63c0d451f9977a463b04df2f45ceb917";
-const ETH_ADDRESS: &str = "0xcf7007918c0226DbdDb858Ec459A5c50167D81A7";
-const LTO_PUBLIC_KEY: &str = "GjSacB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
+const PUBLIC_KEY: &str = "v3KjemAaDRYztCiwdT9X72waHdpTq6tHBxyqqCBfFCf7";
 const LTO_PUBLIC_KEY_ALT: &str = "GjSbdB6a5DFNEHjDSmn724QsrRStKYzkahPH67wyrhAY";
-const LTO_ADDRESS: &str = "3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe";
+const LTO_ADDRESS: &str = "3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW";
 
 struct CommonTest {
     deps: OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier>,
@@ -28,7 +26,7 @@ fn setup_test(network: String) -> CommonTest {
         querier: EmptyQuerier::default(),
         custom_query_type: PhantomData,
     };
-    let info = mock_info(LTO_PUBLIC_KEY, &[]);
+    let info = mock_info(PUBLIC_KEY, &[]);
     let nft = NFT {
         nft_id: Uint128::one(),
         network: network.to_string(),
@@ -37,7 +35,7 @@ fn setup_test(network: String) -> CommonTest {
     let msg = InstantiateMsg {
         ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
         nft,
-        network_id: 76,
+        network_id: 84,
         image: None,
         image_data: None,
         external_url: None,
@@ -73,8 +71,8 @@ fn test_initialize() {
 
     assert_eq!(0, res.messages.len());
     assert_eq!(res.attributes.get(0).unwrap().value, "instantiate".to_string());
-    assert_eq!(res.attributes.get(1).unwrap().value, LTO_PUBLIC_KEY.to_string());
-    assert_eq!(res.attributes.get(2).unwrap().value, LTO_PUBLIC_KEY.to_string());
+    assert_eq!(res.attributes.get(1).unwrap().value, PUBLIC_KEY.to_string());
+    assert_eq!(res.attributes.get(2).unwrap().value, PUBLIC_KEY.to_string());
     assert!(res.attributes.get(3).unwrap().value.starts_with("#"));
     assert_eq!(res.attributes.get(3).unwrap().value.len(), 7);
     assert_eq!(res.attributes.get(4).unwrap().value, "100".to_string());
@@ -239,7 +237,7 @@ fn test_query_config() {
 
     let msg = QueryMsg::GetOwnableConfig {};
     let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
-    let json: String = "{\"owner\":\"3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe\",\"issuer\":\"3JmCa4jLVv7Yn2XkCnBUGsa7WNFVEMxAfWe\",\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
+    let json: String = "{\"owner\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\",\"issuer\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\",\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
     let expected_binary = Binary::from(json.as_bytes());
 
     assert_eq!(resp, expected_binary);
@@ -437,7 +435,7 @@ fn test_release_ownable_lto_address() {
     ).unwrap();
 
     let mut args: HashMap<String, String> = HashMap::new();
-    args.insert("owner".to_string(), ETH_PUBLIC_KEY.to_string());
+    args.insert("owner".to_string(), PUBLIC_KEY.to_string());
     args.insert("token_id".to_string(), "1".to_string());
     args.insert("contract".to_string(), "nft-contract-address".to_string());
 
@@ -449,7 +447,7 @@ fn test_release_ownable_lto_address() {
 
     // ownable should be claimed to eip155:1 representation of the public key
     register_external_event(
-        mock_info(ETH_PUBLIC_KEY, &[]),
+        mock_info(PUBLIC_KEY, &[]),
         deps.as_mut(),
         lock_event,
     ).unwrap();
@@ -520,7 +518,7 @@ fn test_release_ownable_eth_address() {
     ).unwrap();
 
     let mut args: HashMap<String, String> = HashMap::new();
-    args.insert("owner".to_string(), ETH_PUBLIC_KEY.to_string());
+    args.insert("owner".to_string(), PUBLIC_KEY.to_string());
     args.insert("token_id".to_string(), "1".to_string());
     args.insert("contract".to_string(), "nft-contract-address".to_string());
 
@@ -532,7 +530,7 @@ fn test_release_ownable_eth_address() {
 
     // ownable should be claimed to eip155:1 representation of the public key
     register_external_event(
-        mock_info(ETH_PUBLIC_KEY, &[]),
+        mock_info(PUBLIC_KEY, &[]),
         deps.as_mut(),
         lock_event,
     ).unwrap();
@@ -545,7 +543,7 @@ fn test_release_ownable_eth_address() {
     // validate that the owner is eip155:1 representation of pub key used
     // to register the external event
     let ownable_config: OwnableStateResponse = from_binary(&resp).unwrap();
-    assert_eq!(ownable_config.owner, ETH_ADDRESS);
+    assert_eq!(ownable_config.owner, LTO_ADDRESS);
 
     let resp = query(
         deps.as_ref(),
