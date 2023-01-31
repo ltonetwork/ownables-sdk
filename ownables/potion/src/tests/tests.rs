@@ -5,7 +5,7 @@ use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary
 use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
 use crate::contract::{execute, query, register_external_event};
 use crate::error::ContractError;
-use crate::msg::{ExternalEvent, OwnableStateResponse, QueryMsg};
+use crate::msg::{ExternalEvent, OwnershipResponse, QueryMsg};
 use crate::state::NFT;
 use crate::utils::{EmptyApi, EmptyQuerier};
 
@@ -237,7 +237,23 @@ fn test_query_config() {
 
     let msg = QueryMsg::GetOwnableConfig {};
     let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
-    let json: String = "{\"owner\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\",\"issuer\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\",\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
+    let json: String = "{\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
+    let expected_binary = Binary::from(json.as_bytes());
+
+    assert_eq!(resp, expected_binary);
+}
+
+#[test]
+fn test_query_ownership() {
+    let CommonTest {
+        deps,
+        info: _,
+        res: _,
+    } = setup_test("eip155:1".to_string());
+
+    let msg = QueryMsg::GetOwnership {};
+    let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
+    let json: String = "{\"owner\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\",\"issuer\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\"}".to_string();
     let expected_binary = Binary::from(json.as_bytes());
 
     assert_eq!(resp, expected_binary);
@@ -455,13 +471,13 @@ fn test_release_ownable_lto_address() {
     let resp = query(
         deps.as_ref(),
         create_lto_env(),
-        QueryMsg::GetOwnableConfig {},
+        QueryMsg::GetOwnership {},
     ).unwrap();
 
     // validate that the owner is eip155:1 representation of pub key used
     // to register the external event
-    let ownable_config: OwnableStateResponse = from_binary(&resp).unwrap();
-    assert_eq!(ownable_config.owner, LTO_ADDRESS);
+    let ownership_config: OwnershipResponse = from_binary(&resp).unwrap();
+    assert_eq!(ownership_config.owner, LTO_ADDRESS);
 
     let resp = query(
         deps.as_ref(),
@@ -538,12 +554,12 @@ fn test_release_ownable_eth_address() {
     let resp = query(
         deps.as_ref(),
         create_lto_env(),
-        QueryMsg::GetOwnableConfig {},
+        QueryMsg::GetOwnership {},
     ).unwrap();
     // validate that the owner is eip155:1 representation of pub key used
     // to register the external event
-    let ownable_config: OwnableStateResponse = from_binary(&resp).unwrap();
-    assert_eq!(ownable_config.owner, LTO_ADDRESS);
+    let ownership_config: OwnershipResponse = from_binary(&resp).unwrap();
+    assert_eq!(ownership_config.owner, LTO_ADDRESS);
 
     let resp = query(
         deps.as_ref(),

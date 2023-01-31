@@ -49,17 +49,22 @@ pub struct ExternalEvent {
 pub enum QueryMsg {
     GetOwnableConfig {},
     GetOwnableMetadata {},
+    GetOwnership {},
     IsLocked {},
 }
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct OwnableStateResponse {
-    pub owner: String,
-    pub issuer: String,
     pub current_amount: u8,
     pub max_capacity: u8,
     pub color: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct OwnershipResponse {
+    pub owner: String,
+    pub issuer: String,
 }
 
 #[serde_as]

@@ -5,12 +5,16 @@ use cw_storage_plus::Item;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    // Ownable traits
-    pub owner: Addr,
-    pub issuer: Addr,
+    // Ownable-specific traits
     pub max_capacity: u8,
     pub current_amount: u8,
     pub color: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Ownership {
+    pub owner: Addr,
+    pub issuer: Addr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -45,3 +49,4 @@ pub const CONFIG: Item<Config> = Item::new("config");
 pub const CW721: Item<Cw721> = Item::new("cw721");
 pub const LOCKED: Item<bool> = Item::new("is_locked");
 pub const NETWORK: Item<Network> = Item::new("network");
+pub const OWNERSHIP: Item<Ownership> = Item::new("ownership");
