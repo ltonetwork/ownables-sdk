@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
-use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK, Network};
+use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK, Network, Ownership, OWNERSHIP};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -24,9 +24,12 @@ pub fn instantiate(
         info.sender.to_string()
     )?;
 
-    let state = Config {
+    let ownership = Ownership {
         owner: derived_addr.clone(),
         issuer: derived_addr.clone(),
+    };
+
+    let state = Config {
         max_capacity: 100,
         current_amount: 100,
         color: get_random_color(msg.clone().ownable_id),
@@ -50,6 +53,7 @@ pub fn instantiate(
     NFT.save(deps.storage, &msg.nft)?;
     CW721.save(deps.storage, &cw721)?;
     LOCKED.save(deps.storage, &false)?;
+    OWNERSHIP.save(deps.storage, &ownership)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -167,10 +171,10 @@ fn try_register_lock(
 
 pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
     // only ownable owner can lock it
-    let config = CONFIG.load(deps.storage)?;
+    let ownership = OWNERSHIP.load(deps.storage)?;
     let network = NETWORK.load(deps.storage)?;
     let network_id = network.id as char;
-    if address_lto(network_id, info.sender.to_string())? != config.owner {
+    if address_lto(network_id, info.sender.to_string())? != ownership.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized".into(),
         });
@@ -202,17 +206,17 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
     }
 
     // transfer ownership and clear the bridge
-    let mut config = CONFIG.load(deps.storage)?;
-    config.owner = to;
+    let mut ownership = OWNERSHIP.load(deps.storage)?;
+    ownership.owner = to;
     is_locked = false;
 
-    CONFIG.save(deps.storage, &config)?;
+    OWNERSHIP.save(deps.storage, &ownership)?;
     LOCKED.save(deps.storage, &is_locked)?;
 
     Ok(Response::new()
         .add_attribute("method", "try_release")
         .add_attribute("is_locked", is_locked.to_string())
-        .add_attribute("owner", config.owner.to_string())
+        .add_attribute("owner", ownership.owner.to_string())
     )
 }
 
@@ -228,21 +232,20 @@ pub fn try_consume(
         });
     }
     let network = NETWORK.load(deps.storage)?;
-    let config = CONFIG.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if address_lto(network.id as char, info.sender.to_string())? != state.owner {
-            return Err(ContractError::Unauthorized {
-                val: "Unauthorized consumption attempt".into(),
-            });
-        }
-
-        if state.current_amount < consumption_amount {
-            return Err(ContractError::CustomError {
-                val: "attempt to consume more than possible".into(),
-            });
-        }
-        state.current_amount -= consumption_amount;
-        Ok(state)
-    })?;
+    let ownership = OWNERSHIP.load(deps.storage)?;
+    let mut config = CONFIG.load(deps.storage)?;
+    if address_lto(network.id as char, info.sender.to_string())? != ownership.owner {
+        return Err(ContractError::Unauthorized {
+            val: "Unauthorized consumption attempt".into(),
+        });
+    }
+    if config.current_amount < consumption_amount {
+        return Err(ContractError::CustomError {
+            val: "attempt to consume more than possible".into(),
+        });
+    }
+    config.current_amount -= consumption_amount;
+    CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
         .add_attribute("method", "try_consume")
         .add_attribute(
@@ -261,18 +264,18 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
     }
 
     let network = NETWORK.load(deps.storage)?;
-    CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if address_lto(network.id as char, info.sender.to_string())? != config.owner {
+    let ownership = OWNERSHIP.update(deps.storage, |mut state| -> Result<_, ContractError> {
+        if address_lto(network.id as char, info.sender.to_string())? != state.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });
         }
-        config.owner = to.clone();
-        Ok(config)
+        state.owner = to.clone();
+        Ok(state)
     })?;
     Ok(Response::new()
         .add_attribute("method", "try_transfer")
-        .add_attribute("new_owner", to.to_string())
+        .add_attribute("new_owner", ownership.owner.to_string())
     )
 }
 
@@ -280,8 +283,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
+        QueryMsg::GetOwnership {} => query_ownable_ownership(deps),
         QueryMsg::IsLocked {} => query_lock_state(deps),
     }
+}
+
+fn query_ownable_ownership(deps: Deps) -> StdResult<Binary> {
+    let ownership = OWNERSHIP.load(deps.storage)?;
+    to_binary(&ownership)
 }
 
 fn query_lock_state(deps: Deps) -> StdResult<Binary> {
@@ -292,8 +301,6 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
     let resp = OwnableStateResponse {
-        owner: config.owner.into_string(),
-        issuer: config.issuer.into_string(),
         current_amount: config.current_amount,
         max_capacity: config.max_capacity,
         color: config.color,
