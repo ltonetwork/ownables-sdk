@@ -185,7 +185,7 @@ pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractEr
         |mut is_locked| -> Result<_, ContractError> {
             if is_locked {
                 return Err(
-                    ContractError::LockError { val: "Already bridged".to_string() }
+                    ContractError::LockError { val: "Already locked".to_string() }
                 );
             }
             is_locked = true;
@@ -205,7 +205,7 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
         return Err(ContractError::LockError { val: "Not locked".to_string() });
     }
 
-    // transfer ownership and clear the bridge
+    // transfer ownership and unlock
     let mut ownership = OWNERSHIP.load(deps.storage)?;
     ownership.owner = to;
     is_locked = false;

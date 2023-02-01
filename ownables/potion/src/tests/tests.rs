@@ -116,14 +116,14 @@ fn test_consume_unauthorized() {
 }
 
 #[test]
-fn test_consume_bridged() {
+fn test_consume_locked() {
     let CommonTest {
         mut deps,
         info,
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    // bridge the ownable
+    // lock the ownable
     execute(
         deps.as_mut(),
         create_lto_env(),
@@ -131,7 +131,7 @@ fn test_consume_bridged() {
         ExecuteMsg::Lock {},
     ).unwrap();
 
-    // attempt to consume a bridged ownable
+    // attempt to consume a locked ownable
     let err = execute(
         deps.as_mut(),
         create_lto_env(),
@@ -179,14 +179,14 @@ fn test_transfer() {
 }
 
 #[test]
-fn test_transfer_bridged() {
+fn test_transfer_locked() {
     let CommonTest {
         mut deps,
         info,
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    // bridge the ownable
+    // lock the ownable
     execute(
         deps.as_mut(),
         create_lto_env(),
@@ -194,7 +194,7 @@ fn test_transfer_bridged() {
         ExecuteMsg::Lock {},
     ).unwrap();
 
-    // attempt to transfer a bridged ownable
+    // attempt to transfer a locked ownable
     let err = execute(
         deps.as_mut(),
         create_lto_env(),
@@ -276,14 +276,14 @@ fn test_query_metadata() {
 }
 
 #[test]
-fn test_bridge() {
+fn test_lock() {
     let CommonTest {
         mut deps,
         info,
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    // bridge the ownable
+    // lock the ownable
     execute(
         deps.as_mut(),
         create_lto_env(),
@@ -302,14 +302,14 @@ fn test_bridge() {
 }
 
 #[test]
-fn test_bridge_unauthorized() {
+fn test_lock_unauthorized() {
     let CommonTest {
         mut deps,
         info: _,
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    // attempt to bridge the ownable
+    // attempt to lock the ownable
     let err = execute(
         deps.as_mut(),
         create_lto_env(),
@@ -324,14 +324,14 @@ fn test_bridge_unauthorized() {
 }
 
 #[test]
-fn test_bridge_already_bridged() {
+fn test_lock_already_locked() {
     let CommonTest {
         mut deps,
         info,
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    // bridge the ownable
+    // lock the ownable
     execute(
         deps.as_mut(),
         create_lto_env(),
@@ -339,7 +339,7 @@ fn test_bridge_already_bridged() {
         ExecuteMsg::Lock {},
     ).unwrap();
 
-    // attempt to bridge the ownable again
+    // attempt to lock the ownable again
     let err: ContractError = execute(
         deps.as_mut(),
         create_lto_env(),
@@ -364,7 +364,7 @@ fn test_register_external_event_unknown_type() {
         args: HashMap::new(),
     };
 
-    // bridge the ownable
+    // lock the ownable
     let err: ContractError = register_external_event(
         info.clone(),
         deps.as_mut(),
@@ -498,23 +498,13 @@ fn test_release_unauthorized() {
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    // bridge the ownable
+    // lock the ownable
     execute(
         deps.as_mut(),
         create_lto_env(),
         info.clone(),
         ExecuteMsg::Lock {},
     ).unwrap();
-    //
-    // // release the ownable to a new owner as the new owner
-    // let err = execute(
-    //     deps.as_mut(),
-    //     create_lto_env(),
-    //     mock_info("new_owner", &[]),
-    //     ExecuteMsg::Release { to: Addr::unchecked("new_owner") },
-    // ).unwrap_err();
-    //
-    // assert!(matches!(err, ContractError::Unauthorized { .. }));
 }
 
 #[test]
@@ -525,7 +515,7 @@ fn test_release_ownable_eth_address() {
         res: _,
     } = setup_test("eip155:1".to_string());
 
-    // bridge the ownable
+    // lock the ownable
     execute(
         deps.as_mut(),
         create_lto_env(),
