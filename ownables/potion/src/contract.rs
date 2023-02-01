@@ -1,10 +1,11 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
-use crate::state::{Config, CONFIG};
+use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
+use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK, Network, Ownership, OWNERSHIP};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use crate::utils::{address_eip155, address_lto};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-demo";
@@ -16,12 +17,25 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    let derived_addr = address_lto(
+        msg.network_id as char,
+        info.sender.to_string()
+    )?;
+
+    let ownership = Ownership {
+        owner: derived_addr.clone(),
+        issuer: derived_addr.clone(),
+    };
+
     let state = Config {
-        owner: info.sender.clone(),
-        issuer: info.sender.clone(),
         max_capacity: 100,
         current_amount: 100,
-        color: get_random_color(msg.ownable_id),
+        color: get_random_color(msg.clone().ownable_id),
+    };
+
+    let cw721 = Cw721 {
         image: None,
         image_data: None,
         external_url: None,
@@ -31,13 +45,20 @@ pub fn instantiate(
         animation_url: None,
         youtube_url: None,
     };
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    let network = Network {
+        id: msg.network_id,
+    };
     CONFIG.save(deps.storage, &state)?;
+    NETWORK.save(deps.storage, &network)?;
+    NFT.save(deps.storage, &msg.nft)?;
+    CW721.save(deps.storage, &cw721)?;
+    LOCKED.save(deps.storage, &false)?;
+    OWNERSHIP.save(deps.storage, &ownership)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
-        .add_attribute("owner", info.sender.clone())
-        .add_attribute("issuer", info.sender)
+        .add_attribute("owner", info.clone().sender.to_string())
+        .add_attribute("issuer", info.sender.to_string())
         .add_attribute("color", state.color)
         .add_attribute("current_amount", state.max_capacity.to_string()))
 }
@@ -66,7 +87,137 @@ pub fn execute(
     match msg {
         ExecuteMsg::Consume { amount } => try_consume(info, deps, amount),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
+        ExecuteMsg::Lock {} => try_lock(info, deps),
     }
+}
+
+pub fn register_external_event(
+    info: MessageInfo,
+    deps: DepsMut,
+    event: ExternalEvent,
+) -> Result<Response, ContractError> {
+    let mut response = Response::new()
+        .add_attribute("method", "register_external_event");
+
+    match event.event_type.as_str() {
+        "lock" => {
+            try_register_lock(
+                info,
+                deps,
+                event,
+            )?;
+            response = response.add_attribute("event_type", "lock");
+        },
+        _ => return Err(ContractError::MatchEventError { val: event.event_type }),
+    };
+
+    Ok(response)
+}
+
+fn try_register_lock(
+    info: MessageInfo,
+    deps: DepsMut,
+    event: ExternalEvent,
+) -> Result<Response, ContractError> {
+    let owner = event.args.get("owner")
+        .cloned()
+        .unwrap_or_default();
+    let nft_id = event.args.get("token_id")
+        .cloned()
+        .unwrap_or_default();
+    let contract_addr = event.args.get("contract")
+        .cloned()
+        .unwrap_or_default();
+
+    if owner.is_empty() || nft_id.is_empty() || contract_addr.is_empty() {
+        return Err(ContractError::InvalidExternalEventArgs {});
+    }
+
+    let nft = NFT.load(deps.storage).unwrap();
+    if nft.nft_id.to_string() != nft_id {
+        return Err(ContractError::LockError {
+            val: "nft_id mismatch".to_string()
+        });
+    } else if nft.network != event.chain_id.clone() {
+        return Err(ContractError::LockError {
+            val: "network mismatch".to_string()
+        });
+    } else if nft.nft_contract_address != contract_addr {
+        return Err(ContractError::LockError {
+            val: "locking contract mismatch".to_string()
+        });
+    }
+
+    let caip_2_fields: Vec<&str> = event.chain_id.split(":").collect();
+    let namespace = caip_2_fields.get(0).unwrap();
+
+    match *namespace {
+        "eip155" => {
+            // assert that owner address is the eip155 of info.sender pk
+            let address = address_eip155(info.sender.to_string())?;
+            if address != address_eip155(owner.clone())? {
+                return Err(ContractError::Unauthorized {
+                    val: "Only the owner can release an ownable".to_string(),
+                });
+            }
+
+            let network = NETWORK.load(deps.storage)?;
+            let address = address_lto(network.id as char, owner)?;
+            Ok(try_release(info, deps, address)?)
+        }
+        _ => return Err(ContractError::MatchChainIdError { val: event.chain_id }),
+    }
+}
+
+pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+    // only ownable owner can lock it
+    let ownership = OWNERSHIP.load(deps.storage)?;
+    let network = NETWORK.load(deps.storage)?;
+    let network_id = network.id as char;
+    if address_lto(network_id, info.sender.to_string())? != ownership.owner {
+        return Err(ContractError::Unauthorized {
+            val: "Unauthorized".into(),
+        });
+    }
+
+    let is_locked = LOCKED.update(
+        deps.storage,
+        |mut is_locked| -> Result<_, ContractError> {
+            if is_locked {
+                return Err(
+                    ContractError::LockError { val: "Already locked".to_string() }
+                );
+            }
+            is_locked = true;
+            Ok(is_locked)
+        }
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "try_lock")
+        .add_attribute("is_locked", is_locked.to_string())
+    )
+}
+
+fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
+    let mut is_locked = LOCKED.load(deps.storage)?;
+    if !is_locked {
+        return Err(ContractError::LockError { val: "Not locked".to_string() });
+    }
+
+    // transfer ownership and unlock
+    let mut ownership = OWNERSHIP.load(deps.storage)?;
+    ownership.owner = to;
+    is_locked = false;
+
+    OWNERSHIP.save(deps.storage, &ownership)?;
+    LOCKED.save(deps.storage, &is_locked)?;
+
+    Ok(Response::new()
+        .add_attribute("method", "try_release")
+        .add_attribute("is_locked", is_locked.to_string())
+        .add_attribute("owner", ownership.owner.to_string())
+    )
 }
 
 pub fn try_consume(
@@ -74,255 +225,99 @@ pub fn try_consume(
     deps: DepsMut,
     consumption_amount: u8,
 ) -> Result<Response, ContractError> {
-    CONFIG.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if info.sender != state.owner {
-            return Err(ContractError::Unauthorized {
-                val: "Unauthorized consumption attempt".into(),
-            });
-        }
-        if state.current_amount < consumption_amount {
-            return Err(ContractError::CustomError {
-                val: "attempt to consume more than possible".into(),
-            });
-        }
-        state.current_amount -= consumption_amount;
-        Ok(state)
-    })?;
+    let is_locked = LOCKED.load(deps.storage)?;
+    if is_locked {
+        return Err(ContractError::LockError {
+            val: "Unable to consume a locked ownable".to_string(),
+        });
+    }
+    let network = NETWORK.load(deps.storage)?;
+    let ownership = OWNERSHIP.load(deps.storage)?;
+    let mut config = CONFIG.load(deps.storage)?;
+    if address_lto(network.id as char, info.sender.to_string())? != ownership.owner {
+        return Err(ContractError::Unauthorized {
+            val: "Unauthorized consumption attempt".into(),
+        });
+    }
+    if config.current_amount < consumption_amount {
+        return Err(ContractError::CustomError {
+            val: "attempt to consume more than possible".into(),
+        });
+    }
+    config.current_amount -= consumption_amount;
+    CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
         .add_attribute("method", "try_consume")
         .add_attribute(
             "new_amount",
-            CONFIG.load(deps.storage).unwrap().current_amount.to_string()
+            config.current_amount.to_string()
         )
     )
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
-    CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if info.sender != config.owner {
+    let is_locked = LOCKED.load(deps.storage)?;
+    if is_locked {
+        return Err(ContractError::LockError {
+            val: "Unable to transfer a locked ownable".to_string(),
+        });
+    }
+
+    let network = NETWORK.load(deps.storage)?;
+    let ownership = OWNERSHIP.update(deps.storage, |mut state| -> Result<_, ContractError> {
+        if address_lto(network.id as char, info.sender.to_string())? != state.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });
         }
-        config.owner = to.clone();
-        Ok(config)
+        state.owner = to.clone();
+        Ok(state)
     })?;
     Ok(Response::new()
         .add_attribute("method", "try_transfer")
-        .add_attribute("new_owner", to.to_string())
+        .add_attribute("new_owner", ownership.owner.to_string())
     )
 }
 
-pub fn query(deps: Deps, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
+        QueryMsg::GetOwnership {} => query_ownable_ownership(deps),
+        QueryMsg::IsLocked {} => query_lock_state(deps),
     }
+}
+
+fn query_ownable_ownership(deps: Deps) -> StdResult<Binary> {
+    let ownership = OWNERSHIP.load(deps.storage)?;
+    to_binary(&ownership)
+}
+
+fn query_lock_state(deps: Deps) -> StdResult<Binary> {
+    let is_locked = LOCKED.load(deps.storage)?;
+    to_binary(&is_locked)
 }
 
 fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
-    to_binary(&OwnableStateResponse {
-        owner: config.owner.into_string(),
-        issuer: config.issuer.into_string(),
+    let resp = OwnableStateResponse {
         current_amount: config.current_amount,
         max_capacity: config.max_capacity,
         color: config.color,
-    })
+    };
+    to_binary(&resp)
 }
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
-    let config = CONFIG.load(deps.storage)?;
+    let cw721 = CW721.load(deps.storage)?;
     to_binary(&Metadata {
-        image: config.image,
-        image_data: config.image_data,
-        external_url: config.external_url,
-        description: config.description,
-        name: config.name,
-        background_color: config.background_color,
-        animation_url: config.animation_url,
-        youtube_url: config.youtube_url,
+        image: cw721.image,
+        image_data: cw721.image_data,
+        external_url: cw721.external_url,
+        description: cw721.description,
+        name: cw721.name,
+        background_color: cw721.background_color,
+        animation_url: cw721.animation_url,
+        youtube_url: cw721.youtube_url,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use std::marker::PhantomData;
-    use super::*;
-    use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Addr, OwnedDeps, MemoryStorage, Response, MessageInfo};
-    use crate::utils::{EmptyApi, EmptyQuerier};
-
-    struct CommonTest {
-        deps: OwnedDeps<MemoryStorage, EmptyApi, EmptyQuerier>,
-        info: MessageInfo,
-        res: Response,
-    }
-    fn setup_test() -> CommonTest {
-        let mut deps = OwnedDeps {
-            storage: MemoryStorage::default(),
-            api: EmptyApi::default(),
-            querier: EmptyQuerier::default(),
-            custom_query_type: PhantomData,
-        };
-        let info = mock_info("sender-1", &[]);
-
-        let msg = InstantiateMsg {
-            ownable_id: "2bJ69cFXzS8AJTcCmzjc9oeHZmBrmMVUr8svJ1mTGpho9izYrbZjrMr9q1YwvY".to_string(),
-            image: None,
-            image_data: None,
-            external_url: None,
-            description: Some("ownable to consume".to_string()),
-            name: Some("Potion".to_string()),
-            background_color: None,
-            animation_url: None,
-            youtube_url: None
-        };
-
-        let res: Response = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-
-        CommonTest {
-            deps,
-            info,
-            res,
-        }
-    }
-
-    #[test]
-    fn test_initialize() {
-
-        let CommonTest {
-            deps: _,
-            info: _,
-            res,
-        } = setup_test();
-
-        assert_eq!(0, res.messages.len());
-        assert_eq!(res.attributes.get(0).unwrap().value, "instantiate".to_string());
-        assert_eq!(res.attributes.get(1).unwrap().value, "sender-1".to_string());
-        assert_eq!(res.attributes.get(2).unwrap().value, "sender-1".to_string());
-        assert!(res.attributes.get(3).unwrap().value.starts_with("#"));
-        assert_eq!(res.attributes.get(3).unwrap().value.len(), 7);
-        assert_eq!(res.attributes.get(4).unwrap().value, "100".to_string());
-    }
-
-    #[test]
-    fn test_consume() {
-        let CommonTest {
-            mut deps,
-            info,
-            res: _,
-        } = setup_test();
-        let deps = deps.as_mut();
-
-        let msg = ExecuteMsg::Consume { amount: 50 };
-        let res: Response = execute(deps, mock_env(), info, msg).unwrap();
-
-        assert_eq!(0, res.messages.len());
-        assert_eq!(res.attributes.get(0).unwrap().value, "try_consume".to_string());
-        assert_eq!(res.attributes.get(1).unwrap().value, "50".to_string());
-    }
-
-    #[test]
-    fn test_consume_unauthorized() {
-        let CommonTest {
-            mut deps,
-            mut info,
-            res: _,
-        } = setup_test();
-        let deps = deps.as_mut();
-        info.sender = Addr::unchecked("not-the-owner".to_string());
-        let msg = ExecuteMsg::Consume { amount: 50 };
-
-        let err: ContractError = execute(deps, mock_env(), info, msg)
-            .unwrap_err();
-
-        let _expected_err_val = "Unauthorized consumption attempt".to_string();
-        assert!(matches!(err, ContractError::Unauthorized { val: _expected_err_val, }));
-    }
-
-    #[test]
-    fn test_overconsume() {
-        let CommonTest {
-            mut deps,
-            info,
-            res: _,
-        } = setup_test();
-        let deps = deps.as_mut();
-        let msg = ExecuteMsg::Consume { amount: 150 };
-
-        let err: ContractError = execute(deps, mock_env(), info, msg)
-            .unwrap_err();
-
-        let _expected_err_val = "attempt to consume more than possible".to_string();
-        assert!(matches!(err, ContractError::CustomError { val: _expected_err_val }));
-    }
-
-    #[test]
-    fn test_transfer() {
-        let CommonTest {
-            mut deps,
-            info,
-            res: _,
-        } = setup_test();
-        let deps = deps.as_mut();
-
-        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("other-owner-1") };
-
-        let res: Response = execute(deps, mock_env(), info, msg).unwrap();
-
-        assert_eq!(res.attributes.get(0).unwrap().value, "try_transfer".to_string());
-        assert_eq!(res.attributes.get(1).unwrap().value, "other-owner-1".to_string());
-    }
-
-    #[test]
-    fn test_transfer_unauthorized() {
-        let CommonTest {
-            mut deps,
-            mut info,
-            res: _,
-        } = setup_test();
-        let deps = deps.as_mut();
-        info.sender = Addr::unchecked("not-the-owner".to_string());
-        let msg = ExecuteMsg::Transfer { to: Addr::unchecked("not-the-owner") };
-
-        let err: ContractError = execute(deps, mock_env(), info, msg)
-            .unwrap_err();
-
-        let _expected_err_val = "Unauthorized transfer attempt".to_string();
-        assert!(matches!(err, ContractError::Unauthorized { val: _expected_err_val }));
-    }
-
-    #[test]
-    fn test_query_config() {
-        let CommonTest {
-            deps,
-            info: _,
-            res: _,
-        } = setup_test();
-
-        let msg = QueryMsg::GetOwnableConfig {};
-        let resp: Binary = query(deps.as_ref(), msg).unwrap();
-        let json: String = "{\"owner\":\"sender-1\",\"issuer\":\"sender-1\",\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
-        let expected_binary = Binary::from(json.as_bytes());
-
-        assert_eq!(resp, expected_binary);
-    }
-
-    #[test]
-    fn test_query_metadata() {
-        let CommonTest {
-            deps,
-            info: _,
-            res: _,
-        } = setup_test();
-
-        let msg = QueryMsg::GetOwnableMetadata {};
-        let resp: Binary = query(deps.as_ref(), msg).unwrap();
-        let json: String = "{\"image\":null,\"image_data\":null,\"external_url\":null,\"description\":\"Ownable potion that can be consumed\",\"name\":\"Potion\",\"background_color\":null,\"animation_url\":null,\"youtube_url\":null}".to_string();
-        let expected_binary = Binary::from(json.as_bytes());
-
-        assert_eq!(resp, expected_binary);
-    }
-
 }

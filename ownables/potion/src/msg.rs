@@ -3,10 +3,13 @@ use cosmwasm_std::{Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use crate::state::NFT;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub ownable_id: String,
+    pub nft: NFT,
+    pub network_id: u8, // T/L in ascii: 76/84
     pub image: Option<String>,
     pub image_data: Option<String>,
     pub external_url: Option<String>,
@@ -24,6 +27,21 @@ pub enum ExecuteMsg {
     Consume { amount: u8 },
     // transfers ownership
     Transfer { to: Addr },
+    // locks the ownable
+    Lock {},
+    // registers an external event
+    // RegisterExternalEvent { event: ExternalEvent },
+}
+
+
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct ExternalEvent {
+    // CAIP-2 format: <namespace + ":" + reference>
+    // e.g. ethereum: eip155:1
+    pub chain_id: String,
+    pub event_type: String,
+    pub args: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -31,16 +49,22 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     GetOwnableConfig {},
     GetOwnableMetadata {},
+    GetOwnership {},
+    IsLocked {},
 }
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct OwnableStateResponse {
-    pub owner: String,
-    pub issuer: String,
     pub current_amount: u8,
     pub max_capacity: u8,
     pub color: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct OwnershipResponse {
+    pub owner: String,
+    pub issuer: String,
 }
 
 #[serde_as]
