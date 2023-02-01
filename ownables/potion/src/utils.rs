@@ -55,10 +55,14 @@ pub fn address_eip155(public_key: String) -> Result<Addr, StdError> {
     }
 
     // decode b58 pk
-    let pk = bs58::decode(public_key.as_bytes()).into_vec().unwrap();
+    let pk = bs58::decode(public_key.as_bytes()).into_vec();
+    let decoded_pk = match pk {
+        Ok(pk) => pk,
+        Err(e) => return Err(StdError::generic_err(e.to_string())),
+    };
 
     // instantiate secp256k1 public key from input
-    let public_key = secp256k1::PublicKey::from_slice(pk.as_slice()).unwrap();
+    let public_key = secp256k1::PublicKey::from_slice(decoded_pk.as_slice()).unwrap();
     let mut uncompressed_hex_pk = hex::encode(public_key.serialize_uncompressed());
     if uncompressed_hex_pk.starts_with("04") {
         uncompressed_hex_pk = uncompressed_hex_pk.split_off(2);
