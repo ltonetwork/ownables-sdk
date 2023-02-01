@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use ownable_potion::msg::{ExecuteMsg, InstantiateMsg, OwnableStateResponse, QueryMsg};
+use ownable_potion::msg::{InstantiateMsg};
 use ownable_potion::state::Config;
 
 fn main() {
