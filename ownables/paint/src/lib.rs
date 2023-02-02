@@ -165,13 +165,13 @@ pub async fn query_contract_state(
     );
 
     match query_result {
-        Ok(potion_response) => {
+        Ok(paint_response) => {
             log(&format!(
                 "[contract] successfully queried msg. response {:?}",
-                &to_string(&potion_response).unwrap()
+                &to_string(&paint_response).unwrap()
             ));
 
-            let ownable_state = to_string(&potion_response).unwrap();
+            let ownable_state = to_string(&paint_response).unwrap();
             let response_map = js_sys::Map::new();
             response_map.set(
                 &JsValue::from_str("state"),

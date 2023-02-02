@@ -8,7 +8,7 @@ use cw2::set_contract_version;
 use crate::utils::{address_eip155, address_lto};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:ownable-demo";
+const CONTRACT_NAME: &str = "crates.io:ownable-paint";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(
