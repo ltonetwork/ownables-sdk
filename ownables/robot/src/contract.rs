@@ -8,7 +8,7 @@ use cw2::set_contract_version;
 use crate::utils::{address_eip155, address_lto};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:ownable-paint";
+const CONTRACT_NAME: &str = "crates.io:ownable-robot";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(
@@ -30,16 +30,19 @@ pub fn instantiate(
     };
 
     let state = Config {
-        consumed_by: None,
+        consumed_ownable_ids: vec![],
         color: get_random_color(msg.clone().ownable_id),
+        has_antenna: false,
+        has_speaker: false,
+        has_armor: false
     };
 
     let cw721 = Cw721 {
         image: None,
         image_data: None,
         external_url: None,
-        description: Some("Ownable paint that can be consumed".to_string()),
-        name: Some("Paint".to_string()),
+        description: Some("Ownable Robot".to_string()),
+        name: Some("Robot".to_string()),
         background_color: None,
         animation_url: None,
         youtube_url: None,
@@ -59,7 +62,6 @@ pub fn instantiate(
         .add_attribute("owner", info.clone().sender.to_string())
         .add_attribute("issuer", info.sender.to_string())
         .add_attribute("color", state.color)
-        .add_attribute("consumed_by", state.consumed_by.unwrap())
     )
 }
 
@@ -85,7 +87,6 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Consume {} => try_consume(info, deps),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
     }
@@ -108,10 +109,68 @@ pub fn register_external_event(
             )?;
             response = response.add_attribute("event_type", "lock");
         },
+        "try_consume" => {
+            try_register_consume(
+                info,
+                deps,
+                event,
+            )?;
+            response = response.add_attribute("event_type", "consume");
+
+        }
         _ => return Err(ContractError::MatchEventError { val: event.event_type }),
     };
 
     Ok(response)
+}
+
+fn try_register_consume(
+    info: MessageInfo,
+    deps: DepsMut,
+    event: ExternalEvent,
+) -> Result<Response, ContractError> {
+
+    let owner = event.args.get("owner")
+        .cloned()
+        .unwrap_or_default();
+    let consumed_by = event.args.get("consumed_by")
+        .cloned()
+        .unwrap_or_default();
+    let issuer = event.args.get("issuer")
+        .cloned()
+        .unwrap_or_default();
+    let color = event.args.get("color")
+        .cloned()
+        .unwrap_or_default();
+    let consumable_id = event.args.get("ownable_id")
+        .cloned()
+        .unwrap_or_default();
+
+    if color.is_empty() || issuer.is_empty() || consumed_by.is_empty() || owner.is_empty() || consumable_id.is_empty() {
+        return Err(ContractError::InvalidExternalEventArgs {});
+    }
+
+    let ownership = OWNERSHIP.load(deps.storage)?;
+
+    // only owner can consume
+    if ownership.owner != info.sender.to_string() {
+        return Err(ContractError::Unauthorized { val: "Only owner can consume".to_string() });
+    }
+
+    // validate issuer of collection matches
+    if ownership.issuer.to_string() != issuer {
+        return Err(ContractError::InvalidExternalEventArgs {})
+    }
+
+    let mut config = CONFIG.load(deps.storage)?;
+    config.color = color;
+    config.consumed_ownable_ids.push(Addr::unchecked(consumable_id));
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::new()
+        .add_attribute("method", "try_register_consume")
+        .add_attribute("status", "success")
+    )
 }
 
 fn try_register_lock(
@@ -220,40 +279,6 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
     )
 }
 
-pub fn try_consume(
-    info: MessageInfo,
-    deps: DepsMut,
-) -> Result<Response, ContractError> {
-    let is_locked = LOCKED.load(deps.storage)?;
-    if is_locked {
-        return Err(ContractError::LockError {
-            val: "Unable to consume a locked ownable".to_string(),
-        });
-    }
-    let network = NETWORK.load(deps.storage)?;
-    let ownership = OWNERSHIP.load(deps.storage)?;
-    let mut config = CONFIG.load(deps.storage)?;
-    if address_lto(network.id as char, info.sender.to_string())? != ownership.owner {
-        return Err(ContractError::Unauthorized {
-            val: "Unauthorized consumption attempt".into(),
-        });
-    }
-    if let Some(_) = config.consumed_by {
-        return Err(ContractError::CustomError {
-            val: "already consumed".into(),
-        });
-    }
-    config.consumed_by = Some(ownership.clone().owner);
-    CONFIG.save(deps.storage, &config)?;
-    Ok(Response::new()
-        .add_attribute("method", "try_consume")
-        .add_attribute("consumed_by", config.consumed_by.unwrap().to_string())
-        .add_attribute("color", config.color)
-        .add_attribute("owner", ownership.clone().owner.to_string())
-        .add_attribute("issuer", ownership.issuer.to_string())
-    )
-}
-
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
     let is_locked = LOCKED.load(deps.storage)?;
     if is_locked {
@@ -300,8 +325,11 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
     let resp = OwnableStateResponse {
-        consumed_by: config.consumed_by,
+        consumed_ownable_ids: config.consumed_ownable_ids,
         color: config.color,
+        has_antenna: config.has_antenna,
+        has_speaker: config.has_speaker,
+        has_armor: config.has_armor,
     };
     to_binary(&resp)
 }
