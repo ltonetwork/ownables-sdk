@@ -1,0 +1,195 @@
+<!--<!DOCTYPE html>-->
+<html>
+  <head>
+    <style>
+      html, body {
+        margin: 0;
+      }
+
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .potion {
+        height: 75vh;
+        margin: 2vh auto 0;
+        aspect-ratio: 1 / 1;
+        position: relative;
+        overflow: hidden;
+        left: 3vw;
+      }
+      .potion img {
+        position: absolute;
+        top: 0;
+        height: 100%;
+      }
+      .potion .juice-box {
+        position: absolute;
+        height: 53%;
+        width: 32.5%;
+        top: 22%;
+        left: 26.3%;
+      }
+      .potion .juice {
+        position: absolute;
+        bottom: 0;
+        height: 100%;
+        width: 100%;
+        background-color: red;
+      }
+      .potion.in .juice {
+        transition: height 2s;
+      }
+      .potion .juice {
+        transition: height 1s, top 1s;
+      }
+      .potion .amount {
+        position: absolute;
+        right: 35.5%;
+        top: 9.5%;
+        color: black;
+        font-size: 4vh;
+        transform: skewY(22deg);
+        opacity: 0.7;
+        width: 6vh;
+        text-align: center;
+      }
+
+      .ownable-actions {
+        display: flex;
+        flex-direction: column;
+        border-radius: 5%;
+        height: 19vh;
+        margin: 3vh 0 2vh;
+      }
+
+      .ownable-actions button {
+        border-radius: 5%;
+        background: #ffffff;
+        border: none;
+        height: 7vh;
+        width: 60%;
+        margin: 4vh auto 0;
+        font-size: 3vh;
+        color:#61677C;
+        box-shadow: -5px -5px 20px #ffffff,  5px 5px 20px #BABECC;
+        cursor: pointer;
+        font-weight: 500;
+        font-family: monospace;
+      }
+      .ownable-actions button:active {
+        box-shadow: inset 1px 1px 2px #BABECC, inset -1px -1px 2px #ffffff;
+      }
+
+      input[type='range'] {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+      }
+      input[type='range']:focus {
+        outline: none;
+      }
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+      }
+      input[type='range']::-moz-range-thumb {
+        border: none;
+      }
+
+      .slider {
+        display: block;
+        width: 90vw;
+        margin: 1vh auto;
+      }
+      .slider::-webkit-slider-runnable-track {
+        display: flex;
+        align-items: center;
+        height: 20px;
+        border-radius: 10px;
+        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
+      }
+      .slider::-webkit-slider-thumb {
+        position: relative;
+        top: -50%;
+        width: 40px;
+        height: 40px;
+        background-color: #fff;
+        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
+        border-radius: 50%;
+        box-shadow: -1px -1px 2px white, -2px 2px 2px rgba(0, 0, 0, 0.3);
+      }
+      .slider::-moz-range-track {
+        display: flex;
+        align-items: center;
+        height: 20px;
+        border-radius: 10px;
+        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
+      }
+      .slider::-moz-range-thumb {
+        position: relative;
+        top: -50%;
+        width: 40px;
+        height: 40px;
+        background-color: #fff;
+        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
+        border-radius: 50%;
+        box-shadow: -1px -1px 2px white, -2px 2px 2px rgba(0, 0, 0, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="potion">
+      <img src="back.png">
+      <div class="juice-box">
+        <div class="juice"></div>
+      </div>
+      <img src="glass.png">
+      <img src="body.png">
+      <div class="amount"></div>
+    </div>
+    <div class="ownable-actions">
+      <div class="drink">
+        <input type="range" class="slider" min="0" max="100" value="50">
+      </div>
+      <button id="drink-button">Drink</button>
+    </div>
+    <script>
+      let ownable_id;
+
+      document.getElementById("drink-button").addEventListener('click', () => consume());
+
+      function updateTemplate(color, amt) {
+        document.getElementsByClassName('juice')[0].style.backgroundColor = color;
+        document.getElementsByClassName('juice')[0].style.top = (100 - amt) + '%';
+        document.getElementsByClassName('juice')[0].style.height = amt + '%';
+        document.getElementsByClassName('amount')[0].textContent = amt;
+      }
+
+      window.addEventListener("message", (event) => {
+        console.log("iframe picked up event: ", event);
+
+        ownable_id = event.data.ownable_id;
+        const state = event.data.state;
+        updateTemplate(state.color, state.current_amount)
+      });
+
+      function getDrinkAmount() {
+        let stringAmount = document.getElementsByClassName('slider')[0].valueOf().value;
+        return parseInt(stringAmount);
+      }
+
+      function consume() {
+        let msg = {
+          "consume": {
+            "amount": getDrinkAmount(),
+          },
+        };
+
+        console.log("iframe posting msg: ", msg);
+        window.parent.postMessage({type: "execute", ownable_id, msg}, "*");
+      }
+    </script>
+  </body>
+</html>

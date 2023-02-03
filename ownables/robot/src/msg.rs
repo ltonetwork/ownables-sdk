@@ -23,8 +23,6 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    // consumes the paint
-    Consume {},
     // transfers ownership
     Transfer { to: Addr },
     // locks the ownable
@@ -54,8 +52,11 @@ pub enum QueryMsg {
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct OwnableStateResponse {
-    pub consumed_by: Option<Addr>,
+    pub consumed_ownable_ids: Vec<Addr>,
     pub color: String,
+    pub has_antenna: bool,
+    pub has_speaker: bool,
+    pub has_armor: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -85,4 +86,3 @@ pub struct Metadata {
     pub animation_url: Option<String>,
     pub youtube_url: Option<String>,
 }
-
