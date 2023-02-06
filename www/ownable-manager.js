@@ -10,6 +10,7 @@ import {
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
 import {associateOwnableType, fetchTemplate, getOwnableType} from "./asset_import";
 import {getOwnableInfo} from "./index";
+import allInline from "all-inline";
 
 const lto = new LTO('T');
 
@@ -437,9 +438,8 @@ export async function syncDb() {
   });
 }
 
-export async function findMediaSources(htmlTemplate, templateName) {
+export async function getAssetsIdb(templateName) {
   return new Promise((resolve, reject) => {
-    const allElements = Array.from(htmlTemplate.getElementsByTagName("*")).filter(el => el.hasAttribute("src"));
     const request = window.indexedDB.open("assets");
     request.onblocked = (event) => reject("idb blocked: ", event);
     request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
@@ -450,18 +450,13 @@ export async function findMediaSources(htmlTemplate, templateName) {
     }
     request.onsuccess = async () => {
       let db = request.result;
-      await Promise.all(
-        [...allElements].map(el => replaceSources(el, db, templateName))
-      );
-      db.close();
-      resolve();
+      resolve(db);
     };
   });
 }
 
-export async function replaceSources(element, db, templateName) {
+export async function getAssetFromIDb(currentSrc, db, templateName, callback) {
   return new Promise((resolve, reject) => {
-    const currentSrc = element.getAttribute("src");
     const fr = new FileReader();
     // query the idb for that media and update the template
     console.log(templateName)
@@ -470,10 +465,9 @@ export async function replaceSources(element, db, templateName) {
         resolve();
       }
       fr.onload = (event) => {
-        element.src = event.target.result;
-        resolve();
+        resolve(event.target.result);
       };
-      fr.readAsDataURL(mediaFile);
+      callback(fr, mediaFile);
     }, error => reject(error));
   });
 }
@@ -502,7 +496,18 @@ async function generateOwnableInner(ownable_id, type) {
   const ownableContent = document.createElement('div');
   ownableContent.innerHTML = await getOwnableTemplate(type);
   ownableContent.style.height = "100%";
-  await findMediaSources(ownableContent, type);
+
+  const db = await getAssetsIdb(type);
+  await allInline(ownableContent, async (source, encoding) => {
+    if (encoding === 'data-uri') {
+      return getAssetFromIDb(source, db, type, (fr, mediaFile) => fr.readAsDataURL(mediaFile));
+    } else if (encoding === 'text') {
+      return getAssetFromIDb(source, db, type, (fr, mediaFile) => fr.readAsText(mediaFile));
+    } else {
+      throw Error(`Unsupported encoding ${encoding} of asset ${source}`);
+    }
+  });
+  db.close();
 
   // generate widget iframe
   const ownableWidget = document.createElement('iframe');
@@ -518,12 +523,21 @@ async function generateOwnableInner(ownable_id, type) {
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
     iframe { height: 100%; width: 100%; border: none; }
   `;
+  // ownableStyle.href = "style.css";
+  // const ownableStyleInlined = await allInline(ownableStyle, async ('style.css', 'text') => {
+  //
+  // });
 
   const ownableBody = document.createElement('body');
   ownableBody.appendChild(ownableStyle)
   ownableBody.appendChild(ownableWidget);
   ownableBody.appendChild(ownableScript);
 
+  // takes source and encoding {source: string, encoding: 'text'|'data-uri'}
+  // returns a promise of a string/null
+  let contents = await allInline(ownableBody, async (src, type) => {
+
+  });
   return ownableBody.outerHTML;
 }
 

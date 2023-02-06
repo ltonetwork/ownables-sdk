@@ -74,7 +74,7 @@ pub fn address_eip155(public_key: String) -> Result<Addr, StdError> {
     let mut hasher = Sha3::keccak256();
     hasher.input(uncompressed_raw_pk.as_slice());
     let hashed_addr = hasher.result_str();
-
+    println!("hashed addr: {:?}", hashed_addr);
     let result = &hashed_addr[hashed_addr.len() - 40..];
     let checksum_addr = "0x".to_owned() + eip_55_checksum(result).as_str();
 
@@ -122,7 +122,9 @@ pub fn address_lto(network_id: char, public_key: String) -> Result<Addr, StdErro
     let public_key = bs58::decode(public_key).into_vec().unwrap();
     // get the ascii value from network char
     let network_id = network_id as u8;
+    println!("secure hash {:?}", public_key);
     let pub_key_secure_hash = secure_hash(public_key.as_slice());
+    println!("secure hash {:?}", pub_key_secure_hash);
     // get the first 20 bytes of the securehash
     let address_bytes = &pub_key_secure_hash[0..20];
     let version = &1_u8.to_be_bytes();
