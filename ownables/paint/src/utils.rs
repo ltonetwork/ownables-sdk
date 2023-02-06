@@ -3,10 +3,9 @@ use cosmwasm_std::{Addr, Api, BlockInfo, CanonicalAddr, ContractInfo, Empty, Env
 use std::marker::PhantomData;
 use blake2::Blake2bVar;
 use blake2::digest::{Update, VariableOutput};
-use crypto::digest::Digest;
+use sha2::Digest as Sha2Digest;
 use crate::IdbStateDump;
-use crypto::sha3::Sha3;
-use crypto::sha2::Sha256;
+use sha3::{Digest};
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
@@ -71,10 +70,10 @@ pub fn address_eip155(public_key: String) -> Result<Addr, StdError> {
     // pass the raw bytes to keccak256
     let uncompressed_raw_pk = hex::decode(uncompressed_hex_pk).unwrap();
 
-    let mut hasher = Sha3::keccak256();
+    let mut hasher = sha3::Keccak256::new();
     hasher.input(uncompressed_raw_pk.as_slice());
-    let hashed_addr = hasher.result_str();
-    println!("hashed addr: {:?}", hashed_addr);
+    let hashed_addr = hex::encode(hasher.result().as_slice()).to_string();
+
     let result = &hashed_addr[hashed_addr.len() - 40..];
     let checksum_addr = "0x".to_owned() + eip_55_checksum(result).as_str();
 
@@ -82,9 +81,9 @@ pub fn address_eip155(public_key: String) -> Result<Addr, StdError> {
 }
 
 fn eip_55_checksum(addr: &str) -> String {
-    let mut checksum_hasher = Sha3::keccak256();
+    let mut checksum_hasher = sha3::Keccak256::new();
     checksum_hasher.input(&addr[addr.len() - 40..].as_bytes());
-    let hashed_addr = checksum_hasher.result_str();
+    let hashed_addr = hex::encode(checksum_hasher.result()).to_string();
 
     let mut checksum_buff = "".to_owned();
     let result_chars: Vec<char> = addr.chars()
@@ -156,12 +155,13 @@ fn secure_hash(m: &[u8]) -> Vec<u8> {
     hasher.finalize_variable(&mut buf).unwrap();
 
     // get the sha256 of blake
-    let mut hasher = Sha256::new();
-    hasher.input(&buf);
-
-    let mut buf = [0u8; 32];
-    hasher.result(&mut buf);
-    buf.to_vec()
+    let mut sha256_hasher = sha2::Sha256::new();
+    Update::update(&mut sha256_hasher, buf.as_slice());
+    let res = sha256_hasher.finalize();
+    // let mut hasher = sha2::Sha256::new();
+    // hasher.update(&buf);
+    // let mut buf = hasher.finalize();
+    res.to_vec()
 }
 
 const CANONICAL_LENGTH: usize = 54;
