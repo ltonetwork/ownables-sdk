@@ -12,49 +12,14 @@
         overflow: hidden;
       }
 
-      .potion {
-        height: 75vh;
-        margin: 2vh auto 0;
-        aspect-ratio: 1 / 1;
-        position: relative;
-        overflow: hidden;
-        left: 3vw;
+      #robot {
+        height: 200px;
+        width: 200px;
+        border: 1px solid red;
       }
-      .potion img {
-        position: absolute;
-        top: 0;
-        height: 100%;
-      }
-      .potion .juice-box {
-        position: absolute;
-        height: 53%;
-        width: 32.5%;
-        top: 22%;
-        left: 26.3%;
-      }
-      .potion .juice {
-        position: absolute;
-        bottom: 0;
-        height: 100%;
-        width: 100%;
-        background-color: red;
-      }
-      .potion.in .juice {
-        transition: height 2s;
-      }
-      .potion .juice {
-        transition: height 1s, top 1s;
-      }
-      .potion .amount {
-        position: absolute;
-        right: 35.5%;
-        top: 9.5%;
-        color: black;
-        font-size: 4vh;
-        transform: skewY(22deg);
-        opacity: 0.7;
-        width: 6vh;
-        text-align: center;
+
+      .hidden {
+        display: none;
       }
 
       .ownable-actions {
@@ -82,114 +47,177 @@
       .ownable-actions button:active {
         box-shadow: inset 1px 1px 2px #BABECC, inset -1px -1px 2px #ffffff;
       }
-
-      input[type='range'] {
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-      }
-      input[type='range']:focus {
-        outline: none;
-      }
-      input[type='range']::-webkit-slider-thumb {
-        -webkit-appearance: none;
-      }
-      input[type='range']::-moz-range-thumb {
-        border: none;
-      }
-
-      .slider {
-        display: block;
-        width: 90vw;
-        margin: 1vh auto;
-      }
-      .slider::-webkit-slider-runnable-track {
-        display: flex;
-        align-items: center;
-        height: 20px;
-        border-radius: 10px;
-        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
-      }
-      .slider::-webkit-slider-thumb {
-        position: relative;
-        top: -50%;
-        width: 40px;
-        height: 40px;
-        background-color: #fff;
-        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
-        border-radius: 50%;
-        box-shadow: -1px -1px 2px white, -2px 2px 2px rgba(0, 0, 0, 0.3);
-      }
-      .slider::-moz-range-track {
-        display: flex;
-        align-items: center;
-        height: 20px;
-        border-radius: 10px;
-        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
-      }
-      .slider::-moz-range-thumb {
-        position: relative;
-        top: -50%;
-        width: 40px;
-        height: 40px;
-        background-color: #fff;
-        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
-        border-radius: 50%;
-        box-shadow: -1px -1px 2px white, -2px 2px 2px rgba(0, 0, 0, 0.3);
-      }
     </style>
   </head>
-  <body>
-    <div class="potion">
-      <img src="back.png">
-      <div class="juice-box">
-        <div class="juice"></div>
-      </div>
-      <img src="glass.png">
-      <img src="body.png">
-      <div class="amount"></div>
-    </div>
+    <svg id="robot"></svg>
     <div class="ownable-actions">
-      <div class="drink">
-        <input type="range" class="slider" min="0" max="100" value="50">
-      </div>
-      <button id="drink-button">Drink</button>
+<!--      <div class="drink">-->
+<!--        <input type="range" class="slider" min="0" max="100" value="50">-->
+<!--      </div>-->
+<!--      <button id="drink-button">Drink</button>-->
     </div>
     <script>
-      let ownable_id;
-
-      document.getElementById("drink-button").addEventListener('click', () => consume());
-
-      function updateTemplate(color, amt) {
-        document.getElementsByClassName('juice')[0].style.backgroundColor = color;
-        document.getElementsByClassName('juice')[0].style.top = (100 - amt) + '%';
-        document.getElementsByClassName('juice')[0].style.height = amt + '%';
-        document.getElementsByClassName('amount')[0].textContent = amt;
+      // let ownable_id;
+      //
+      // document.getElementById("drink-button").addEventListener('click', () => consume());
+      //
+      // function updateTemplate(color, amt) {
+      //   document.getElementsByClassName('juice')[0].style.backgroundColor = color;
+      //   document.getElementsByClassName('juice')[0].style.top = (100 - amt) + '%';
+      //   document.getElementsByClassName('juice')[0].style.height = amt + '%';
+      //   document.getElementsByClassName('amount')[0].textContent = amt;
+      // }
+      //
+      // window.addEventListener("message", (event) => {
+      //   console.log("iframe picked up event: ", event);
+      //
+      //   ownable_id = event.data.ownable_id;
+      //   const state = event.data.state;
+      //   updateTemplate(state.color, state.current_amount)
+      // });
+      //
+      // function getDrinkAmount() {
+      //   let stringAmount = document.getElementsByClassName('slider')[0].valueOf().value;
+      //   return parseInt(stringAmount);
+      // }
+      //
+      // function consume() {
+      //   let msg = {
+      //     "consume": {
+      //       "amount": getDrinkAmount(),
+      //     },
+      //   };
+      //
+      //   console.log("iframe posting msg: ", msg);
+      //   window.parent.postMessage({type: "execute", ownable_id, msg}, "*");
+      // }
+      const state = {
+        color: "#195272",
+        hasAntenna: true,
+        hasSpeaker: false,
+        hasArmor: false,
       }
 
-      window.addEventListener("message", (event) => {
-        console.log("iframe picked up event: ", event);
+      const mainColor = tinycolor(state.color);
+      const faceColor = tinycolor({...mainColor.toHsl(), l: 0.88});
+      const bodyColor = faceColor.clone().desaturate(40);
 
-        ownable_id = event.data.ownable_id;
-        const state = event.data.state;
-        updateTemplate(state.color, state.current_amount)
+      const paper = Snap("#robot");
+      const parts = [];
+
+      const faceBg = paper.rect(52, 60, 96, 70, 30);
+      faceBg.attr({
+        fill: faceColor,
+        stroke: mainColor,
+        strokeWidth: 5
       });
 
-      function getDrinkAmount() {
-        let stringAmount = document.getElementsByClassName('slider')[0].valueOf().value;
-        return parseInt(stringAmount);
+      const eyeLeft = paper.circle(80, 90, 6);
+      const eyeRight = paper.circle(120, 90, 6);
+      eyeLeft.attr({fill: mainColor});
+      eyeRight.attr({fill: mainColor});
+      const eyes = paper.group(eyeLeft, eyeRight);
+
+      const mouth = paper.path("M 90 110 C 90 110, 100 125, 110 110");
+      mouth.attr({
+        fill: "none",
+        stroke: mainColor,
+        strokeWidth: 5
+      });
+      const mouthOpenBg = paper.path("M 90 102 H 85 V 110 C 85 110, 100 125, 112 110 V 102 H 90");
+      mouthOpenBg.attr({
+        fill: mainColor,
+        stroke: mainColor,
+        strokeWidth: 5
+      });
+      const tongue = paper.path("M 90 110 C 90 110, 99 120, 108 110 C 108 110, 99 100, 90 110");
+      tongue.attr({
+        fill: "#f9bbbb",
+      });
+      const mouthOpen = paper.group(mouthOpenBg, tongue)
+      mouthOpen.addClass('hidden');
+
+      const face = paper.group(faceBg, eyes, mouth, mouthOpen);
+
+      const headBg = paper.rect(38, 30, 124, 114, 40);
+      headBg.attr({
+        fill: "#ffffff",
+        stroke: mainColor,
+        strokeWidth: 5
+      });
+
+      const head = paper.group(headBg, face);
+
+      const body = paper.circle(100, 115, 80);
+      body.attr({
+        fill: bodyColor,
+        stroke: mainColor,
+        strokeWidth: 5
+      });
+
+      // TODO: this should be an add-on instead of an option.
+      // The code of the add-on is in the consumable and loaded here.
+      if (state.hasAntenna) {
+        const antennaPole = paper.line(100, 15, 100, 30)
+        antennaPole.attr({
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+        const antennaDish = paper.circle(100,12, 8)
+        antennaDish.attr({
+          fill: "#ffffff",
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+        parts.push(paper.group(antennaPole, antennaDish));
       }
 
-      function consume() {
-        let msg = {
-          "consume": {
-            "amount": getDrinkAmount(),
-          },
-        };
-
-        console.log("iframe posting msg: ", msg);
-        window.parent.postMessage({type: "execute", ownable_id, msg}, "*");
+      if (state.hasSpeaker) {
+        const speakerLeft = paper.path("M 38 85 V 60 C 38 60, 5 85, 38 110 V 85");
+        speakerLeft.attr({
+          fill: "#ffffff",
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+        const speakerRight = paper.path("M 162 85 V 60 C 162 60, 195 85, 162 110 V 85");
+        speakerRight.attr({
+          fill: "#ffffff",
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+        parts.push(paper.group(speakerLeft, speakerRight));
       }
+
+      if (state.hasArmor) {
+        const armor = paper.path("M 100 165 H 60 V 184 C 60 184, 100 208, 140 184 V 165 H 100");
+        armor.attr({
+          fill: "#ffffff",
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+        parts.push(armor);
+      }
+
+      const robot = paper.group(body, head, ...parts);
+
+      let faceY = 0;
+      robot.hover(
+        () => Snap.animate(faceY, -5, (y) => {
+          faceY = y;
+          face.transform(`t0,${y}`);
+          eyes.transform(`t0,${y}`);
+          mouth.addClass('hidden');
+          mouthOpen.removeClass('hidden');
+        }, 100, mina.easeinout),
+        () => Snap.animate(faceY, 0, (y) => {
+          faceY = y;
+          face.transform(`t0,${y}`);
+          eyes.transform(`t0,${y}`);
+          mouth.removeClass('hidden');
+          mouthOpen.addClass('hidden');
+        }, 100, mina.easeinout),
+      );
+
     </script>
   </body>
 </html>

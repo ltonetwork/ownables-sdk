@@ -8,7 +8,7 @@ import {
   writeInstantiatedChainToIdb, writeLatestChain,
 } from "./event-chain";
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
-import {associateOwnableType, fetchTemplate, getOwnableType} from "./asset_import";
+import {associateOwnableType, fetchTemplate} from "./asset_import";
 import {getOwnableInfo} from "./index";
 import allInline from "all-inline";
 
@@ -252,13 +252,6 @@ export function queryMetadata(ownable_id) {
     let msg = {
       "get_ownable_metadata": {},
     };
-
-    // ownableIframe.addEventListener('message', async event => {
-    //   console.log("ownable-manager metadata callback: ", event);
-    //   const metadata = JSON.parse(event.data);
-    //   console.log(metadata);
-    //   resolve(metadata);
-    // }, { once: true });
 
     const workerMsg = {
       method: "queryMetadata",
@@ -523,10 +516,6 @@ async function generateOwnableInner(ownable_id, type) {
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
     iframe { height: 100%; width: 100%; border: none; }
   `;
-  // ownableStyle.href = "style.css";
-  // const ownableStyleInlined = await allInline(ownableStyle, async ('style.css', 'text') => {
-  //
-  // });
 
   const ownableBody = document.createElement('body');
   ownableBody.appendChild(ownableStyle)
