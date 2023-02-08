@@ -9,7 +9,7 @@
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server",
-    "build-ownable": "wasm-pack build --target web ../ownables/$npm_config_path/ && rm ../ownables/$npm_config_path/assets/$npm_config_path.zip && zip -r -j ../ownables/$npm_config_path/assets/$npm_config_path.zip ../ownables/$npm_config_path/assets/ ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/*.wasm ",
+    "build-ownable": "CC=/usr/local/opt/llvm/bin/clang AR=/usr/local/opt/llvm/bin/llvm-ar wasm-pack build --target web ../ownables/$npm_config_path/ && rm ../ownables/$npm_config_path/assets/$npm_config_path.zip && mv ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ../ownables/$npm_config_path/assets/$npm_config_path.zip ../ownables/$npm_config_path/assets/ ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/*.wasm ",
     "build-ownables": "for DIR in ../ownables/*; do npm run build-ownable --path=$DIR; done"
   },
   "repository": {
@@ -38,6 +38,7 @@
   "dependencies": {
     "@ltonetwork/lto": "^0.10.1",
     "all-inline": "^0.1.4",
-    "jszip": "^3.10.0"
+    "jszip": "^3.10.0",
+    "tinycolor2": "^1.6.0"
   }
 }
