@@ -120,7 +120,7 @@ function writeTemplate(db, ownableType, template) {
         templateName = "html";
         break;
       case "text/javascript":
-        templateName = "bindgen.js";
+        templateName = template.name;
         break;
       default:
         templateName = template["name"];
@@ -138,43 +138,43 @@ function writeTemplate(db, ownableType, template) {
 
 
 
-function appendWorkerGlueCode(templateName) {
-  return new Promise((resolve, reject) => {
-    let db, template;
-    const request = window.indexedDB.open(ASSETS_STORE);
-    request.onsuccess = async () => {
-      db = request.result;
-      let templateTx = db.transaction(templateName, "readonly")
-        .objectStore(templateName)
-        .get("bindgen.js");
-      templateTx.onsuccess = () => {
-        template = templateTx.result;
-        const fr = new FileReader();
-        fr.onload = async () => {
-          let bindgenDataURL = fr.result;
-          let workerDataURL = await readWorkerGlueAsDataURL();
-          // append the worker glue code to bindgen glue code
-          let combinedDataURL = joinDataURLContents(bindgenDataURL, workerDataURL);
-          console.log(combinedDataURL);
-          let newTemplate = new File([combinedDataURL], template.name, { type: template.type });
-          let updateTemplateTx = db.transaction(templateName, "readwrite")
-            .objectStore(templateName)
-            .put(newTemplate, "bindgen.js");
-          updateTemplateTx.onsuccess = () => {
-            resolve(updateTemplateTx.result);
-          };
-        };
-        if (template) {
-          console.log("reading template data url");
-          fr.readAsDataURL(template);
-        } else {
-          reject();
-        }
-      }
-    }
-  });
-}
-
+// function appendWorkerGlueCode(templateName) {
+//   return new Promise((resolve, reject) => {
+//     let db, template;
+//     const request = window.indexedDB.open(ASSETS_STORE);
+//     request.onsuccess = async () => {
+//       db = request.result;
+//       let templateTx = db.transaction(templateName, "readonly")
+//         .objectStore(templateName)
+//         .get("bindgen.js");
+//       templateTx.onsuccess = () => {
+//         template = templateTx.result;
+//         const fr = new FileReader();
+//         fr.onload = async () => {
+//           let bindgenDataURL = fr.result;
+//           let workerDataURL = await readWorkerGlueAsDataURL();
+//           // append the worker glue code to bindgen glue code
+//           let combinedDataURL = joinDataURLContents(bindgenDataURL, workerDataURL);
+//           console.log(combinedDataURL);
+//           let newTemplate = new File([combinedDataURL], template.name, { type: template.type });
+//           let updateTemplateTx = db.transaction(templateName, "readwrite")
+//             .objectStore(templateName)
+//             .put(newTemplate, "bindgen.js");
+//           updateTemplateTx.onsuccess = () => {
+//             resolve(updateTemplateTx.result);
+//           };
+//         };
+//         if (template) {
+//           console.log("reading template data url");
+//           fr.readAsDataURL(template);
+//         } else {
+//           reject();
+//         }
+//       }
+//     }
+//   });
+// }
+//
 
 function readWorkerGlueAsDataURL() {
   return new Promise(async (resolve, reject) => {
