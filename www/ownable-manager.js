@@ -197,6 +197,13 @@ export async function executeOwnable(ownable_id, msg) {
   };
 
   const data = await postToOwnableFrame(ownable_id, postMsg);
+  const state = JSON.parse(data.get('state'));
+  const isExternalEvent = state.attributes.find(a => a.key === 'external_event');
+  if (isExternalEvent) {
+    let externalEvent = JSON.parse(atob(state.data));
+    console.log("external event: ", externalEvent);
+  }
+
   const mem = JSON.parse(data.get('mem'));
 
   let db = await initIndexedDb(ownable_id);

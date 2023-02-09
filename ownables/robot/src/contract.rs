@@ -112,7 +112,7 @@ pub fn register_external_event(
             )?;
             response = response.add_attribute("event_type", "lock");
         },
-        "try_consume" => {
+        "consume" => {
             try_register_consume(
                 info,
                 deps,
