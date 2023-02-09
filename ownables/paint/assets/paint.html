@@ -82,61 +82,6 @@
       .ownable-actions button:active {
         box-shadow: inset 1px 1px 2px #BABECC, inset -1px -1px 2px #ffffff;
       }
-
-      input[type='range'] {
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-      }
-      input[type='range']:focus {
-        outline: none;
-      }
-      input[type='range']::-webkit-slider-thumb {
-        -webkit-appearance: none;
-      }
-      input[type='range']::-moz-range-thumb {
-        border: none;
-      }
-
-      .slider {
-        display: block;
-        width: 90vw;
-        margin: 1vh auto;
-      }
-      .slider::-webkit-slider-runnable-track {
-        display: flex;
-        align-items: center;
-        height: 20px;
-        border-radius: 10px;
-        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
-      }
-      .slider::-webkit-slider-thumb {
-        position: relative;
-        top: -50%;
-        width: 40px;
-        height: 40px;
-        background-color: #fff;
-        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
-        border-radius: 50%;
-        box-shadow: -1px -1px 2px white, -2px 2px 2px rgba(0, 0, 0, 0.3);
-      }
-      .slider::-moz-range-track {
-        display: flex;
-        align-items: center;
-        height: 20px;
-        border-radius: 10px;
-        box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
-      }
-      .slider::-moz-range-thumb {
-        position: relative;
-        top: -50%;
-        width: 40px;
-        height: 40px;
-        background-color: #fff;
-        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
-        border-radius: 50%;
-        box-shadow: -1px -1px 2px white, -2px 2px 2px rgba(0, 0, 0, 0.3);
-      }
     </style>
   </head>
   <body>
@@ -150,15 +95,12 @@
       <div class="amount"></div>
     </div>
     <div class="ownable-actions">
-      <div class="drink">
-        <input type="range" class="slider" min="0" max="100" value="50">
-      </div>
-      <button id="drink-button">Drink</button>
+      <button id="consume-button">Consume</button>
     </div>
     <script>
       let ownable_id;
 
-      document.getElementById("drink-button").addEventListener('click', () => consume());
+      document.getElementById("consume-button").addEventListener('click', () => consume());
 
       function updateTemplate(color, amt) {
         document.getElementsByClassName('juice')[0].style.backgroundColor = color;
@@ -175,16 +117,9 @@
         updateTemplate(state.color, state.current_amount)
       });
 
-      function getDrinkAmount() {
-        let stringAmount = document.getElementsByClassName('slider')[0].valueOf().value;
-        return parseInt(stringAmount);
-      }
-
       function consume() {
         let msg = {
-          "consume": {
-            "amount": getDrinkAmount(),
-          },
+          "consume": {},
         };
 
         console.log("iframe posting msg: ", msg);
