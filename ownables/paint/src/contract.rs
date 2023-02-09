@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
 use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK, Network, Ownership, OWNERSHIP};
@@ -247,12 +248,25 @@ pub fn try_consume(
     }
     config.consumed_by = Some(ownership.clone().owner);
     CONFIG.save(deps.storage, &config)?;
+
+
+    let mut event_args = HashMap::new();
+    event_args.insert("owner".to_string(), ownership.clone().owner.to_string());
+    event_args.insert("consumed_by".to_string(), config.consumed_by.unwrap().to_string());
+    event_args.insert("color".to_string(), config.color);
+    event_args.insert("issuer".to_string(), ownership.issuer.to_string());
+    event_args.insert("owner".to_string(), ownership.clone().owner.to_string());
+
+    let external_event = ExternalEvent {
+        chain_id: "eip155:1".to_string(),
+        event_type: "consume".to_string(),
+        args: event_args,
+    };
+
     Ok(Response::new()
         .add_attribute("method", "try_consume")
-        .add_attribute("consumed_by", config.consumed_by.unwrap().to_string())
-        .add_attribute("color", config.color)
-        .add_attribute("owner", ownership.clone().owner.to_string())
-        .add_attribute("issuer", ownership.issuer.to_string())
+        .add_attribute("external_event", true.to_string())
+        .set_data(to_binary(&external_event)?)
     )
 }
 
