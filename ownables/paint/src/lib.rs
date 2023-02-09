@@ -52,7 +52,10 @@ pub async fn instantiate_contract(
             let resp = get_json_response(deps.storage, response);
             Ok(resp)
         }
-        Err(error) => Err(JsError::from(error)),
+        Err(error) => {
+            log(&format!("[error] failed to instantiate paint. {:?}", error));
+            Err(JsError::from(error))
+        },
     }
 }
 

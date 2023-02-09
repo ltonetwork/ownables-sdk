@@ -286,7 +286,6 @@ export async function issueOwnable(ownableType, chain) {
   };
 
   const data = await postToOwnableFrame(chain.id, workerMsg);
-
   const state = JSON.parse(data.get('state'));
   const mem = JSON.parse(data.get('mem'));
 

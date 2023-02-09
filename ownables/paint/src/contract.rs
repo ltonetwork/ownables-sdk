@@ -19,8 +19,13 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    let network = Network {
+        // id: msg.network_id,
+        id: 76,
+    };
+
     let derived_addr = address_lto(
-        msg.network_id as char,
+        network.id as char,
         info.sender.to_string()
     )?;
 
@@ -44,12 +49,10 @@ pub fn instantiate(
         animation_url: None,
         youtube_url: None,
     };
-    let network = Network {
-        id: msg.network_id,
-    };
+
     CONFIG.save(deps.storage, &state)?;
     NETWORK.save(deps.storage, &network)?;
-    NFT.save(deps.storage, &msg.nft)?;
+    // NFT.save(deps.storage, &msg.nft)?;
     CW721.save(deps.storage, &cw721)?;
     LOCKED.save(deps.storage, &false)?;
     OWNERSHIP.save(deps.storage, &ownership)?;
@@ -59,7 +62,6 @@ pub fn instantiate(
         .add_attribute("owner", info.clone().sender.to_string())
         .add_attribute("issuer", info.sender.to_string())
         .add_attribute("color", state.color)
-        .add_attribute("consumed_by", state.consumed_by.unwrap())
     )
 }
 

@@ -9,7 +9,7 @@
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server",
-    "build-ownable": "CC=/usr/local/opt/llvm/bin/clang AR=/usr/local/opt/llvm/bin/llvm-ar wasm-pack build --target web ../ownables/$npm_config_path/ && rm ../ownables/$npm_config_path/assets/$npm_config_path.zip && mv ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ../ownables/$npm_config_path/assets/$npm_config_path.zip ../ownables/$npm_config_path/assets/ ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/*.wasm ",
+    "build-ownable": "wasm-pack build --target web ../ownables/$npm_config_path/ && touch ../ownables/$npm_config_path/assets/$npm_config_path.zip && rm -f ../ownables/$npm_config_path/assets/$npm_config_path.zip && rm -f ../ownables/$npm_config_path/pkg/bindgen.js && mv ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ../ownables/$npm_config_path/assets/$npm_config_path.zip ../ownables/$npm_config_path/assets/ ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/*.wasm ",
     "build-ownables": "for DIR in ../ownables/*; do npm run build-ownable --path=$DIR; done"
   },
   "repository": {
