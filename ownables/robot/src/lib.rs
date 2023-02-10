@@ -118,8 +118,15 @@ pub async fn register_external_event(
     ownable_id: String,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
-    let external_event: ExternalEvent = serde_wasm_bindgen::from_value(msg.clone()).unwrap();
+
+    log(&format!(
+        "wasm register_external_event with msg: {:?} and ownable_id: {:?}",
+        msg, ownable_id,
+    ));
     let info: MessageInfo = serde_wasm_bindgen::from_value(info).unwrap();
+    log(&format!("info: {:?}", info));
+    let external_event: ExternalEvent = serde_wasm_bindgen::from_value(msg.clone()).unwrap();
+    log(&format!("external event: {:?}", info));
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb).unwrap();
     let mut deps = load_lto_deps(Some(state_dump));
 
@@ -132,6 +139,7 @@ pub async fn register_external_event(
         info,
         deps.as_mut(),
         external_event,
+        ownable_id,
     );
 
     match result {

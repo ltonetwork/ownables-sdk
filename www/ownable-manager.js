@@ -43,6 +43,7 @@ async function postToOwnableFrame(ownableId, msg) {
     window.addEventListener('message', (e) => {
       resolve(e.data);
     }, {once: true});
+    console.log("posting ", msg, " to ownableId ", ownableId);
     ownableIframe.contentWindow.postMessage(msg, "*");
   });
 }
@@ -213,6 +214,43 @@ export async function executeOwnable(ownable_id, msg) {
   await queryState(ownable_id);
 
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+  const latestChain = await getLatestChain(ownable_id);
+  const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
+  await writeLatestChain(ownable_id, latestChain);
+  console.log("anchor: ", anchor);
+}
+
+export async function registerExternalEvent(ownable_id, msg) {
+  const state_dump = await getOwnableStateDump(ownable_id);
+  console.log("register external event ownable_manager()");
+  const workerMsg = {
+    type: "external_event",
+    ownable_id: ownable_id,
+    msg: msg,
+    info: getMessageInfo(),
+    idb: state_dump,
+  };
+
+  const postMsg = {
+    method: 'registerExternalEvent',
+    args: [
+      ownable_id,
+      workerMsg,
+    ],
+  };
+
+  const data = await postToOwnableFrame(ownable_id, postMsg);
+  const state = JSON.parse(data.get('state'));
+
+  const mem = JSON.parse(data.get('mem'));
+
+  let db = await initIndexedDb(ownable_id);
+  await saveOwnableStateDump(db, mem);
+  db.close();
+
+  await queryState(ownable_id);
+
+  const newEvent = new Event({"@context": "register_external_event.json", ...msg});
   const latestChain = await getLatestChain(ownable_id);
   const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
   await writeLatestChain(ownable_id, latestChain);

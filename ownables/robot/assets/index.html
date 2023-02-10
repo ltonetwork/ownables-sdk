@@ -60,14 +60,39 @@
   <body>
     <svg id="robot"></svg>
     <div class="ownable-actions">
-<!--      <div class="drink">-->
-<!--        <input type="range" class="slider" min="0" max="100" value="50">-->
-<!--      </div>-->
-<!--      <button id="drink-button">Drink</button>-->
+      <input type="text" class="external-event-input">
+      <button id="external-event-button">Apply external event</button>
     </div>
     <script type="text/javascript" src="tinycolor.js"></script>
     <script type="text/javascript" src="snap.svg-min.js"></script>
     <script>
+      let ownable_id;
+
+      window.addEventListener("message", (event) => {
+        console.log("iframe picked up event: ", event);
+
+        ownable_id = event.data.ownable_id;
+        let color = event.data.state.color;
+        if (color) {
+          state.color = color;
+        }
+        drawRobot();
+      });
+
+
+      document.getElementById("external-event-button").onclick = function () {
+        let externalEvent = JSON.parse(
+          document.getElementsByClassName('external-event-input')[0].valueOf().value
+        );
+        if (!externalEvent) {
+          console.log("no event passed");
+        } else {
+          console.log(externalEvent);
+        }
+
+        window.parent.postMessage({type: "external_event", ownable_id, externalEvent,}, "*")
+
+      };
 
       const state = {
         color: "#195272",
@@ -75,126 +100,129 @@
         hasSpeaker: false,
         hasArmor: false,
       }
+      function drawRobot() {
+        const mainColor = tinycolor(state.color);
+        const faceColor = tinycolor({...mainColor.toHsl(), l: 0.88});
+        const bodyColor = faceColor.clone().desaturate(40);
 
-      const mainColor = tinycolor(state.color);
-      const faceColor = tinycolor({...mainColor.toHsl(), l: 0.88});
-      const bodyColor = faceColor.clone().desaturate(40);
+        const paper = Snap("#robot");
+        const parts = [];
 
-      const paper = Snap("#robot");
-      const parts = [];
-
-      const faceBg = paper.rect(52, 60, 96, 70, 30);
-      faceBg.attr({
-        fill: faceColor,
-        stroke: mainColor,
-        strokeWidth: 5
-      });
-
-      const eyeLeft = paper.circle(80, 90, 6);
-      const eyeRight = paper.circle(120, 90, 6);
-      eyeLeft.attr({fill: mainColor});
-      eyeRight.attr({fill: mainColor});
-      const eyes = paper.group(eyeLeft, eyeRight);
-
-      const mouth = paper.path("M 90 110 C 90 110, 100 125, 110 110");
-      mouth.attr({
-        fill: "none",
-        stroke: mainColor,
-        strokeWidth: 5
-      });
-      const mouthOpenBg = paper.path("M 90 102 H 85 V 110 C 85 110, 100 125, 112 110 V 102 H 90");
-      mouthOpenBg.attr({
-        fill: mainColor,
-        stroke: mainColor,
-        strokeWidth: 5
-      });
-      const tongue = paper.path("M 90 110 C 90 110, 99 120, 108 110 C 108 110, 99 100, 90 110");
-      tongue.attr({
-        fill: "#f9bbbb",
-      });
-      const mouthOpen = paper.group(mouthOpenBg, tongue)
-      mouthOpen.addClass('hidden');
-
-      const face = paper.group(faceBg, eyes, mouth, mouthOpen);
-
-      const headBg = paper.rect(38, 30, 124, 114, 40);
-      headBg.attr({
-        fill: "#ffffff",
-        stroke: mainColor,
-        strokeWidth: 5
-      });
-
-      const head = paper.group(headBg, face);
-
-      const body = paper.circle(100, 115, 80);
-      body.attr({
-        fill: bodyColor,
-        stroke: mainColor,
-        strokeWidth: 5
-      });
-
-      // TODO: this should be an add-on instead of an option.
-      // The code of the add-on is in the consumable and loaded here.
-      if (state.hasAntenna) {
-        const antennaPole = paper.line(100, 15, 100, 30)
-        antennaPole.attr({
+        const faceBg = paper.rect(52, 60, 96, 70, 30);
+        faceBg.attr({
+          fill: faceColor,
           stroke: mainColor,
           strokeWidth: 5
         });
-        const antennaDish = paper.circle(100,12, 8)
-        antennaDish.attr({
+
+        const eyeLeft = paper.circle(80, 90, 6);
+        const eyeRight = paper.circle(120, 90, 6);
+        eyeLeft.attr({fill: mainColor});
+        eyeRight.attr({fill: mainColor});
+        const eyes = paper.group(eyeLeft, eyeRight);
+
+        const mouth = paper.path("M 90 110 C 90 110, 100 125, 110 110");
+        mouth.attr({
+          fill: "none",
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+        const mouthOpenBg = paper.path("M 90 102 H 85 V 110 C 85 110, 100 125, 112 110 V 102 H 90");
+        mouthOpenBg.attr({
+          fill: mainColor,
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+        const tongue = paper.path("M 90 110 C 90 110, 99 120, 108 110 C 108 110, 99 100, 90 110");
+        tongue.attr({
+          fill: "#f9bbbb",
+        });
+        const mouthOpen = paper.group(mouthOpenBg, tongue)
+        mouthOpen.addClass('hidden');
+
+        const face = paper.group(faceBg, eyes, mouth, mouthOpen);
+
+        const headBg = paper.rect(38, 30, 124, 114, 40);
+        headBg.attr({
           fill: "#ffffff",
           stroke: mainColor,
           strokeWidth: 5
         });
-        parts.push(paper.group(antennaPole, antennaDish));
+
+        const head = paper.group(headBg, face);
+
+        const body = paper.circle(100, 115, 80);
+        body.attr({
+          fill: bodyColor,
+          stroke: mainColor,
+          strokeWidth: 5
+        });
+
+        // TODO: this should be an add-on instead of an option.
+        // The code of the add-on is in the consumable and loaded here.
+        if (state.hasAntenna) {
+          const antennaPole = paper.line(100, 15, 100, 30)
+          antennaPole.attr({
+            stroke: mainColor,
+            strokeWidth: 5
+          });
+          const antennaDish = paper.circle(100,12, 8)
+          antennaDish.attr({
+            fill: "#ffffff",
+            stroke: mainColor,
+            strokeWidth: 5
+          });
+          parts.push(paper.group(antennaPole, antennaDish));
+        }
+
+        if (state.hasSpeaker) {
+          const speakerLeft = paper.path("M 38 85 V 60 C 38 60, 5 85, 38 110 V 85");
+          speakerLeft.attr({
+            fill: "#ffffff",
+            stroke: mainColor,
+            strokeWidth: 5
+          });
+          const speakerRight = paper.path("M 162 85 V 60 C 162 60, 195 85, 162 110 V 85");
+          speakerRight.attr({
+            fill: "#ffffff",
+            stroke: mainColor,
+            strokeWidth: 5
+          });
+          parts.push(paper.group(speakerLeft, speakerRight));
+        }
+
+        if (state.hasArmor) {
+          const armor = paper.path("M 100 165 H 60 V 184 C 60 184, 100 208, 140 184 V 165 H 100");
+          armor.attr({
+            fill: "#ffffff",
+            stroke: mainColor,
+            strokeWidth: 5
+          });
+          parts.push(armor);
+        }
+
+        const robot = paper.group(body, head, ...parts);
+
+        let faceY = 0;
+        robot.hover(
+          () => Snap.animate(faceY, -5, (y) => {
+            faceY = y;
+            face.transform(`t0,${y}`);
+            eyes.transform(`t0,${y}`);
+            mouth.addClass('hidden');
+            mouthOpen.removeClass('hidden');
+          }, 100, mina.easeinout),
+          () => Snap.animate(faceY, 0, (y) => {
+            faceY = y;
+            face.transform(`t0,${y}`);
+            eyes.transform(`t0,${y}`);
+            mouth.removeClass('hidden');
+            mouthOpen.addClass('hidden');
+          }, 100, mina.easeinout),
+        );
       }
 
-      if (state.hasSpeaker) {
-        const speakerLeft = paper.path("M 38 85 V 60 C 38 60, 5 85, 38 110 V 85");
-        speakerLeft.attr({
-          fill: "#ffffff",
-          stroke: mainColor,
-          strokeWidth: 5
-        });
-        const speakerRight = paper.path("M 162 85 V 60 C 162 60, 195 85, 162 110 V 85");
-        speakerRight.attr({
-          fill: "#ffffff",
-          stroke: mainColor,
-          strokeWidth: 5
-        });
-        parts.push(paper.group(speakerLeft, speakerRight));
-      }
-
-      if (state.hasArmor) {
-        const armor = paper.path("M 100 165 H 60 V 184 C 60 184, 100 208, 140 184 V 165 H 100");
-        armor.attr({
-          fill: "#ffffff",
-          stroke: mainColor,
-          strokeWidth: 5
-        });
-        parts.push(armor);
-      }
-
-      const robot = paper.group(body, head, ...parts);
-
-      let faceY = 0;
-      robot.hover(
-        () => Snap.animate(faceY, -5, (y) => {
-          faceY = y;
-          face.transform(`t0,${y}`);
-          eyes.transform(`t0,${y}`);
-          mouth.addClass('hidden');
-          mouthOpen.removeClass('hidden');
-        }, 100, mina.easeinout),
-        () => Snap.animate(faceY, 0, (y) => {
-          faceY = y;
-          face.transform(`t0,${y}`);
-          eyes.transform(`t0,${y}`);
-          mouth.removeClass('hidden');
-          mouthOpen.addClass('hidden');
-        }, 100, mina.easeinout),
-      );
+      drawRobot();
 
     </script>
   </body>

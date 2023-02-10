@@ -99,6 +99,7 @@ pub fn register_external_event(
     info: MessageInfo,
     deps: DepsMut,
     event: ExternalEvent,
+    ownable_id: String,
 ) -> Result<Response, ContractError> {
     let mut response = Response::new()
         .add_attribute("method", "register_external_event");
@@ -117,6 +118,7 @@ pub fn register_external_event(
                 info,
                 deps,
                 event,
+                ownable_id,
             )?;
             response = response.add_attribute("event_type", "consume");
 
@@ -131,6 +133,7 @@ fn try_register_consume(
     info: MessageInfo,
     deps: DepsMut,
     event: ExternalEvent,
+    ownable_id: String,
 ) -> Result<Response, ContractError> {
 
     let owner = event.args.get("owner")
@@ -145,20 +148,17 @@ fn try_register_consume(
     let color = event.args.get("color")
         .cloned()
         .unwrap_or_default();
-    let consumable_id = event.args.get("ownable_id")
-        .cloned()
-        .unwrap_or_default();
 
-    if color.is_empty() || issuer.is_empty() || consumed_by.is_empty() || owner.is_empty() || consumable_id.is_empty() {
+    if color.is_empty() || issuer.is_empty() || consumed_by.is_empty() || owner.is_empty() {
         return Err(ContractError::InvalidExternalEventArgs {});
     }
 
     let ownership = OWNERSHIP.load(deps.storage)?;
 
     // only owner can consume
-    if ownership.owner != info.sender.to_string() {
-        return Err(ContractError::Unauthorized { val: "Only owner can consume".to_string() });
-    }
+    // if ownership.owner != info.sender.to_string() {
+    //     return Err(ContractError::Unauthorized { val: "Only owner can consume".to_string() });
+    // }
 
     // validate issuer of collection matches
     if ownership.issuer.to_string() != issuer {
@@ -167,7 +167,7 @@ fn try_register_consume(
 
     let mut config = CONFIG.load(deps.storage)?;
     config.color = color;
-    config.consumed_ownable_ids.push(Addr::unchecked(consumable_id));
+    config.consumed_ownable_ids.push(Addr::unchecked(ownable_id));
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new()
