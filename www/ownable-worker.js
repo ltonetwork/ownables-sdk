@@ -1,5 +1,6 @@
 
 addEventListener('message', async (e) => {
+  console.log("handling msg: ", e);
   if (wasm === undefined) {
     init(e.data).then(
       resp => {
@@ -32,6 +33,15 @@ addEventListener('message', async (e) => {
       query_contract_state(e.data.msg, e.data.idb).then(
         resp => {
           console.log("Contract queried successfully");
+          self.postMessage(resp);
+        }
+      );
+      break;
+    case "external_event":
+      console.log("calling wasm with: ", e.data);
+      register_external_event(e.data.msg.msg, e.data.msg.info, e.data.ownable_id, e.data.idb).then(
+        resp => {
+          console.log("External event registered");
           self.postMessage(resp);
         }
       );
