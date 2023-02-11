@@ -36,7 +36,7 @@ pub fn instantiate(
 
     let state = Config {
         consumed_ownable_ids: vec![],
-        color: get_random_color(msg.clone().ownable_id),
+        color: rgb_hex(25, 82, 114),
         has_antenna: false,
         has_speaker: false,
         has_armor: false

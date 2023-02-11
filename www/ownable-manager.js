@@ -665,7 +665,7 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
     e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
   });
   ownableElement.addEventListener('dragend', (e) => {
-    e.target.style.opacity = '1';
+    e.target.style.opacity = '';
   });
 
   ownableElement.addEventListener('dragover', (e) => {
