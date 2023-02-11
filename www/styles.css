@@ -88,7 +88,6 @@ button {
   background: #1caaff;
 }
 .navbar img {
-  display: block;
   width: 30vw;
   max-width: 400px;
   height: auto;
@@ -180,10 +179,11 @@ button {
   display: none;
   flex-direction: column;
   box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 2px 0 rgb(0 0 0 / 14%), 0 1px 5px 0 rgb(0 0 0 / 12%);
-  border-radius: 1.5vw;
+  border-radius: 5px;
+  background: #ffffff;
 }
 .general-actions button {
-  font-size: 1vh;
+  font-size: 15px;
   padding: 0.5vh 1vw;
   background-color: #fff;
   border: none;
@@ -208,6 +208,15 @@ button {
   font-size: 2vh;
   vertical-align: -50%;
   font-weight: bold;
+}
+
+.drag-handle {
+  position: absolute;
+  left: 15px;
+  top: 12px;
+  font-size: 38px;
+  color: #888;
+  cursor: move;
 }
 
 .event-chain-modal {
@@ -419,4 +428,22 @@ input:checked + .slider:before {
 
 .slider.round:before {
   border-radius: 50%;
+}
+
+.secret-button {
+  font-size: 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: transparent;
+  padding: 10px 20px;
+}
+.secret-button:focus,
+.secret-button:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+.pull-right {
+  margin: 10px;
+  float: right;
 }

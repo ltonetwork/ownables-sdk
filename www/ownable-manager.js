@@ -585,7 +585,10 @@ async function generateOwnable(ownable_id, type) {
   ownableElement.style.position = "relative";
   ownableElement.classList.add('ownable');
   ownableElement.appendChild(getOwnableActionsHTML(ownable_id));
+  ownableElement.appendChild(getOwnableDragHandle());
   ownableElement.appendChild(ownableIframe);
+
+  setOwnableDragDropEvent(ownableElement, ownable_id);
 
   // wrap iframe in a grid-item and return
   const ownableGridItem = document.createElement('div');
@@ -642,6 +645,41 @@ function getOwnableActionsHTML(ownable_id) {
   return threeDots;
 }
 
+function getOwnableDragHandle() {
+  const handle = document.createElement("div");
+  handle.innerHTML = "&equiv;"
+  handle.classList.add('drag-handle');
+  handle.addEventListener('mousedown', (e) => {
+    e.target.parentNode.setAttribute('draggable', 'true');
+  });
+  handle.addEventListener('mouseup', (e) => {
+    e.target.parentNode.setAttribute('draggable', 'false')
+  });
+
+  return handle;
+}
+
+function setOwnableDragDropEvent(ownableElement, ownable_id) {
+  ownableElement.addEventListener('dragstart', (e) => {
+    e.target.style.opacity = '0.4';
+    e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
+  });
+  ownableElement.addEventListener('dragend', (e) => {
+    e.target.style.opacity = '1';
+  });
+
+  ownableElement.addEventListener('dragover', (e) => {
+    e.preventDefault(); // Allow drop
+  });
+  ownableElement.addEventListener('drop', async (e) => {
+    const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
+
+    // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
+    console.log("Consume", consumable_id, ownable_id);
+    const externalEvent = await executeOwnable(consumable_id, {consume: {}});
+    await registerExternalEvent(ownable_id, externalEvent);
+  });
+}
 
 export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);
