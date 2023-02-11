@@ -91,7 +91,7 @@ function storeTemplates(templates) {
       resolve();
     }
     request.onblocked = (event) => reject("idb blocked: ", event);
-    request.onerror = (event) => reject("failed to open indexeddb: ", event);
+    request.onerror = (event) => { console.log(event); reject("failed to open indexeddb: ", event); }
   });
 
 }

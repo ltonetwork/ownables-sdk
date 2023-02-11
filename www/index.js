@@ -52,6 +52,13 @@ setTimeout(async () => {
   }
 }, 0);
 
+document.getElementById("reset").addEventListener('click', async event => {
+  event.preventDefault();
+  if (!window.confirm("Are you sure you want to reset your environment? This is a destructive action.")) return;
+
+
+});
+
 window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;
   if (document.getElementById(event.data.ownable_id).contentWindow !== event.source) {
