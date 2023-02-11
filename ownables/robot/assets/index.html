@@ -21,9 +21,9 @@
 
       #robot {
         display: block;
-        margin: 0 auto;
-        height: 200px;
-        width: 200px;
+        margin: 10vh;
+        height: 80vh;
+        width: 80vh;
       }
 
       .hidden {
@@ -58,11 +58,7 @@
     </style>
   </head>
   <body>
-    <svg id="robot"></svg>
-    <div class="ownable-actions">
-      <input type="text" class="external-event-input">
-      <button id="external-event-button">Apply external event</button>
-    </div>
+    <svg id="robot" viewBox="0 0 200 200"></svg>
     <script type="text/javascript" src="tinycolor.js"></script>
     <script type="text/javascript" src="snap.svg-min.js"></script>
     <script>
@@ -72,41 +68,18 @@
         console.log("iframe picked up event: ", event);
 
         ownable_id = event.data.ownable_id;
-        let color = event.data.state.color;
-        if (color) {
-          state.color = color;
-        }
-        drawRobot();
+        drawRobot(event.data.state);
       });
 
-
-      document.getElementById("external-event-button").onclick = function () {
-        let externalEvent = JSON.parse(
-          document.getElementsByClassName('external-event-input')[0].valueOf().value
-        );
-        if (!externalEvent) {
-          console.log("no event passed");
-        } else {
-          console.log(externalEvent);
-        }
-
-        window.parent.postMessage({type: "external_event", ownable_id, externalEvent,}, "*")
-
-      };
-
-      const state = {
-        color: "#195272",
-        hasAntenna: true,
-        hasSpeaker: false,
-        hasArmor: false,
-      }
-      function drawRobot() {
+      function drawRobot(state) {
         const mainColor = tinycolor(state.color);
         const faceColor = tinycolor({...mainColor.toHsl(), l: 0.88});
         const bodyColor = faceColor.clone().desaturate(40);
 
         const paper = Snap("#robot");
         const parts = [];
+
+        paper.children().forEach(child => child.remove());
 
         const faceBg = paper.rect(52, 60, 96, 70, 30);
         faceBg.attr({
@@ -221,9 +194,6 @@
           }, 100, mina.easeinout),
         );
       }
-
-      drawRobot();
-
     </script>
   </body>
 </html>
