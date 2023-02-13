@@ -68,24 +68,43 @@ function storeTemplates(templates) {
     const request = window.indexedDB.open(ASSETS_STORE, templateCount + 1);
     request.onupgradeneeded = (e) => {
       db = request.result;
-      if (!db.objectStoreNames.contains(templateName)) {
-        newImport = true;
-        db.createObjectStore(templateName);
+      // if template is being replaced, cleanup the storage
+      if (db.objectStoreNames.contains(templateName)) {
+        let templates = JSON.parse(localStorage.getItem("templates"));
+        templates = templates.filter(template => template != templateName);
+        localStorage.setItem("templates", JSON.stringify(templates));
+
+        for (const key in localStorage) {
+          let val = localStorage[key];
+          console.log (key, val);
+          if (val === templateName) {
+            console.log('removing ', templateName);
+            // association ownableId->type
+            localStorage.removeItem(val);
+            // also remove from chainIds
+            let chainIds = JSON.parse(localStorage.getItem("chainIds"));
+            chainIds = chainIds.filter(id => id != key);
+            localStorage.setItem("chainIds", JSON.stringify(chainIds));
+            // removeOwnableOption(templateName);
+            db.deleteObjectStore(templateName);
+            // TODO: remove indexdb entry of ownable?
+          }
+        }
       }
+      db.createObjectStore(templateName);
     };
     request.onsuccess = async () => {
       db = request.result;
-      if (newImport) {
-        for (let i = 0; i < templates.length; i++) {
-          await writeTemplate(db, templateName, templates[i]);
-        }
-        const templateOptions = JSON.parse(localStorage.templates);
-        templateOptions.push(templateName);
-        localStorage.templates = JSON.stringify(templateOptions);
-        await addOwnableOption(templateName);
-      } else {
-        console.log('existing template import');
+
+      for (let i = 0; i < templates.length; i++) {
+        await writeTemplate(db, templateName, templates[i]);
       }
+      const templateOptions = JSON.parse(localStorage.templates);
+      templateOptions.push(templateName);
+      localStorage.templates = JSON.stringify(templateOptions);
+      await addOwnableOption(templateName);
+
+
       console.log("templates stored");
       db.close();
       resolve();
@@ -107,6 +126,11 @@ export async function addOwnableOption(templateName) {
     await createNewOwnable(templateName);
   });
   document.getElementById("inst-menu").appendChild(ownableHtml);
+}
+
+export async function removeOwnableOption(templateName) {
+  let ownableHtml = document.getElementById(`inst-${templateName}`);
+  ownableHtml.remove();
 }
 
 function writeTemplate(db, ownableType, template) {
