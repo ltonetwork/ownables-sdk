@@ -31,14 +31,14 @@ pub enum ExecuteMsg {
     Lock {},
 }
 
-
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct ExternalEvent {
     // CAIP-2 format: <namespace + ":" + reference>
     // e.g. ethereum: eip155:1
     pub chain_id: String,
     pub event_type: String,
+    #[serde_as(as = "Vec<(_, _)>")]
     pub args: HashMap<String, String>,
 }
 
