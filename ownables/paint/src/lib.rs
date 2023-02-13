@@ -98,6 +98,11 @@ pub async fn execute_contract(
         message
     );
 
+    log(&format!(
+        "[contract] result from execution: {:?}",
+        result,
+    ));
+
     match result {
         Ok(response) => {
             log(&format!(

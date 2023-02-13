@@ -6,7 +6,9 @@ use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use serde::Serialize;
 use crate::utils::{address_eip155, address_lto};
+use crate::wasm_bindgen;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-paint";
@@ -222,11 +224,16 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
         .add_attribute("owner", ownership.owner.to_string())
     )
 }
-
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+}
 pub fn try_consume(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
+
     let is_locked = LOCKED.load(deps.storage)?;
     if is_locked {
         return Err(ContractError::LockError {
@@ -263,11 +270,19 @@ pub fn try_consume(
         args: event_args,
     };
 
-    Ok(Response::new()
+    let binary_data = serde_json::to_string(&external_event).unwrap();
+
+    let response = Response::new()
         .add_attribute("method", "try_consume")
         .add_attribute("external_event", true.to_string())
-        .set_data(to_binary(&external_event)?)
-    )
+        .set_data(to_binary(&binary_data)?);
+
+    log(&format!(
+        "[contract] execution response {:?}",
+        &response,
+    ));
+
+    Ok(response)
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
