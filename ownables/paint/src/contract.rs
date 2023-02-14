@@ -262,7 +262,7 @@ pub fn try_consume(
     event_args.insert("consumed_by".to_string(), config.consumed_by.unwrap().to_string());
     event_args.insert("color".to_string(), config.color);
     event_args.insert("issuer".to_string(), ownership.issuer.to_string());
-    event_args.insert("owner".to_string(), ownership.clone().owner.to_string());
+    event_args.insert("type".to_string(), "paint".to_string());
 
     let external_event = ExternalEvent {
         chain_id: "eip155:1".to_string(),

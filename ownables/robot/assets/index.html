@@ -68,6 +68,7 @@
         console.log("iframe picked up event: ", event);
 
         ownable_id = event.data.ownable_id;
+        console.log("drawing state from robot: ", event.data.state);
         drawRobot(event.data.state);
       });
 
@@ -133,7 +134,7 @@
 
         // TODO: this should be an add-on instead of an option.
         // The code of the add-on is in the consumable and loaded here.
-        if (state.hasAntenna) {
+        if (state.has_antenna) {
           const antennaPole = paper.line(100, 15, 100, 30)
           antennaPole.attr({
             stroke: mainColor,
@@ -148,7 +149,7 @@
           parts.push(paper.group(antennaPole, antennaDish));
         }
 
-        if (state.hasSpeaker) {
+        if (state.has_speaker) {
           const speakerLeft = paper.path("M 38 85 V 60 C 38 60, 5 85, 38 110 V 85");
           speakerLeft.attr({
             fill: "#ffffff",
@@ -164,7 +165,7 @@
           parts.push(paper.group(speakerLeft, speakerRight));
         }
 
-        if (state.hasArmor) {
+        if (state.has_armor) {
           const armor = paper.path("M 100 165 H 60 V 184 C 60 184, 100 208, 140 184 V 165 H 100");
           armor.attr({
             fill: "#ffffff",
