@@ -660,12 +660,16 @@ function getOwnableDragHandle() {
 }
 
 function setOwnableDragDropEvent(ownableElement, ownable_id) {
+
   ownableElement.addEventListener('dragstart', (e) => {
     e.target.style.opacity = '0.4';
     e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
+
+    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = '');
   });
   ownableElement.addEventListener('dragend', (e) => {
     e.target.style.opacity = '';
+    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = 'none');
   });
 
   ownableElement.addEventListener('dragover', (e) => {
@@ -679,6 +683,11 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
     const externalEvent = await executeOwnable(consumable_id, {consume: {}});
     await registerExternalEvent(ownable_id, externalEvent);
   });
+
+  const dropZone = document.createElement("div");
+  dropZone.classList.add('dropzone');
+  dropZone.style.display = 'none';
+  ownableElement.appendChild(dropZone);
 }
 
 export async function transferOwnable(ownable_id) {
