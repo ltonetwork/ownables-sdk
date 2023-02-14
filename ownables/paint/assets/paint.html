@@ -34,16 +34,16 @@
     <script>
       let ownable_id;
 
-      function updateTemplate(color, consumed) {
+      function updateTemplate(color, isConsumed) {
         const paint = document.getElementById("paint");
         paint.style.fill = color;
-        paint.style.display = consumed ? 'none' : undefined;
+        paint.style.display = isConsumed ? 'none' : undefined;
       }
 
       window.addEventListener("message", (event) => {
         ownable_id = event.data.ownable_id;
         const state = event.data.state;
-        updateTemplate(state.color, state.consumed)
+        updateTemplate(state.color, !!state.consumed_by)
       });
     </script>
   </body>
