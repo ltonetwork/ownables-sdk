@@ -18,10 +18,28 @@
         height: 65vw;
         margin: 25vw auto 10vw auto;
       }
-
-      .consumed {
+      .consumed #item {
         filter: grayscale(100%);
         opacity: 0.5;
+      }
+
+      #consumed-banner {
+        position: absolute;
+        top: calc(50vh - 25px);
+        left: -10vw;
+        text-align: center;
+        background: red;
+        color: white;
+        font-weight: bold;
+        font-size: 45px;
+        transform: rotate(-10deg);
+        opacity: 0.8;
+        width: 100vw;
+        padding: 0 10vw;
+        display: none;
+      }
+      .consumed #consumed-banner {
+        display: block;
       }
     </style>
   </head>
@@ -39,13 +57,13 @@
         <path id="Path_385" data-name="Path 385" d="M501.9,1766.06a33.075,33.075,0,0,0-33.075,33.08v9.218a11.9,11.9,0,0,1,4.663-1.648v-7.57a28.412,28.412,0,1,1,56.824,0v7.615a11.889,11.889,0,0,1,4.658,1.883c.007-4.129.007-9.365.007-9.5A33.081,33.081,0,0,0,501.9,1766.06Z" fill="#163844"/>
       </g>
     </svg>
+    <div id="consumed-banner">CONSUMED</div>
 
     <script>
       let ownable_id;
 
       function updateTemplate(isConsumed) {
-        const item = document.getElementById('item');
-        item.classList[isConsumed ? 'add' : 'remove']('consumed');
+        document.body.classList[isConsumed ? 'add' : 'remove']('consumed');
       }
 
       window.addEventListener("message", (event) => {
