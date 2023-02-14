@@ -149,7 +149,11 @@ fn try_register_consume(
         .cloned()
         .unwrap_or_default();
 
-    if color.is_empty() || issuer.is_empty() || consumed_by.is_empty() || owner.is_empty() {
+    let consumable_type = event.args.get("type")
+        .cloned()
+        .unwrap_or_default();
+
+    if consumable_type.is_empty() || color.is_empty() || issuer.is_empty() || consumed_by.is_empty() || owner.is_empty() {
         return Err(ContractError::InvalidExternalEventArgs {});
     }
 
@@ -166,7 +170,21 @@ fn try_register_consume(
     }
 
     let mut config = CONFIG.load(deps.storage)?;
-    config.color = color;
+    match consumable_type.as_str() {
+        "antenna" => {
+            config.has_antenna = true;
+        },
+        "armor" => {
+            config.has_armor = true;
+        },
+        "paint" => {
+            config.color = color;
+        },
+        "speaker" => {
+            config.has_speaker = true;
+        },
+        _ => {},
+    }
     config.consumed_ownable_ids.push(Addr::unchecked(ownable_id));
     CONFIG.save(deps.storage, &config)?;
 

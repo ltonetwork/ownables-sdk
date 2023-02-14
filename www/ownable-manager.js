@@ -200,8 +200,9 @@ export async function executeOwnable(ownable_id, msg) {
   const data = await postToOwnableFrame(ownable_id, postMsg);
   const state = JSON.parse(data.get('state'));
   const isExternalEvent = state.attributes.find(a => a.key === 'external_event');
+  let externalEvent = undefined;
   if (isExternalEvent) {
-    let externalEvent = JSON.parse(atob(state.data));
+    externalEvent = JSON.parse(atob(state.data));
     console.log("external event: ", externalEvent);
   }
 
@@ -218,6 +219,7 @@ export async function executeOwnable(ownable_id, msg) {
   const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
   await writeLatestChain(ownable_id, latestChain);
   console.log("anchor: ", anchor);
+  return externalEvent;
 }
 
 export async function registerExternalEvent(ownable_id, msg) {
@@ -682,7 +684,8 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
     // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
     console.log("Consume", consumable_id, ownable_id);
-    const externalEvent = await executeOwnable(consumable_id, {consume: {}});
+    const externalEvent = JSON.parse(await executeOwnable(consumable_id, {consume: {}}));
+    console.log("external event returned from consumable: ", externalEvent);
     await registerExternalEvent(ownable_id, externalEvent);
   });
 
