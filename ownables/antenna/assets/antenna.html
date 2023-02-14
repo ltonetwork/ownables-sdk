@@ -18,10 +18,28 @@
         height: 65vw;
         margin: 25vw auto 10vw auto;
       }
-
-      .consumed {
+      .consumed #item {
         filter: grayscale(100%);
         opacity: 0.5;
+      }
+
+      #consumed-banner {
+        position: absolute;
+        top: calc(50vh - 25px);
+        left: -10vw;
+        text-align: center;
+        background: red;
+        color: white;
+        font-weight: bold;
+        font-size: 45px;
+        transform: rotate(-10deg);
+        opacity: 0.8;
+        width: 100vw;
+        padding: 0 10vw;
+        display: none;
+      }
+      .consumed #consumed-banner {
+        display: block;
       }
     </style>
   </head>
@@ -48,13 +66,13 @@
         v180.355c0,5.522,4.477,10,10,10s10-4.478,10-10V246.147C286.637,241.427,306.127,218.926,306.127,191.944z M251,227.072
         c-19.369,0-35.127-15.759-35.127-35.128s15.758-35.128,35.127-35.128s35.127,15.759,35.127,35.128S270.369,227.072,251,227.072z"/>
     </svg>
+    <div id="consumed-banner">CONSUMED</div>
 
     <script>
       let ownable_id;
 
       function updateTemplate(isConsumed) {
-        const item = document.getElementById('item');
-        item.classList[isConsumed ? 'add' : 'remove']('consumed');
+        document.body.classList[isConsumed ? 'add' : 'remove']('consumed');
       }
 
       window.addEventListener("message", (event) => {
