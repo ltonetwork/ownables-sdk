@@ -678,6 +678,8 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
   ownableElement.addEventListener('drop', async (e) => {
     const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
 
+    if (consumable_id === ownable_id) return; // Can't consume self
+
     // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
     console.log("Consume", consumable_id, ownable_id);
     const externalEvent = await executeOwnable(consumable_id, {consume: {}});
