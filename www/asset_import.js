@@ -68,30 +68,49 @@ function storeTemplates(templates) {
     const request = window.indexedDB.open(ASSETS_STORE, templateCount + 1);
     request.onupgradeneeded = (e) => {
       db = request.result;
-      if (!db.objectStoreNames.contains(templateName)) {
-        newImport = true;
-        db.createObjectStore(templateName);
+      // if template is being replaced, cleanup the storage
+      if (db.objectStoreNames.contains(templateName)) {
+        let templates = JSON.parse(localStorage.getItem("templates"));
+        templates = templates.filter(template => template != templateName);
+        localStorage.setItem("templates", JSON.stringify(templates));
+
+        for (const key in localStorage) {
+          let val = localStorage[key];
+          console.log (key, val);
+          if (val === templateName) {
+            console.log('removing ', templateName);
+            // association ownableId->type
+            localStorage.removeItem(val);
+            // also remove from chainIds
+            let chainIds = JSON.parse(localStorage.getItem("chainIds"));
+            chainIds = chainIds.filter(id => id != key);
+            localStorage.setItem("chainIds", JSON.stringify(chainIds));
+            // removeOwnableOption(templateName);
+            db.deleteObjectStore(templateName);
+            // TODO: remove indexdb entry of ownable?
+          }
+        }
       }
+      db.createObjectStore(templateName);
     };
     request.onsuccess = async () => {
       db = request.result;
-      if (newImport) {
-        for (let i = 0; i < templates.length; i++) {
-          await writeTemplate(db, templateName, templates[i]);
-        }
-        const templateOptions = JSON.parse(localStorage.templates);
-        templateOptions.push(templateName);
-        localStorage.templates = JSON.stringify(templateOptions);
-        await addOwnableOption(templateName);
-      } else {
-        console.log('existing template import');
+
+      for (let i = 0; i < templates.length; i++) {
+        await writeTemplate(db, templateName, templates[i]);
       }
+      const templateOptions = JSON.parse(localStorage.templates);
+      templateOptions.push(templateName);
+      localStorage.templates = JSON.stringify(templateOptions);
+      await addOwnableOption(templateName);
+
+
       console.log("templates stored");
       db.close();
       resolve();
     }
     request.onblocked = (event) => reject("idb blocked: ", event);
-    request.onerror = (event) => reject("failed to open indexeddb: ", event);
+    request.onerror = (event) => { console.log(event); reject("failed to open indexeddb: ", event); }
   });
 
 }
@@ -109,6 +128,11 @@ export async function addOwnableOption(templateName) {
   document.getElementById("inst-menu").appendChild(ownableHtml);
 }
 
+export async function removeOwnableOption(templateName) {
+  let ownableHtml = document.getElementById(`inst-${templateName}`);
+  ownableHtml.remove();
+}
+
 function writeTemplate(db, ownableType, template) {
   return new Promise(async (resolve, reject) => {
     let templateName;
@@ -120,7 +144,7 @@ function writeTemplate(db, ownableType, template) {
         templateName = "html";
         break;
       case "text/javascript":
-        templateName = "bindgen.js";
+        templateName = template.name;
         break;
       default:
         templateName = template["name"];
@@ -138,43 +162,43 @@ function writeTemplate(db, ownableType, template) {
 
 
 
-function appendWorkerGlueCode(templateName) {
-  return new Promise((resolve, reject) => {
-    let db, template;
-    const request = window.indexedDB.open(ASSETS_STORE);
-    request.onsuccess = async () => {
-      db = request.result;
-      let templateTx = db.transaction(templateName, "readonly")
-        .objectStore(templateName)
-        .get("bindgen.js");
-      templateTx.onsuccess = () => {
-        template = templateTx.result;
-        const fr = new FileReader();
-        fr.onload = async () => {
-          let bindgenDataURL = fr.result;
-          let workerDataURL = await readWorkerGlueAsDataURL();
-          // append the worker glue code to bindgen glue code
-          let combinedDataURL = joinDataURLContents(bindgenDataURL, workerDataURL);
-          console.log(combinedDataURL);
-          let newTemplate = new File([combinedDataURL], template.name, { type: template.type });
-          let updateTemplateTx = db.transaction(templateName, "readwrite")
-            .objectStore(templateName)
-            .put(newTemplate, "bindgen.js");
-          updateTemplateTx.onsuccess = () => {
-            resolve(updateTemplateTx.result);
-          };
-        };
-        if (template) {
-          console.log("reading template data url");
-          fr.readAsDataURL(template);
-        } else {
-          reject();
-        }
-      }
-    }
-  });
-}
-
+// function appendWorkerGlueCode(templateName) {
+//   return new Promise((resolve, reject) => {
+//     let db, template;
+//     const request = window.indexedDB.open(ASSETS_STORE);
+//     request.onsuccess = async () => {
+//       db = request.result;
+//       let templateTx = db.transaction(templateName, "readonly")
+//         .objectStore(templateName)
+//         .get("bindgen.js");
+//       templateTx.onsuccess = () => {
+//         template = templateTx.result;
+//         const fr = new FileReader();
+//         fr.onload = async () => {
+//           let bindgenDataURL = fr.result;
+//           let workerDataURL = await readWorkerGlueAsDataURL();
+//           // append the worker glue code to bindgen glue code
+//           let combinedDataURL = joinDataURLContents(bindgenDataURL, workerDataURL);
+//           console.log(combinedDataURL);
+//           let newTemplate = new File([combinedDataURL], template.name, { type: template.type });
+//           let updateTemplateTx = db.transaction(templateName, "readwrite")
+//             .objectStore(templateName)
+//             .put(newTemplate, "bindgen.js");
+//           updateTemplateTx.onsuccess = () => {
+//             resolve(updateTemplateTx.result);
+//           };
+//         };
+//         if (template) {
+//           console.log("reading template data url");
+//           fr.readAsDataURL(template);
+//         } else {
+//           reject();
+//         }
+//       }
+//     }
+//   });
+// }
+//
 
 function readWorkerGlueAsDataURL() {
   return new Promise(async (resolve, reject) => {

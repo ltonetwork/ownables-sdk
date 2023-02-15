@@ -2,7 +2,7 @@ import {
   _instantiateOwnable,
   executeOwnable,
   initializeOwnableHTML, initWorker,
-  issueOwnable, queryMetadata,
+  issueOwnable, queryMetadata, registerExternalEvent,
   syncDb,
 } from "./ownable-manager";
 import {addOwnableOption, fetchTemplate, importAssets} from "./asset_import";
@@ -26,6 +26,7 @@ const eventType = {
   TRANSFER: "transfer",
   DELETE: "delete",
   EXECUTE: "execute",
+  EXTERNAL_EVENT: "external_event",
   INFO: "info",
 };
 
@@ -51,17 +52,28 @@ setTimeout(async () => {
   }
 }, 0);
 
+document.getElementById("reset").addEventListener('click', async event => {
+  event.preventDefault();
+  if (!window.confirm("Are you sure you want to reset your environment? This is a destructive action.")) return;
+
+
+});
+
 window.addEventListener("message", async event => {
   if (typeof event.data.ownable_id === "undefined") return;
   if (document.getElementById(event.data.ownable_id).contentWindow !== event.source) {
     throw Error("Not allowed to execute msg on other ownable");
   }
+  console.log("processing message: ", event);
   switch (event.data.type) {
     case eventType.EXECUTE:
       await executeOwnable(event.data.ownable_id, event.data.msg);
       break;
+    case eventType.EXTERNAL_EVENT:
+      await registerExternalEvent(event.data.ownable_id, event.data.externalEvent);
+      break;
     default:
-      console.log("unknown msg");
+      console.log("unknown msg: ", event.data.type);
       break;
   }
 });
