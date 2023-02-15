@@ -9,7 +9,8 @@ module.exports = {
   },
   resolve: {
     fallback: {
-      util: require.resolve("util/")
+      util: require.resolve("util/"),
+      crypto: require.resolve("crypto/"),
     }
   },
   mode: "development",
