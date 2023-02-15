@@ -17,7 +17,12 @@ jobs:
         run: |
           npm ci
           npm run build
-          cp -a assets styles.css dist
+#          cp -a assets styles.css dist
+      - name: Load Ownable Packages
+        working-directory: ./
+        run: |
+          pwd
+          ls
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
