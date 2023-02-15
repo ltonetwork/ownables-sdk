@@ -1,0 +1,458 @@
+@font-face {
+  font-family: overpass;
+  src: url("./assets/Overpass/Overpass-Regular.ttf");
+}
+
+* {
+  font-family: overpass, serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-image: url('./assets/background.svg');
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+button {
+  cursor: pointer;
+}
+
+.ownables-grid {
+  z-index: 10;
+  margin: 40px 20px;
+}
+
+.grid-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  row-gap: 20px;
+  column-gap: 3.5%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.grid-item {
+  grid-column-gap: 1%;
+  text-align: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+@media (min-width: 600px) {
+  .grid-item {
+    width: 48.25%;
+  }
+}
+@media (min-width: 900px) {
+  .grid-item {
+    width: 31%;
+  }
+}
+
+.ownable {
+  height: 100%;
+  width: 100%;
+  box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 2px 0 rgb(0 0 0 / 14%), 0 1px 5px 0 rgb(0 0 0 / 12%);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.ownable .dropzone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.ownable iframe {
+  border: none;
+  height: 100%;
+  width: 100%;
+}
+
+/* dropdown menu */
+.dropdown-icon {
+  font-size: 36px;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.navbar {
+  background: #1caaff;
+}
+.navbar img {
+  width: 30vw;
+  max-width: 400px;
+  height: auto;
+  padding: 1.35vw 2.7vw;
+}
+
+.actions {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+}
+
+.actions button {
+  font-size: 40px;
+  line-height: 60px;
+  border-radius: 50%;
+  height: 56px;
+  width: 56px;
+  background-color: white;
+  border: none;
+  box-shadow: 0px 6px 10px 0px rgb(0 0 0 / 14%), 0px 1px 18px 0px rgb(0 0 0 / 12%), 0px 3px 5px -1px rgb(0 0 0 / 20%);
+}
+
+.hover-rotate span {
+  transition: transform 0.5s;
+  transform: rotate(0);
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hover-rotate:hover span {
+  transform: rotate(180deg);
+}
+
+
+.modal {
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal.open {
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 0s;
+}
+.modal-bg {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  width: 100%;
+  height: 100%;
+}
+.modal-container {
+  border-radius: 6px;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal button {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid gray;
+  background-color: white;
+  width: 300px;
+  height: 50px;
+  font-size: 14px;
+}
+.modal button.import-button {
+  border-bottom: none;
+}
+#inst-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.general-actions {
+  top: 2%;
+  right: 2%;
+  padding: 1vh 1vw 0 1vw;
+  position: absolute;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 2px 0 rgb(0 0 0 / 14%), 0 1px 5px 0 rgb(0 0 0 / 12%);
+  border-radius: 5px;
+  background: #ffffff;
+}
+.general-actions button {
+  font-size: 15px;
+  padding: 0.5vh 1vw;
+  background-color: #fff;
+  border: none;
+  border-bottom: 1px solid #999;
+  cursor: pointer;
+}
+.general-actions button:last-child {
+  border-bottom: none;
+}
+
+.three-dots {
+  top: 2%;
+  right: 2%;
+  padding: 1vw;
+  position: absolute;
+}
+.three-dots:after {
+  cursor: pointer;
+  color: #999999;
+  padding: 0;
+  content: '\22EE';
+  font-size: 2vh;
+  vertical-align: -50%;
+  font-weight: bold;
+}
+
+.drag-handle {
+  position: absolute;
+  left: 15px;
+  top: 12px;
+  font-size: 38px;
+  color: #888;
+  cursor: move;
+}
+
+.event-chain-modal {
+  padding: 5%;
+  background: url('./assets/background.svg') no-repeat center;
+  background-size: cover;
+}
+
+#event-chain-modal .modal-container {
+  max-width: 75vw;
+  min-width: 75vw;
+}
+
+.event-chain {
+  padding: 10px;
+  background-color: white;
+  font-size: 12px;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.2);
+}
+
+.chain-connector {
+  font-size: 12px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  height: 50px;
+}
+
+.connector-hash, .connector-previous {
+  background-color: white;
+  padding: 5px;
+  width: 45%;
+}
+.chain-connector .connector-hash {
+  align-self: flex-start;
+  box-shadow: 3px 3px 3px -3px #999,
+              3px 3px 3px -3px #999,
+              -3px 3px 3px -3px #999;
+}
+
+.chain-connector .connector-previous {
+  align-self: flex-end;
+  box-shadow: -3px -3px 3px -3px #999,
+              3px -3px 3px -3px #999,
+              -3px -3px 3px -3px #999;
+}
+
+.connector-link {
+  font-size: 16px;
+  align-self: center;
+}
+
+.truncate {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.data-b64 {
+  display: block;
+}
+
+.data-json {
+  display: block;
+}
+
+.b64-on, .json-on {
+  font-size: 10px;
+}
+
+.b64-on {
+  display: block;
+  text-align: right;
+  padding-right: 5px;
+}
+
+.json-on {
+  display: none;
+  text-align: left;
+  padding-left: 5px;
+}
+
+/*json viewer*/
+.jsonView{
+  margin-left: 20px;
+  font-family: Consolas, "Lucida Console", Menlo, "dejavu sans mono", monospace;
+  font-size: 12px;
+  line-height: 12px;
+  padding: 2px;
+  cursor: default;
+  color: rgb(66, 66, 66);
+  white-space: nowrap;
+  -webkit-user-select: none;
+}
+
+.jsonView>div{
+  display: inline-block;
+}
+
+.jsonView>.children{
+  display: block;
+}
+
+.jsonView>.name{
+  color: rgb(136, 19, 145);
+}
+
+.jsonView>.separator:before{
+  content: ":";
+}
+
+.jsonView>.separator {
+  padding-right: 5px;
+}
+
+.jsonView>.value.null{
+  color: rgb(128, 128, 128);
+}
+
+.jsonView>.value.boolean, .jsonView>.value.number{
+  color: rgb(28, 0, 207);
+}
+
+.jsonView>.value.string:not(.edit):before, .jsonView>.value.string:not(.edit):after{
+  content: "\"";
+}
+
+.jsonView>.value.string {
+  color: rgb(196, 26, 22);
+}
+
+.jsonView>.name:hover, .jsonView>.value:hover{
+  background-color: rgba(56, 121, 217, 0.1);
+}
+
+.jsonView>.expand, .jsonView>.collapse{
+  min-width: 20px;
+  margin-left: -20px;
+  cursor: pointer;
+}
+
+.jsonView>.expand:before{
+  content: '\25B6';
+}
+
+.jsonView>.collapse:before{
+  content: '\25BC';
+}
+
+/*toggle switch*/
+/* The switch - the box around the slider */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 17px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 13px;
+  width: 13px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(33px);
+  -ms-transform: translateX(33px);
+  transform: translateX(33px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 17px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+.secret-button {
+  font-size: 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: transparent;
+  padding: 10px 20px;
+}
+.secret-button:focus,
+.secret-button:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+.pull-right {
+  margin: 10px;
+  float: right;
+}
