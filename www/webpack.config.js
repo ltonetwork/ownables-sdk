@@ -7,8 +7,10 @@ module.exports = {
     path: path.resolve(__dirname, "dist"),
     filename: "bootstrap.js",
   },
-  fallback: {
-    util: require.resolve("util/")
+  resolve: {
+    fallback: {
+      util: require.resolve("util/")
+    }
   },
   mode: "development",
   plugins: [
