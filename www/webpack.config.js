@@ -10,7 +10,7 @@ module.exports = {
   resolve: {
     fallback: {
       util: require.resolve("util/"),
-      crypto: require.resolve("crypto/"),
+      crypto: require.resolve('crypto-browserify'),
     }
   },
   mode: "development",
