@@ -17,7 +17,7 @@ jobs:
         run: |
           npm ci
           npm run build
-          cp -a assets style.css dist
+          cp -a assets styles.css dist
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
