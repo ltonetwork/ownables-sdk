@@ -2,6 +2,7 @@ let worker;
 
 addEventListener('message', async (e) => {
   // only accept msgs from document source
+  console.log("ownable.js listener args: ", e.data.args);
   if (e.origin === "null") {
     window.parent.postMessage(e.data, "*");
     const iframe = document.getElementById(e.data.ownable_id);
@@ -10,7 +11,6 @@ addEventListener('message', async (e) => {
   }
 
   let args = e.data.args;
-  console.log(e);
   switch (e.data.method) {
     case "initWorker":
       await initWorker(args[0], args[1], args[2]);
@@ -29,6 +29,9 @@ addEventListener('message', async (e) => {
       break;
     case "queryMetadata":
       await queryMetadata(args[0], args[1], args[2]);
+      break;
+    case "registerExternalEvent":
+      await registerExternalEvent(args[0], args[1]);
       break;
     default:
       console.error("unsupported rpc call", e.data);
@@ -71,6 +74,23 @@ async function executeOwnable(ownable_id, msg) {
 
   worker.postMessage(msg);
 }
+
+async function registerExternalEvent(ownable_id, msg) {
+  worker.addEventListener('message', async event => {
+    const state = JSON.parse(event.data.get('state'));
+    const mem = JSON.parse(event.data.get('mem'));
+    window.postMessage({state, mem})
+  }, { once: true });
+  console.log("posting msg to worker: ", msg);
+  let workerMsg = {
+    type: "external_event",
+    ownable_id: ownable_id,
+    msg: msg,
+    idb: msg.idb,
+  };
+  worker.postMessage(workerMsg);
+}
+
 
 function queryState(ownable_id, msg, state_dump) {
   return new Promise((resolve, reject) => {

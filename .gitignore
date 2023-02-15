@@ -5,6 +5,8 @@ artifacts/
 ownables/*/target
 ownables/*/Cargo.lock
 /www/package-lock.json
+/www/dist
+*.zip
 
 # Cargo+Git helper file (https://github.com/rust-lang/cargo/blob/0.44.1/src/cargo/sources/git/utils.rs#L320-L327)
 .cargo-ok

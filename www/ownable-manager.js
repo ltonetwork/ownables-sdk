@@ -8,8 +8,9 @@ import {
   writeInstantiatedChainToIdb, writeLatestChain,
 } from "./event-chain";
 import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
-import {associateOwnableType, fetchTemplate, getOwnableType} from "./asset_import";
+import {associateOwnableType, fetchTemplate} from "./asset_import";
 import {getOwnableInfo} from "./index";
+import allInline from "all-inline";
 
 const lto = new LTO('T');
 
@@ -42,6 +43,7 @@ async function postToOwnableFrame(ownableId, msg) {
     window.addEventListener('message', (e) => {
       resolve(e.data);
     }, {once: true});
+    console.log("posting ", msg, " to ownableId ", ownableId);
     ownableIframe.contentWindow.postMessage(msg, "*");
   });
 }
@@ -196,6 +198,14 @@ export async function executeOwnable(ownable_id, msg) {
   };
 
   const data = await postToOwnableFrame(ownable_id, postMsg);
+  const state = JSON.parse(data.get('state'));
+  const isExternalEvent = state.attributes.find(a => a.key === 'external_event');
+  let externalEvent = undefined;
+  if (isExternalEvent) {
+    externalEvent = JSON.parse(atob(state.data));
+    console.log("external event: ", externalEvent);
+  }
+
   const mem = JSON.parse(data.get('mem'));
 
   let db = await initIndexedDb(ownable_id);
@@ -205,6 +215,44 @@ export async function executeOwnable(ownable_id, msg) {
   await queryState(ownable_id);
 
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
+  const latestChain = await getLatestChain(ownable_id);
+  const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
+  await writeLatestChain(ownable_id, latestChain);
+  console.log("anchor: ", anchor);
+  return externalEvent;
+}
+
+export async function registerExternalEvent(ownable_id, msg) {
+  const state_dump = await getOwnableStateDump(ownable_id);
+  console.log("register external event ownable_manager()");
+  const workerMsg = {
+    type: "external_event",
+    ownable_id: ownable_id,
+    msg: msg,
+    info: getMessageInfo(),
+    idb: state_dump,
+  };
+
+  const postMsg = {
+    method: 'registerExternalEvent',
+    args: [
+      ownable_id,
+      workerMsg,
+    ],
+  };
+
+  const data = await postToOwnableFrame(ownable_id, postMsg);
+  const state = JSON.parse(data.get('state'));
+
+  const mem = JSON.parse(data.get('mem'));
+
+  let db = await initIndexedDb(ownable_id);
+  await saveOwnableStateDump(db, mem);
+  db.close();
+
+  await queryState(ownable_id);
+
+  const newEvent = new Event({"@context": "register_external_event.json", ...msg});
   const latestChain = await getLatestChain(ownable_id);
   const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
   await writeLatestChain(ownable_id, latestChain);
@@ -252,13 +300,6 @@ export function queryMetadata(ownable_id) {
       "get_ownable_metadata": {},
     };
 
-    // ownableIframe.addEventListener('message', async event => {
-    //   console.log("ownable-manager metadata callback: ", event);
-    //   const metadata = JSON.parse(event.data);
-    //   console.log(metadata);
-    //   resolve(metadata);
-    // }, { once: true });
-
     const workerMsg = {
       method: "queryMetadata",
       args: [
@@ -292,7 +333,6 @@ export async function issueOwnable(ownableType, chain) {
   };
 
   const data = await postToOwnableFrame(chain.id, workerMsg);
-
   const state = JSON.parse(data.get('state'));
   const mem = JSON.parse(data.get('mem'));
 
@@ -437,9 +477,8 @@ export async function syncDb() {
   });
 }
 
-export async function findMediaSources(htmlTemplate, templateName) {
+export async function getAssetsIdb(templateName) {
   return new Promise((resolve, reject) => {
-    const allElements = Array.from(htmlTemplate.getElementsByTagName("*")).filter(el => el.hasAttribute("src"));
     const request = window.indexedDB.open("assets");
     request.onblocked = (event) => reject("idb blocked: ", event);
     request.onerror = (event) => reject("failed to open indexeddb: ", event.errorCode);
@@ -450,18 +489,13 @@ export async function findMediaSources(htmlTemplate, templateName) {
     }
     request.onsuccess = async () => {
       let db = request.result;
-      await Promise.all(
-        [...allElements].map(el => replaceSources(el, db, templateName))
-      );
-      db.close();
-      resolve();
+      resolve(db);
     };
   });
 }
 
-export async function replaceSources(element, db, templateName) {
+export async function getAssetFromIDb(currentSrc, db, templateName, callback) {
   return new Promise((resolve, reject) => {
-    const currentSrc = element.getAttribute("src");
     const fr = new FileReader();
     // query the idb for that media and update the template
     console.log(templateName)
@@ -470,10 +504,9 @@ export async function replaceSources(element, db, templateName) {
         resolve();
       }
       fr.onload = (event) => {
-        element.src = event.target.result;
-        resolve();
+        resolve(event.target.result);
       };
-      fr.readAsDataURL(mediaFile);
+      callback(fr, mediaFile);
     }, error => reject(error));
   });
 }
@@ -502,7 +535,18 @@ async function generateOwnableInner(ownable_id, type) {
   const ownableContent = document.createElement('div');
   ownableContent.innerHTML = await getOwnableTemplate(type);
   ownableContent.style.height = "100%";
-  await findMediaSources(ownableContent, type);
+
+  const db = await getAssetsIdb(type);
+  await allInline(ownableContent, async (source, encoding) => {
+    if (encoding === 'data-uri') {
+      return getAssetFromIDb(source, db, type, (fr, mediaFile) => fr.readAsDataURL(mediaFile));
+    } else if (encoding === 'text') {
+      return getAssetFromIDb(source, db, type, (fr, mediaFile) => fr.readAsText(mediaFile));
+    } else {
+      throw Error(`Unsupported encoding ${encoding} of asset ${source}`);
+    }
+  });
+  db.close();
 
   // generate widget iframe
   const ownableWidget = document.createElement('iframe');
@@ -524,6 +568,11 @@ async function generateOwnableInner(ownable_id, type) {
   ownableBody.appendChild(ownableWidget);
   ownableBody.appendChild(ownableScript);
 
+  // takes source and encoding {source: string, encoding: 'text'|'data-uri'}
+  // returns a promise of a string/null
+  let contents = await allInline(ownableBody, async (src, type) => {
+
+  });
   return ownableBody.outerHTML;
 }
 
@@ -538,7 +587,10 @@ async function generateOwnable(ownable_id, type) {
   ownableElement.style.position = "relative";
   ownableElement.classList.add('ownable');
   ownableElement.appendChild(getOwnableActionsHTML(ownable_id));
+  ownableElement.appendChild(getOwnableDragHandle());
   ownableElement.appendChild(ownableIframe);
+
+  setOwnableDragDropEvent(ownableElement, ownable_id);
 
   // wrap iframe in a grid-item and return
   const ownableGridItem = document.createElement('div');
@@ -595,6 +647,53 @@ function getOwnableActionsHTML(ownable_id) {
   return threeDots;
 }
 
+function getOwnableDragHandle() {
+  const handle = document.createElement("div");
+  handle.innerHTML = "&equiv;"
+  handle.classList.add('drag-handle');
+  handle.addEventListener('mousedown', (e) => {
+    e.target.parentNode.setAttribute('draggable', 'true');
+  });
+  handle.addEventListener('mouseup', (e) => {
+    e.target.parentNode.setAttribute('draggable', 'false')
+  });
+
+  return handle;
+}
+
+function setOwnableDragDropEvent(ownableElement, ownable_id) {
+
+  ownableElement.addEventListener('dragstart', (e) => {
+    e.target.style.opacity = '0.4';
+    e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
+
+    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = '');
+  });
+  ownableElement.addEventListener('dragend', (e) => {
+    e.target.style.opacity = '';
+    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = 'none');
+  });
+
+  ownableElement.addEventListener('dragover', (e) => {
+    e.preventDefault(); // Allow drop
+  });
+  ownableElement.addEventListener('drop', async (e) => {
+    const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
+
+    if (consumable_id === ownable_id) return; // Can't consume self
+
+    // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
+    console.log("Consume", consumable_id, ownable_id);
+    const externalEvent = JSON.parse(await executeOwnable(consumable_id, {consume: {}}));
+    console.log("external event returned from consumable: ", externalEvent);
+    await registerExternalEvent(ownable_id, externalEvent);
+  });
+
+  const dropZone = document.createElement("div");
+  dropZone.classList.add('dropzone');
+  dropZone.style.display = 'none';
+  ownableElement.appendChild(dropZone);
+}
 
 export async function transferOwnable(ownable_id) {
   let addr = window.prompt("Transfer the Ownable to: ", null);

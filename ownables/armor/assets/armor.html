@@ -1,0 +1,67 @@
+<!--<!DOCTYPE html>-->
+<html>
+  <head>
+    <style>
+      html, body {
+        margin: 0;
+      }
+
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      #item {
+        display: block;
+        width: 65vw;
+        height: 65vw;
+        margin: 25vw auto 10vw auto;
+      }
+      .consumed #item {
+        filter: grayscale(100%);
+        opacity: 0.5;
+      }
+
+      #consumed-banner {
+        position: absolute;
+        top: calc(50vh - 25px);
+        left: -10vw;
+        text-align: center;
+        background: red;
+        color: white;
+        font-weight: bold;
+        font-size: 45px;
+        transform: rotate(-10deg);
+        opacity: 0.8;
+        width: 100vw;
+        padding: 0 10vw;
+        display: none;
+      }
+      .consumed #consumed-banner {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+  <svg id="item" viewBox="0 0 36 36">
+    <path fill="#CCD6DD" d="M33 3c-7-3-15-3-15-3S10 0 3 3C0 18 3 31 18 36c15-5 18-18 15-33z"></path>
+    <path fill="#55ACEE" d="M18 33.884C6.412 29.729 1.961 19.831 4.76 4.444C11.063 2.029 17.928 2 18 2c.071 0 6.958.04 13.24 2.444c2.799 15.387-1.652 25.285-13.24 29.44z"></path>
+    <path fill="#269" d="M31.24 4.444C24.958 2.04 18.071 2 18 2v31.884c11.588-4.155 16.039-14.053 13.24-29.44z"></path>
+  </svg>
+  <div id="consumed-banner">CONSUMED</div>
+
+  <script>
+      let ownable_id;
+
+      function updateTemplate(isConsumed) {
+        document.body.classList[isConsumed ? 'add' : 'remove']('consumed');
+      }
+
+      window.addEventListener("message", (event) => {
+        ownable_id = event.data.ownable_id;
+        updateTemplate(!!event.data.state.consumed_by)
+      });
+    </script>
+  </body>
+</html>
