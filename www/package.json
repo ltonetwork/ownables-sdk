@@ -39,6 +39,7 @@
     "@ltonetwork/lto": "^0.10.1",
     "all-inline": "^0.1.4",
     "jszip": "^3.10.0",
-    "tinycolor2": "^1.6.0"
+    "tinycolor2": "^1.6.0",
+    "util": "^0.12.5"
   }
 }
