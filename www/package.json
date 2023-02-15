@@ -7,14 +7,14 @@
     "package-ownable": ".bin/create-wasm-app.js"
   },
   "scripts": {
-    "build": "webpack --config webpack.config.js && cp -r ./assets/ styles.css ./dist/",
+    "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server",
     "build-ownable": "wasm-pack build --target web ../ownables/$npm_config_path/ && touch ../ownables/$npm_config_path/assets/$npm_config_path.zip && rm -f ../ownables/$npm_config_path/assets/$npm_config_path.zip && rm -f ../ownables/$npm_config_path/pkg/bindgen.js && mv ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ../ownables/$npm_config_path.zip ../ownables/$npm_config_path/assets/ ../ownables/$npm_config_path/pkg/*.js ../ownables/$npm_config_path/pkg/*.wasm ",
     "build-ownables": "for DIR in $(ls ../ownables); do test -d ../ownables/$DIR && npm run build-ownable --path=$DIR; done"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rustwasm/create-wasm-app.git"
+    "url": "git+https://github.com/ltonetwork/ownable-sdk.git"
   },
   "keywords": [
     "webassembly",
@@ -29,11 +29,11 @@
   },
   "homepage": "https://github.com/rustwasm/create-wasm-app#readme",
   "devDependencies": {
-    "copy-webpack-plugin": "^5.0.0",
+    "copy-webpack-plugin": "11.0.0",
     "hello-wasm-pack": "^0.1.0",
-    "webpack": "^4.29.3",
-    "webpack-cli": "^3.1.0",
-    "webpack-dev-server": "^3.1.5"
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1",
+    "webpack-dev-server": "^4.11.1"
   },
   "dependencies": {
     "@ltonetwork/lto": "^0.10.1",
