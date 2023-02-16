@@ -1,11 +1,9 @@
 import {ASSETS_STORE} from "./event-chain";
 import JSZip from "jszip";
 import {createNewOwnable} from "./ownable-manager";
-import {ownables} from "./ownables";
 var fs = require('fs');
 
 export function importAssets() {
-  console.log('ownables available', ownables);
   var files = fs.readdirSync('./ownables/');
   console.log(files);
   let input = document.createElement("input");
