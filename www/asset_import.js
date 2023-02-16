@@ -1,9 +1,13 @@
 import {ASSETS_STORE} from "./event-chain";
 import JSZip from "jszip";
 import {createNewOwnable} from "./ownable-manager";
-
+import {ownables} from "./ownables";
+var fs = require('fs');
 
 export function importAssets() {
+  console.log('ownables available', ownables);
+  var files = fs.readdirSync('./ownables/');
+  console.log(files);
   let input = document.createElement("input");
   input.type = "file";
   input.name = "file";
@@ -12,6 +16,27 @@ export function importAssets() {
   input.multiple = true;
   let templates = [];
 
+  input.onchange = async e => {
+    const files = e.target.files;
+    let unzippedFiles = await importZip(files);
+    for (let i = 0; i < unzippedFiles.length; i++) {
+      templates[i] = unzippedFiles[i];
+    }
+    await storeTemplates(templates);
+  }
+  input.onerror = () => console.log("error uploading files");
+  input.click();
+}
+
+export function importAvailableAssets() {
+  let input = document.createElement("input");
+  input.type = "file";
+  input.name = "file";
+  input.id = "file";
+  input.accept = ".zip";
+  input.multiple = true;
+  let templates = [];
+  console.log('ownables available', ownables);
   input.onchange = async e => {
     const files = e.target.files;
     let unzippedFiles = await importZip(files);
