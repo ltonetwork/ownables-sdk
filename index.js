@@ -5,7 +5,7 @@ import {
   issueOwnable, queryMetadata, registerExternalEvent,
   syncDb,
 } from "./ownable-manager";
-import {addOwnableOption, fetchTemplate, importAssets} from "./asset_import";
+import {addOwnableOption, fetchTemplate, importAssets, importAvailableAssets} from "./asset_import";
 import {ASSETS_STORE, getLatestChain} from "./event-chain";
 import JSONView from "./JSONView";
 
@@ -45,7 +45,7 @@ document.getElementById("inst").addEventListener('click', async event => {
 });
 
 document.getElementsByClassName("import-button")[0].addEventListener('click', () => importAssets());
-
+document.getElementsByClassName("import-all-button")[0].addEventListener('click', () => importAvailableAssets());
 setTimeout(async () => {
   if (localStorage.templates) {
     await syncDb();
