@@ -1,11 +1,9 @@
 import {ASSETS_STORE} from "./event-chain";
 import JSZip from "jszip";
 import {createNewOwnable} from "./ownable-manager";
-var fs = require('fs');
 
 export function importAssets() {
-  var files = fs.readdirSync('./ownables/');
-  console.log(files);
+
   let input = document.createElement("input");
   input.type = "file";
   input.name = "file";
@@ -26,25 +24,43 @@ export function importAssets() {
   input.click();
 }
 
-export function importAvailableAssets() {
-  let input = document.createElement("input");
-  input.type = "file";
-  input.name = "file";
-  input.id = "file";
-  input.accept = ".zip";
-  input.multiple = true;
+export async function importAvailableAssets() {
+
   let templates = [];
-  console.log('ownables available', ownables);
-  input.onchange = async e => {
-    const files = e.target.files;
-    let unzippedFiles = await importZip(files);
-    for (let i = 0; i < unzippedFiles.length; i++) {
-      templates[i] = unzippedFiles[i];
-    }
-    await storeTemplates(templates);
+  async function reqListener() {
+    const blob = this.response;
+    // let exportUrl = URL.createObjectURL(blob);
+    // const file = new File([blob],{type:'application/zip'});
+    await unzipAndStore(file, templates);
   }
-  input.onerror = () => console.log("error uploading files");
-  input.click();
+
+  const ownablePaths = [
+    'antenna.zip',
+    'armor.zip',
+    'car.zip',
+    'paint.zip',
+    'robot.zip',
+    'speakers.zip',
+  ];
+
+  for (let i = 0; i < ownablePaths.length; i++) {
+    const req = new XMLHttpRequest();
+    const path = ownablePaths.at(i);
+    req.responseType = "blob";
+    req.addEventListener("load", reqListener);
+    req.open("GET", `./ownables/${path}`, true);
+    req.send();
+  }
+
+  return ownablePackages;
+}
+
+async function unzipAndStore(ownablePackage, templates) {
+  let unzippedFiles = await importZip(ownablePackage);
+  for (let i = 0; i < unzippedFiles.length; i++) {
+    templates[i] = unzippedFiles[i];
+  }
+  await storeTemplates(templates);
 }
 
 const extToMimes = {
