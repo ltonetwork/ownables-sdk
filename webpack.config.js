@@ -1,5 +1,6 @@
 const CopyPlugin = require("copy-webpack-plugin");
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
   entry: "./bootstrap.js",
@@ -24,6 +25,9 @@ module.exports = {
         '*.js',
         { from: "../ownables/*.zip", to: "ownables/" },
       ],
+    }),
+    new webpack.ProvidePlugin({
+      process: 'process/browser',
     }),
   ],
 };
