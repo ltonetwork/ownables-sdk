@@ -16,13 +16,16 @@ jobs:
         working-directory: ./www
         run: |
           npm ci
+          ls ownables
+          npm run build-ownables
+          ls ownables
           npm run build
 #          cp -a assets styles.css dist
-      - name: Load Ownable Packages
-        working-directory: ./
-        run: |
-          mv ownables/*.zip www/dist
-          ls www/dist
+#       - name: Load Ownable Packages
+#         working-directory: ./
+#         run: |
+#           mv ownables/*.zip www/dist
+#           ls www/dist
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
