@@ -21,7 +21,7 @@ jobs:
       - name: Load Ownable Packages
         working-directory: ./
         run: |
-          cp -a ownables/*.zip www/dist
+          mv ownables/*.zip www/dist
           ls www/dist
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
