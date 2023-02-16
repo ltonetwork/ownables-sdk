@@ -18,11 +18,11 @@ module.exports = {
   plugins: [
     new CopyPlugin({
       patterns: [
-        { from: "./assets" },
+        { from: "./assets", to: "assets/" },
         'index.html',
         'styles.css',
         '*.js',
-        { from: "../ownables/*.zip" },
+        { from: "../ownables/*.zip", to: "ownables/" },
       ],
     }),
   ],
