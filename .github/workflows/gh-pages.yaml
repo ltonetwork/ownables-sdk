@@ -16,10 +16,9 @@ jobs:
         working-directory: ./www
         run: |
           npm ci
-          ls ownables
-          npm run build-ownables
-          ls ownables
-          npm run build
+          ls
+          cd ..
+          ls
 #          cp -a assets styles.css dist
 #       - name: Load Ownable Packages
 #         working-directory: ./
