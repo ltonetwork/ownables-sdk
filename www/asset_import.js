@@ -25,15 +25,6 @@ export function importAssets() {
 }
 
 export async function importAvailableAssets() {
-
-  let templates = [];
-  async function reqListener() {
-    const blob = this.response;
-    // let exportUrl = URL.createObjectURL(blob);
-    // const file = new File([blob],{type:'application/zip'});
-    await unzipAndStore(file, templates);
-  }
-
   const ownablePaths = [
     'antenna.zip',
     'armor.zip',
@@ -43,24 +34,34 @@ export async function importAvailableAssets() {
     'speakers.zip',
   ];
 
-  for (let i = 0; i < ownablePaths.length; i++) {
-    const req = new XMLHttpRequest();
-    const path = ownablePaths.at(i);
-    req.responseType = "blob";
-    req.addEventListener("load", reqListener);
-    req.open("GET", `./ownables/${path}`, true);
-    req.send();
+  // await Promise.all(ownablePaths.map(path => promisifyXHRRequest(path)));
+  for (const path in ownablePaths) {
+    await promisifyXHRRequest(ownablePaths[path]);
+    setTimeout(()=>{}, 500);
   }
 
-  return ownablePackages;
 }
 
-async function unzipAndStore(ownablePackage, templates) {
-  let unzippedFiles = await importZip(ownablePackage);
-  for (let i = 0; i < unzippedFiles.length; i++) {
-    templates[i] = unzippedFiles[i];
-  }
-  await storeTemplates(templates);
+function promisifyXHRRequest(path) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.responseType = "arraybuffer";
+    xhr.onreadystatechange = async () => {
+      if (xhr.readyState === 4) {
+        const zip = xhr.response;
+        zip.name = path;
+        await unzipAndStore(zip);
+        resolve();
+      }
+    }
+    xhr.open("GET", `./ownables/${path}`, true);
+    xhr.send();
+  });
+}
+
+async function unzipAndStore(ownablePackage) {
+  let unzippedFiles = await importZipBlob(ownablePackage);
+  await storeTemplates(unzippedFiles);
 }
 
 const extToMimes = {
@@ -95,15 +96,36 @@ async function importZip(f) {
   return files;
 }
 
+async function importZipBlob(f) {
+  let files = [];
+
+  await JSZip.loadAsync(f)
+    .then( async function (zip) {
+        for (let [filename, file] of Object.entries(zip.files)) {
+          if (!filename.includes("MAC")) {
+            const blob = await zip.files[filename].async("blob");
+            const ext = filename.substring(filename.indexOf('.'));
+            files.push(new File([blob], filename, {
+              type: extToMimes[ext]
+            }));
+          }
+        }
+      }, function (e) {
+        console.log("error reading")
+      }
+    );
+  return files;
+}
+
 function storeTemplates(templates) {
   return new Promise((resolve, reject) => {
-    // TODO: get ownable name from elsewhere
     let templateFile = templates.find(t => t.type === extToMimes[".html"]);
     let templateName = dropFilenameExtension(templateFile.name);
-
+    console.log("storing templates: ", templates);
     let newImport = false;
     let db;
     const templateCount = JSON.parse(localStorage.templates).length;
+
     const request = window.indexedDB.open(ASSETS_STORE, templateCount + 1);
     request.onupgradeneeded = (e) => {
       db = request.result;
@@ -115,7 +137,6 @@ function storeTemplates(templates) {
 
         for (const key in localStorage) {
           let val = localStorage[key];
-          console.log (key, val);
           if (val === templateName) {
             console.log('removing ', templateName);
             // association ownableId->type
@@ -148,7 +169,10 @@ function storeTemplates(templates) {
       db.close();
       resolve();
     }
-    request.onblocked = (event) => reject("idb blocked: ", event);
+    request.onblocked = (event) => {
+      db.close();
+      reject("idb blocked: ", event);
+    }
     request.onerror = (event) => { console.log(event); reject("failed to open indexeddb: ", event); }
   });
 
@@ -173,6 +197,8 @@ export async function removeOwnableOption(templateName) {
 }
 
 function writeTemplate(db, ownableType, template) {
+  console.log("writing template type", ownableType, template);
+  console.log("to idb", db);
   return new Promise(async (resolve, reject) => {
     let templateName;
     switch (template.type) {
