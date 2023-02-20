@@ -56,7 +56,23 @@ document.getElementById("reset").addEventListener('click', async event => {
   event.preventDefault();
   if (!window.confirm("Are you sure you want to reset your environment? This is a destructive action.")) return;
 
-
+  // clean session
+  for (const key in localStorage) {
+    if (key !== "encryptedSeed" && key !== "templates") {
+      localStorage.removeItem(key);
+    }
+  }
+  window.indexedDB.databases().then((r) => {
+    for (var i = 0; i < r.length; i++) {
+      console.log(r[i]);
+      if (r[i].name !== "assets") {
+        window.indexedDB.deleteDatabase(r[i].name);
+      }
+    }
+  }).then(() => {
+    console.log('all cleared');
+    window.location.reload();
+  });
 });
 
 window.addEventListener("message", async event => {
