@@ -13,6 +13,7 @@ module.exports = {
       util: require.resolve("util/"),
       crypto: require.resolve('crypto-browserify'),
       stream: require.resolve('stream-browserify'),
+      buffer: require.resolve("buffer"),
     }
   },
   mode: "development",
@@ -28,6 +29,9 @@ module.exports = {
     }),
     new webpack.ProvidePlugin({
       process: 'process/browser',
+    }),
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
     }),
   ],
 };
