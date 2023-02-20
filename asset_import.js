@@ -37,7 +37,8 @@ export async function importAvailableAssets() {
   // await Promise.all(ownablePaths.map(path => promisifyXHRRequest(path)));
   for (const path in ownablePaths) {
     await promisifyXHRRequest(ownablePaths[path]);
-    setTimeout(()=>{}, 500);
+    // temporary fix for not blocking the idb
+    setTimeout(() => {}, 500);
   }
 
 }
