@@ -262,6 +262,7 @@ export async function registerExternalEvent(ownable_id, msg) {
 export async function deleteOwnable(ownable_id) {
   await deleteIndexedDb(ownable_id);
   localStorage.removeItem(ownable_id);
+  setTimeout(() => {}, 500);
   await syncDb();
 }
 
