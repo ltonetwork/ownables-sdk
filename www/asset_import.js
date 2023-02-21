@@ -102,7 +102,7 @@ async function importZipBlob(f) {
 
   await JSZip.loadAsync(f)
     .then( async function (zip) {
-        for (let [filename, file] of Object.entries(zip.files)) {
+      for (let [filename, file] of Object.entries(zip.files)) {
           if (!filename.includes("MAC")) {
             const blob = await zip.files[filename].async("blob");
             const ext = filename.substring(filename.indexOf('.'));
