@@ -120,9 +120,10 @@ async function importZipBlob(f) {
 
 function storeTemplates(templates) {
   return new Promise((resolve, reject) => {
+    console.log("unwrapping templates: ", templates);
     let templateFile = templates.find(t => t.type === extToMimes[".html"]);
     let templateName = dropFilenameExtension(templateFile.name);
-    console.log("storing templates: ", templates);
+    console.log(`template name: ${templateName}`);
     let newImport = false;
     let db;
     const templateCount = JSON.parse(localStorage.templates).length;
@@ -198,8 +199,6 @@ export async function removeOwnableOption(templateName) {
 }
 
 function writeTemplate(db, ownableType, template) {
-  console.log("writing template type", ownableType, template);
-  console.log("to idb", db);
   return new Promise(async (resolve, reject) => {
     let templateName;
     switch (template.type) {
