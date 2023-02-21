@@ -105,8 +105,8 @@ button {
 
 .actions {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  top: 15vh;
+  left: 20px;
 }
 
 .actions button {
