@@ -55,7 +55,7 @@ function promisifyXHRRequest(path) {
         resolve();
       }
     }
-    xhr.open("GET", `./ownables/${path}`, true);
+    xhr.open("GET", `ownables/${path}`, true);
     xhr.send();
   });
 }
