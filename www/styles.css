@@ -105,8 +105,9 @@ button {
 
 .actions {
   position: fixed;
-  top: 15vh;
-  left: 20px;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99;
 }
 
 .actions button {
@@ -224,8 +225,11 @@ button {
   left: 15px;
   top: 12px;
   font-size: 38px;
+  width: 30px;
+  padding: 10px;
   color: #888;
   cursor: move;
+  background: url('assets/draggable.svg') no-repeat;
 }
 
 .event-chain-modal {
