@@ -640,7 +640,15 @@ function getOwnableActionsHTML(ownable_id) {
     () => { generalActions.style.display = "flex"
   });
   threeDots.addEventListener(
+    'touchstart',
+    () => { generalActions.style.display = "flex"
+  });
+  threeDots.addEventListener(
     'mouseout',
+    () => { generalActions.style.display = "none"
+  });
+  threeDots.addEventListener(
+    'touchend',
     () => { generalActions.style.display = "none"
   });
   threeDots.appendChild(generalActions);
@@ -684,22 +692,25 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
   ownableElement.addEventListener('dragover', (e) => {
     e.preventDefault(); // Allow drop
   });
-  ownableElement.addEventListener('drop', async (e) => {
-    const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
-
-    if (consumable_id === ownable_id) return; // Can't consume self
-
-    // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
-    console.log("Consume", consumable_id, ownable_id);
-    const externalEvent = JSON.parse(await executeOwnable(consumable_id, {consume: {}}));
-    console.log("external event returned from consumable: ", externalEvent);
-    await registerExternalEvent(ownable_id, externalEvent);
-  });
-
+  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e));
+  ownableElement.addEventListener('touchend', async (e) => await handleConsumptionEvent(e));
+  
   const dropZone = document.createElement("div");
   dropZone.classList.add('dropzone');
   dropZone.style.display = 'none';
   ownableElement.appendChild(dropZone);
+}
+
+async function handleConsumptionEvent(e) {
+  const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
+
+  if (consumable_id === ownable_id) return; // Can't consume self
+
+  // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
+  console.log("Consume", consumable_id, ownable_id);
+  const externalEvent = JSON.parse(await executeOwnable(consumable_id, {consume: {}}));
+  console.log("external event returned from consumable: ", externalEvent);
+  await registerExternalEvent(ownable_id, externalEvent);
 }
 
 export async function transferOwnable(ownable_id) {
