@@ -649,8 +649,8 @@ function getOwnableActionsHTML(ownable_id) {
 }
 
 function getOwnableDragHandle() {
-  const handle = document.createElement("div");
-  handle.innerHTML = "&equiv;"
+  const handle = document.createElement('div');
+  handle.style.height = '25px';
   handle.classList.add('drag-handle');
   handle.addEventListener('mousedown', (e) => {
     e.target.parentNode.setAttribute('draggable', 'true');
