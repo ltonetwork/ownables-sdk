@@ -655,7 +655,13 @@ function getOwnableDragHandle() {
   handle.addEventListener('mousedown', (e) => {
     e.target.parentNode.setAttribute('draggable', 'true');
   });
+  handle.addEventListener('touchstart', (e) => {
+    e.target.parentNode.setAttribute('draggable', 'true');
+  });
   handle.addEventListener('mouseup', (e) => {
+    e.target.parentNode.setAttribute('draggable', 'false')
+  });
+  handle.addEventListener('touchend', (e) => {
     e.target.parentNode.setAttribute('draggable', 'false')
   });
 
