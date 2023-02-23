@@ -240,7 +240,6 @@ export async function registerExternalEvent(ownable_id, msg) {
       workerMsg,
     ],
   };
-
   const data = await postToOwnableFrame(ownable_id, postMsg);
   const state = JSON.parse(data.get('state'));
 
@@ -314,7 +313,6 @@ export function queryMetadata(ownable_id) {
     let resp = await postToOwnableFrame(ownable_id, workerMsg);
     const metadataString = atob(JSON.parse(resp.get('state')));
     const metadata = JSON.parse(metadataString);
-    console.log
     resolve(metadata);
     // ownableIframe.contentWindow.postMessage(workerMsg, "*");
   })
@@ -709,9 +707,10 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
   ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, false));
   ownableElement.addEventListener('touchend', async (e) => {
-    await handleConsumptionEvent(e, ownable_id, true)
     e.target.style.opacity = '';
-    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.ownables-grid .dropzone')
+      .forEach(el => el.style.display = 'none');
+    await handleConsumptionEvent(e, ownable_id, true);
   });
 
   const dropZone = document.createElement("div");
@@ -735,14 +734,14 @@ async function handleDragBeginEvent(e, ownable_id, touchscreen) {
 
 async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   let target_ownable_id = "";
-  console.log("consumption event with source ownable id: ", source_ownable_id);
+  console.log("consumption event with source ownable id: ", source_ownable_id, touchscreen);
   if (!touchscreen) {
     target_ownable_id = JSON.parse(e.dataTransfer.getData("application/json"));
     console.log("data transfer event, target ownable id: ", target_ownable_id);
   } else {
     const touch = e.touches[0] || e.changedTouches[0];
     const dropZone = document.elementFromPoint(touch.pageX, touch.pageY);
-    target_ownable_id = dropZone.previousSibling.id;
+    target_ownable_id = dropZone.id;
     console.log("touch event, target ownable id: ", target_ownable_id);
   }
 
@@ -753,7 +752,9 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
   const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
   console.log("external event returned from consumable: ", externalEvent);
-  setTimeout(() => {}, 100);
+  setTimeout(() => {
+    console.log('target element: ', document.getElementById(target_ownable_id));
+  }, 200);
   await registerExternalEvent(target_ownable_id, externalEvent);
 }
 
