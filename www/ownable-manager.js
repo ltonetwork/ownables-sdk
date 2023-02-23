@@ -731,7 +731,7 @@ async function handleDragBeginEvent(e, ownable_id, touchscreen) {
 }
 
 async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
-  let target_ownable_id = "";
+  let target_ownable_id;
   if (!touchscreen) {
     target_ownable_id = JSON.parse(e.dataTransfer.getData("application/json"));
     console.log("data transfer event, target ownable id: ", target_ownable_id);
@@ -741,15 +741,11 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
     const x = touch.pageX || e.pageX;
     const y = touch.pageY || e.pageY;
     const dropZone = document.elementFromPoint(x, y);
-    window.alert(`x: ${x}, y: ${y}`);
-    window.alert(dropZone.id);
-    console.log('dropzone: ', dropZone.innerHTML);
-    console.log(dropZone.id);
-    // if (dropZone.id['ownable_id'] !== undefined) {
-    target_ownable_id = dropZone.id.ownable_id;
-    // } else {
-    //   target_ownable_id = dropZone.id;
-    // }
+    target_ownable_id = dropZone.id;
+  }
+
+  if (target_ownable_id['ownable_id']) {
+    target_ownable_id = target_ownable_id['ownable_id'];
   }
 
   console.log("target ownable id: ", target_ownable_id);
@@ -758,13 +754,6 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   if (target_ownable_id !== source_ownable_id) {
     window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
     // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
-    // if (target_ownable_id['ownable_id'] !== undefined) {
-    //   target_ownable_id = target_ownable_id['ownable_id'];
-    //   console.log('cleaning target event: ', target_ownable_id);
-    // } else {
-    //   console.log('target event: ', target_ownable_id);
-    // }
-    target_ownable_id = target_ownable_id.ownable_id || target_ownable_id;
     const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
     console.log("external event returned from consumable: ", externalEvent);
     setTimeout(() => {
