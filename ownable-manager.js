@@ -43,7 +43,6 @@ async function postToOwnableFrame(ownableId, msg) {
     window.addEventListener('message', (e) => {
       resolve(e.data);
     }, {once: true});
-    console.log("posting ", msg, " to ownableId ", ownableId);
     ownableIframe.contentWindow.postMessage(msg, "*");
   });
 }
@@ -203,7 +202,6 @@ export async function executeOwnable(ownable_id, msg) {
   let externalEvent = undefined;
   if (isExternalEvent) {
     externalEvent = JSON.parse(atob(state.data));
-    console.log("external event: ", externalEvent);
   }
 
   const mem = JSON.parse(data.get('mem'));
@@ -216,15 +214,13 @@ export async function executeOwnable(ownable_id, msg) {
 
   const newEvent = new Event({"@context": "execute_msg.json", ...msg});
   const latestChain = await getLatestChain(ownable_id);
-  const anchor = await anchorEventToChain(latestChain, newEvent, lto.node, account);
+  await anchorEventToChain(latestChain, newEvent, lto.node, account);
   await writeLatestChain(ownable_id, latestChain);
-  console.log("anchor: ", anchor);
   return externalEvent;
 }
 
 export async function registerExternalEvent(ownable_id, msg) {
   const state_dump = await getOwnableStateDump(ownable_id);
-  console.log("register external event ownable_manager()");
   const workerMsg = {
     type: "external_event",
     ownable_id: ownable_id,
@@ -244,7 +240,6 @@ export async function registerExternalEvent(ownable_id, msg) {
   const state = JSON.parse(data.get('state'));
 
   const mem = JSON.parse(data.get('mem'));
-  console.log('iframe response: ', state);
 
   let db = await initIndexedDb(ownable_id);
   await saveOwnableStateDump(db, mem);
@@ -753,8 +748,8 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
   console.log("external event returned from consumable: ", externalEvent);
   setTimeout(() => {
-    console.log('target element: ', document.getElementById(target_ownable_id));
-  }, 200);
+    console.log('pausing');
+  }, 1000);
   await registerExternalEvent(target_ownable_id, externalEvent);
 }
 

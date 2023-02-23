@@ -2,7 +2,6 @@ let worker;
 
 addEventListener('message', async (e) => {
   // only accept msgs from document source
-  console.log("ownable.js listener args: ", e.data.args);
   if (e.origin === "null") {
     window.parent.postMessage(e.data, "*");
     const iframe = document.getElementById(e.data.ownable_id);
@@ -34,7 +33,6 @@ addEventListener('message', async (e) => {
       await registerExternalEvent(args[0], args[1]);
       break;
     default:
-      console.error("unsupported rpc call", e.data);
       throw new Error(`Unsupported RPC function ${e.data.method}`)
       break;
   }
@@ -93,6 +91,7 @@ async function registerExternalEvent(ownable_id, msg) {
 
 
 function queryState(ownable_id, msg, state_dump) {
+  setTimeout(() => {}, 500);
   return new Promise((resolve, reject) => {
     worker.addEventListener('message', async event => {
       const stateMap = (event.data.get('state'));

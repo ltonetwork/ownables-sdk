@@ -186,7 +186,6 @@ export async function addOwnableOption(templateName) {
   ownableHtml.innerText = templateName;
   ownableHtml.type = "button";
   ownableHtml.addEventListener('click', async () => {
-    console.log(`instantiating ${templateName}`);
     document.getElementById("inst-menu").classList.toggle("show");
     await createNewOwnable(templateName);
   });
