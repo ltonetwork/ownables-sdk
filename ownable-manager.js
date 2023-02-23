@@ -245,6 +245,7 @@ export async function registerExternalEvent(ownable_id, msg) {
   const state = JSON.parse(data.get('state'));
 
   const mem = JSON.parse(data.get('mem'));
+  console.log('iframe response: ', state);
 
   let db = await initIndexedDb(ownable_id);
   await saveOwnableStateDump(db, mem);
@@ -602,12 +603,20 @@ async function generateOwnable(ownable_id, type) {
 }
 
 function getOwnableActionsHTML(ownable_id) {
+
+  const generalActions = document.createElement("div");
+  generalActions.className = "general-actions";
+
+
   const transferButton = document.createElement("button");
   transferButton.id = "transfer-button";
   transferButton.textContent = "Transfer";
   transferButton.addEventListener(
     'click',
-    async () => await transferOwnable(ownable_id)
+    async () => {
+      await transferOwnable(ownable_id);
+      generalActions.style.display = "none";
+    }
   );
 
   const deleteButton = document.createElement("button");
@@ -615,7 +624,10 @@ function getOwnableActionsHTML(ownable_id) {
   deleteButton.textContent = "Delete";
   deleteButton.addEventListener(
     'click',
-    async () => await deleteOwnable(ownable_id)
+    async () => {
+      await deleteOwnable(ownable_id);
+      generalActions.style.display = "none";
+    }
   );
 
   const infoButton = document.createElement("button");
@@ -623,11 +635,13 @@ function getOwnableActionsHTML(ownable_id) {
   infoButton.textContent = "Info";
   infoButton.addEventListener(
     'click',
-    async () => await getOwnableInfo(ownable_id)
+    async () => {
+      await getOwnableInfo(ownable_id);
+      generalActions.style.display = "none";
+    }
   );
 
-  const generalActions = document.createElement("div");
-  generalActions.className = "general-actions";
+
   generalActions.appendChild(transferButton);
   generalActions.appendChild(deleteButton);
   generalActions.appendChild(infoButton);
@@ -635,22 +649,25 @@ function getOwnableActionsHTML(ownable_id) {
   const threeDots = document.createElement("div");
   threeDots.className = "three-dots";
   threeDots.id = "more-button";
-  threeDots.addEventListener(
-    'mouseover',
-    () => { generalActions.style.display = "flex"
-  });
-  threeDots.addEventListener(
-    'touchstart',
-    () => { generalActions.style.display = "flex"
-  });
-  threeDots.addEventListener(
-    'mouseout',
-    () => { generalActions.style.display = "none"
-  });
-  threeDots.addEventListener(
-    'touchend',
-    () => { generalActions.style.display = "none"
-  });
+  // threeDots.addEventListener(
+  //   'mouseover',
+  //   () => { generalActions.style.display = "flex"
+  // });
+  // threeDots.addEventListener(
+  //   'touchstart',
+  //   () => { generalActions.style.display = "flex"
+  // });
+  // threeDots.addEventListener(
+  //   'mouseout',
+  //   () => { generalActions.style.display = "none"
+  // });
+  // threeDots.addEventListener(
+  //   'touchend',
+  //   () => { generalActions.style.display = "none"
+  // });
+
+  threeDots.addEventListener('click', () => { generalActions.style.display = "flex" });
+
   threeDots.appendChild(generalActions);
 
   return threeDots;
@@ -691,7 +708,11 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
   });
 
   ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, false));
-  ownableElement.addEventListener('touchend', async (e) => await handleConsumptionEvent(e, ownable_id, true));
+  ownableElement.addEventListener('touchend', async (e) => {
+    await handleConsumptionEvent(e, ownable_id, true)
+    e.target.style.opacity = '';
+    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = 'none');
+  });
 
   const dropZone = document.createElement("div");
   dropZone.classList.add('dropzone');
@@ -725,11 +746,14 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
     console.log("touch event, target ownable id: ", target_ownable_id);
   }
 
+  console.log("target ownable id: ", target_ownable_id);
+
   if (target_ownable_id === source_ownable_id) return; // Can't consume self
 
   // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
   const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
   console.log("external event returned from consumable: ", externalEvent);
+  setTimeout(() => {}, 100);
   await registerExternalEvent(target_ownable_id, externalEvent);
 }
 
