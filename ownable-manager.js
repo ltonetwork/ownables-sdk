@@ -738,13 +738,16 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   } else {
     const touch = e.touches[0] || e.changedTouches[0];
     console.log('consumption event: ', e);
-    window.alert(JSON.stringify(e));
     const x = touch.pageX || e.pageX;
     const y = touch.pageY || e.pageY;
     const dropZone = document.elementFromPoint(x, y);
-    console.log("drop zone: ", dropZone);
     window.alert(`x: ${x}, y: ${y}`);
-    target_ownable_id = dropZone.id.ownable_id;
+    window.alert(dropZone.id);
+    if (dropZone.id['ownable_id'] !== undefined) {
+      target_ownable_id = dropZone.id['ownable_id'];
+    } else {
+      target_ownable_id = dropZone.id;
+    }
     console.log("touch event, target ownable id: ", target_ownable_id);
   }
 
