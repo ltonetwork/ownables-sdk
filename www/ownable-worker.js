@@ -1,6 +1,5 @@
 
 addEventListener('message', async (e) => {
-  console.log("handling msg: ", e);
   if (wasm === undefined) {
     init(e.data).then(
       resp => {
@@ -32,7 +31,6 @@ addEventListener('message', async (e) => {
     case "query":
       query_contract_state(e.data.msg, e.data.idb).then(
         resp => {
-          console.log("Contract queried successfully");
           self.postMessage(resp);
         }
       );

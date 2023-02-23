@@ -46,9 +46,7 @@ export function writeLatestChain(ownable_id, chain) {
 }
 
 export async function anchorEventToChain(chain, event, node, account) {
-  console.log("event: ", event);
   const addedEvent = event.addTo(chain).signWith(account);
-  console.log("added event: ", addedEvent);
   return await new MappedAnchor(chain.startingWith(addedEvent).anchorMap)
     .signWith(account)
     .broadcastTo(node);
