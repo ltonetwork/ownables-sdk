@@ -744,7 +744,7 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
     const dropZone = document.elementFromPoint(x, y);
     console.log("drop zone: ", dropZone);
     window.alert(`x: ${x}, y: ${y}`);
-    target_ownable_id = dropZone.id;
+    target_ownable_id = dropZone.id.ownable_id;
     console.log("touch event, target ownable id: ", target_ownable_id);
   }
 
