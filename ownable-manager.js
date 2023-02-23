@@ -709,7 +709,7 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
     document.querySelectorAll('.ownables-grid .dropzone')
       .forEach(el => el.style.display = 'none');
     await handleConsumptionEvent(e, ownable_id, true);
-  });
+  }, { once: true },);
 
   const dropZone = document.createElement("div");
   dropZone.classList.add('dropzone');
