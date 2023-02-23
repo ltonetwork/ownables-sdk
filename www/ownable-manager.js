@@ -691,7 +691,7 @@ function getOwnableDragHandle() {
 
 function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
-  // ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, false));
+  ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, true));
   ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true));
 
   ownableElement.addEventListener('dragend', (e) => {
@@ -703,7 +703,7 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
     e.preventDefault(); // Allow drop
   });
 
-  // ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, false));
+  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, true));
   ownableElement.addEventListener('touchend', async (e) => {
     e.target.style.opacity = '';
     document.querySelectorAll('.ownables-grid .dropzone')
@@ -743,7 +743,7 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
     const dropZone = document.elementFromPoint(x, y);
     window.alert(`x: ${x}, y: ${y}`);
     window.alert(dropZone.id);
-    console.log('dropzone: ', dropZone);
+    console.log('dropzone: ', dropZone.innerHTML);
     console.log(dropZone.id);
     if (dropZone.id['ownable_id'] !== undefined) {
       target_ownable_id = dropZone.id['ownable_id'];
