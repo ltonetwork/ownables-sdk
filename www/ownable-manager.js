@@ -745,11 +745,11 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
     window.alert(dropZone.id);
     console.log('dropzone: ', dropZone.innerHTML);
     console.log(dropZone.id);
-    if (dropZone.id['ownable_id'] !== undefined) {
-      target_ownable_id = dropZone.id['ownable_id'];
-    } else {
-      target_ownable_id = dropZone.id;
-    }
+    // if (dropZone.id['ownable_id'] !== undefined) {
+    target_ownable_id = dropZone.id.ownable_id;
+    // } else {
+    //   target_ownable_id = dropZone.id;
+    // }
   }
 
   console.log("target ownable id: ", target_ownable_id);
@@ -758,12 +758,13 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   if (target_ownable_id !== source_ownable_id) {
     window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
     // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
-    if (target_ownable_id['ownable_id'] !== undefined) {
-      target_ownable_id = target_ownable_id['ownable_id'];
-      console.log('cleaning target event: ', target_ownable_id);
-    } else {
-      console.log('target event: ', target_ownable_id);
-    }
+    // if (target_ownable_id['ownable_id'] !== undefined) {
+    //   target_ownable_id = target_ownable_id['ownable_id'];
+    //   console.log('cleaning target event: ', target_ownable_id);
+    // } else {
+    //   console.log('target event: ', target_ownable_id);
+    // }
+    target_ownable_id = target_ownable_id.ownable_id || target_ownable_id;
     const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
     console.log("external event returned from consumable: ", externalEvent);
     setTimeout(() => {
