@@ -756,19 +756,19 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
 
   console.log("target ownable id: ", target_ownable_id);
   console.log("source ownable id: ", source_ownable_id);
-
-  if (target_ownable_id === source_ownable_id) return; // Can't consume self
   if (target_ownable_id['ownable_id'] !== undefined) {
     target_ownable_id = target_ownable_id['ownable_id'];
   }
-  window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
-  // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
-  const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
-  console.log("external event returned from consumable: ", externalEvent);
-  setTimeout(() => {
-    console.log('pausing');
-  }, 1000);
-  await registerExternalEvent(target_ownable_id, externalEvent);
+  if (target_ownable_id !== source_ownable_id) {
+    window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
+    // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
+    const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
+    console.log("external event returned from consumable: ", externalEvent);
+    setTimeout(() => {
+      console.log('pausing');
+    }, 1000);
+    await registerExternalEvent(target_ownable_id, externalEvent);
+  } // Can't consume self
 }
 
 export async function transferOwnable(ownable_id) {
