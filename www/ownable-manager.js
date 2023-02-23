@@ -678,12 +678,9 @@ function getOwnableDragHandle() {
 
 function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
-  ownableElement.addEventListener('dragstart', (e) => {
-    e.target.style.opacity = '0.4';
-    e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
+  ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, false));
+  ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true));
 
-    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = '');
-  });
   ownableElement.addEventListener('dragend', (e) => {
     e.target.style.opacity = '';
     document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = 'none');
@@ -692,25 +689,48 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
   ownableElement.addEventListener('dragover', (e) => {
     e.preventDefault(); // Allow drop
   });
-  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e));
-  ownableElement.addEventListener('touchend', async (e) => await handleConsumptionEvent(e));
-  
+
+  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, false));
+  ownableElement.addEventListener('touchend', async (e) => await handleConsumptionEvent(e, ownable_id, true));
+
   const dropZone = document.createElement("div");
   dropZone.classList.add('dropzone');
   dropZone.style.display = 'none';
   ownableElement.appendChild(dropZone);
 }
 
-async function handleConsumptionEvent(e) {
-  const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
+async function handleDragBeginEvent(e, ownable_id, touchscreen) {
+  e.target.style.opacity = '0.4';
+  console.log('handleDragBeginEvent: ', e);
+  if (!touchscreen) {
+    e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
+  } else {
+    e.target.id = JSON.stringify({ownable_id});
+    console.log(e);
+  }
+  document.querySelectorAll('.ownables-grid .dropzone')
+    .forEach(el => el.style.display = '');
+}
 
-  if (consumable_id === ownable_id) return; // Can't consume self
+async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
+  let target_ownable_id = "";
+  console.log("consumption event with source ownable id: ", source_ownable_id);
+  if (!touchscreen) {
+    target_ownable_id = JSON.parse(e.dataTransfer.getData("application/json"));
+    console.log("data transfer event, target ownable id: ", target_ownable_id);
+  } else {
+    const touch = e.touches[0] || e.changedTouches[0];
+    const dropZone = document.elementFromPoint(touch.pageX, touch.pageY);
+    target_ownable_id = dropZone.previousSibling.id;
+    console.log("touch event, target ownable id: ", target_ownable_id);
+  }
+
+  if (target_ownable_id === source_ownable_id) return; // Can't consume self
 
   // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
-  console.log("Consume", consumable_id, ownable_id);
-  const externalEvent = JSON.parse(await executeOwnable(consumable_id, {consume: {}}));
+  const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
   console.log("external event returned from consumable: ", externalEvent);
-  await registerExternalEvent(ownable_id, externalEvent);
+  await registerExternalEvent(target_ownable_id, externalEvent);
 }
 
 export async function transferOwnable(ownable_id) {
