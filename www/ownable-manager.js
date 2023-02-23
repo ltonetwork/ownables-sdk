@@ -751,6 +751,9 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   console.log("target ownable id: ", target_ownable_id);
 
   if (target_ownable_id === source_ownable_id) return; // Can't consume self
+  if (typeof target_ownable_id === 'object') {
+    target_ownable_id = target_ownable_id.ownable_id;
+  }
   window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
   // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
   const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
