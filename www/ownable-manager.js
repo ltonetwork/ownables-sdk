@@ -691,8 +691,8 @@ function getOwnableDragHandle() {
 
 function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
-  // ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
-  ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
+  ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
+  // ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
 
   ownableElement.addEventListener('dragend', (e) => {
     e.target.style.opacity = '';
@@ -703,7 +703,7 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
     e.preventDefault(); // Allow drop
   });
 
-  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, true));
+  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, true), { once: true },);
   ownableElement.addEventListener('touchend', async (e) => {
     e.target.style.opacity = '';
     document.querySelectorAll('.ownables-grid .dropzone')
@@ -752,13 +752,9 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   console.log("source ownable id: ", source_ownable_id);
 
   if (target_ownable_id !== source_ownable_id) {
-    // window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
     // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
     const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
     console.log("external event returned from consumable: ", externalEvent);
-    // setTimeout(() => {
-    //   console.log('pausing');
-    // }, 1000);
     await registerExternalEvent(target_ownable_id, externalEvent);
   } // Can't consume self
 }
