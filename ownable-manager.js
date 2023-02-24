@@ -691,8 +691,8 @@ function getOwnableDragHandle() {
 
 function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
-  ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, true));
-  ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true));
+  // ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
+  ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
 
   ownableElement.addEventListener('dragend', (e) => {
     e.target.style.opacity = '';
