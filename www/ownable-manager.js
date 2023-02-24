@@ -691,8 +691,8 @@ function getOwnableDragHandle() {
 
 function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
-  ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
-  // ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
+  ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, false), { once: true },);
+  ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
 
   ownableElement.addEventListener('dragend', (e) => {
     e.target.style.opacity = '';
@@ -703,7 +703,7 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
     e.preventDefault(); // Allow drop
   });
 
-  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, true), { once: true },);
+  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, false), { once: true },);
   ownableElement.addEventListener('touchend', async (e) => {
     e.target.style.opacity = '';
     document.querySelectorAll('.ownables-grid .dropzone')
@@ -723,8 +723,8 @@ async function handleDragBeginEvent(e, ownable_id, touchscreen) {
   if (!touchscreen) {
     e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
   } else {
-    e.target.id = JSON.stringify({ownable_id});
-    console.log(e);
+    // e.target.id = JSON.stringify({ownable_id});
+    // console.log(e);
   }
   document.querySelectorAll('.ownables-grid .dropzone')
     .forEach(el => el.style.display = '');
