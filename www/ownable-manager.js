@@ -237,10 +237,10 @@ export async function registerExternalEvent(ownable_id, msg) {
       workerMsg,
     ],
   };
-  window.alert(`posting to iframe ${ownable_id}, ${JSON.stringify(postMsg)}`);
+  // window.alert(`posting to iframe ${ownable_id}, ${JSON.stringify(postMsg)}`);
   const data = await postToOwnableFrame(ownable_id, postMsg);
   const state = JSON.parse(data.get('state'));
-  window.alert(`response state: ${JSON.stringify(state)}`);
+  // window.alert(`response state: ${JSON.stringify(state)}`);
 
   const mem = JSON.parse(data.get('mem'));
 
@@ -752,13 +752,13 @@ async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
   console.log("source ownable id: ", source_ownable_id);
 
   if (target_ownable_id !== source_ownable_id) {
-    window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
+    // window.alert(`consumable id: ${source_ownable_id} \n consumer id: ${target_ownable_id}`);
     // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
     const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
     console.log("external event returned from consumable: ", externalEvent);
-    setTimeout(() => {
-      console.log('pausing');
-    }, 1000);
+    // setTimeout(() => {
+    //   console.log('pausing');
+    // }, 1000);
     await registerExternalEvent(target_ownable_id, externalEvent);
   } // Can't consume self
 }
