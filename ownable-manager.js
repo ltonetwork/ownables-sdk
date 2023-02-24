@@ -693,6 +693,10 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
 
   ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, false), { once: true },);
   ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
+  ownableElement.addEventListener('touchmove', ev => {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+  }, { passive: false });
 
   ownableElement.addEventListener('dragend', (e) => {
     e.target.style.opacity = '';
