@@ -64,6 +64,8 @@ function updateState(ownable_id, state) {
 }
 
 async function executeOwnable(ownable_id, msg) {
+  if (!worker) throw new Error("Unable to execute: not initialized");
+
   worker.addEventListener('message', async event => {
     const state = JSON.parse(event.data.get('state'));
     const mem = JSON.parse(event.data.get('mem'));
@@ -74,6 +76,8 @@ async function executeOwnable(ownable_id, msg) {
 }
 
 async function registerExternalEvent(ownable_id, msg) {
+  if (!worker) throw new Error("Unable to execute: not initialized");
+
   worker.addEventListener('message', async event => {
     const state = JSON.parse(event.data.get('state'));
     const mem = JSON.parse(event.data.get('mem'));
@@ -89,9 +93,9 @@ async function registerExternalEvent(ownable_id, msg) {
   worker.postMessage(workerMsg);
 }
 
-
 function queryState(ownable_id, msg, state_dump) {
-  setTimeout(() => {}, 500);
+  if (!worker) throw new Error("Unable to execute: not initialized");
+
   return new Promise((resolve, reject) => {
     worker.addEventListener('message', async event => {
       const stateMap = (event.data.get('state'));
@@ -111,12 +115,12 @@ function queryState(ownable_id, msg, state_dump) {
 
     worker.postMessage(workerMsg);
   });
-
 }
 
 function queryMetadata(ownable_id, msg, state_dump) {
-  return new Promise(async (resolve, reject) => {
+  if (!worker) throw new Error("Unable to execute: not initialized");
 
+  return new Promise(async (resolve, reject) => {
     worker.addEventListener('message', async event => {
       const metadataString = atob(JSON.parse(event.data.get('state')));
       const metadata = JSON.parse(metadataString);
@@ -137,6 +141,8 @@ function queryMetadata(ownable_id, msg, state_dump) {
 }
 
 async function issueOwnable(ownable_id, msg, messageInfo) {
+  if (!worker) throw new Error("Unable to execute: not initialized");
+
   return new Promise(async (resolve, reject) => {
     worker.addEventListener('message', async event => {
       const stateMap = JSON.parse(event.data.get('state'));
@@ -158,6 +164,8 @@ async function issueOwnable(ownable_id, msg, messageInfo) {
 }
 
 async function transferOwnable(ownable_id, chainMessage, messageInfo, state_dump) {
+  if (!worker) throw new Error("Unable to execute: not initialized");
+
   let workerMessage = {
     type: "execute",
     msg: chainMessage,
