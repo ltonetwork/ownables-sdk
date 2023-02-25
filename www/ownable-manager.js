@@ -694,7 +694,7 @@ function setOwnableDragDropEvent(ownableElement, ownableId) {
   ownableElement.addEventListener('drop', async (e) => {
     const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
     await handleConsumptionEvent(consumable_id, ownableId);
-  }, { once: true });
+  });
 
   const dropZone = document.createElement("div");
   dropZone.classList.add('dropzone');
