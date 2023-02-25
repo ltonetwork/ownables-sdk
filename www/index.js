@@ -1,12 +1,10 @@
 import {
-  _instantiateOwnable,
   executeOwnable,
-  initializeOwnableHTML, initWorker,
-  issueOwnable, queryMetadata, registerExternalEvent,
+  queryMetadata, registerExternalEvent,
   syncDb,
 } from "./ownable-manager";
-import {addOwnableOption, fetchTemplate, importAssets, importAvailableAssets} from "./asset_import";
-import {ASSETS_STORE, getLatestChain} from "./event-chain";
+import {addOwnableOption, importAssets, importAvailableAssets} from "./asset_import";
+import {getLatestChain} from "./event-chain";
 import JSONView from "./JSONView";
 
 // if no chainIds found, init empty
@@ -93,6 +91,23 @@ window.addEventListener("message", async event => {
       break;
   }
 });
+
+document.addEventListener('click', ev => {
+  document.querySelectorAll('.general-actions.show').forEach(el => el.classList.remove('show'));
+
+  if (ev.target.classList.contains('three-dots')) {
+    ev.target.getElementsByClassName('general-actions').item(0).classList.add('show');
+  }
+});
+
+document.addEventListener('click', ev => {
+  const selected = document.querySelector('.ownable.selected');
+  if (!selected || selected.contains(ev.target)) return;
+
+  selected.classList.remove('selected');
+  document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = 'none');
+});
+
 
 export async function getOwnableInfo(ownable_id) {
   let metadata = await queryMetadata(ownable_id);

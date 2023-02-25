@@ -11,7 +11,7 @@ import {AccountFactoryED25519, LTO} from '@ltonetwork/lto';
 import {associateOwnableType, fetchTemplate} from "./asset_import";
 import {getOwnableInfo} from "./index";
 import allInline from "all-inline";
-import {isValidAddress} from "@ltonetwork/lto/lib/utils/crypto";
+import Hammer from "hammerjs";
 
 const lto = new LTO('T');
 
@@ -20,6 +20,10 @@ function clearOwnableFrames() {
   while (grid.firstChild) {
     grid.removeChild(grid.firstChild);
   }
+}
+
+function isTouchDevice() {
+  return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0));
 }
 
 async function createOwnableFrame(ownableId, ownableType) {
@@ -67,7 +71,7 @@ export async function initWorker(ownableId, ownableType) {
     ],
   };
 
-  return postToOwnableFrame(ownableId, msg);
+  return await postToOwnableFrame(ownableId, msg);
 }
 
 function appendWorkerToBindgenDataURL(bindgenDataURL) {
@@ -584,6 +588,7 @@ async function generateOwnable(ownable_id, type) {
   const ownableElement = document.createElement('div');
   ownableElement.style.position = "relative";
   ownableElement.classList.add('ownable');
+  ownableElement.dataset.id = ownable_id;
   ownableElement.appendChild(getOwnableActionsHTML(ownable_id));
   ownableElement.appendChild(getOwnableDragHandle());
   ownableElement.appendChild(ownableIframe);
@@ -599,10 +604,8 @@ async function generateOwnable(ownable_id, type) {
 }
 
 function getOwnableActionsHTML(ownable_id) {
-
   const generalActions = document.createElement("div");
   generalActions.className = "general-actions";
-
 
   const transferButton = document.createElement("button");
   transferButton.id = "transfer-button";
@@ -637,32 +640,12 @@ function getOwnableActionsHTML(ownable_id) {
     }
   );
 
-
   generalActions.appendChild(transferButton);
   generalActions.appendChild(deleteButton);
   generalActions.appendChild(infoButton);
 
   const threeDots = document.createElement("div");
   threeDots.className = "three-dots";
-  threeDots.id = "more-button";
-  // threeDots.addEventListener(
-  //   'mouseover',
-  //   () => { generalActions.style.display = "flex"
-  // });
-  // threeDots.addEventListener(
-  //   'touchstart',
-  //   () => { generalActions.style.display = "flex"
-  // });
-  // threeDots.addEventListener(
-  //   'mouseout',
-  //   () => { generalActions.style.display = "none"
-  // });
-  // threeDots.addEventListener(
-  //   'touchend',
-  //   () => { generalActions.style.display = "none"
-  // });
-
-  threeDots.addEventListener('click', () => { generalActions.style.display = "flex" });
 
   threeDots.appendChild(generalActions);
 
@@ -671,32 +654,33 @@ function getOwnableActionsHTML(ownable_id) {
 
 function getOwnableDragHandle() {
   const handle = document.createElement('div');
-  handle.style.height = '25px';
   handle.classList.add('drag-handle');
   handle.addEventListener('mousedown', (e) => {
     e.target.parentNode.setAttribute('draggable', 'true');
   });
-  handle.addEventListener('touchstart', (e) => {
-    e.target.parentNode.setAttribute('draggable', 'true');
-  });
   handle.addEventListener('mouseup', (e) => {
-    e.target.parentNode.setAttribute('draggable', 'false')
+    e.target.parentNode.setAttribute('draggable', 'false');
   });
-  handle.addEventListener('touchend', (e) => {
-    e.target.parentNode.setAttribute('draggable', 'false')
-  });
+
+  if (isTouchDevice()) {
+    const mc = new Hammer(handle);
+    mc.on('press', (e) => {
+      e.preventDefault();
+      handle.parentNode.classList.add('selected');
+      document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = '');
+    })
+  }
 
   return handle;
 }
 
-function setOwnableDragDropEvent(ownableElement, ownable_id) {
+function setOwnableDragDropEvent(ownableElement, ownableId) {
+  ownableElement.addEventListener('dragstart', (e) => {
+    e.target.style.opacity = '0.4';
+    e.dataTransfer.setData("application/json", JSON.stringify({ownable_id: ownableId}));
 
-  ownableElement.addEventListener('dragstart', (e) => handleDragBeginEvent(e, ownable_id, false), { once: true },);
-  ownableElement.addEventListener('touchstart', (e) => handleDragBeginEvent(e, ownable_id, true), { once: true },);
-  ownableElement.addEventListener('touchmove', ev => {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-  }, { passive: false });
+    document.querySelectorAll('.ownables-grid .dropzone').forEach(el => el.style.display = '');
+  }, { once: true });
 
   ownableElement.addEventListener('dragend', (e) => {
     e.target.style.opacity = '';
@@ -707,59 +691,35 @@ function setOwnableDragDropEvent(ownableElement, ownable_id) {
     e.preventDefault(); // Allow drop
   });
 
-  ownableElement.addEventListener('drop', async (e) => await handleConsumptionEvent(e, ownable_id, false), { once: true },);
-  ownableElement.addEventListener('touchend', async (e) => {
-    e.target.style.opacity = '';
-    document.querySelectorAll('.ownables-grid .dropzone')
-      .forEach(el => el.style.display = 'none');
-    await handleConsumptionEvent(e, ownable_id, true);
-  }, { once: true },);
+  ownableElement.addEventListener('drop', async (e) => {
+    const {ownable_id: consumable_id} = JSON.parse(e.dataTransfer.getData("application/json"));
+    await handleConsumptionEvent(consumable_id, ownableId);
+  }, { once: true });
 
   const dropZone = document.createElement("div");
   dropZone.classList.add('dropzone');
   dropZone.style.display = 'none';
   ownableElement.appendChild(dropZone);
+
+  if (isTouchDevice()) {
+    dropZone.addEventListener('click', async (e) => {
+      const selected = document.querySelector('.ownable.selected');
+      if (selected) {
+        await handleConsumptionEvent(selected.dataset.id, ownableId);
+      }
+    });
+  }
 }
 
-async function handleDragBeginEvent(e, ownable_id, touchscreen) {
-  e.target.style.opacity = '0.4';
-  console.log('handleDragBeginEvent: ', e);
-  if (!touchscreen) {
-    e.dataTransfer.setData("application/json", JSON.stringify({ownable_id}));
-  } else {
-    // e.target.id = JSON.stringify({ownable_id});
-    // console.log(e);
-  }
-  document.querySelectorAll('.ownables-grid .dropzone')
-    .forEach(el => el.style.display = '');
-}
+async function handleConsumptionEvent(consumable_id, ownable_id) {
+  if (consumable_id === ownable_id) return;
 
-async function handleConsumptionEvent(e, source_ownable_id, touchscreen) {
-  let target_ownable_id;
-  if (!touchscreen) {
-    target_ownable_id = JSON.parse(e.dataTransfer.getData("application/json"));
-    console.log("data transfer event, target ownable id: ", target_ownable_id);
-  } else {
-    const touch = e.touches[0] || e.changedTouches[0];
-    console.log('consumption event: ', e);
-    const x = touch.pageX || e.pageX;
-    const y = touch.pageY || e.pageY;
-    const dropZone = document.elementFromPoint(x, y);
-    target_ownable_id = dropZone.id;
-  }
-
-  if (target_ownable_id['ownable_id']) {
-    target_ownable_id = target_ownable_id['ownable_id'];
-  }
-  if (target_ownable_id === source_ownable_id) return;
-
-  console.log("target ownable id: ", target_ownable_id);
-  console.log("source ownable id: ", source_ownable_id);
+  console.log(`Consume ${consumable_id} by ${ownable_id}`);
 
   // TODO This should be atomic. If the ownable can't consume, the consumable shouldn't be consumed.
-  const externalEvent = JSON.parse(await executeOwnable(source_ownable_id, {consume: {}}));
+  const externalEvent = JSON.parse(await executeOwnable(consumable_id, {consume: {}}));
   console.log("external event returned from consumable: ", externalEvent);
-  await registerExternalEvent(target_ownable_id, externalEvent);
+  await registerExternalEvent(ownable_id, externalEvent);
 }
 
 export async function transferOwnable(ownable_id) {
