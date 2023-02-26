@@ -83,32 +83,45 @@ npm run ownable:build --path=car
 
 ### Car
 
-A static Ownable, with a widget that shows an MP4 of a car.
+A static Ownable, with a widget that shows an MP4 loop of a car.
+
+![Car Ownable](https://user-images.githubusercontent.com/100821/221386676-a74db23f-db45-4e64-9342-3843a861cba6.gif)
 
 ### Potion
 
 An Ownable with at state. The potion gets a random color when instantiated. You can
 drink a portion of the potion, until it's empty.
 
+![Potion Ownable](https://user-images.githubusercontent.com/100821/221386764-82a7021f-0216-4e8f-9b50-4ccfb2da1993.png)
+
 ### Robot
 
 An Ownable to showcase Consumables. The robot will change as it consumes an upgrade.
 
-The following Consumables are available:
+![Robot Ownable](https://user-images.githubusercontent.com/100821/221386802-c4c6823c-e266-43a4-ad3b-126f6c66b0e5.png)
+
+Consumables are Ownables with a `consume` method. The following Consumables are available for the Robot:
 
 #### Paint
 
 A Consumable with a random color. Consume it to change the color of the robot.
 
+![Paint Ownable](https://user-images.githubusercontent.com/100821/221386814-ce9d6595-39d3-4e5a-bfe5-beb598b3403a.png)
+
 #### Antenna
 
 Adds an antenna to the robot. Only one antenna can be added.
 
-#### Shield
+![Antenna Ownable](https://user-images.githubusercontent.com/100821/221386914-6159640f-aa7c-4999-8d26-b8ec7d951e3b.png)
 
-Adds a shield to the robot. Only one shield can be added.
+#### Armor
+
+Adds armor to the robot. Only one shield can be added.
+
+![Armor Ownable](https://user-images.githubusercontent.com/100821/221386885-7fa3d0f4-8a15-44c6-80a4-c76d71120ab7.png)
 
 #### Speakers
 
 Adds speakers to the robot. Only one set of speakers can be added.
 
+![screenshot-demo ownables info-2023 02 25-21_13_08](https://user-images.githubusercontent.com/100821/221386976-200d047e-ed36-41e1-a674-b34660bf7adb.png)
