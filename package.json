@@ -1,0 +1,72 @@
+{
+  "name": "@ltonetwork/ownable-sdk",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Development tools for LTO Ownables",
+  "homepage": "https://ownables.info",
+  "dependencies": {
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.12",
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "@ltonetwork/lto": "^0.10.1",
+    "all-inline": "^0.1.4",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.0",
+    "jszip": "^3.10.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "stream-browserify": "^3.0.0",
+    "typescript": "^4.9.5",
+    "util": "^0.12.5",
+    "web-vitals": "^2.1.4"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "11.0.0",
+    "process": "^0.11.10",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1",
+    "webpack-dev-server": "^4.11.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "rustup": "curl https://sh.rustup.rs -sSf | sh; curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh; rustup default stable; rustup update stable; rustup target add wasm32-unknown-unknown",
+    "ownables:build": "CC=/usr/local/opt/llvm/bin/clang AR=/usr/local/opt/llvm/bin/llvm-ar wasm-pack build --target web ./ownables/$npm_config_path/ && touch ./ownables/$npm_config_path/assets/$npm_config_path.zip && rm -f ./ownables/$npm_config_path/assets/$npm_config_path.zip && rm -f ./ownables/$npm_config_path/pkg/bindgen.js && mv ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ./ownables/$npm_config_path.zip ./ownables/$npm_config_path/assets/ ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/*.wasm ",
+    "ownables:build-all": "for DIR in $(ls ./ownables); do test -d ./ownables/$DIR && npm run ownables:build --path=$DIR; done"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ltonetwork/ownable-sdk.git"
+  },
+  "keywords": [
+    "webassembly",
+    "wasm",
+    "rust",
+    "webpack"
+  ],
+
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
