@@ -178,7 +178,7 @@
         const robot = paper.group(body, head, ...parts);
 
         let faceY = 0;
-        robot.hover(
+        index.hover(
           () => Snap.animate(faceY, -5, (y) => {
             faceY = y;
             face.transform(`t0,${y}`);

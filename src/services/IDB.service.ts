@@ -42,6 +42,35 @@ export default class IDBService {
     });
   }
 
+  static async create(store: string): Promise<void> {
+    const version = this.db.version;
+    this.db.close();
+
+    try {
+      this._db = await this.tryCreate(store, version + 1);
+    } catch (e) {
+      await this.open();
+    }
+  }
+
+  private static async tryCreate(store: string, version: number): Promise<IDBDatabase> {
+    return new Promise(async (resolve, reject) => {
+      const request = window.indexedDB.open(DB_NAME, version);
+
+      request.onupgradeneeded = () => {
+        const db = request.result;
+
+        if (db.objectStoreNames.contains(store)) {
+          db.deleteObjectStore(store);
+        }
+
+        db.createObjectStore(store);
+      }
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e);
+    });
+  }
+
   static async set(store: string, key: string, value: any): Promise<void> {
     return new Promise(async (resolve, reject) => {
       const tx = this.db.transaction(store, "readwrite")
@@ -53,13 +82,18 @@ export default class IDBService {
     });
   }
 
-  static async setAll(data: {[store: string]: {[key: string]: any}}): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      const tx = this.db.transaction(Object.keys(data), "readwrite");
+  static async setAll(store: string, map: {[key: string]: any}): Promise<void>;
+  static async setAll(data: {[store: string]: {[key: string]: any}}): Promise<void>;
+  static async setAll(a: any, b?: any): Promise<void> {
+    const store: string | string[] = b ? a : Object.keys(a);
+    const data: {[_: string]: {[_: string]: any}} = b ? Object.fromEntries([[a, b]]) : a;
 
-      for (const store in data) {
+    return new Promise(async (resolve, reject) => {
+      const tx = this.db.transaction(store, "readwrite");
+
+      for (const [store, map] of Object.entries(data)) {
         const objectStore = tx.objectStore(store);
-        for (const [key, value] of Object.entries(data[store])) {
+        for (const [key, value] of Object.entries(map)) {
           objectStore.put(value, key);
         }
       }

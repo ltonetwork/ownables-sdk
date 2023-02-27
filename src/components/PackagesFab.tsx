@@ -10,6 +10,7 @@ import {TypedPackage} from "../interfaces/TypedPackage";
 import If from "./If";
 import selectFile from "../utils/selectFile";
 import PackageService from "../services/Package.service";
+import {useEffect} from "react";
 
 interface PackagesDialogProps {
   packages: TypedPackage[];
@@ -26,8 +27,8 @@ function PackagesDialog(props: PackagesDialogProps) {
     <Dialog onClose={onClose} open={open}>
       <List sx={{pt: 0}}>
         {packages.map((pkg) => (
-          <ListItem disablePadding disableGutters>
-            <ListItemButton onClick={() => onSelect(pkg)} key={pkg.name}>
+          <ListItem disablePadding disableGutters key={pkg.name}>
+            <ListItemButton onClick={() => onSelect(pkg)} style={{textAlign: "center"}}>
               <ListItemText primary={pkg.name}/>
             </ListItemButton>
           </ListItem>
@@ -35,8 +36,8 @@ function PackagesDialog(props: PackagesDialogProps) {
       </List>
       <If condition={packages.length > 0}><Divider /></If>
       <List sx={{pt: 0}}>
-        <ListItem disablePadding disableGutters>
-          <ListItemButton autoFocus onClick={() => onImport()}>
+        <ListItem disablePadding disableGutters key="add">
+          <ListItemButton autoFocus onClick={() => onImport()} style={{textAlign: "center"}}>
             <ListItemIcon><AddIcon/></ListItemIcon>
             <ListItemText primary="Import from file"/>
           </ListItemButton>
@@ -57,9 +58,12 @@ export default function PackagesFab() {
   const [open, setOpen] = React.useState(false);
   const [packages, setPackages] = React.useState<TypedPackage[]>([]);
 
+  useEffect(() => { setPackages(PackageService.list()); }, []);
+
   const importPackages = async () => {
     const files = await selectFile({ accept: '.zip', multiple: true });
-    await Promise.all(Array.from(files).map(file => PackageService.add(file)));
+    await Promise.all(Array.from(files).map(file => PackageService.import(file)));
+    setPackages(PackageService.list());
   }
 
   return <>

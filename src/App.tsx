@@ -1,11 +1,18 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import logo from './logo.svg';
 import './App.css';
-import {AppBar, Toolbar} from "@mui/material";
+import {AppBar, CircularProgress, Toolbar} from "@mui/material";
 import PackagesFab from "./components/PackagesFab";
+import IDBService from "./services/IDB.service";
 
-function App() {
-  return (
+export default function App() {
+  const [loaded, setLoaded] = React.useState(false);
+
+  useEffect(() => {
+    IDBService.open().then(() => setLoaded(true));
+  }, []);
+
+  return loaded ? (
     <>
       <AppBar position="static">
         <Toolbar variant="dense">
@@ -14,7 +21,5 @@ function App() {
       </AppBar>
       <PackagesFab />
     </>
-  )
+  ) : <CircularProgress />
 }
-
-export default App;
