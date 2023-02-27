@@ -19,6 +19,7 @@ export default function App() {
           <img src={logo} className="logo" alt="Ownables Logo" />
         </Toolbar>
       </AppBar>
+
       <PackagesFab />
     </>
   ) : <CircularProgress />

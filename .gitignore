@@ -33,3 +33,7 @@ yarn-error.log*
 # IDEs
 *.iml
 .idea
+
+# Local
+/public/ownables
+
