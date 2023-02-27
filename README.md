@@ -76,7 +76,7 @@ Alternatively run `npm run rustup`.
 ## Build
 
 ```
-npm run ownable:build --path=car
+npm run ownables:build --path=car
 ```
 
 ## Examples
