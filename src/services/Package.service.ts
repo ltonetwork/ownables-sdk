@@ -4,25 +4,26 @@ import JSZip from "jszip";
 import mime from "mime/lite";
 import IDBService from "./IDB.service";
 
-const exampleUrl = process.env.OWNABLE_EXAMPLES_URL;
+const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples = exampleUrl ? [
-  { name: 'Antenna', key: 'antenna' },
-  { name: 'Armor', key: 'armor' },
-  { name: 'Car', key: 'car' },
-  { name: 'Paint', key: 'paint' },
-  { name: 'Robot', key: 'robot' },
-  { name: 'Speakers', key: 'speakers' },
+  { name: 'Antenna', key: 'antenna', stub: true },
+  { name: 'Armor', key: 'armor', stub: true },
+  { name: 'Car', key: 'car', stub: true },
+  { name: 'Paint', key: 'paint', stub: true },
+  { name: 'Robot', key: 'robot', stub: true },
+  { name: 'Speakers', key: 'speakers', stub: true },
 ] : [];
 
 export default class PackageService {
   static list(): TypedPackage[] {
     const local = (LocalStorageService.get('packages') || [])  as TypedPackage[];
+    const set = new Map([...examples, ...local].map(pkg => [pkg.key, pkg])).values();
 
-    return Array.from(new Set([...local, ...examples]))
+    return Array.from(set)
       .sort((a, b) => a.name >= b.name ? 1 : -1);
   }
 
-  static async importAssets(name: string, zipFile: File): Promise<void> {
+  static async importAssets(key: string, zipFile: File): Promise<void> {
     const zip = await JSZip.loadAsync(zipFile);
 
     const files = await Promise.all(Array.from(Object.entries(zip.files))
@@ -36,21 +37,32 @@ export default class PackageService {
       })
     );
 
-    await IDBService.create(`package:${name}`);
+    await IDBService.create(`package:${key}`);
     await IDBService.setAll(
-      `package:${name}`,
+      `package:${key}`,
       Object.fromEntries(files.map(file => [file.name, file])),
     );
   }
 
-  static async import(zip: File): Promise<TypedPackage> {
-    const key = zip.name.replace(/\.\w+$/, '');
-    const name = key.replace(/[-_]+/, ' ').replace(/\b\w/, c => c.toUpperCase());
+  static async import(zipFile: File): Promise<TypedPackage> {
+    const key = zipFile.name.replace(/\.\w+$/, '');
+    const name = key
+      .replace(/[-_]+/, ' ')
+      .replace(/\b\w/, c => c.toUpperCase());
     const pkg = { name, key };
 
-    await this.importAssets(name, zip);
+    await this.importAssets(key, zipFile);
     LocalStorageService.addToSet('packages', pkg);
 
     return pkg;
+  }
+
+  static async download(key: string): Promise<TypedPackage> {
+    if (!exampleUrl) throw new Error("Unable to download example ownable: URL not configured");
+
+    const response = await fetch(`${exampleUrl}/${key}.zip`);
+    const zipFile = new File([await response.blob()], `${key}.zip`, { type: 'application/zip' });
+
+    return this.import(zipFile);
   }
 }

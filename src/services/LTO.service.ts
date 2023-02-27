@@ -2,8 +2,8 @@ import {Account, LTO, Transaction} from "@ltonetwork/lto"
 import LocalStorageService from "./LocalStorage.service";
 import {TypedTransaction} from "../interfaces/TypedTransaction";
 
-export const lto = new LTO(process.env.LTO_NETWORK_ID)
-if (process.env.LTO_API_URL) lto.nodeAddress = process.env.LTO_API_URL;
+export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID)
+if (process.env.REACT_APP_LTO_API_URL) lto.nodeAddress = process.env.REACT_APP_LTO_API_URL;
 
 export default class LTOService {
   static account?: Account;
