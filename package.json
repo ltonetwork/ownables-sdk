@@ -36,7 +36,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "rustup": "curl https://sh.rustup.rs -sSf | sh; curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh; rustup default stable; rustup update stable; rustup target add wasm32-unknown-unknown",
-    "ownables:build": "CC=/usr/local/opt/llvm/bin/clang AR=/usr/local/opt/llvm/bin/llvm-ar wasm-pack build --out-name ownable --target web ./ownables/$npm_config_path/ && rm -f ./ownables/$npm_config_path/pkg/bindgen.js && mv ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ./ownables/$npm_config_path.zip ./ownables/$npm_config_path/assets/ ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/*.wasm ",
+    "ownables:build": "rm -rf ./ownables/$npm_config_path/pkg/ && wasm-pack build --out-name ownable --target web ./ownables/$npm_config_path/ && mv ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ./ownables/$npm_config_path.zip ./ownables/$npm_config_path/assets/ ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/*.wasm ",
     "ownables:build-all": "for DIR in $(ls ./ownables); do test -d ./ownables/$DIR && npm run ownables:build --path=$DIR; done"
   },
   "repository": {

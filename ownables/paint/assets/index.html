@@ -167,8 +167,8 @@
 
       function updateTemplate(color, isConsumed) {
         const paint = document.getElementById("paint");
-        paint.style.fill = color;
-        paint.style.display = isConsumed ? 'none' : undefined;
+        index.style.fill = color;
+        index.style.display = isConsumed ? 'none' : undefined;
         document.body.classList[isConsumed ? 'add' : 'remove']('consumed');
       }
 
