@@ -5,7 +5,7 @@ import mime from "mime/lite";
 import IDBService from "./IDB.service";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
-const examples = exampleUrl ? [
+const examples: TypedPackage[] = exampleUrl ? [
   { name: 'Antenna', key: 'antenna', stub: true },
   { name: 'Armor', key: 'armor', stub: true },
   { name: 'Car', key: 'car', stub: true },

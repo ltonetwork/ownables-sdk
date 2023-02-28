@@ -49,7 +49,11 @@ function PackagesDialog(props: PackagesDialogProps) {
   );
 }
 
-export default function PackagesFab() {
+interface PackagesFabProps {
+  onSelect: (pkg: TypedPackage) => void;
+}
+
+export default function PackagesFab(props: PackagesFabProps) {
   const fabStyle = {
     position: 'absolute',
     bgcolor: 'common.white',
@@ -57,6 +61,7 @@ export default function PackagesFab() {
     right: 20,
   };
 
+  const {onSelect} = props;
   const [open, setOpen] = React.useState(false);
   const [packages, setPackages] = React.useState<TypedPackage[]>([]);
 
@@ -69,11 +74,13 @@ export default function PackagesFab() {
     updatePackages();
   };
 
-  const createOwnable = async (pkg: TypedPackage) => {
+  const selectPackage = async (pkg: TypedPackage) => {
     if (pkg.stub) {
       await PackageService.download(pkg.key);
       updatePackages();
     }
+
+    onSelect(pkg);
   };
 
   return <>
@@ -84,7 +91,7 @@ export default function PackagesFab() {
       packages={packages}
       open={open}
       onClose={() => setOpen(false)}
-      onSelect={createOwnable}
+      onSelect={selectPackage}
       onImport={importPackages} />
   </>
 }
