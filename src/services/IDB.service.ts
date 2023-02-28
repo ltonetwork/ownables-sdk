@@ -42,30 +42,32 @@ export default class IDBService {
     });
   }
 
-  static async create(store: string): Promise<void> {
-    const version = this.db.version;
+  static async create(...stores: string[]): Promise<void> {
+    const version = this.db.version; // Get version before closing DB
     this.db.close();
 
     try {
-      this._db = await this.tryCreate(store, version + 1);
+      this._db = await this.tryCreate(stores, version + 1);
     } catch (e) {
       await this.open();
     }
   }
 
-  private static async tryCreate(store: string, version: number): Promise<IDBDatabase> {
+  private static async tryCreate(stores: string[], version: number): Promise<IDBDatabase> {
     return new Promise(async (resolve, reject) => {
       const request = window.indexedDB.open(DB_NAME, version);
 
       request.onupgradeneeded = () => {
         const db = request.result;
 
-        if (db.objectStoreNames.contains(store)) {
-          db.deleteObjectStore(store);
+        for (const store of stores) {
+          if (db.objectStoreNames.contains(store)) {
+            db.deleteObjectStore(store);
+          }
+          db.createObjectStore(store);
         }
-
-        db.createObjectStore(store);
       }
+
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     });
