@@ -1,11 +1,14 @@
 import {Account, LTO, Transaction} from "@ltonetwork/lto"
 import LocalStorageService from "./LocalStorage.service";
+import SessionStorageService from "./SessionStorage.service";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID)
 if (process.env.REACT_APP_LTO_API_URL) lto.nodeAddress = process.env.REACT_APP_LTO_API_URL;
 
+const sessionSeed = SessionStorageService.get('@seed');
+
 export default class LTOService {
-  static _account?: Account;
+  private static _account?: Account = sessionSeed ? lto.account({seed: sessionSeed}) : undefined;
 
   public static accountExists(): boolean {
     return !!LocalStorageService.get('@accountData');
@@ -18,10 +21,12 @@ export default class LTOService {
   public static unlock(password: string): void {
     const [encryptedAccount] = LocalStorageService.get('@accountData');
     this._account = lto.account({seedPassword: password, ...encryptedAccount});
+    SessionStorageService.set('@seed', this._account.seed);
   }
 
   public static lock(): void {
     delete this._account;
+    SessionStorageService.remove('@seed');
   }
 
   public static get account(): Account {
@@ -30,6 +35,10 @@ export default class LTOService {
     }
 
     return this._account;
+  }
+
+  public static get address(): string {
+    return this._account?.address || LocalStorageService.get('@accountData')?.address || '';
   }
 
   public static storeAccount(nickname: string, password: string): void {
@@ -42,6 +51,8 @@ export default class LTOService {
       address: this._account.address,
       seed: this._account.encryptSeed(password),
     }]);
+
+    SessionStorageService.set('@seed', this._account.seed);
   }
 
   public static createAccount(): void {
@@ -60,11 +71,14 @@ export default class LTOService {
     }
   }
 
+
   private static apiUrl(path: string): string {
     return lto.nodeAddress.replace(/\/$/g, '') + path;
   }
 
-  public static async getBalance(address: string) {
+  public static async getBalance(address?: string) {
+    if (!address) address = this.account.address;
+
     try {
       const url = this.apiUrl(`/addresses/balance/details/${address}`);
       const response = await fetch(url);

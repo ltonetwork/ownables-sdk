@@ -16,7 +16,7 @@ export default class IDBService {
         this._db = request.result;
         resolve();
       }
-      request.onerror = (e) => reject(e);
+      request.onerror = (e) => reject((e.target as IDBTransaction).error);
     });
   }
 
@@ -39,37 +39,6 @@ export default class IDBService {
 
       tx.onsuccess = () => resolve(tx.result as string[]);
       tx.onerror = (e) => reject(e);
-    });
-  }
-
-  static async create(...stores: string[]): Promise<void> {
-    const version = this.db.version; // Get version before closing DB
-    this.db.close();
-
-    try {
-      this._db = await this.tryCreate(stores, version + 1);
-    } catch (e) {
-      await this.open();
-    }
-  }
-
-  private static async tryCreate(stores: string[], version: number): Promise<IDBDatabase> {
-    return new Promise(async (resolve, reject) => {
-      const request = window.indexedDB.open(DB_NAME, version);
-
-      request.onupgradeneeded = () => {
-        const db = request.result;
-
-        for (const store of stores) {
-          if (db.objectStoreNames.contains(store)) {
-            db.deleteObjectStore(store);
-          }
-          db.createObjectStore(store);
-        }
-      }
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e);
     });
   }
 
@@ -114,5 +83,71 @@ export default class IDBService {
       tx.onsuccess = () => resolve();
       tx.onerror = (e) => reject(e);
     });
+  }
+
+
+  private static async upgrade(action: (db: IDBDatabase) => void, version: number): Promise<IDBDatabase> {
+    return new Promise(async (resolve, reject) => {
+      const request = window.indexedDB.open(DB_NAME, version);
+
+      request.onupgradeneeded = () => action(request.result);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e);
+    });
+  }
+
+  static async create(...stores: string[]): Promise<void> {
+    const version = this.db.version; // Get version before closing DB
+    this.db.close();
+
+    try {
+      this._db = await this.upgrade((db: IDBDatabase) => {
+        for (const store of stores) {
+          if (db.objectStoreNames.contains(store)) {
+            db.deleteObjectStore(store);
+          }
+          db.createObjectStore(store);
+        }
+      }, version + 1);
+    } catch (e) {
+      await this.open();
+      throw e;
+    }
+  }
+
+  public static async delete(store: string|RegExp) {
+    const action = store instanceof RegExp
+      ? (db: IDBDatabase) => {
+        Array.from(db.objectStoreNames)
+          .filter(name => name.match(store))
+          .forEach(name => db.deleteObjectStore(name));
+      }
+      : (db: IDBDatabase) => {
+        db.deleteObjectStore(store);
+      }
+
+    const version = this.db.version; // Get version before closing DB
+    this.db.close();
+
+    try {
+      this._db = await this.upgrade(action, version + 1);
+    } catch (e) {
+      await this.open();
+      throw e;
+    }
+  }
+
+  static async destroy(): Promise<void> {
+    this.db.close();
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const request = window.indexedDB.deleteDatabase(DB_NAME);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject((e.target as IDBTransaction).error);
+      });
+    } finally {
+      await this.open();
+    }
   }
 }
