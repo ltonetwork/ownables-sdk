@@ -63,6 +63,7 @@ function ImportAccount(props: {next: () => void, back: () => void}) {
                  variant="standard"
                  multiline
                  fullWidth
+                 autoFocus
                  value={seed}
                  onChange={(e) => setSeed(e.target.value)}/>
     </CardContent>
@@ -96,6 +97,7 @@ function SetPassword(props: {next: () => void}) {
                      variant="standard"
                      error={error}
                      fullWidth
+                     autoFocus
                      value={password}
                      onChange={(e) => setPassword(e.target.value)}/>
     </CardContent>
@@ -126,6 +128,7 @@ function UnlockAccount(props: {next: () => void}) {
       <PasswordField label="Password"
                      variant="standard"
                      fullWidth
+                     autoFocus
                      error={error}
                      helperText={error ? 'Incorrect password' : ''}
                      value={password}

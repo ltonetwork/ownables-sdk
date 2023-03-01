@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Divider, Fab, ListItemIcon, Tooltip} from "@mui/material";
+import {Divider, Fab, ListItemIcon} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import List from "@mui/material/List";
@@ -11,6 +11,7 @@ import If from "./If";
 import selectFile from "../utils/selectFile";
 import PackageService from "../services/Package.service";
 import {useEffect} from "react";
+import Tooltip from "./Tooltip";
 
 interface PackagesDialogProps {
   packages: TypedPackage[];
@@ -28,7 +29,7 @@ function PackagesDialog(props: PackagesDialogProps) {
       <List sx={{pt: 0}} disablePadding>
         {packages.map((pkg) => (
           <ListItem disablePadding disableGutters key={pkg.name}>
-            <Tooltip open={pkg.stub ? undefined : false} title={`Import ${pkg.name} example`} placement="right" arrow>
+            <Tooltip condition={!!pkg.stub} title={`Import ${pkg.name} example`} placement="right" arrow>
               <ListItemButton onClick={() => onSelect(pkg)} style={{textAlign: "center", color: pkg.stub ? "#666" : undefined }}>
                 <ListItemText primary={pkg.name} />
               </ListItemButton>
