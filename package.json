@@ -8,7 +8,7 @@
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
     "@fontsource/montserrat": "^4.5.14",
-    "@ltonetwork/lto": "^0.10.1",
+    "@ltonetwork/lto": "^0.10.7",
     "@mui/icons-material": "^5.11.9",
     "@mui/material": "^5.11.10",
     "@testing-library/jest-dom": "^5.16.5",
@@ -18,7 +18,7 @@
     "@types/node": "^16.18.12",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
-    "all-inline": "^0.1.4",
+    "all-inline": "^0.1.7",
     "buffer": "^6.0.3",
     "craco": "^0.0.3",
     "jszip": "^3.10.0",
@@ -26,6 +26,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
+    "simple-iframe-rpc": "^0.1.2",
     "stream-browserify": "^3.0.0",
     "tuai": "^1.0.8",
     "typescript": "^4.9.5",
@@ -33,9 +34,10 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "craco start",
-    "build": "craco build",
+    "start": "npm run build:ownable.js && craco start",
+    "build": "npm run build:ownable.js && craco build",
     "test": "craco test",
+    "build:ownable.js": "webpack --config ownable-js.webpack.js --no-stats",
     "rustup": "curl https://sh.rustup.rs -sSf | sh; curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh; rustup default stable; rustup update stable; rustup target add wasm32-unknown-unknown",
     "ownables:build": "rm -rf ./ownables/$npm_config_path/pkg/ && wasm-pack build --out-name ownable --target web ./ownables/$npm_config_path/ && mv ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/bindgen.js && zip -r -j ./ownables/$npm_config_path.zip ./ownables/$npm_config_path/assets/ ./ownables/$npm_config_path/pkg/*.js ./ownables/$npm_config_path/pkg/*.wasm ",
     "ownables:build-all": "for DIR in $(ls ./ownables); do test -d ./ownables/$DIR && npm run ownables:build --path=$DIR; done",
@@ -68,5 +70,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "webpack-cli": "^5.0.1"
   }
 }

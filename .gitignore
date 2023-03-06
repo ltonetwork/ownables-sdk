@@ -36,4 +36,5 @@ yarn-error.log*
 
 # Local
 /public/ownables
-
+/public/ownable.js
+/public/ownable.js.map

@@ -14,14 +14,18 @@ export default class OwnableService {
     this._anchoring = enabled;
   }
 
-  static async createNew(pkg: string): Promise<void> {
-    const chain = EventChain.create(LTOService.account);
+  static create(): EventChain {
+    return EventChain.create(LTOService.account);
+  }
 
-    await IDBService.create(
-      `ownable:${chain.id}.chain`,
-      `ownable:${chain.id}.events`,
-      `ownable:${chain.id}.state`,
-    );
+  static async store(chain: EventChain) {
+    if (!chain.isPartial()) {
+      await IDBService.create(
+        `ownable:${chain.id}.chain`,
+        `ownable:${chain.id}.events`,
+        `ownable:${chain.id}.state`,
+      );
+    }
   }
 
   static async deleteAll(): Promise<void> {

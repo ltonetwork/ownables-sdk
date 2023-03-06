@@ -1,3 +1,5 @@
+import TypedDict from "../interfaces/TypedDict";
+
 const DB_NAME = 'ownables';
 
 export default class IDBService {
@@ -53,8 +55,8 @@ export default class IDBService {
     });
   }
 
-  static async setAll(store: string, map: {[key: string]: any}): Promise<void>;
-  static async setAll(data: {[store: string]: {[key: string]: any}}): Promise<void>;
+  static async setAll(store: string, map: TypedDict<any>): Promise<void>;
+  static async setAll(data: TypedDict<TypedDict<any>>): Promise<void>;
   static async setAll(a: any, b?: any): Promise<void> {
     const store: string | string[] = b ? a : Object.keys(a);
     const data: {[_: string]: {[_: string]: any}} = b ? Object.fromEntries([[a, b]]) : a;
