@@ -42,7 +42,7 @@ function PackagesDialog(props: PackagesDialogProps) {
         <ListItem disablePadding disableGutters key="add">
           <ListItemButton autoFocus onClick={() => onImport()} style={{textAlign: "center"}}>
             <ListItemIcon><AddIcon/></ListItemIcon>
-            <ListItemText primary="Import from file"/>
+            <ListItemText primary="Import package"/>
           </ListItemButton>
         </ListItem>
       </List>
@@ -51,6 +51,9 @@ function PackagesDialog(props: PackagesDialogProps) {
 }
 
 interface PackagesFabProps {
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
 }
 
@@ -62,8 +65,7 @@ export default function PackagesFab(props: PackagesFabProps) {
     right: 20,
   };
 
-  const {onSelect} = props;
-  const [open, setOpen] = React.useState(false);
+  const {open, onOpen, onClose, onSelect} = props;
   const [packages, setPackages] = React.useState<TypedPackage[]>([]);
 
   const updatePackages = () => setPackages(PackageService.list());
@@ -85,13 +87,13 @@ export default function PackagesFab(props: PackagesFabProps) {
   };
 
   return <>
-    <Fab sx={fabStyle} aria-label="add" size="large" onClick={() => setOpen(true)}>
+    <Fab sx={fabStyle} aria-label="add" size="large" onClick={onOpen}>
       <AddIcon fontSize="large" />
     </Fab>
     <PackagesDialog
       packages={packages}
       open={open}
-      onClose={() => setOpen(false)}
+      onClose={onClose}
       onSelect={selectPackage}
       onImport={importPackages} />
   </>

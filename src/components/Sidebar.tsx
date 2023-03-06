@@ -57,20 +57,20 @@ export default function Sidebar(props: SidebarProps) {
     }
 
     OwnableService.anchoring = anchoring;
-  }, [anchoring]);
+  }, [anchoring, balance]);
 
   return <>
     <Drawer anchor="right" open={open} onClose={onClose}>
       <Box sx={{ width: 350, p: 2 }} role="presentation">
         <Box component="div">
           <Hidden smUp><IconButton onClick={onClose} size="small" sx={{mr: 2}}><ArrowBack /></IconButton></Hidden>
-          <a href="https://ltonetwork.com" target="_blank">
+          <Link href="https://ltonetwork.com" target="_blank">
             <img src={ltoLogo} alt="LTO Network" style={{ width: 150, maxWidth: '100%', verticalAlign: -5 }} />
-          </a>
+          </Link>
         </Box>
 
         <Box component="div" sx={{mt: 2}}>
-          <Typography sx={{ fontSize: 12 }} color="text.secondary" gutterBottom>
+          <Typography sx={{ fontSize: 12 }} color="text.secondary">
             LTO Network address
           </Typography>
           <Typography sx={{ fontSize: 14, fontWeight: 600 }} component="div">
@@ -86,12 +86,12 @@ export default function Sidebar(props: SidebarProps) {
           <FormControlLabel control={<Switch checked={anchoring} onChange={e => setAnchoring(e.target.checked)} />} label="Anchor events" sx={{mb: 1}} />
 
           <Typography sx={{ fontSize: 14 }} gutterBottom>
-            <Link href="https://explorer.testnet.lto.network" underline="none" color="inherit" style={{display: "block"}}>
+            <Link href="https://explorer.testnet.lto.network" target="_blank" underline="none" color="inherit" style={{display: "block"}}>
               <img src={ltoExplorerIcon} style={{width: 20, marginRight: 3, verticalAlign: -3}} alt="Explorer icon" /> LTO Testnet Explorer
             </Link>
           </Typography>
           <Typography sx={{ fontSize: 14 }} gutterBottom>
-            <Link href="https://wallet.testnet.lto.network" underline="none" color="inherit" style={{display: "block"}}>
+            <Link href="https://wallet.testnet.lto.network" target="_blank" underline="none" color="inherit" style={{display: "block"}}>
               <img src={ltoWalletIcon} style={{width: 20, marginRight: 3, verticalAlign: -3}} alt="Wallet icon" /> LTO Testnet Wallet
             </Link>
           </Typography>
@@ -111,8 +111,8 @@ export default function Sidebar(props: SidebarProps) {
     <Dialog open={showNoBalance} hideBackdrop onClose={() => setShowNoBalance(false)}>
       <Alert variant="outlined" severity="warning">
         <AlertTitle>Your balance is zero</AlertTitle>
-        Anchoring on testnet requires LTO tokens. Please join <strong>LTO Tech Lab</strong> on Telegram to request
-        testnet tokens.
+        Anchoring on testnet requires LTO tokens. Please join <strong>LTO Tech Lab</strong> on Telegram and ask for
+        testnet tokens. <em>They will be supplied to you for free.</em>
         <DialogActions sx={{pb: 0}}>
           <Button variant="text" size="small" href="https://t.me/ltotech" target="_blank">Join Telegram Group</Button>
         </DialogActions>

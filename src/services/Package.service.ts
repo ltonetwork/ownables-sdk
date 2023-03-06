@@ -13,6 +13,7 @@ const examples: TypedPackage[] = exampleUrl ? [
   { name: 'Robot', key: 'robot', stub: true },
   { name: 'Speakers', key: 'speakers', stub: true },
 ] : [];
+export const HAS_EXAMPLES = exampleUrl !== '';
 
 export default class PackageService {
   static list(): TypedPackage[] {
@@ -65,4 +66,36 @@ export default class PackageService {
 
     return this.import(zipFile);
   }
+
+  static async getAsset(
+    key: string,
+    name: string,
+    read: (fr: FileReader, contents: Blob | File) => void,
+  ): Promise<string|ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+      const fileReader = new FileReader();
+      IDBService.get(`package:${key}`, name).then((mediaFile: File) => {
+        if (!mediaFile) {
+          reject(`Asset "${name}" is not in package ${key}`);
+        }
+
+        fileReader.onload = (event) => {
+          resolve(event.target?.result!);
+        };
+
+        read(fileReader, mediaFile);
+      }, error => reject(error));
+    });
+  }
+
+  static getAssetAsText(key: string, name: string): Promise<string> {
+    const read = (fr: FileReader, mediaFile: Blob | File) => fr.readAsText(mediaFile);
+    return this.getAsset(key, name, read) as Promise<string>;
+  }
+
+  static getAssetAsDataUri(key: string, name: string): Promise<string> {
+    const read = (fr: FileReader, mediaFile: Blob | File) => fr.readAsDataURL(mediaFile);
+    return this.getAsset(key, name, read) as Promise<string>;
+  }
+
 }
