@@ -96,7 +96,7 @@ export default function App() {
       </Grid>
     </If>
 
-    <Grid container>
+    <Grid container sx={{maxWidth: 1400, margin: 'auto', mt: 2}} columnSpacing={6} rowSpacing={4}>
       { ownables.map(({chain, pkg}) =>
         <Grid key={chain.id} xs={12} sm={6} md={4}>
           <Ownable chain={chain} pkgKey={pkg} />
