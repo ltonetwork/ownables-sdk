@@ -33,6 +33,28 @@ export default class IDBService {
     });
   }
 
+  static async getAll(store: string): Promise<Array<any>> {
+    return new Promise(async (resolve, reject) => {
+      const tx = this.db.transaction(store, "readonly")
+        .objectStore(store)
+        .getAll();
+
+      tx.onsuccess = () => resolve(tx.result);
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  static async has(store: string, key: string): Promise<boolean> {
+    return new Promise(async (resolve, reject) => {
+      const tx = this.db.transaction(store, "readonly")
+        .objectStore(store)
+        .get(key);
+
+      tx.onsuccess = () => resolve(tx.result);
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
   static async keys(store: string): Promise<string[]> {
     return new Promise(async (resolve, reject) => {
       const tx = this.db.transaction(store, "readonly")
@@ -137,6 +159,10 @@ export default class IDBService {
       await this.open();
       throw e;
     }
+  }
+
+  static exists(store: string): boolean {
+    return this.db.objectStoreNames.contains(store);
   }
 
   static async destroy(): Promise<void> {

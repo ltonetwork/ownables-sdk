@@ -1,6 +1,6 @@
 import allInline from "all-inline";
 import PackageService from "../services/Package.service";
-import {RefObject, useEffect, useState} from "react";
+import {Component, RefObject} from "react";
 
 async function generateWidgetHTML(id: string, pkgKey: string): Promise<string> {
   const root = document.createElement('div');
@@ -17,50 +17,48 @@ async function generateWidgetHTML(id: string, pkgKey: string): Promise<string> {
 }
 
 async function generate(id: string, pkgKey: string) {
-  const widgetHTML = await generateWidgetHTML(id, pkgKey);
+  const widget = document.createElement('iframe');
+  widget.setAttribute("sandbox", "allow-scripts");
+  widget.srcdoc = await generateWidgetHTML(id, pkgKey);
 
-  // generate widget iframe
-  const ownableWidget = document.createElement('iframe');
-  ownableWidget.setAttribute("sandbox", "allow-scripts");
-  ownableWidget.srcdoc = widgetHTML;
+  const script = document.createElement('script');
+  script.src = './ownable.js';
 
-  const ownableScript = document.createElement('script');
-  ownableScript.src = './ownable.js';
-
-  const ownableStyle = document.createElement('style');
-  ownableStyle.textContent = `
+  const style = document.createElement('style');
+  style.textContent = `
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
     iframe { height: 100%; width: 100%; border: none; }
   `;
 
-  const ownableBody = document.createElement('body');
-  ownableBody.appendChild(ownableStyle)
-  ownableBody.appendChild(ownableWidget);
-  ownableBody.appendChild(ownableScript);
+  const body = document.createElement('body');
+  body.appendChild(style)
+  body.appendChild(widget);
+  body.appendChild(script);
 
-  return ownableBody.outerHTML;
+  return body.outerHTML;
 }
 
 export interface OwnableFrameProps {
   id: string;
   pkgKey: string;
   iframeRef: RefObject<HTMLIFrameElement>;
+  onLoad: () => void;
 }
 
-const iframeStyle = {
-  display: 'block',
-  width: '100%',
-  height: '100%',
-  border: 'none',
-}
+export default class OwnableFrame extends Component<OwnableFrameProps> {
+  async componentDidMount(): Promise<void> {
+    this.props.iframeRef.current!.srcdoc = await generate(this.props.id, this.props.pkgKey);
+  }
 
-export default function OwnableFrame(props: OwnableFrameProps) {
-  const {id, pkgKey, iframeRef} = props;
-  const [html, setHtml] = useState<string>();
+  shouldComponentUpdate(): boolean {
+    return false; // Never update this component. We rely on the iframe not to be replaced.
+  }
 
-  useEffect(() => {
-    generate(id, pkgKey).then(doc => setHtml(doc));
-  }, []);
-
-  return <iframe id={id} srcDoc={html} ref={iframeRef} style={iframeStyle} />
+  render() {
+    return <iframe id={this.props.id}
+                   title={`Ownable ${this.props.id}`}
+                   ref={this.props.iframeRef}
+                   onLoad={() => this.props.onLoad()}
+                   style={{display: 'block', width: '100%', height: '100%', border: 'none'}} />
+  }
 }

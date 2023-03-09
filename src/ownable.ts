@@ -1,10 +1,15 @@
 // This code runs inside the Ownable iframe. It's not part of the React app.
 // See `ownable-js.webpack.js`
 
-import Listener from "simple-iframe-rpc/lib/listener";
+// @ts-ignore
+import Listener from "simple-iframe-rpc/listener";
 
-type Entries<T> = Array<[T, T]>;
-type Dict = {[prop: string]: any};
+type Dict = {[prop: string]: any}
+type Mem = Array<[ArrayLike<number>, ArrayLike<number>]>
+interface MsgInfo {
+  sender: string;
+  funds: Array<never>;
+}
 
 const listener = new Listener({
   init,
@@ -14,12 +19,12 @@ const listener = new Listener({
   query,
   refresh,
 });
-listener.listen(window, "null");
+listener.listen(window, "*");
 
 let ownableId: string;
 let worker: Worker;
 
-function init(id: string, javascript: string, wasm: Uint8Array) {
+function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   ownableId = id;
 
   return new Promise(async (resolve, reject) => {
@@ -43,11 +48,14 @@ function workerCall<T extends string|Dict>(
   ownableId: string,
   msg: Dict,
   info: Dict,
-  idb?: Entries<ArrayLike<number>>,
-): Promise<{state: T, mem: Entries<number[]>}> {
-  if (!worker) throw new Error("Unable to execute: not initialized");
-
+  idb?: Mem,
+): Promise<{state: T, mem: Mem}> {
   return new Promise((resolve, reject) => {
+    if (!worker) {
+      reject("Unable to execute: not initialized");
+      return;
+    }
+
     worker.addEventListener('message', (event: MessageEvent<Map<string, any>|{err: any}>) => {
       if ('err' in event.data) {
         reject(event.data.err);
@@ -55,7 +63,7 @@ function workerCall<T extends string|Dict>(
       }
 
       const state = JSON.parse(event.data.get('state'));
-      const mem = JSON.parse(event.data.get('mem'));
+      const mem = event.data.has('mem') ? JSON.parse(event.data.get('mem')) : idb;
       resolve({state, mem});
     }, { once: true });
 
@@ -75,23 +83,33 @@ async function instantiate(msg: Dict, info: Dict) {
   return {state, mem};
 }
 
-function execute(ownableId: string, msg: Dict, idb: Entries<ArrayLike<number>>): Promise<{state: Dict, mem: Entries<number[]>}> {
+function execute(
+  ownableId: string,
+  msg: Dict,
+  info: MsgInfo,
+  idb: Mem
+): Promise<{state: Dict, mem: Mem}> {
   return workerCall<Dict>("execute", ownableId, msg, {}, idb);
 }
 
-function externalEvent(ownableId: string, msg: Dict, idb: Entries<ArrayLike<number>>): Promise<{state: Dict, mem: Entries<number[]>}> {
+function externalEvent(
+  ownableId: string,
+  msg: Dict,
+  info: MsgInfo,
+  idb: Mem
+): Promise<{state: Dict, mem: Mem}> {
   return workerCall<Dict>("external_event", ownableId, msg, {}, idb);
 }
 
-async function refresh(idb: Entries<ArrayLike<number>>): Promise<void> {
-  const {state: stateB64} = await workerCall<string>("query", ownableId, {getWidgetState: {}}, {}, idb);
+async function query(msg: Dict, idb: Mem): Promise<Dict> {
+  const {state: stateB64} = await workerCall<string>("query", ownableId, msg, {}, idb);
+  return JSON.parse(atob(stateB64)) as Dict;
+}
+
+async function refresh(idb: Mem): Promise<void> {
+  const {state: stateB64} = await workerCall<string>("query", ownableId, {get_ownable_config: {}}, {}, idb);
   const state = JSON.parse(atob(stateB64)) as Dict;
 
   const iframe = document.getElementsByTagName('iframe')[0];
   iframe.contentWindow!.postMessage({ownableId, state}, "*");
-}
-
-async function query(msg: Dict, idb: Entries<ArrayLike<number>>): Promise<Dict> {
-  const {state: stateB64} = await workerCall<string>("query", ownableId, {getWidgetState: {}}, {}, idb);
-  return JSON.parse(atob(stateB64)) as Dict;
 }

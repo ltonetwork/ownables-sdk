@@ -1,7 +1,9 @@
-import {EventChain} from "@ltonetwork/lto";
+import {EventChain, Event} from "@ltonetwork/lto";
 import LTOService from "./LTO.service";
 import IDBService from "./IDB.service";
 import LocalStorageService from "./LocalStorage.service";
+
+export type Mem = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
 export default class OwnableService {
   private static _anchoring = !!LocalStorageService.get('anchoring');
@@ -15,17 +17,30 @@ export default class OwnableService {
   }
 
   static create(): EventChain {
-    return EventChain.create(LTOService.account);
+    const account = LTOService.account;
+
+    const chain = EventChain.create(account);
+    new Event({"@context": "instantiate_msg.json", ownable_id: chain.id})
+      .addTo(chain)
+      .signWith(account);
+
+    return chain;
   }
 
-  static async store(chain: EventChain) {
-    if (!chain.isPartial()) {
-      await IDBService.create(
-        `ownable:${chain.id}.chain`,
-        `ownable:${chain.id}.events`,
-        `ownable:${chain.id}.state`,
-      );
+  private static async init(chain: EventChain): Promise<void> {
+    await IDBService.create(
+      `ownable:${chain.id}.chain`,
+      `ownable:${chain.id}.events`,
+      `ownable:${chain.id}.state`,
+    );
+  }
+
+  static async store(chain: EventChain, idb: Mem) {
+    if (!IDBService.exists(`ownable:${chain.id}.chain`)) {
+      await this.init(chain);
     }
+
+    // TODO Store events and state
   }
 
   static async deleteAll(): Promise<void> {

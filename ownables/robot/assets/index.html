@@ -1,6 +1,7 @@
 <!--<!DOCTYPE html>-->
-<html>
+<html lang="">
   <head>
+    <title>Robot</title>
     <style>
       html, body {
         margin: 0;
@@ -178,7 +179,7 @@
         const robot = paper.group(body, head, ...parts);
 
         let faceY = 0;
-        index.hover(
+        robot.hover(
           () => Snap.animate(faceY, -5, (y) => {
             faceY = y;
             face.transform(`t0,${y}`);
