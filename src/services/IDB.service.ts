@@ -3,7 +3,7 @@ import TypedDict from "../interfaces/TypedDict";
 const DB_NAME = 'ownables';
 
 export default class IDBService {
-  private static _db: IDBDatabase;
+  private static _db?: IDBDatabase;
 
   private static get db(): IDBDatabase {
     if (!this._db) throw new Error("Database not opened");
@@ -33,13 +33,23 @@ export default class IDBService {
     });
   }
 
-  static async getAll(store: string): Promise<Array<any>> {
+  static async getAll(store: string): Promise<Map<any, any>> {
     return new Promise(async (resolve, reject) => {
       const tx = this.db.transaction(store, "readonly")
         .objectStore(store)
-        .getAll();
+        .openCursor();
 
-      tx.onsuccess = () => resolve(tx.result);
+      const map = new Map();
+
+      tx.onsuccess = () => {
+        let cursor = tx.result;
+        if (cursor) {
+          map.set(cursor.primaryKey, cursor.value);
+          cursor.continue();
+        } else {
+          return resolve(map);
+        }
+      };
       tx.onerror = (e) => reject(e);
     });
   }
@@ -77,18 +87,18 @@ export default class IDBService {
     });
   }
 
-  static async setAll(store: string, map: TypedDict<any>): Promise<void>;
-  static async setAll(data: TypedDict<TypedDict<any>>): Promise<void>;
+  static async setAll(store: string, map: TypedDict<any>|Map<any, any>): Promise<void>;
+  static async setAll(data: TypedDict<TypedDict<any>|Map<any, any>>): Promise<void>;
   static async setAll(a: any, b?: any): Promise<void> {
-    const store: string | string[] = b ? a : Object.keys(a);
-    const data: {[_: string]: {[_: string]: any}} = b ? Object.fromEntries([[a, b]]) : a;
+    const storeNames: string | string[] = b ? a : Object.keys(a);
+    const data: {[_: string]: TypedDict<any>|Map<any, any>} = b ? Object.fromEntries([[a, b]]) : a;
 
     return new Promise(async (resolve, reject) => {
-      const tx = this.db.transaction(store, "readwrite");
+      const tx = this.db.transaction(storeNames, "readwrite");
 
       for (const [store, map] of Object.entries(data)) {
         const objectStore = tx.objectStore(store);
-        for (const [key, value] of Object.entries(map)) {
+        for (const [key, value] of (map instanceof Map ? map.entries() : Object.entries(map))) {
           objectStore.put(value, key);
         }
       }
@@ -110,59 +120,64 @@ export default class IDBService {
   }
 
 
-  private static async upgrade(action: (db: IDBDatabase) => void, version: number): Promise<IDBDatabase> {
-    return new Promise(async (resolve, reject) => {
-      const request = window.indexedDB.open(DB_NAME, version);
-
-      request.onupgradeneeded = () => action(request.result);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e);
-    });
-  }
-
-  static async create(...stores: string[]): Promise<void> {
+  private static async upgrade(action: (db: IDBDatabase) => void): Promise<void> {
     const version = this.db.version; // Get version before closing DB
     this.db.close();
+    delete this._db;
 
     try {
-      this._db = await this.upgrade((db: IDBDatabase) => {
-        for (const store of stores) {
-          if (db.objectStoreNames.contains(store)) {
-            db.deleteObjectStore(store);
-          }
-          db.createObjectStore(store);
-        }
-      }, version + 1);
+      this._db = await new Promise(async (resolve, reject) => {
+        const request = window.indexedDB.open(DB_NAME, version + 1);
+
+        request.onupgradeneeded = () => action(request.result);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = (e) => reject(e);
+      });
     } catch (e) {
       await this.open();
       throw e;
     }
   }
 
-  public static async delete(store: string|RegExp) {
-    const action = store instanceof RegExp
-      ? (db: IDBDatabase) => {
-        Array.from(db.objectStoreNames)
-          .filter(name => name.match(store))
-          .forEach(name => db.deleteObjectStore(name));
-      }
-      : (db: IDBDatabase) => {
-        db.deleteObjectStore(store);
-      }
-
-    const version = this.db.version; // Get version before closing DB
-    this.db.close();
-
-    try {
-      this._db = await this.upgrade(action, version + 1);
-    } catch (e) {
-      await this.open();
-      throw e;
-    }
+  static list(): string[] {
+    return Array.from(this.db.objectStoreNames);
   }
 
   static exists(store: string): boolean {
     return this.db.objectStoreNames.contains(store);
+  }
+
+  static async create(...stores: string[]): Promise<void> {
+    await this.upgrade(db => {
+      for (const store of stores) {
+        db.createObjectStore(store);
+      }
+    });
+  }
+
+  static async createForced(...stores: string[]): Promise<void> {
+    await this.upgrade(db => {
+      for (const store of stores) {
+        if (db.objectStoreNames.contains(store)) {
+          db.deleteObjectStore(store);
+        }
+        db.createObjectStore(store);
+      }
+    });
+  }
+
+  public static async delete(store: string|RegExp): Promise<void> {
+    const stores = store instanceof RegExp
+      ? Array.from(this.db.objectStoreNames).filter(name => name.match(store))
+      : (this.db.objectStoreNames.contains(store) ? store : []);
+
+    if (stores.length === 0) return;
+
+    await this.upgrade(db => {
+      for (const store of stores) {
+        db.deleteObjectStore(store);
+      }
+    });
   }
 
   static async destroy(): Promise<void> {

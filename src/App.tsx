@@ -1,6 +1,5 @@
 import {useEffect, useState} from 'react';
 import logo from './assets/logo.svg';
-import './App.css';
 import {AppBar, Box, IconButton, Link, Toolbar, Typography} from "@mui/material";
 import PackagesFab from "./components/PackagesFab";
 import IDBService from "./services/IDB.service";
@@ -26,10 +25,13 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
-  const [ownables, setOwnables] = useState<{chain: EventChain, pkg: string}[]>([]);
+  const [ownables, setOwnables] = useState<Array<{chain: EventChain, package: string}>>([]);
 
   useEffect(() => {
-    IDBService.open().then(() => setLoaded(true));
+    IDBService.open()
+      .then(() => OwnableService.loadAll())
+      .then(ownables => setOwnables(ownables))
+      .then(() => setLoaded(true))
   }, []);
 
   const onLogin = () => {
@@ -45,7 +47,7 @@ export default function App() {
 
   const forge = (pkg: TypedPackage) => {
     const chain = OwnableService.create();
-    setOwnables([...ownables, {chain, pkg: pkg.key}]);
+    setOwnables([...ownables, {chain, package: pkg.key}]);
   }
 
   const reset = async () => {
@@ -55,21 +57,17 @@ export default function App() {
   }
 
   const factoryReset = async () => {
-    setOwnables([]);
-    setShowSidebar(false);
-
     await IDBService.destroy();
     LocalStorageService.clear();
     SessionStorageService.clear();
 
-    setAddress('');
-    setShowLogin(true);
+    window.location.reload();
   }
 
   return <>
     <AppBar position="static">
       <Toolbar variant="dense">
-        <img src={logo} className="logo" alt="Ownables Logo" />
+        <img src={logo} style={{ width: 300, maxWidth: 'calc(100% - 140px)', height: 'auto', padding: '10px 15px'}} alt="Ownables Logo" />
         <Box component="div" sx={{ flexGrow: 1 }}></Box>
         <IconButton size="large" color="inherit" aria-label="menu" onClick={() => setShowSidebar(true)} >
           <MenuIcon />
@@ -97,7 +95,7 @@ export default function App() {
     </If>
 
     <Grid container sx={{maxWidth: 1400, margin: 'auto', mt: 2}} columnSpacing={6} rowSpacing={4}>
-      { ownables.map(({chain, pkg}) =>
+      { ownables.map(({chain, package: pkg}) =>
         <Grid key={chain.id} xs={12} sm={6} md={4}>
           <Ownable chain={chain} pkgKey={pkg} />
         </Grid>
