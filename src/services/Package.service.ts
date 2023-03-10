@@ -38,7 +38,7 @@ export default class PackageService {
       })
     );
 
-    await IDBService.create(`package:${key}`);
+    await IDBService.createForced(`package:${key}`);
     await IDBService.setAll(
       `package:${key}`,
       Object.fromEntries(files.map(file => [file.name, file])),
@@ -97,5 +97,4 @@ export default class PackageService {
     const read = (fr: FileReader, mediaFile: Blob | File) => fr.readAsDataURL(mediaFile);
     return this.getAsset(key, name, read) as Promise<string>;
   }
-
 }

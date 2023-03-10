@@ -22,17 +22,17 @@ addEventListener('message', (e) => {
         .catch(err => self.postMessage({err}));
       break;
     case "execute":
-      execute_contract(e.data.msg, e.data.info, e.data.ownable_id, e.data.idb)
+      execute_contract(e.data.msg, e.data.info, e.data.ownable_id, e.data.mem)
         .then(resp => self.postMessage(resp))
         .catch(err => self.postMessage({err}));
       break;
     case "external_event":
-      register_external_event(e.data.msg.msg, e.data.msg.info, e.data.ownable_id, e.data.idb)
+      register_external_event(e.data.msg.msg, e.data.msg.info, e.data.ownable_id, e.data.mem)
         .then(resp => self.postMessage(resp))
         .catch(err => self.postMessage({err}));
       break;
     case "query":
-      query_contract_state(e.data.msg, e.data.idb)
+      query_contract_state(e.data.msg, e.data.mem)
         .then(resp => self.postMessage(resp))
         .catch(err => self.postMessage({err}));
       break;
