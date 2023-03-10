@@ -12,6 +12,7 @@ import OwnableActions from "./OwnableActions";
 import OwnableInfo from "./OwnableInfo";
 import LTOService from "../services/LTO.service";
 import OwnableService, {StateDump} from "../services/Ownable.service";
+import {TypedMetadata} from "../interfaces/TypedMetadata";
 
 interface MsgInfo {
   sender: string;
@@ -37,6 +38,7 @@ interface OwnableState {
   initialized: boolean;
   applied: EventChain;
   stateDump: StateDump;
+  metadata?: TypedMetadata;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -82,11 +84,16 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  private async refresh(): Promise<void> {
-    const rpc = this.state.rpc!;
-    const stateDump = this.state.stateDump;
+  private async refresh(rpc?: OwnableRPC, stateDump?: StateDump): Promise<void> {
+    if (!rpc) rpc = this.state.rpc!;
+    if (!stateDump) stateDump = this.state.stateDump;
 
     await rpc.refresh(stateDump);
+
+    /*if (!this.state.metadata) {
+      const metadata = await rpc.query({get_metadata: {}}, stateDump) as TypedMetadata;
+      this.setState({metadata});
+    }*/
   }
 
   private async apply(partialChain: EventChain): Promise<void> {
@@ -102,7 +109,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       stateDump = response.state;
     }
 
-    //await rpc.refresh(stateDump);
+    await this.refresh(rpc, stateDump);
     await OwnableService.store(this.chain, stateDump);
 
     this.setState({applied: this.chain, stateDump: stateDump});
@@ -148,16 +155,20 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  shouldComponentUpdate(next: OwnableProps, {initialized, applied}: OwnableState): boolean {
-    return initialized && (!this.state.initialized || this.chain.latestHash.hex !== applied.latestHash.hex);
+  shouldComponentUpdate(next: OwnableProps, {initialized, applied, metadata}: OwnableState): boolean {
+    if (!initialized) return false;
+
+    return !this.state.initialized ||
+      this.chain.state.hex !== applied.state.hex ||
+      this.state.metadata !== metadata;
   }
 
-  async componentDidUpdate(): Promise<void> {
+  async componentDidUpdate({chain: prevChain}: OwnableProps): Promise<void> {
     const partial = this.chain.startingAfter(this.state.applied.latestHash);
 
     if (partial.events.length > 0)
       await this.apply(partial);
-    else
+    else if (prevChain.state.hex !== this.chain.state.hex)
       await this.refresh();
   }
 
@@ -170,7 +181,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   render() {
     return (
       <Paper sx={{aspectRatio: "1/1", position: 'relative'}}>
-        <OwnableInfo sx={{position: 'absolute', left: 5, top: 5}}/>
+        <OwnableInfo sx={{position: 'absolute', left: 5, top: 5}} id={this.id} metadata={this.state.metadata}/>
         <OwnableActions sx={{position: 'absolute', right: 5, top: 5}}/>
         <OwnableFrame id={this.id} pkgKey={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>
