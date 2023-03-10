@@ -68,7 +68,7 @@ fn get_json_response(storage: MemoryStorage, response: Response) -> Result<JsVal
         &JsValue::from(serde_json::to_string(&state_dump)?)
     );
     response_map.set(
-        &JsValue::from_str("state"),
+        &JsValue::from_str("result"),
         &JsValue::from(ownable_state)
     );
     Ok(JsValue::from(response_map))
@@ -177,7 +177,7 @@ pub async fn query_contract_state(
             let ownable_state = to_string(&paint_response)?;
             let response_map = js_sys::Map::new();
             response_map.set(
-                &JsValue::from_str("state"),
+                &JsValue::from_str("result"),
                 &JsValue::from(ownable_state)
             );
             Ok(JsValue::from(response_map))
