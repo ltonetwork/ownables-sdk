@@ -58,6 +58,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       initialized: false,
       applied: new EventChain(this.chain.id),
       stateDump: [],
+      metadata: { name: PackageService.nameOf(this.pkgKey) }
     };
   }
 
@@ -90,10 +91,8 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
     await rpc.refresh(stateDump);
 
-    /*if (!this.state.metadata) {
-      const metadata = await rpc.query({get_metadata: {}}, stateDump) as TypedMetadata;
-      this.setState({metadata});
-    }*/
+    const metadata = await rpc.query({get_ownable_metadata: {}}, stateDump) as TypedMetadata;
+    this.setState({metadata});
   }
 
   private async apply(partialChain: EventChain): Promise<void> {
@@ -163,12 +162,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       this.state.metadata !== metadata;
   }
 
-  async componentDidUpdate({chain: prevChain}: OwnableProps): Promise<void> {
+  async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
     const partial = this.chain.startingAfter(this.state.applied.latestHash);
 
     if (partial.events.length > 0)
       await this.apply(partial);
-    else if (prevChain.state.hex !== this.chain.state.hex)
+    else if (this.state.initialized !== prev.initialized || this.state.applied.state.hex !== prev.applied.state.hex)
       await this.refresh();
   }
 
@@ -181,7 +180,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   render() {
     return (
       <Paper sx={{aspectRatio: "1/1", position: 'relative'}}>
-        <OwnableInfo sx={{position: 'absolute', left: 5, top: 5}} id={this.id} metadata={this.state.metadata}/>
+        <OwnableInfo sx={{position: 'absolute', left: 5, top: 5}} chain={this.chain} metadata={this.state.metadata}/>
         <OwnableActions sx={{position: 'absolute', right: 5, top: 5}}/>
         <OwnableFrame id={this.id} pkgKey={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>

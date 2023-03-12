@@ -3,6 +3,11 @@ body {
   font-family: 'Montserrat', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  background-image: url("assets/background.svg");
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
 }
 
 code {
@@ -12,4 +17,15 @@ code {
 
 div:focus-visible {
   outline: none;
+}
+
+.truncate {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+pre.base64 {
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }

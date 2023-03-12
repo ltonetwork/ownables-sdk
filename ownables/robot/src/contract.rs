@@ -46,7 +46,7 @@ pub fn instantiate(
         image: None,
         image_data: None,
         external_url: None,
-        description: Some("Ownable Robot".to_string()),
+        description: Some("An adorable robot companion! He's great at just hanging out and keeping you company. Add-ons are available as Consumables.".to_string()),
         name: Some("Robot".to_string()),
         background_color: None,
         animation_url: None,
