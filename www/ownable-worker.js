@@ -39,7 +39,7 @@ addEventListener('message', async (e) => {
       console.log("calling wasm with: ", e.data);
       register_external_event(e.data.msg.msg, e.data.msg.info, e.data.ownable_id, e.data.idb).then(
         resp => {
-          console.log("External event registered");
+          console.log("External event registerted");
           self.postMessage(resp);
         }
       );

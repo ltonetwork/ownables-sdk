@@ -24,6 +24,12 @@ export default class PackageService {
       .sort((a, b) => a.name >= b.name ? 1 : -1);
   }
 
+  static nameOf(key: string): string {
+    return key
+      .replace(/[-_]+/, ' ')
+      .replace(/\b\w/, c => c.toUpperCase());
+  }
+
   static async importAssets(key: string, zipFile: File): Promise<void> {
     const zip = await JSZip.loadAsync(zipFile);
 
@@ -47,9 +53,7 @@ export default class PackageService {
 
   static async import(zipFile: File): Promise<TypedPackage> {
     const key = zipFile.name.replace(/\.\w+$/, '');
-    const name = key
-      .replace(/[-_]+/, ' ')
-      .replace(/\b\w/, c => c.toUpperCase());
+    const name = this.nameOf(key);
     const pkg = { name, key };
 
     await this.importAssets(key, zipFile);
