@@ -25,6 +25,11 @@ listener.listen(window, "*");
 let ownableId: string;
 let worker: Worker;
 
+window.addEventListener("message", (e) => {
+  if (e.origin !== "null" || '@rpc' in e.data) return;
+  window.parent.postMessage(e.data, "*");
+});
+
 function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   ownableId = id;
 
@@ -112,5 +117,5 @@ async function refresh(state: StateDump): Promise<void> {
   const widgetState = await query({get_ownable_config: {}}, state);
 
   const iframe = document.getElementsByTagName('iframe')[0];
-  iframe.contentWindow!.postMessage({ownableId, state: widgetState}, "*");
+  iframe.contentWindow!.postMessage({ownable_id: ownableId, state: widgetState}, "*");
 }

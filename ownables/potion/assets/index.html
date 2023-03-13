@@ -37,7 +37,7 @@
         bottom: 0;
         height: 100%;
         width: 100%;
-        background-color: red;
+        background-color: transparent;
       }
       .potion.in .juice {
         transition: height 2s;
@@ -66,21 +66,24 @@
       }
 
       .ownable-actions button {
-        border-radius: 5%;
-        background: #ffffff;
-        border: none;
-        height: 7vh;
-        width: 60%;
-        margin: 4vh auto 0;
-        font-size: 3vh;
-        color:#61677C;
-        box-shadow: -5px -5px 20px #ffffff,  5px 5px 20px #BABECC;
+        display: block;
+        margin: 3vh auto;
+        padding: 0;
+        border-width: 0;
+        outline: none;
+        border-radius: 2px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+        background-color: rgb(25, 118, 210);
+        color: #fff;
+        transition: background-color .3s;
         cursor: pointer;
-        font-weight: 500;
-        font-family: monospace;
+        font-size: 4.2vh;
+        width: 40%;
+        height: 8vh;
+        font-weight: bold;
       }
-      .ownable-actions button:active {
-        box-shadow: inset 1px 1px 2px #BABECC, inset -1px -1px 2px #ffffff;
+      .ownable-actions button:hover {
+        background-color: rgb(21, 101, 192);
       }
 
       input[type='range'] {
@@ -106,15 +109,15 @@
       .slider::-webkit-slider-runnable-track {
         display: flex;
         align-items: center;
-        height: 20px;
-        border-radius: 10px;
+        height: 2vh;
+        border-radius: 1vh;
         box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
       }
       .slider::-webkit-slider-thumb {
         position: relative;
         top: -50%;
-        width: 40px;
-        height: 40px;
+        width: 4vh;
+        height: 4vh;
         background-color: #fff;
         background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
         border-radius: 50%;
@@ -123,15 +126,15 @@
       .slider::-moz-range-track {
         display: flex;
         align-items: center;
-        height: 20px;
-        border-radius: 10px;
+        height: 2vh;
+        border-radius: 1vh;
         box-shadow: inset -2px -2px 8px white, inset 2px 2px 8px rgba(0, 0, 0, 0.5);
       }
       .slider::-moz-range-thumb {
         position: relative;
         top: -50%;
-        width: 40px;
-        height: 40px;
+        width: 4vh;
+        height: 4vh;
         background-color: #fff;
         background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.8), transparent);
         border-radius: 50%;
@@ -168,8 +171,6 @@
       }
 
       window.addEventListener("message", (event) => {
-        console.log("iframe picked up event: ", event);
-
         ownable_id = event.data.ownable_id;
         const state = event.data.state;
         updateTemplate(state.color, state.current_amount)
@@ -187,7 +188,6 @@
           },
         };
 
-        console.log("iframe posting msg: ", msg);
         window.parent.postMessage({type: "execute", ownable_id, msg}, "*");
       }
     </script>

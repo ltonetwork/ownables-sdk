@@ -31,6 +31,7 @@ interface OwnableRPC {
 interface OwnableProps {
   chain: EventChain;
   pkgKey: string;
+  onDelete: () => void;
 }
 
 interface OwnableState {
@@ -85,7 +86,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  private async refresh(rpc?: OwnableRPC, stateDump?: StateDump): Promise<void> {
+  private async refresh(stateDump?: StateDump, rpc?: OwnableRPC): Promise<void> {
     if (!rpc) rpc = this.state.rpc!;
     if (!stateDump) stateDump = this.state.stateDump;
 
@@ -108,7 +109,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       stateDump = response.state;
     }
 
-    await this.refresh(rpc, stateDump);
+    await this.refresh(stateDump, rpc);
     await OwnableService.store(this.chain, stateDump);
 
     this.setState({applied: this.chain, stateDump: stateDump});
@@ -120,15 +121,15 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       sender: LTOService.account.publicKey,
       funds: [],
     }
-    const {'@context': context, ...data} = event.parsedData;
+    const {'@context': context, ...msg} = event.parsedData;
 
     switch (context) {
       case "instantiate_msg.json":
-        return await rpc.instantiate(data, info);
+        return await rpc.instantiate(msg, info);
       case "execute_msg.json":
-        return await rpc.execute(data, info, stateDump);
+        return await rpc.execute(msg, info, stateDump);
       case "external_event_msg.json":
-        return await rpc.execute(data, info, stateDump);
+        return await rpc.execute(msg, info, stateDump);
       default:
         throw new Error(`Unknown event type`);
     }
@@ -147,11 +148,34 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     await this.init(rpc);
   }
 
+  private windowMessageHandler = async (event: MessageEvent) => {
+    if (!('ownable_id' in event.data) || event.data.ownable_id !== this.id || event.data.type !== 'execute') return;
+    if (this.iframeRef.current!.contentWindow !== event.source)
+      throw Error("Not allowed to execute msg on other Ownable");
+
+    const {msg} = event.data;
+    delete msg['@context']; // Shouldn't be set by widget
+
+    const {state: stateDump} = await this.state.rpc!.execute(
+      msg,
+      {sender: LTOService.account.publicKey, funds: []},
+      this.state.stateDump
+    );
+
+    new Event({"@context": `execute_msg.json`, ...msg}).addTo(this.chain).signWith(LTOService.account);
+    await OwnableService.store(this.chain, stateDump);
+
+    await this.refresh(stateDump);
+    this.setState({applied: this.chain, stateDump});
+  }
+
   async componentDidMount() {
     const stateDump = await OwnableService.getStateDump(this.chain.id, this.chain.state);
     if (stateDump !== null) {
       this.setState({applied: this.chain, stateDump});
     }
+
+    window.addEventListener("message", this.windowMessageHandler);
   }
 
   shouldComponentUpdate(next: OwnableProps, {initialized, applied, metadata}: OwnableState): boolean {
@@ -172,16 +196,18 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   componentWillUnmount() {
-    if (this.state.rpc) {
-      delete (this.state.rpc as any).handler;
-    }
+    if (this.state.rpc) delete (this.state.rpc as any).handler;
+    window.removeEventListener("message", this.windowMessageHandler);
   }
 
   render() {
     return (
       <Paper sx={{aspectRatio: "1/1", position: 'relative'}}>
         <OwnableInfo sx={{position: 'absolute', left: 5, top: 5}} chain={this.chain} metadata={this.state.metadata}/>
-        <OwnableActions sx={{position: 'absolute', right: 5, top: 5}}/>
+        <OwnableActions
+          sx={{position: 'absolute', right: 5, top: 5}}
+          onDelete={this.props.onDelete}
+        />
         <OwnableFrame id={this.id} pkgKey={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>
     )

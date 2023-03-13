@@ -96,6 +96,10 @@ export default class OwnableService {
     ]));
   }
 
+  static async delete(id: string): Promise<void> {
+    await IDBService.delete(new RegExp(`^ownable:${id}(\\..+)?$`));
+  }
+
   static async deleteAll(): Promise<void> {
     await IDBService.delete(/^ownable:.+/);
   }

@@ -50,6 +50,11 @@ export default function App() {
     setOwnables([...ownables, {chain, package: pkg.key}]);
   }
 
+  const deleteOwnable = async (id: string) => {
+    setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
+    await OwnableService.delete(id);
+  }
+
   const reset = async () => {
     setOwnables([]);
     setShowSidebar(false);
@@ -97,7 +102,11 @@ export default function App() {
     <Grid container sx={{maxWidth: 1400, margin: 'auto', mt: 2}} columnSpacing={6} rowSpacing={4}>
       { ownables.map(({chain, package: pkg}) =>
         <Grid key={chain.id} xs={12} sm={6} md={4}>
-          <Ownable chain={chain} pkgKey={pkg} />
+          <Ownable
+            chain={chain}
+            pkgKey={pkg}
+            onDelete={() => deleteOwnable(chain.id)}
+          />
         </Grid>
       )}
     </Grid>

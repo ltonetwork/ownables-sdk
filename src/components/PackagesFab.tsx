@@ -59,7 +59,7 @@ interface PackagesFabProps {
 
 export default function PackagesFab(props: PackagesFabProps) {
   const fabStyle = {
-    position: 'absolute',
+    position: 'fixed',
     bgcolor: 'common.white',
     bottom: 20,
     right: 20,
