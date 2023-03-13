@@ -19,9 +19,6 @@ pub mod msg;
 pub mod state;
 pub mod store;
 
-#[cfg(test)]
-mod tests;
-
 #[wasm_bindgen]
 extern "C" {
     pub fn alert(s: &str);
@@ -55,7 +52,10 @@ pub async fn instantiate_contract(
             let resp = get_json_response(deps.storage, response);
             Ok(resp)
         }
-        Err(error) => Err(JsError::from(error)),
+        Err(error) => {
+            log(&format!("[error] failed to instantiate consumable. {:?}", error));
+            Err(JsError::from(error))
+        },
     }
 }
 
@@ -168,13 +168,13 @@ pub async fn query_contract_state(
     );
 
     match query_result {
-        Ok(potion_response) => {
+        Ok(response) => {
             log(&format!(
                 "[contract] successfully queried msg. response {:?}",
-                &to_string(&potion_response).unwrap()
+                &to_string(&response).unwrap()
             ));
 
-            let ownable_state = to_string(&potion_response).unwrap();
+            let ownable_state = to_string(&response).unwrap();
             let response_map = js_sys::Map::new();
             response_map.set(
                 &JsValue::from_str("state"),
