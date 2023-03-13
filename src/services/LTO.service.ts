@@ -1,4 +1,4 @@
-import {Account, LTO, Transaction} from "@ltonetwork/lto"
+import {Account, Binary, LTO, Transaction} from "@ltonetwork/lto"
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
 
@@ -107,5 +107,9 @@ export default class LTOService {
     } catch (e) {
       return false;
     }
+  }
+
+  public static accountOf(publicKey: Binary|string): string {
+    return lto.account({publicKey: publicKey instanceof Binary ? publicKey.base58 : publicKey}).address;
   }
 }
