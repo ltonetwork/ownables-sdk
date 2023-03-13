@@ -1,4 +1,4 @@
-import {Chip, DialogContent, DialogContentText, DialogTitle, IconButton, SxProps, Theme} from "@mui/material";
+import {Chip, DialogContent, DialogTitle, IconButton, SxProps, Theme} from "@mui/material";
 import {useState} from "react";
 import {Fingerprint, InfoOutlined} from "@mui/icons-material";
 import {TypedMetadata} from "../interfaces/TypedMetadata";
@@ -29,7 +29,7 @@ export default function OwnableInfo(props: OwnableInfoProps) {
   return <>
     <IconButton sx={props.sx} onClick={() => setOpen(true)}><InfoOutlined /></IconButton>
     <Dialog onClose={() => setOpen(false)} fullWidth maxWidth="lg" open={open} PaperProps={{ sx: style }}>
-      <DialogTitle component="h3" sx={{ fontSize: 12, pb: 0 }} color="primary">
+      <DialogTitle component="div" sx={{ fontSize: 12, pb: 0 }} color="primary">
         <Tooltip title={chain.id}>
           <Chip label={shortId(chain.id)} icon={<Fingerprint />} color="primary" size="small" variant="outlined" />
         </Tooltip>
@@ -37,8 +37,10 @@ export default function OwnableInfo(props: OwnableInfoProps) {
       <DialogTitle sx={{ pt: 1, pb: 1 }}>
         {metadata?.name}
       </DialogTitle>
+      <DialogTitle component="h3" sx={theme => ({ fontSize: 14, pt: 0, pb: 1.5, color: theme.palette.text.secondary})}>
+        {metadata?.description}
+      </DialogTitle>
       <DialogContent>
-        <DialogContentText sx={{ fontSize: 14, pb: 2}}>{metadata?.description}</DialogContentText>
         {chain.events.map((event, i) =>
           <EventCard key={event.hash.hex} event={event} isFirst={i === 0} />
         )}

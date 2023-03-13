@@ -8,10 +8,12 @@ import {Delete, PrecisionManufacturing, SwapHoriz} from "@mui/icons-material";
 
 interface OwnableActionsProps {
   sx?: SxProps<Theme>;
+  onDelete: () => void;
 }
 
 export default function OwnableActions(props: OwnableActionsProps) {
   const [anchorEl, setAnchorEl] = useState<null|HTMLElement>(null);
+  const {onDelete} = props;
 
   const open = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -24,7 +26,6 @@ export default function OwnableActions(props: OwnableActionsProps) {
     <IconButton sx={props.sx} onClick={open}><MoreVert /></IconButton>
     <Menu
       anchorEl={anchorEl}
-      id="account-menu"
       open={!!anchorEl}
       onClose={close}
       onClick={close}
@@ -59,7 +60,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
         <ListItemIcon><SwapHoriz fontSize="small"/></ListItemIcon>
         Transfer
       </MenuItem>
-      <MenuItem onClick={close}>
+      <MenuItem onClick={() => {close(); onDelete();}}>
         <ListItemIcon><Delete fontSize="small"/></ListItemIcon>
         Delete
       </MenuItem>

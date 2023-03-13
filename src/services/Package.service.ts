@@ -10,6 +10,7 @@ const examples: TypedPackage[] = exampleUrl ? [
   { name: 'Armor', key: 'armor', stub: true },
   { name: 'Car', key: 'car', stub: true },
   { name: 'Paint', key: 'paint', stub: true },
+  { name: 'Potion', key: 'potion', stub: true },
   { name: 'Robot', key: 'robot', stub: true },
   { name: 'Speakers', key: 'speakers', stub: true },
 ] : [];
