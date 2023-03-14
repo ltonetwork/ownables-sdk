@@ -98,6 +98,7 @@ pub fn register_external_event(
     info: MessageInfo,
     deps: DepsMut,
     event: ExternalEvent,
+    _ownable_id: String,
 ) -> Result<Response, ContractError> {
     let mut response = Response::new()
         .add_attribute("method", "register_external_event");

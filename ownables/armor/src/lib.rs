@@ -135,6 +135,7 @@ pub async fn register_external_event(
         info,
         deps.as_mut(),
         external_event,
+        ownable_id,
     );
 
     match result {
@@ -168,13 +169,13 @@ pub async fn query_contract_state(
     );
 
     match query_result {
-        Ok(paint_response) => {
+        Ok(response) => {
             log(&format!(
                 "[contract] successfully queried msg. response {:?}",
-                &to_string(&paint_response)?
+                &to_string(&response)?
             ));
 
-            let ownable_state = to_string(&paint_response)?;
+            let ownable_state = to_string(&response)?;
             let response_map = js_sys::Map::new();
             response_map.set(
                 &JsValue::from_str("result"),
