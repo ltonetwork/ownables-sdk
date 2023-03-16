@@ -49,7 +49,7 @@ function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   });
 }
 
-function workerCall<T extends string|Dict|undefined>(
+function workerCall<T extends string|Dict>(
   type: string,
   ownableId: string,
   msg: Dict,
@@ -68,7 +68,7 @@ function workerCall<T extends string|Dict|undefined>(
         return;
       }
 
-      const result = event.data.has('state') ? JSON.parse(event.data.get('state')) : undefined;
+      const result = JSON.parse(event.data.get('result'));
       const nextState: StateDump = event.data.has('mem') ? JSON.parse(event.data.get('mem')).state_dump : state;
 
       resolve({result, state: nextState});
@@ -78,15 +78,16 @@ function workerCall<T extends string|Dict|undefined>(
   });
 }
 
-async function instantiate(msg: Dict, info: Dict): Promise<{state: StateDump}> {
-  const {state} = await workerCall<undefined>(
+async function instantiate(msg: Dict, info: Dict) {
+  const {result: resultMap, state} = await workerCall<{attributes: [{key: string, value: any}]}>(
     "instantiate",
     ownableId,
     msg,
     info
   );
+  const result = Object.fromEntries(resultMap.attributes.map(a => [a.key, a.value]));
 
-  return {state};
+  return {result, state};
 }
 
 function execute(
