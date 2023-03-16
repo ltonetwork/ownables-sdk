@@ -9,6 +9,8 @@ import OwnableInfo from "./OwnableInfo";
 import OwnableService, {OwnableRPC, StateDump} from "../services/Ownable.service";
 import {TypedMetadata} from "../interfaces/TypedMetadata";
 import isObject from "../utils/isObject";
+import AlertDialog from "./AlertDialog";
+import {AlertColor} from "@mui/material/Alert/Alert";
 
 interface OwnableProps {
   chain: EventChain;
@@ -23,6 +25,7 @@ interface OwnableState {
   applied: EventChain;
   stateDump: StateDump;
   metadata?: TypedMetadata;
+  alert: {title: string, message: string, severity: AlertColor}|null
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -43,6 +46,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       applied: new EventChain(this.chain.id),
       stateDump: [],
       metadata: { name: PackageService.nameOf(this.pkgKey) },
+      alert: null
     };
   }
 
@@ -92,7 +96,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       stateDump = await OwnableService.execute(this.chain, event.data.msg, this.state.stateDump);
     } catch (error) {
       if (!(error instanceof Error) || !error.message.startsWith('Custom Error val:')) throw error;
-      window.alert(error.message.replace(/^Custom Error val: "(.+)"$/, '$1'));
+      this.setState({ alert: {
+        title: "The Ownable returned an error",
+        message: error.message.replace(/^Custom Error val: "(.+)"$/, '$1'),
+        severity: "error",
+      }})
       return;
     }
 
@@ -111,8 +119,9 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
     return !this.state.initialized ||
       this.chain.state.hex !== nextState.applied.state.hex ||
+      this.props.selected !== nextProps.selected ||
       this.state.metadata !== nextState.metadata ||
-      this.props.selected !== nextProps.selected;
+      this.state.alert !== nextState.alert;
   }
 
   async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
@@ -130,7 +139,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   render() {
-    return (
+    return <>
       <Paper sx={{
         aspectRatio: "1/1",
         position: 'relative',
@@ -144,6 +153,13 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           />
         <OwnableFrame id={this.id} pkgKey={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>
-    )
+      <AlertDialog
+        open={this.state.alert !== null}
+        onClose={() =>this.setState({alert: null})}
+        {...this.state.alert}
+      >
+        <>{this.state.alert?.message}</>
+      </AlertDialog>
+    </>
   }
 }
