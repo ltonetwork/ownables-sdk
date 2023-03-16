@@ -49,7 +49,7 @@ function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   });
 }
 
-function workerCall<T extends string|Dict>(
+function workerCall<T extends string|Dict|undefined>(
   type: string,
   ownableId: string,
   msg: Dict,
@@ -68,7 +68,7 @@ function workerCall<T extends string|Dict>(
         return;
       }
 
-      const result = JSON.parse(event.data.get('state'));
+      const result = event.data.has('state') ? JSON.parse(event.data.get('state')) : undefined;
       const nextState: StateDump = event.data.has('mem') ? JSON.parse(event.data.get('mem')).state_dump : state;
 
       resolve({result, state: nextState});
@@ -78,20 +78,18 @@ function workerCall<T extends string|Dict>(
   });
 }
 
-async function instantiate(msg: Dict, info: Dict) {
-  const {result: resultMap, state} = await workerCall<{attributes: [{key: string, value: any}]}>(
+async function instantiate(msg: Dict, info: Dict): Promise<{state: StateDump}> {
+  const {state} = await workerCall<undefined>(
     "instantiate",
     ownableId,
     msg,
     info
   );
-  const result = Object.fromEntries(resultMap.attributes.map(a => [a.key, a.value]));
 
-  return {result, state};
+  return {state};
 }
 
 function execute(
-  ownableId: string,
   msg: Dict,
   info: MsgInfo,
   state: StateDump
@@ -100,7 +98,6 @@ function execute(
 }
 
 function externalEvent(
-  ownableId: string,
   msg: Dict,
   info: MsgInfo,
   state: StateDump

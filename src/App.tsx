@@ -1,23 +1,23 @@
 import {useEffect, useState} from 'react';
-import logo from './assets/logo.svg';
-import {AppBar, Box, IconButton, Link, Toolbar, Typography} from "@mui/material";
+import {Box, Button, Link, Typography} from "@mui/material";
 import PackagesFab from "./components/PackagesFab";
 import IDBService from "./services/IDB.service";
 import {TypedPackage} from "./interfaces/TypedPackage";
 import LoginDialog from "./components/LoginDialog";
 import Loading from "./components/Loading";
 import LTOService from "./services/LTO.service";
-import MenuIcon from '@mui/icons-material/Menu';
 import Sidebar from "./components/Sidebar";
 import LocalStorageService from "./services/LocalStorage.service";
 import SessionStorageService from "./services/SessionStorage.service";
 import OwnableService from "./services/Ownable.service";
 import If from "./components/If";
-import {HAS_EXAMPLES} from "./services/Package.service";
+import PackageService, {HAS_EXAMPLES} from "./services/Package.service";
 import Grid from "@mui/material/Unstable_Grid2";
 import * as React from "react";
 import Ownable from "./components/Ownable";
 import {EventChain} from "@ltonetwork/lto";
+import HelpDrawer from "./components/HelpDrawer";
+import AppToolbar from "./components/AppToolbar";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -26,6 +26,7 @@ export default function App() {
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
   const [ownables, setOwnables] = useState<Array<{chain: EventChain, package: string}>>([]);
+  const [consuming, setConsuming] = useState<{chain: EventChain, package: string}|null>(null);
 
   useEffect(() => {
     IDBService.open()
@@ -70,16 +71,7 @@ export default function App() {
   }
 
   return <>
-    <AppBar position="static">
-      <Toolbar variant="dense">
-        <img src={logo} style={{ width: 300, maxWidth: 'calc(100% - 140px)', height: 'auto', padding: '10px 15px'}} alt="Ownables Logo" />
-        <Box component="div" sx={{ flexGrow: 1 }}></Box>
-        <IconButton size="large" color="inherit" aria-label="menu" onClick={() => setShowSidebar(true)} >
-          <MenuIcon />
-        </IconButton>
-      </Toolbar>
-    </AppBar>
-
+    <AppToolbar onMenuClick={() => setShowSidebar(true)} />
     <If condition={ownables.length === 0}>
       <Grid
         container
@@ -101,12 +93,22 @@ export default function App() {
 
     <Grid container sx={{maxWidth: 1400, margin: 'auto', mt: 2}} columnSpacing={6} rowSpacing={4}>
       { ownables.map(({chain, package: pkg}) =>
-        <Grid key={chain.id} xs={12} sm={6} md={4}>
+        <Grid key={chain.id} xs={12} sm={6} md={4} sx={{position: 'relative'}}>
           <Ownable
             chain={chain}
             pkgKey={pkg}
+            selected={consuming?.chain.id === chain.id}
             onDelete={() => deleteOwnable(chain.id)}
+            onConsume={() => setConsuming({chain, package: pkg})}
           />
+          <Box
+            hidden={consuming === null}
+            sx={{position: 'absolute', top: 0, left: 0, bottom: 0, right: 0, zIndex: 5}}
+            onClick={() => {
+              if (consuming!.chain.id === chain.id) return;
+              OwnableService.consume(consuming!.chain, chain)
+            }}
+          ></Box>
         </Grid>
       )}
     </Grid>
@@ -126,6 +128,11 @@ export default function App() {
       onFactoryReset={factoryReset}
     />
     <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
+
+    <HelpDrawer open={consuming !== null}>
+      <Typography component="span" sx={{fontWeight: 700}}>Select which Ownable should consume this <em>{consuming ? PackageService.nameOf(consuming.package) : ''}</em></Typography>
+      <Box><Button sx={theme => ({color: theme.palette.primary.contrastText})} onClick={() => setConsuming(null)}>Cancel</Button></Box>
+    </HelpDrawer>
 
     <Loading show={!loaded} />
   </>
