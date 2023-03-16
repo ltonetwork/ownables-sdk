@@ -37,18 +37,10 @@ pub async fn instantiate_contract(
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
     let mut deps = load_lto_deps(None);
 
-    log(&format!(
-        "[contract] instantiate message {:?} for ownable_id #{:?}",
-        &msg, &msg.ownable_id
-    ));
     let res = instantiate(deps.as_mut(), create_lto_env(), info, msg);
 
     match res {
         Ok(response) => {
-            log(&format!(
-                "[contract] successfully instantiated msg. response {:}",
-                &to_string(&response)?
-            ));
             let resp = get_json_response(deps.storage, response)?;
             Ok(resp)
         }
@@ -86,11 +78,6 @@ pub async fn execute_contract(
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
     let mut deps = load_lto_deps(Some(state_dump));
 
-    log(&format!(
-        "[contract] executing message {:?} for ownable_id #{:?}",
-        &msg, ownable_id
-    ));
-
     let result = contract::execute(
         deps.as_mut(),
         create_lto_env(),
@@ -100,17 +87,10 @@ pub async fn execute_contract(
 
     match result {
         Ok(response) => {
-            log(&format!(
-                "[contract] successfully executed msg. response {:?}",
-                &to_string(&response)?
-            ));
             let resp = get_json_response(deps.storage, response)?;
             Ok(resp)
         }
-        Err(error) => {
-            log("[contract] failed to execute msg");
-            Err(JsError::from(error))
-        }
+        Err(error) => Err(JsError::from(error))
     }
 }
 
@@ -126,11 +106,6 @@ pub async fn register_external_event(
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
     let mut deps = load_lto_deps(Some(state_dump));
 
-    log(&format!(
-        "[contract] registering external event {:?} for ownable_id #{:?}",
-        &external_event, ownable_id
-    ));
-
     let result = contract::register_external_event(
         info,
         deps.as_mut(),
@@ -140,17 +115,10 @@ pub async fn register_external_event(
 
     match result {
         Ok(response) => {
-            log(&format!(
-                "[contract] successfully registered external event: {:?}",
-                &to_string(&response)?
-            ));
             let resp = get_json_response(deps.storage, response)?;
             Ok(resp)
         }
-        Err(error) => {
-            log("[contract] failed to register external event");
-            Err(JsError::from(error))
-        }
+        Err(error) => Err(JsError::from(error))
     }
 }
 
@@ -170,11 +138,6 @@ pub async fn query_contract_state(
 
     match query_result {
         Ok(response) => {
-            log(&format!(
-                "[contract] successfully queried msg. response {:?}",
-                &to_string(&response)?
-            ));
-
             let ownable_state = to_string(&response)?;
             let response_map = js_sys::Map::new();
             response_map.set(
