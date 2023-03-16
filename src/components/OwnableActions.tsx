@@ -9,11 +9,12 @@ import {Delete, PrecisionManufacturing, SwapHoriz} from "@mui/icons-material";
 interface OwnableActionsProps {
   sx?: SxProps<Theme>;
   onDelete: () => void;
+  onConsume: () => void;
 }
 
 export default function OwnableActions(props: OwnableActionsProps) {
   const [anchorEl, setAnchorEl] = useState<null|HTMLElement>(null);
-  const {onDelete} = props;
+  const {onDelete, onConsume} = props;
 
   const open = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -52,11 +53,11 @@ export default function OwnableActions(props: OwnableActionsProps) {
       transformOrigin={{horizontal: 'right', vertical: 'top'}}
       anchorOrigin={{horizontal: 'right', vertical: 'bottom'}}
     >
-      <MenuItem onClick={close}>
+      <MenuItem onClick={() => {close(); onConsume();}}>
         <ListItemIcon><PrecisionManufacturing fontSize="small"/></ListItemIcon>
         Consume
       </MenuItem>
-      <MenuItem onClick={close}>
+      <MenuItem disabled>
         <ListItemIcon><SwapHoriz fontSize="small"/></ListItemIcon>
         Transfer
       </MenuItem>

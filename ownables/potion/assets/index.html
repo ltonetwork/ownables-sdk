@@ -39,10 +39,7 @@
         width: 100%;
         background-color: transparent;
       }
-      .potion.in .juice {
-        transition: height 2s;
-      }
-      .potion .juice {
+      .in .potion .juice {
         transition: height 1s, top 1s;
       }
       .potion .amount {
@@ -164,10 +161,14 @@
       document.getElementById("drink-button").addEventListener('click', () => consume());
 
       function updateTemplate(color, amt) {
-        document.getElementsByClassName('juice')[0].style.backgroundColor = color;
-        document.getElementsByClassName('juice')[0].style.top = (100 - amt) + '%';
-        document.getElementsByClassName('juice')[0].style.height = amt + '%';
+        const juice = document.getElementsByClassName('juice')[0];
+        juice.style.backgroundColor = color;
+        juice.style.top = (100 - amt) + '%';
+        juice.style.height = amt + '%';
+
         document.getElementsByClassName('amount')[0].textContent = amt;
+
+        document.body.classList.add('in');
       }
 
       window.addEventListener("message", (event) => {

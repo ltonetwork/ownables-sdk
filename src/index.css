@@ -39,3 +39,10 @@ pre.base64 {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+
+@keyframes bounce {
+  0% { }
+  100% {
+    transform:translateY(-20px);
+  }
+}
