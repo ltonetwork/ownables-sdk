@@ -2,24 +2,24 @@ import allInline from "all-inline";
 import PackageService from "../services/Package.service";
 import {Component, RefObject} from "react";
 
-async function generateWidgetHTML(id: string, pkgKey: string): Promise<string> {
+async function generateWidgetHTML(id: string, packageCid: string): Promise<string> {
   const root = document.createElement('div');
-  root.innerHTML = await PackageService.getAssetAsText(pkgKey, 'index.html');
+  root.innerHTML = await PackageService.getAssetAsText(packageCid, 'index.html');
   root.style.height = "100%";
 
   await allInline(root, async (fileName: string, encoding: 'data-uri' | 'text') => {
     return encoding === 'data-uri'
-      ? PackageService.getAssetAsDataUri(pkgKey, fileName)
-      : PackageService.getAssetAsText(pkgKey, fileName);
+      ? PackageService.getAssetAsDataUri(packageCid, fileName)
+      : PackageService.getAssetAsText(packageCid, fileName);
   });
 
   return root.outerHTML;
 }
 
-async function generate(id: string, pkgKey: string) {
+async function generate(id: string, packageCid: string) {
   const widget = document.createElement('iframe');
   widget.setAttribute("sandbox", "allow-scripts");
-  widget.srcdoc = await generateWidgetHTML(id, pkgKey);
+  widget.srcdoc = await generateWidgetHTML(id, packageCid);
 
   const script = document.createElement('script');
   script.src = './ownable.js';
@@ -40,14 +40,14 @@ async function generate(id: string, pkgKey: string) {
 
 export interface OwnableFrameProps {
   id: string;
-  pkgKey: string;
+  packageCid: string;
   iframeRef: RefObject<HTMLIFrameElement>;
   onLoad: () => void;
 }
 
 export default class OwnableFrame extends Component<OwnableFrameProps> {
   async componentDidMount(): Promise<void> {
-    this.props.iframeRef.current!.srcdoc = await generate(this.props.id, this.props.pkgKey);
+    this.props.iframeRef.current!.srcdoc = await generate(this.props.id, this.props.packageCid);
   }
 
   shouldComponentUpdate(): boolean {

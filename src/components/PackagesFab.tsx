@@ -6,7 +6,7 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
-import {TypedPackage} from "../interfaces/TypedPackage";
+import {TypedPackage, TypedPackageStub} from "../interfaces/TypedPackage";
 import If from "./If";
 import selectFile from "../utils/selectFile";
 import PackageService from "../services/Package.service";
@@ -14,10 +14,10 @@ import {useEffect} from "react";
 import Tooltip from "./Tooltip";
 
 interface PackagesDialogProps {
-  packages: TypedPackage[];
+  packages: Array<TypedPackage|TypedPackageStub>;
   open: boolean;
   onClose: () => void;
-  onSelect: (pkg: TypedPackage) => void;
+  onSelect: (pkg: TypedPackage|TypedPackageStub) => void;
   onImport: () => void;
 }
 
@@ -29,8 +29,8 @@ function PackagesDialog(props: PackagesDialogProps) {
       <List sx={{pt: 0}} disablePadding>
         {packages.map((pkg) => (
           <ListItem disablePadding disableGutters key={pkg.name}>
-            <Tooltip condition={!!pkg.stub} title={`Import ${pkg.name} example`} placement="right" arrow>
-              <ListItemButton onClick={() => onSelect(pkg)} style={{textAlign: "center", color: pkg.stub ? "#666" : undefined }}>
+            <Tooltip condition={"stub" in pkg} title={`Import ${pkg.name} example`} placement="right" arrow>
+              <ListItemButton onClick={() => onSelect(pkg)} style={{textAlign: "center", color: "stub" in pkg ? "#666" : undefined }}>
                 <ListItemText primary={pkg.name} />
               </ListItemButton>
             </Tooltip>
@@ -66,7 +66,7 @@ export default function PackagesFab(props: PackagesFabProps) {
   };
 
   const {open, onOpen, onClose, onSelect} = props;
-  const [packages, setPackages] = React.useState<TypedPackage[]>([]);
+  const [packages, setPackages] = React.useState<Array<TypedPackage|TypedPackageStub>>([]);
 
   const updatePackages = () => setPackages(PackageService.list());
   useEffect(updatePackages, []);
@@ -77,9 +77,9 @@ export default function PackagesFab(props: PackagesFabProps) {
     updatePackages();
   };
 
-  const selectPackage = async (pkg: TypedPackage) => {
-    if (pkg.stub) {
-      await PackageService.download(pkg.key);
+  const selectPackage = async (pkg: TypedPackage|TypedPackageStub) => {
+    if ("stub" in pkg) {
+      pkg = await PackageService.download(pkg.key);
       updatePackages();
     }
 

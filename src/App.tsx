@@ -57,7 +57,7 @@ export default function App() {
 
   const forge = (pkg: TypedPackage) => {
     const chain = OwnableService.create();
-    setOwnables([...ownables, {chain, package: pkg.key}]);
+    setOwnables([...ownables, {chain, package: pkg.cid}]);
   }
 
   const deleteOwnable = async (id: string) => {
@@ -78,6 +78,8 @@ export default function App() {
   }
 
   const factoryReset = async () => {
+    setLoaded(false);
+
     await IDBService.destroy();
     LocalStorageService.clear();
     SessionStorageService.clear();
@@ -107,14 +109,14 @@ export default function App() {
     </If>
 
     <Grid container sx={{maxWidth: 1400, margin: 'auto', mt: 2}} columnSpacing={6} rowSpacing={4}>
-      { ownables.map(({chain, package: pkg}) =>
+      { ownables.map(({chain, package: packageCid}) =>
         <Grid key={chain.id} xs={12} sm={6} md={4} sx={{position: 'relative'}}>
           <Ownable
             chain={chain}
-            pkgKey={pkg}
+            packageCid={packageCid}
             selected={consuming?.chain.id === chain.id}
             onDelete={() => deleteOwnable(chain.id)}
-            onConsume={() => setConsuming({chain, package: pkg})}
+            onConsume={() => setConsuming({chain, package: packageCid})}
             onError={onError}
           />
           <Overlay
@@ -143,8 +145,12 @@ export default function App() {
     <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
 
     <HelpDrawer open={consuming !== null}>
-      <Typography component="span" sx={{fontWeight: 700}}>Select which Ownable should consume this <em>{consuming ? PackageService.nameOf(consuming.package) : ''}</em></Typography>
-      <Box><Button sx={theme => ({color: theme.palette.primary.contrastText})} onClick={() => setConsuming(null)}>Cancel</Button></Box>
+      <Typography component="span" sx={{fontWeight: 700}}>
+        Select which Ownable should consume this <em>{consuming ? PackageService.nameOf(consuming.package) : ''}</em>
+      </Typography>
+      <Box>
+        <Button sx={theme => ({color: theme.palette.primary.contrastText})} onClick={() => setConsuming(null)}>Cancel</Button>
+      </Box>
     </HelpDrawer>
 
     <AlertDialog

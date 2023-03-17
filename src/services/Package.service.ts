@@ -1,11 +1,13 @@
 import LocalStorageService from "./LocalStorage.service";
-import {TypedPackage} from "../interfaces/TypedPackage";
+import {TypedPackage, TypedPackageStub} from "../interfaces/TypedPackage";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import IDBService from "./IDB.service";
+import {importer} from "ipfs-unixfs-importer";
+import {BaseBlockstore} from "blockstore-core/base";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
-const examples: TypedPackage[] = exampleUrl ? [
+const examples: TypedPackageStub[] = exampleUrl ? [
   { name: 'Antenna', key: 'antenna', stub: true },
   { name: 'Armor', key: 'armor', stub: true },
   { name: 'Car', key: 'car', stub: true },
@@ -17,21 +19,24 @@ const examples: TypedPackage[] = exampleUrl ? [
 export const HAS_EXAMPLES = exampleUrl !== '';
 
 export default class PackageService {
-  static list(): TypedPackage[] {
-    const local = (LocalStorageService.get('packages') || [])  as TypedPackage[];
+  static list(): Array<TypedPackage|TypedPackageStub> {
+    const local = (LocalStorageService.get('packages') || []) as TypedPackage[];
+    for (const pkg of local) {
+      pkg.versions = pkg.versions.map(({date, cid}) => ({date: new Date(date), cid}));
+    }
+
     const set = new Map([...examples, ...local].map(pkg => [pkg.key, pkg])).values();
 
     return Array.from(set)
       .sort((a, b) => a.name >= b.name ? 1 : -1);
   }
 
-  static nameOf(key: string): string {
-    return key
-      .replace(/[-_]+/, ' ')
-      .replace(/\b\w/, c => c.toUpperCase());
+  static nameOf(keyOrCid: string): string {
+    const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
+    return packages.find(pkg => pkg.key === keyOrCid || pkg.cid === keyOrCid)?.name || keyOrCid;
   }
 
-  static async importAssets(key: string, zipFile: File): Promise<void> {
+  static async importAssets(zipFile: File): Promise<string> {
     const zip = await JSZip.loadAsync(zipFile);
 
     const files = await Promise.all(Array.from(Object.entries(zip.files))
@@ -45,19 +50,48 @@ export default class PackageService {
       })
     );
 
-    await IDBService.createForced(`package:${key}`);
-    await IDBService.setAll(
-      `package:${key}`,
-      Object.fromEntries(files.map(file => [file.name, file])),
+    const cid = await this.calculateCid(files);
+
+    if (!IDBService.exists(`package:${cid}`)) {
+      await IDBService.create(`package:${cid}`);
+      await IDBService.setAll(
+        `package:${cid}`,
+        Object.fromEntries(files.map(file => [file.name, file])),
+      );
+    }
+
+    return cid;
+  }
+
+  private static async calculateCid(files: File[]): Promise<string> {
+    const source = await Promise.all(
+      files.map(async file => ({
+        path: `./${file.name}`,
+        content: new Uint8Array(await file.arrayBuffer()),
+      }))
     );
+
+    const blockstore = new class extends BaseBlockstore {
+      async put () { }
+      async has () { return false; }
+    }();
+
+    for await (const entry of importer(source, blockstore)) {
+      if (entry.path === '' && entry.unixfs?.type === 'directory') return entry.cid.toString();
+    }
+
+    throw new Error("Importer did not return the directory CID");
   }
 
   static async import(zipFile: File): Promise<TypedPackage> {
     const key = zipFile.name.replace(/\.\w+$/, '');
-    const name = this.nameOf(key);
-    const pkg = { name, key };
+    const name = key
+      .replace(/[-_]+/, ' ')
+      .replace(/\b\w/, c => c.toUpperCase());
 
-    await this.importAssets(key, zipFile);
+    const cid = await this.importAssets(zipFile);
+    const pkg = { name, key, cid, versions: [{date: new Date(), cid}] };
+
     LocalStorageService.addToSet('packages', pkg);
 
     return pkg;
@@ -93,13 +127,13 @@ export default class PackageService {
     });
   }
 
-  static getAssetAsText(key: string, name: string): Promise<string> {
+  static getAssetAsText(cid: string, name: string): Promise<string> {
     const read = (fr: FileReader, mediaFile: Blob | File) => fr.readAsText(mediaFile);
-    return this.getAsset(key, name, read) as Promise<string>;
+    return this.getAsset(cid, name, read) as Promise<string>;
   }
 
-  static getAssetAsDataUri(key: string, name: string): Promise<string> {
+  static getAssetAsDataUri(cid: string, name: string): Promise<string> {
     const read = (fr: FileReader, mediaFile: Blob | File) => fr.readAsDataURL(mediaFile);
-    return this.getAsset(key, name, read) as Promise<string>;
+    return this.getAsset(cid, name, read) as Promise<string>;
   }
 }
