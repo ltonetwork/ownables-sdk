@@ -69,13 +69,13 @@ function workerCall<T extends Response|string>(
 ): Promise<{response: T, state: StateDump}> {
   return new Promise((resolve, reject) => {
     if (!worker) {
-      reject("Unable to execute: not initialized");
+      reject(`Unable to ${type}: not initialized`);
       return;
     }
 
     worker.addEventListener('message', (event: MessageEvent<Map<string, any>|{err: any}>) => {
       if ('err' in event.data) {
-        reject(event.data.err);
+        reject(new Error(`Ownable ${type} failed`, { cause: event.data.err }));
         return;
       }
 
