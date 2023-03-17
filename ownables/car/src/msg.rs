@@ -3,10 +3,14 @@ use cosmwasm_std::{Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use crate::state::NFT;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub ownable_id: String,
+    pub package: String,
+    pub nft: Option<NFT>,
+    pub ownable_type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -42,8 +46,11 @@ pub enum QueryMsg {
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct OwnableStateResponse {
-    pub owner: String,
+pub struct OwnableInfoResponse {
+    pub owner: Addr,
+    pub issuer: Addr,
+    pub nft: Option<NFT>,
+    pub ownable_type: Option<String>,
 }
 
 #[serde_as]
