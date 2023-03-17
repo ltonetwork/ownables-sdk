@@ -194,14 +194,18 @@ fn try_register_lock(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
+        QueryMsg::GetOwnableInfo {} => query_ownable_info(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::GetOwnership {} => query_ownable_ownership(deps),
-        QueryMsg::IsLocked {} => query_lock_state(deps),
+        QueryMsg::GetOwnableWidgetState {} => query_ownable_widget_state(deps),
+        QueryMsg::IsOwnableLocked {} => query_lock_state(deps),
+        QueryMsg::CanOwnableConsume {
+            issuer,
+            consumable_type
+        } => query_consumption_option(deps, issuer, consumable_type),
     }
 }
 
-fn query_ownable_ownership(deps: Deps) -> StdResult<Binary> {
+fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
     let ownership = OWNERSHIP.load(deps.storage)?;
     to_binary(&ownership)
 }
@@ -211,7 +215,17 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
     to_binary(&is_locked)
 }
 
-fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
+fn query_consumption_option(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
+
+}
+
+fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
+    /*
+    owner: "address",
+    issuer: "address",
+    [nft: {network: string, address: string, id: number, [lock_service: "address"]}],
+    [type: "robot:plugin"]
+     */
     let config = CONFIG.load(deps.storage)?;
     to_binary(&OwnableStateResponse {
         owner: config.owner.into_string(),
