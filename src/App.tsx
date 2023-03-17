@@ -18,6 +18,10 @@ import Ownable from "./components/Ownable";
 import {EventChain} from "@ltonetwork/lto";
 import HelpDrawer from "./components/HelpDrawer";
 import AppToolbar from "./components/AppToolbar";
+import AlertDialog from "./components/AlertDialog";
+import {AlertColor} from "@mui/material/Alert/Alert";
+import ownableErrorMessage from "./utils/ownableErrorMessage";
+import Overlay from "./components/Overlay";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -27,6 +31,7 @@ export default function App() {
   const [address, setAddress] = useState(LTOService.address);
   const [ownables, setOwnables] = useState<Array<{chain: EventChain, package: string}>>([]);
   const [consuming, setConsuming] = useState<{chain: EventChain, package: string}|null>(null);
+  const [alert, setAlert] = useState<{title: string, message: string, severity: AlertColor}|null>(null);
 
   useEffect(() => {
     IDBService.open()
@@ -34,6 +39,10 @@ export default function App() {
       .then(ownables => setOwnables(ownables))
       .then(() => setLoaded(true))
   }, []);
+
+  const onError = (title: string, message: string) => {
+    setAlert({severity: "error", title, message})
+  }
 
   const onLogin = () => {
     setShowLogin(false);
@@ -54,6 +63,12 @@ export default function App() {
   const deleteOwnable = async (id: string) => {
     setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
     await OwnableService.delete(id);
+  }
+
+  const consume = (consumer: EventChain, consumable: EventChain) => {
+    if (consumer.id === consumable.id) return;
+    OwnableService.consume(consumer, consumable)
+      .catch(error => onError("Consume failed", ownableErrorMessage(error)));
   }
 
   const reset = async () => {
@@ -100,15 +115,13 @@ export default function App() {
             selected={consuming?.chain.id === chain.id}
             onDelete={() => deleteOwnable(chain.id)}
             onConsume={() => setConsuming({chain, package: pkg})}
+            onError={onError}
           />
-          <Box
+          <Overlay
             hidden={consuming === null}
-            sx={{position: 'absolute', top: 0, left: 0, bottom: 0, right: 0, zIndex: 5}}
-            onClick={() => {
-              if (consuming!.chain.id === chain.id) return;
-              OwnableService.consume(consuming!.chain, chain)
-            }}
-          ></Box>
+            sx={{cursor: consuming?.chain.id !== chain.id ? 'pointer' : ''}}
+            onClick={() => consume(chain, consuming!.chain)}
+          />
         </Grid>
       )}
     </Grid>
@@ -133,6 +146,14 @@ export default function App() {
       <Typography component="span" sx={{fontWeight: 700}}>Select which Ownable should consume this <em>{consuming ? PackageService.nameOf(consuming.package) : ''}</em></Typography>
       <Box><Button sx={theme => ({color: theme.palette.primary.contrastText})} onClick={() => setConsuming(null)}>Cancel</Button></Box>
     </HelpDrawer>
+
+    <AlertDialog
+      open={alert !== null}
+      onClose={() => setAlert(null)}
+      {...alert}
+    >
+      <>{alert?.message}</>
+    </AlertDialog>
 
     <Loading show={!loaded} />
   </>
