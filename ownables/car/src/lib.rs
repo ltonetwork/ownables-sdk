@@ -67,7 +67,6 @@ fn get_json_response(storage: MemoryStorage, response: Response) -> Result<JsVal
 pub async fn execute_contract(
     msg: JsValue,
     info: JsValue,
-    ownable_id: String,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = serde_wasm_bindgen::from_value(msg.clone())?;
