@@ -90,12 +90,14 @@ async function instantiate(msg: Dict, info: Dict) {
   return {result, state};
 }
 
-function execute(
+async function execute(
   msg: Dict,
   info: MsgInfo,
   state: StateDump
 ): Promise<{result: Dict, state: StateDump}> {
-  return workerCall<Dict>("execute", ownableId, msg, info, state);
+  const {result: callResult, state: newState} = await workerCall<Dict>("execute", ownableId, msg, info, state);
+  const result = callResult.data ? JSON.parse(JSON.parse(atob(callResult.data))) : {}; // Hmmm... to much encoding
+  return {result, state: newState};
 }
 
 function externalEvent(
@@ -103,6 +105,7 @@ function externalEvent(
   info: MsgInfo,
   state: StateDump
 ): Promise<{result: Dict, state: StateDump}> {
+  console.log(msg);
   return workerCall<Dict>("external_event", ownableId, msg, info, state);
 }
 

@@ -9,8 +9,7 @@ import OwnableInfo from "./OwnableInfo";
 import OwnableService, {OwnableRPC, StateDump} from "../services/Ownable.service";
 import {TypedMetadata} from "../interfaces/TypedMetadata";
 import isObject from "../utils/isObject";
-import AlertDialog from "./AlertDialog";
-import {AlertColor} from "@mui/material/Alert/Alert";
+import ownableErrorMessage from "../utils/ownableErrorMessage";
 
 interface OwnableProps {
   chain: EventChain;
@@ -18,6 +17,7 @@ interface OwnableProps {
   selected: boolean;
   onDelete: () => void;
   onConsume: () => void;
+  onError: (title: string, message: string) => void;
 }
 
 interface OwnableState {
@@ -25,7 +25,6 @@ interface OwnableState {
   applied: EventChain;
   stateDump: StateDump;
   metadata?: TypedMetadata;
-  alert: {title: string, message: string, severity: AlertColor}|null
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -46,7 +45,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       applied: new EventChain(this.chain.id),
       stateDump: [],
       metadata: { name: PackageService.nameOf(this.pkgKey) },
-      alert: null
     };
   }
 
@@ -95,12 +93,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     try {
       stateDump = await OwnableService.execute(this.chain, event.data.msg, this.state.stateDump);
     } catch (error) {
-      if (!(error instanceof Error) || !error.message.startsWith('Custom Error val:')) throw error;
-      this.setState({ alert: {
-          title: "The Ownable returned an error",
-          message: error.message.replace(/^Custom Error val: "(.+)"$/, '$1'),
-          severity: "error",
-        }})
+      this.props.onError("The Ownable returned an error", ownableErrorMessage(error));
       return;
     }
 
@@ -120,8 +113,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     return !this.state.initialized ||
       this.chain.state.hex !== nextState.applied.state.hex ||
       this.props.selected !== nextProps.selected ||
-      this.state.metadata !== nextState.metadata ||
-      this.state.alert !== nextState.alert;
+      this.state.metadata !== nextState.metadata;
   }
 
   async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
@@ -153,13 +145,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         />
         <OwnableFrame id={this.id} pkgKey={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>
-      <AlertDialog
-        open={this.state.alert !== null}
-        onClose={() =>this.setState({alert: null})}
-        {...this.state.alert}
-      >
-        <>{this.state.alert?.message}</>
-      </AlertDialog>
     </>
   }
 }

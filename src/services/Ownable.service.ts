@@ -188,6 +188,8 @@ export default class OwnableService {
     const {result: consumeResult, state: consumableStateDump} =
       await this.rpc(consumable.id).execute(consumeMessage, info, consumableState);
 
+    console.log(consumeResult);
+
     const {state: consumerStateDump} =
       await this.rpc(consumer.id).externalEvent(consumeResult, info, consumerState);
 
