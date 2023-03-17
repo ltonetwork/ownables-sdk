@@ -12,12 +12,19 @@ interface MsgInfo {
   funds: Array<never>;
 }
 
+interface Response {
+  attributes: Array<{key: string, value: any}>;
+  events?: Array<{ty: string, attributes: Array<{key: string, value: any}>}>;
+  data?: string;
+}
+
 const listener = new Listener({
   init,
   instantiate,
   execute,
   externalEvent,
   query,
+  queryRaw,
   refresh,
 });
 listener.listen(window, "*");
@@ -29,6 +36,10 @@ window.addEventListener("message", (e) => {
   if (e.origin !== "null" || '@rpc' in e.data) return;
   window.parent.postMessage(e.data, "*");
 });
+
+function attributesToDict(attributes: Array<{key: string, value: any}>): Dict {
+  return Object.fromEntries(attributes.map(a => [a.key, a.value]));
+}
 
 function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   ownableId = id;
@@ -49,13 +60,13 @@ function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   });
 }
 
-function workerCall<T extends string|Dict>(
+function workerCall<T extends Response|string>(
   type: string,
   ownableId: string,
   msg: Dict,
   info: Dict,
   state?: StateDump,
-): Promise<{result: T, state: StateDump}> {
+): Promise<{response: T, state: StateDump}> {
   return new Promise((resolve, reject) => {
     if (!worker) {
       reject("Unable to execute: not initialized");
@@ -68,49 +79,63 @@ function workerCall<T extends string|Dict>(
         return;
       }
 
-      const result = JSON.parse(event.data.get('result'));
+      const response = JSON.parse(event.data.get('result'));
       const nextState: StateDump = event.data.has('mem') ? JSON.parse(event.data.get('mem')).state_dump : state;
 
-      resolve({result, state: nextState});
+      resolve({response, state: nextState});
     }, { once: true });
 
     worker.postMessage({type, ownable_id: ownableId, msg, info, mem: {state_dump: state}});
   });
 }
 
-async function instantiate(msg: Dict, info: Dict) {
-  const {result: resultMap, state} = await workerCall<{attributes: [{key: string, value: any}]}>(
+async function instantiate(msg: Dict, info: Dict): Promise<{attributes: Dict, state: StateDump}> {
+  const {response, state} = await workerCall<Response>(
     "instantiate",
     ownableId,
     msg,
     info
   );
-  const result = Object.fromEntries(resultMap.attributes.map(a => [a.key, a.value]));
 
-  return {result, state};
+  return {attributes: attributesToDict(response.attributes), state};
 }
 
 async function execute(
   msg: Dict,
   info: MsgInfo,
   state: StateDump
-): Promise<{result: Dict, state: StateDump}> {
-  const {result: callResult, state: newState} = await workerCall<Dict>("execute", ownableId, msg, info, state);
-  const result = callResult.data ? JSON.parse(JSON.parse(atob(callResult.data))) : {}; // Hmmm... to much encoding
-  return {result, state: newState};
+): Promise<{attributes: Dict, events: Array<{ty: string, attributes: Dict}>, data?: string, state: StateDump}> {
+  const {response, state: newState} = await workerCall<Response>("execute", ownableId, msg, info, state);
+
+  return {
+    attributes: attributesToDict(response.attributes),
+    events: response.events?.map(event => ({ty: event.ty, attributes: attributesToDict(event.attributes)})) || [],
+    data: response.data,
+    state: newState,
+  };
 }
 
-function externalEvent(
+async function externalEvent(
   msg: Dict,
   info: MsgInfo,
   state: StateDump
-): Promise<{result: Dict, state: StateDump}> {
-  console.log(msg);
-  return workerCall<Dict>("external_event", ownableId, msg, info, state);
+): Promise<{attributes: Dict, events: Array<{ty: string, attributes: Dict}>, data?: string, state: StateDump}> {
+  const {response, state: newState} = await workerCall<Response>("external_event", ownableId, msg, info, state);
+
+  return {
+    attributes: attributesToDict(response.attributes),
+    events: response.events?.map(event => ({ty: event.ty, attributes: attributesToDict(event.attributes)})) || [],
+    data: response.data,
+    state: newState,
+  };
+}
+
+async function queryRaw(msg: Dict, state: StateDump): Promise<string> {
+  return (await workerCall<string>("query", ownableId, msg, {}, state)).response;
 }
 
 async function query(msg: Dict, state: StateDump): Promise<Dict> {
-  const {result: resultB64} = await workerCall<string>("query", ownableId, msg, {}, state);
+  const resultB64 = await queryRaw(msg, state);
   return JSON.parse(atob(resultB64)) as Dict;
 }
 
