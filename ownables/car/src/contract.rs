@@ -1,11 +1,11 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableInfoResponse, OwnableStateResponse, QueryMsg};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_std::{Binary, StdError, to_binary};
 use cw2::set_contract_version;
 use crate::ExternalEvent;
-use crate::state::{Config, CONFIG, Cw721, CW721, LOCKED, Network, NETWORK, NFT, Ownership, OWNERSHIP};
+use crate::state::{Config, CONFIG, Cw721, CW721, LOCKED, Network, NETWORK, NFT, OWNABLE_INFO, OwnableInfo, Ownership, OWNERSHIP, PACKAGE_IPFS};
 use crate::utils::{address_eip155, address_lto};
 
 // version info for migration info
@@ -16,28 +16,19 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let config = Config {
-        owner: info.sender.clone(),
-
-    };
-
-    let network = Network {
-        // id: msg.network_id,
-        id: 76,
-    };
-
     let derived_addr = address_lto(
-        network.id as char,
+        76 as char,
         info.sender.to_string()
     )?;
 
-    let ownership = Ownership {
+    let ownable_info = OwnableInfo {
         owner: derived_addr.clone(),
-        issuer: derived_addr.clone(),
+        issuer: Addr::unchecked("issuer-addr".to_string()),
+        ownable_type: msg.ownable_type,
     };
 
     let cw721 = Cw721 {
@@ -51,17 +42,19 @@ pub fn instantiate(
         youtube_url: None
     };
 
-    CONFIG.save(deps.storage, &config)?;
-    NETWORK.save(deps.storage, &network)?;
-    // NFT.save(deps.storage, &msg.nft)?;
+    CONFIG.save(deps.storage, &None)?;
+    if let Some(nft) = msg.nft {
+        NFT.save(deps.storage, &nft)?;
+    }
     CW721.save(deps.storage, &cw721)?;
     LOCKED.save(deps.storage, &false)?;
-    OWNERSHIP.save(deps.storage, &ownership)?;
+    OWNABLE_INFO.save(deps.storage, &ownable_info)?;
+    PACKAGE_IPFS.save(deps.storage, &msg.package)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender.clone())
-        .add_attribute("issuer", info.sender))
+        .add_attribute("issuer", ))
 }
 
 pub fn execute(
@@ -206,8 +199,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
-    let ownership = OWNERSHIP.load(deps.storage)?;
-    to_binary(&ownership)
+    let widget_config = CONFIG.load(deps.storage)?;
+    to_binary(&widget_config)
 }
 
 fn query_lock_state(deps: Deps) -> StdResult<Binary> {
@@ -216,19 +209,18 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_consumption_option(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
-
+    // basic ownable with no consumption functionality
+    to_binary(&false)
 }
 
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
-    /*
-    owner: "address",
-    issuer: "address",
-    [nft: {network: string, address: string, id: number, [lock_service: "address"]}],
-    [type: "robot:plugin"]
-     */
-    let config = CONFIG.load(deps.storage)?;
-    to_binary(&OwnableStateResponse {
-        owner: config.owner.into_string(),
+    let nft = NFT.may_load(deps.storage)?;
+    let ownable_info = OWNABLE_INFO.load(deps.storage)?;
+    to_binary(&OwnableInfoResponse {
+        owner: ownable_info.owner,
+        issuer: ownable_info.issuer,
+        nft,
+        ownable_type: ownable_info.ownable_type,
     })
 }
 
