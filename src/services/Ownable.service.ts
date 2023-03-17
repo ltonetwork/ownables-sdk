@@ -17,11 +17,18 @@ interface MsgInfo {
   funds: Array<never>;
 }
 
+interface CosmWasmEvent {
+  ty: string;
+  attributes: TypedDict<string>
+}
+
 export interface OwnableRPC {
   init: (id: string, js: string, wasm: Uint8Array) => Promise<any>;
-  instantiate: (msg: TypedDict<any>, info: MsgInfo) => Promise<{state: StateDump}>;
-  execute: (msg: TypedDict<any>, info: MsgInfo, state: StateDump) => Promise<{result: TypedDict<any>, state: StateDump}>;
-  externalEvent: (msg: TypedDict<any>, info: MsgInfo, state: StateDump) => Promise<{result: TypedDict<any>, state: StateDump}>;
+  instantiate: (msg: TypedDict<any>, info: MsgInfo) => Promise<{attributes: TypedDict<string>, state: StateDump}>;
+  execute: (msg: TypedDict<any>, info: MsgInfo, state: StateDump)
+    => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
+  externalEvent: (msg: TypedDict<any>, info: MsgInfo, state: StateDump)
+    => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
   query: (msg: TypedDict<any>, state: StateDump) => Promise<TypedDict<any>>;
   refresh: (state: StateDump) => Promise<void>;
 }
@@ -185,18 +192,21 @@ export default class OwnableService {
     const consumableState = await this.getStateDump(consumable.id, consumable.state);
     if (!consumerState || !consumableState) throw Error("State mismatch for consume");
 
-    const {result: consumeResult, state: consumableStateDump} =
+    const {events, state: consumableStateDump} =
       await this.rpc(consumable.id).execute(consumeMessage, info, consumableState);
 
-    console.log(consumeResult);
+    const consumeEvent: {contract?: string, ty: string, attributes: TypedDict<string>}|undefined
+      = events.find(event => event.ty === 'consume');
+    if (!consumeEvent) throw Error("No consume event emitted");
+    consumeEvent.contract = consumable.id;
 
     const {state: consumerStateDump} =
-      await this.rpc(consumer.id).externalEvent(consumeResult, info, consumerState);
+      await this.rpc(consumer.id).externalEvent(consumeEvent, info, consumerState);
 
     // Race condition because we're modifying the event chain before storing?
 
     new Event({"@context": 'execute_msg.json', ...consumeMessage}).addTo(consumable).signWith(LTOService.account);
-    new Event({"@context": 'external_event_msg.json', ...consumeResult}).addTo(consumer).signWith(LTOService.account);
+    new Event({"@context": 'external_event_msg.json', ...consumeEvent}).addTo(consumer).signWith(LTOService.account);
 
     await IDBService.setAll(Object.fromEntries([
       [`ownable:${consumer.id}`, { chain: consumer.toJSON(), state: consumer.state.hex }],
