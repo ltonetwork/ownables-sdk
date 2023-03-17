@@ -13,7 +13,7 @@ import ownableErrorMessage from "../utils/ownableErrorMessage";
 
 interface OwnableProps {
   chain: EventChain;
-  pkgKey: string;
+  packageCid: string;
   selected: boolean;
   onDelete: () => void;
   onConsume: () => void;
@@ -37,7 +37,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     super(props);
 
     this.chain = props.chain;
-    this.pkgKey = props.pkgKey;
+    this.pkgKey = props.packageCid;
     this.iframeRef = createRef();
 
     this.state = {
@@ -143,7 +143,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onDelete={this.props.onDelete}
           onConsume={this.props.onConsume}
         />
-        <OwnableFrame id={this.id} pkgKey={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
+        <OwnableFrame id={this.id} packageCid={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>
     </>
   }

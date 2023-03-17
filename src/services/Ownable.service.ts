@@ -80,13 +80,9 @@ export default class OwnableService {
     const chainInfo = await IDBService.getAll(`ownable:${id}`)
         .then(map => Object.fromEntries(map.entries())) as StoredChainInfo;
 
-    const {chain: chainJson, package: pkg, created} = chainInfo;
+    const {chain: chainJson, package: packageCid, created} = chainInfo;
 
-    return {
-      chain: EventChain.from(chainJson),
-      package: pkg,
-      created,
-    };
+    return { chain: EventChain.from(chainJson), package: packageCid, created };
   }
 
   // Return `null` if the stored state dump doesn't match the requested event chain state
