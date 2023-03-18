@@ -16,14 +16,6 @@ export default class LocalStorageService {
     this.set(key, list);
   }
 
-  static addToSet(key: string, value: any): void {
-    const list = this.get(key) || [];
-    if (!Array.isArray(list)) throw new Error(`Unable to add value to set in local storage: "${key} is not an array"`);
-
-    if (!list.includes(value)) list.push(value);
-    this.set(key, list);
-  }
-
   static remove(key: string): void {
     localStorage.removeItem(key);
   }

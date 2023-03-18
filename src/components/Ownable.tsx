@@ -29,7 +29,7 @@ interface OwnableState {
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
   private readonly chain: EventChain;
-  private readonly pkgKey: string;
+  private readonly packageCid: string;
   private readonly iframeRef: RefObject<HTMLIFrameElement>;
   private busy = false;
 
@@ -37,14 +37,14 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     super(props);
 
     this.chain = props.chain;
-    this.pkgKey = props.packageCid;
+    this.packageCid = props.packageCid;
     this.iframeRef = createRef();
 
     this.state = {
       initialized: false,
       applied: new EventChain(this.chain.id),
       stateDump: [],
-      metadata: { name: PackageService.nameOf(this.pkgKey) },
+      metadata: { name: PackageService.info(this.packageCid).name },
     };
   }
 
@@ -66,7 +66,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     this.busy = true;
 
     const stateDump =
-      await OwnableService.getStateDump(this.id, partialChain.state) || // Used stored statedump if available
+      await OwnableService.getStateDump(this.id, partialChain.state) || // Use stored state dump if available
       await OwnableService.apply(partialChain, this.state.stateDump);
 
     await this.refresh(stateDump);
@@ -79,7 +79,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     const iframeWindow = this.iframeRef.current!.contentWindow;
     const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", {timeout: 5000});
 
-    const initialized = await OwnableService.init(this.chain, this.pkgKey, rpc);
+    const initialized = await OwnableService.init(this.chain, this.packageCid, rpc);
     this.setState({initialized});
   }
 
@@ -143,7 +143,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onDelete={this.props.onDelete}
           onConsume={this.props.onConsume}
         />
-        <OwnableFrame id={this.id} packageCid={this.pkgKey} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
+        <OwnableFrame id={this.id} packageCid={this.packageCid} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>
     </>
   }

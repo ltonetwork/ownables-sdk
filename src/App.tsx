@@ -146,7 +146,7 @@ export default function App() {
 
     <HelpDrawer open={consuming !== null}>
       <Typography component="span" sx={{fontWeight: 700}}>
-        Select which Ownable should consume this <em>{consuming ? PackageService.nameOf(consuming.package) : ''}</em>
+        Select which Ownable should consume this <em>{consuming ? PackageService.info(consuming.package).name : ''}</em>
       </Typography>
       <Box>
         <Button sx={theme => ({color: theme.palette.primary.contrastText})} onClick={() => setConsuming(null)}>Cancel</Button>
