@@ -155,17 +155,6 @@ export default class IDBService {
     });
   }
 
-  static async createForced(...stores: string[]): Promise<void> {
-    await this.upgrade(db => {
-      for (const store of stores) {
-        if (db.objectStoreNames.contains(store)) {
-          db.deleteObjectStore(store);
-        }
-        db.createObjectStore(store);
-      }
-    });
-  }
-
   public static async delete(store: string|RegExp): Promise<void> {
     const stores = store instanceof RegExp
       ? Array.from(this.db.objectStoreNames).filter(name => name.match(store))
