@@ -31,15 +31,35 @@ export default class PackageService {
       .sort((a, b) => a.name >= b.name ? 1 : -1);
   }
 
-  static nameOf(keyOrCid: string): string {
+  static info(keyOrCid: string): TypedPackage {
     const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
-    return packages.find(pkg => pkg.key === keyOrCid || pkg.cid === keyOrCid)?.name || keyOrCid;
+    const found = packages.find(pkg => pkg.key === keyOrCid || pkg.cid === keyOrCid);
+
+    if (!found) throw new Error(`Package not found: ${keyOrCid}`);
+    return found;
   }
 
-  static async importAssets(zipFile: File): Promise<string> {
+  private static storePackageInfo(name: string, key: string, cid: string): TypedPackage {
+    const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
+    let pkg = packages.find(pkg => pkg.key === key);
+
+    if (!pkg) {
+      pkg = {name, key, cid, versions: []};
+      packages.push(pkg);
+    } else {
+      pkg.cid = cid;
+    }
+
+    pkg.versions.push({date: new Date(), cid});
+    LocalStorageService.set('packages', packages);
+
+    return pkg;
+  }
+
+  private static async extractAssets(zipFile: File): Promise<File[]> {
     const zip = await JSZip.loadAsync(zipFile);
 
-    const files = await Promise.all(Array.from(Object.entries(zip.files))
+    return await Promise.all(Array.from(Object.entries(zip.files))
       .filter(([filename]) => !filename.startsWith('.') && !filename.includes('MAC'))
       .map(async ([filename, file]) => {
         const blob = await file.async("blob");
@@ -49,18 +69,6 @@ export default class PackageService {
         return new File([blob], filename, { type });
       })
     );
-
-    const cid = await this.calculateCid(files);
-
-    if (!IDBService.exists(`package:${cid}`)) {
-      await IDBService.create(`package:${cid}`);
-      await IDBService.setAll(
-        `package:${cid}`,
-        Object.fromEntries(files.map(file => [file.name, file])),
-      );
-    }
-
-    return cid;
   }
 
   private static async calculateCid(files: File[]): Promise<string> {
@@ -83,21 +91,30 @@ export default class PackageService {
     throw new Error("Importer did not return the directory CID");
   }
 
+  private static async storeAssets(cid: string, files: File[]): Promise<void> {
+    if (IDBService.exists(`package:${cid}`)) return;
+
+    await IDBService.create(`package:${cid}`);
+    await IDBService.setAll(
+      `package:${cid}`,
+      Object.fromEntries(files.map(file => [file.name, file])),
+    );
+  }
+
   static async import(zipFile: File): Promise<TypedPackage> {
     const key = zipFile.name.replace(/\.\w+$/, '');
     const name = key
       .replace(/[-_]+/, ' ')
       .replace(/\b\w/, c => c.toUpperCase());
 
-    const cid = await this.importAssets(zipFile);
-    const pkg = { name, key, cid, versions: [{date: new Date(), cid}] };
+    const files = await this.extractAssets(zipFile);
+    const cid = await this.calculateCid(files);
+    await this.storeAssets(cid, files);
 
-    LocalStorageService.addToSet('packages', pkg);
-
-    return pkg;
+    return this.storePackageInfo(name, key, cid);
   }
 
-  static async download(key: string): Promise<TypedPackage> {
+  static async downloadExample(key: string): Promise<TypedPackage> {
     if (!exampleUrl) throw new Error("Unable to download example ownable: URL not configured");
 
     const response = await fetch(`${exampleUrl}/${key}.zip`);

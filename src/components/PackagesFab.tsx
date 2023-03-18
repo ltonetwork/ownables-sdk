@@ -79,7 +79,7 @@ export default function PackagesFab(props: PackagesFabProps) {
 
   const selectPackage = async (pkg: TypedPackage|TypedPackageStub) => {
     if ("stub" in pkg) {
-      pkg = await PackageService.download(pkg.key);
+      pkg = await PackageService.downloadExample(pkg.key);
       updatePackages();
     }
 
