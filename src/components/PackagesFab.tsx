@@ -12,6 +12,8 @@ import selectFile from "../utils/selectFile";
 import PackageService from "../services/Package.service";
 import {useEffect} from "react";
 import Tooltip from "./Tooltip";
+import Loading from "./Loading";
+import useBusy from "../utils/useBusy";
 
 interface PackagesDialogProps {
   packages: Array<TypedPackage|TypedPackageStub>;
@@ -67,19 +69,22 @@ export default function PackagesFab(props: PackagesFabProps) {
 
   const {open, onOpen, onClose, onSelect} = props;
   const [packages, setPackages] = React.useState<Array<TypedPackage|TypedPackageStub>>([]);
+  const [isBusy, busy] = useBusy();
 
   const updatePackages = () => setPackages(PackageService.list());
   useEffect(updatePackages, []);
 
   const importPackages = async () => {
     const files = await selectFile({ accept: '.zip', multiple: true });
-    await Promise.all(Array.from(files).map(file => PackageService.import(file)));
+    if (files.length === 0) return;
+
+    await busy(Promise.all(Array.from(files).map(file => PackageService.import(file))));
     updatePackages();
   };
 
   const selectPackage = async (pkg: TypedPackage|TypedPackageStub) => {
     if ("stub" in pkg) {
-      pkg = await PackageService.downloadExample(pkg.key);
+      pkg = await busy(PackageService.downloadExample(pkg.key));
       updatePackages();
     }
 
@@ -96,5 +101,6 @@ export default function PackagesFab(props: PackagesFabProps) {
       onClose={onClose}
       onSelect={selectPackage}
       onImport={importPackages} />
+    <Loading show={isBusy} />
   </>
 }

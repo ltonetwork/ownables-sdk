@@ -22,6 +22,7 @@ import AlertDialog from "./components/AlertDialog";
 import {AlertColor} from "@mui/material/Alert/Alert";
 import ownableErrorMessage from "./utils/ownableErrorMessage";
 import Overlay from "./components/Overlay";
+import ConfirmDialog from "./components/ConfirmDialog";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -31,7 +32,8 @@ export default function App() {
   const [address, setAddress] = useState(LTOService.address);
   const [ownables, setOwnables] = useState<Array<{chain: EventChain, package: string}>>([]);
   const [consuming, setConsuming] = useState<{chain: EventChain, package: string}|null>(null);
-  const [alert, setAlert] = useState<{title: string, message: string, severity: AlertColor}|null>(null);
+  const [alert, setAlert] = useState<{title: string, message: React.ReactNode, severity: AlertColor}|null>(null);
+  const [confirm, setConfirm] = useState<{title: string, message: React.ReactNode, severity?: AlertColor, ok?: string, onConfirm: () => void}|null>(null);
 
   useEffect(() => {
     IDBService.open()
@@ -58,11 +60,22 @@ export default function App() {
   const forge = (pkg: TypedPackage) => {
     const chain = OwnableService.create();
     setOwnables([...ownables, {chain, package: pkg.cid}]);
+    setShowPackages(false);
   }
 
-  const deleteOwnable = async (id: string) => {
-    setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
-    await OwnableService.delete(id);
+  const deleteOwnable = (id: string, packageCid: string) => {
+    const pkg = PackageService.info(packageCid);
+
+    setConfirm({
+      severity: "error",
+      title: "Confirm delete",
+      message: <span>Are you sure you want to delete this <em>{pkg.name}</em> Ownable?</span>,
+      ok: "Delete",
+      onConfirm: async () => {
+        setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
+        await OwnableService.delete(id);
+      }
+    });
   }
 
   const consume = (consumer: EventChain, consumable: EventChain) => {
@@ -72,19 +85,39 @@ export default function App() {
   }
 
   const reset = async () => {
-    setOwnables([]);
     setShowSidebar(false);
-    await OwnableService.deleteAll();
+    if (ownables.length === 0) return;
+
+    setConfirm({
+      severity: "error",
+      title: "Confirm delete",
+      message: <span>Are you sure you want to delete <strong>all Ownables</strong>?</span>,
+      ok: "Delete all",
+      onConfirm: async () => {
+        setOwnables([]);
+        await OwnableService.deleteAll();
+      }
+    });
   }
 
   const factoryReset = async () => {
-    setLoaded(false);
+    setShowSidebar(false);
 
-    await IDBService.destroy();
-    LocalStorageService.clear();
-    SessionStorageService.clear();
+    setConfirm({
+      severity: "error",
+      title: "Factory reset",
+      message: <span>Are you sure you want to delete all Ownables, all packages and your account? <strong>This is a destructive action.</strong></span>,
+      ok: "Delete everything",
+      onConfirm: async () => {
+        setLoaded(false);
 
-    window.location.reload();
+        await IDBService.destroy();
+        LocalStorageService.clear();
+        SessionStorageService.clear();
+
+        window.location.reload();
+      }
+    });
   }
 
   return <>
@@ -115,7 +148,7 @@ export default function App() {
             chain={chain}
             packageCid={packageCid}
             selected={consuming?.chain.id === chain.id}
-            onDelete={() => deleteOwnable(chain.id)}
+            onDelete={() => deleteOwnable(chain.id, packageCid)}
             onConsume={() => setConsuming({chain, package: packageCid})}
             onError={onError}
           />
@@ -153,13 +186,12 @@ export default function App() {
       </Box>
     </HelpDrawer>
 
-    <AlertDialog
-      open={alert !== null}
-      onClose={() => setAlert(null)}
-      {...alert}
-    >
-      <>{alert?.message}</>
+    <AlertDialog open={alert !== null} onClose={() => setAlert(null)} {...alert!}>
+      {alert?.message}
     </AlertDialog>
+    <ConfirmDialog open={confirm !== null} onClose={() => setConfirm(null)} {...confirm!}>
+      {confirm?.message}
+    </ConfirmDialog>
 
     <Loading show={!loaded} />
   </>
