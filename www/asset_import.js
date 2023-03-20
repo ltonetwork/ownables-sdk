@@ -50,7 +50,7 @@ function promisifyXHRRequest(path) {
     xhr.onreadystatechange = async () => {
       if (xhr.readyState === 4) {
         const zip = xhr.response;
-        zip.name = path;
+        zip.title = path;
         await unzipAndStore(zip);
         resolve();
       }

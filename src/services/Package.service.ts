@@ -3,18 +3,17 @@ import {TypedPackage, TypedPackageStub} from "../interfaces/TypedPackage";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import IDBService from "./IDB.service";
-import {importer} from "ipfs-unixfs-importer";
-import {BaseBlockstore} from "blockstore-core/base";
+import calculateCid from "../utils/calculateCid";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl ? [
-  { name: 'Antenna', key: 'antenna', stub: true },
-  { name: 'Armor', key: 'armor', stub: true },
-  { name: 'Car', key: 'car', stub: true },
-  { name: 'Paint', key: 'paint', stub: true },
-  { name: 'Potion', key: 'potion', stub: true },
-  { name: 'Robot', key: 'robot', stub: true },
-  { name: 'Speakers', key: 'speakers', stub: true },
+  { title: 'Antenna', name: 'antenna', stub: true },
+  { title: 'Armor', name: 'armor', stub: true },
+  { title: 'Car', name: 'car', stub: true },
+  { title: 'Paint', name: 'paint', stub: true },
+  { title: 'Potion', name: 'potion', stub: true },
+  { title: 'Robot', name: 'robot', stub: true },
+  { title: 'Speakers', name: 'speakers', stub: true },
 ] : [];
 export const HAS_EXAMPLES = exampleUrl !== '';
 
@@ -25,26 +24,26 @@ export default class PackageService {
       pkg.versions = pkg.versions.map(({date, cid}) => ({date: new Date(date), cid}));
     }
 
-    const set = new Map([...examples, ...local].map(pkg => [pkg.key, pkg])).values();
+    const set = new Map([...examples, ...local].map(pkg => [pkg.name, pkg])).values();
 
     return Array.from(set)
-      .sort((a, b) => a.name >= b.name ? 1 : -1);
+      .sort((a, b) => a.title >= b.title ? 1 : -1);
   }
 
-  static info(keyOrCid: string): TypedPackage {
+  static info(nameOrCid: string): TypedPackage {
     const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
-    const found = packages.find(pkg => pkg.key === keyOrCid || pkg.cid === keyOrCid);
+    const found = packages.find(pkg => pkg.name === nameOrCid || pkg.versions.map(v => v.cid).includes(nameOrCid));
 
-    if (!found) throw new Error(`Package not found: ${keyOrCid}`);
+    if (!found) throw new Error(`Package not found: ${nameOrCid}`);
     return found;
   }
 
   private static storePackageInfo(name: string, key: string, cid: string): TypedPackage {
     const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
-    let pkg = packages.find(pkg => pkg.key === key);
+    let pkg = packages.find(pkg => pkg.name === key);
 
     if (!pkg) {
-      pkg = {name, key, cid, versions: []};
+      pkg = {title: name, name: key, cid, versions: []};
       packages.push(pkg);
     } else {
       pkg.cid = cid;
@@ -71,26 +70,6 @@ export default class PackageService {
     );
   }
 
-  private static async calculateCid(files: File[]): Promise<string> {
-    const source = await Promise.all(
-      files.map(async file => ({
-        path: `./${file.name}`,
-        content: new Uint8Array(await file.arrayBuffer()),
-      }))
-    );
-
-    const blockstore = new class extends BaseBlockstore {
-      async put () { }
-      async has () { return false; }
-    }();
-
-    for await (const entry of importer(source, blockstore)) {
-      if (entry.path === '' && entry.unixfs?.type === 'directory') return entry.cid.toString();
-    }
-
-    throw new Error("Importer did not return the directory CID");
-  }
-
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (IDBService.exists(`package:${cid}`)) return;
 
@@ -108,7 +87,7 @@ export default class PackageService {
       .replace(/\b\w/, c => c.toUpperCase());
 
     const files = await this.extractAssets(zipFile);
-    const cid = await this.calculateCid(files);
+    const cid = await calculateCid(files);
     await this.storeAssets(cid, files);
 
     return this.storePackageInfo(name, key, cid);

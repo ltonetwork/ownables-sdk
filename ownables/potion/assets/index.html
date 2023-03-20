@@ -40,7 +40,7 @@
         background-color: transparent;
       }
       .in .potion .juice {
-        transition: height 1s, top 1s;
+        transition: height 1s;
       }
       .potion .amount {
         position: absolute;
@@ -163,12 +163,11 @@
       function updateTemplate(color, amt) {
         const juice = document.getElementsByClassName('juice')[0];
         juice.style.backgroundColor = color;
-        juice.style.top = (100 - amt) + '%';
         juice.style.height = amt + '%';
 
         document.getElementsByClassName('amount')[0].textContent = amt;
 
-        document.body.classList.add('in');
+        setTimeout(() => document.body.classList.add('in'), 500);
       }
 
       window.addEventListener("message", (event) => {
