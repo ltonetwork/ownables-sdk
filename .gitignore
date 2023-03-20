@@ -3,9 +3,9 @@
 artifacts/
 node_modules/
 ownables/*/target
+ownables/*/schema
 ownables/*/Cargo.lock
 ownables/*.zip
-/www/dist
 /.pnp
 /build
 .pnp.js

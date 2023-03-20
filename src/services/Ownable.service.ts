@@ -115,8 +115,8 @@ export default class OwnableService {
     if (this._rpc.has(chain.id)) delete (this._rpc.get(chain.id) as any).handler;
     this._rpc.set(chain.id, rpc);
 
-    const bindgenJs = await PackageService.getAssetAsText(pkg, 'bindgen.js');
-    const js = workerJsSource + bindgenJs;
+    const moduleJs = await PackageService.getAssetAsText(pkg, 'ownable.js');
+    const js = workerJsSource + moduleJs;
 
     const wasm = await PackageService.getAsset(
       pkg,
