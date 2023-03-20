@@ -11,6 +11,7 @@ pub struct InstantiateMsg {
     pub package: String,
     pub nft: Option<NFT>,
     pub ownable_type: Option<String>,
+    pub network_id: char,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
