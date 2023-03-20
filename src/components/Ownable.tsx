@@ -44,7 +44,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       initialized: false,
       applied: new EventChain(this.chain.id),
       stateDump: [],
-      metadata: { name: PackageService.info(this.packageCid).name },
+      metadata: { name: PackageService.info(this.packageCid).title },
     };
   }
 

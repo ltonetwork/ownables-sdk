@@ -69,7 +69,7 @@ export default function App() {
     setConfirm({
       severity: "error",
       title: "Confirm delete",
-      message: <span>Are you sure you want to delete this <em>{pkg.name}</em> Ownable?</span>,
+      message: <span>Are you sure you want to delete this <em>{pkg.title}</em> Ownable?</span>,
       ok: "Delete",
       onConfirm: async () => {
         setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
@@ -179,7 +179,7 @@ export default function App() {
 
     <HelpDrawer open={consuming !== null}>
       <Typography component="span" sx={{fontWeight: 700}}>
-        Select which Ownable should consume this <em>{consuming ? PackageService.info(consuming.package).name : ''}</em>
+        Select which Ownable should consume this <em>{consuming ? PackageService.info(consuming.package).title : ''}</em>
       </Typography>
       <Box>
         <Button sx={theme => ({color: theme.palette.primary.contrastText})} onClick={() => setConsuming(null)}>Cancel</Button>

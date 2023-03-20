@@ -30,10 +30,10 @@ function PackagesDialog(props: PackagesDialogProps) {
     <Dialog onClose={onClose} open={open}>
       <List sx={{pt: 0}} disablePadding>
         {packages.map((pkg) => (
-          <ListItem disablePadding disableGutters key={pkg.name}>
-            <Tooltip condition={"stub" in pkg} title={`Import ${pkg.name} example`} placement="right" arrow>
+          <ListItem disablePadding disableGutters key={pkg.title}>
+            <Tooltip condition={"stub" in pkg} title={`Import ${pkg.title} example`} placement="right" arrow>
               <ListItemButton onClick={() => onSelect(pkg)} style={{textAlign: "center", color: "stub" in pkg ? "#666" : undefined }}>
-                <ListItemText primary={pkg.name} />
+                <ListItemText primary={pkg.title} />
               </ListItemButton>
             </Tooltip>
           </ListItem>
@@ -84,7 +84,7 @@ export default function PackagesFab(props: PackagesFabProps) {
 
   const selectPackage = async (pkg: TypedPackage|TypedPackageStub) => {
     if ("stub" in pkg) {
-      pkg = await busy(PackageService.downloadExample(pkg.key));
+      pkg = await busy(PackageService.downloadExample(pkg.name));
       updatePackages();
     }
 

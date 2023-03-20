@@ -1,12 +1,12 @@
 export interface TypedPackage {
+  title: string;
   name: string;
-  key: string;
   cid: string;
   versions: Array<{date: Date, cid: string}>,
 }
 
 export interface TypedPackageStub {
+  title: string;
   name: string;
-  key: string;
   stub: true;
 }
