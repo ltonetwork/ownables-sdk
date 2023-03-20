@@ -103,15 +103,15 @@ export default class PackageService {
   }
 
   static async getAsset(
-    key: string,
+    cid: string,
     name: string,
     read: (fr: FileReader, contents: Blob | File) => void,
   ): Promise<string|ArrayBuffer> {
     return new Promise((resolve, reject) => {
       const fileReader = new FileReader();
-      IDBService.get(`package:${key}`, name).then((mediaFile: File) => {
+      IDBService.get(`package:${cid}`, name).then((mediaFile: File) => {
         if (!mediaFile) {
-          reject(`Asset "${name}" is not in package ${key}`);
+          reject(`Asset "${name}" is not in package ${cid}`);
         }
 
         fileReader.onload = (event) => {
