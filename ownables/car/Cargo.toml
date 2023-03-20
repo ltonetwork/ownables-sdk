@@ -1,5 +1,6 @@
 [package]
 name = "ownable-car"
+description = "ownable that displays a spinning car"
 version = "0.1.0"
 authors = ["bekauz <bekauz@protonmail.com>"]
 edition = "2018"
