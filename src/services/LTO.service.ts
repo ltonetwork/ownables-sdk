@@ -8,6 +8,7 @@ if (process.env.REACT_APP_LTO_API_URL) lto.nodeAddress = process.env.REACT_APP_L
 const sessionSeed = SessionStorageService.get('@seed');
 
 export default class LTOService {
+  public static readonly networkId = lto.networkId;
   private static _account?: Account = sessionSeed ? lto.account({seed: sessionSeed}) : undefined;
 
   public static accountExists(): boolean {

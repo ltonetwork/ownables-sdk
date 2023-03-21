@@ -58,7 +58,7 @@ export default function App() {
   }
 
   const forge = (pkg: TypedPackage) => {
-    const chain = OwnableService.create();
+    const chain = OwnableService.create(pkg.cid);
     setOwnables([...ownables, {chain, package: pkg.cid}]);
     setShowPackages(false);
   }
