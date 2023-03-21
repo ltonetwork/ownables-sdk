@@ -100,11 +100,18 @@ export default class OwnableService {
     return Array.from(map.entries());
   }
 
-  static create(): EventChain {
+  static create(packageCid: string): EventChain {
     const account = LTOService.account;
-
     const chain = EventChain.create(account);
-    new Event({"@context": "instantiate_msg.json", ownable_id: chain.id})
+
+    const msg = {
+      "@context": "instantiate_msg.json",
+      ownable_id: chain.id,
+      package: packageCid,
+      network_id: LTOService.networkId,
+    };
+
+    new Event(msg)
       .addTo(chain)
       .signWith(account);
 
