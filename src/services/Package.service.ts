@@ -62,8 +62,7 @@ export default class PackageService {
       .filter(([filename]) => !filename.startsWith('.') && !filename.includes('MAC'))
       .map(async ([filename, file]) => {
         const blob = await file.async("blob");
-        const ext = filename.substring(filename.indexOf('.'));
-        const type = mime.getType(ext) || 'application/octet-stream';
+        const type = mime.getType(filename) || 'application/octet-stream';
 
         return new File([blob], filename, { type });
       })
