@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Deploy Demo wallet
 on:
   push:
     branches:
@@ -10,14 +10,34 @@ jobs:
     concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 🛎️
+      - name: Checkout
         uses: actions/checkout@v3
-      - name: Install and Build 🔧
-        working-directory: ./www
+      - name: Cache Ownable build files
+        id: cache-ownables
+        uses: actions/cache@v3
+        with:
+          key: ownables-cargo
+          path: |
+            ownables/*/Cargo.lock
+            ownables/*/target
+      - name: Setup NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
+      - name: Setup wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+      - name: NPM Install
+        run: npm ci
+      - name: Build Ownables
+        run: npm run ownables:build-all
+      - name: Build SDK wallet
+        run: npm run build
+      - name: Copy Ownable packages
         run: |
-          npm ci
-          npm run build
-      - name: Deploy 🚀
+          mkdir public/ownables
+          cp ownables/*.zip public ownables
+      - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: www/dist
+          folder: build
