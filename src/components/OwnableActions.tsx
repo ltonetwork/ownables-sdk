@@ -5,16 +5,22 @@ import {IconButton, SxProps, Theme} from "@mui/material";
 import MoreVert from "@mui/icons-material/MoreVert";
 import {useState, MouseEvent} from "react";
 import {Delete, PrecisionManufacturing, SwapHoriz} from "@mui/icons-material";
+import PromptDialog from "./PromptDialog";
+import LTOService from "../services/LTO.service";
 
 interface OwnableActionsProps {
   sx?: SxProps<Theme>;
+  isConsumable: boolean;
+  isTransferable: boolean;
   onDelete: () => void;
   onConsume: () => void;
+  onTransfer: (address: string) => void;
 }
 
 export default function OwnableActions(props: OwnableActionsProps) {
+  const {onDelete, onConsume, onTransfer, isConsumable, isTransferable} = props;
   const [anchorEl, setAnchorEl] = useState<null|HTMLElement>(null);
-  const {onDelete, onConsume} = props;
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
 
   const open = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -53,11 +59,11 @@ export default function OwnableActions(props: OwnableActionsProps) {
       transformOrigin={{horizontal: 'right', vertical: 'top'}}
       anchorOrigin={{horizontal: 'right', vertical: 'bottom'}}
     >
-      <MenuItem onClick={() => {close(); onConsume();}}>
+      <MenuItem disabled={!isConsumable} onClick={() => {close(); onConsume();}}>
         <ListItemIcon><PrecisionManufacturing fontSize="small"/></ListItemIcon>
         Consume
       </MenuItem>
-      <MenuItem disabled>
+      <MenuItem disabled={!isTransferable} onClick={() => {close(); setShowTransferDialog(true);}}>
         <ListItemIcon><SwapHoriz fontSize="small"/></ListItemIcon>
         Transfer
       </MenuItem>
@@ -66,5 +72,20 @@ export default function OwnableActions(props: OwnableActionsProps) {
         Delete
       </MenuItem>
     </Menu>
+
+    <PromptDialog
+      title="Transfer Ownable"
+      open={showTransferDialog}
+      onClose={() => setShowTransferDialog(false)}
+      onSubmit={onTransfer}
+      validate={address => {
+        if (!LTOService.isValidAddress(address)) return "Invalid address";
+        if (LTOService.address === address) return "Can't transfer to own account"
+      }}
+      TextFieldProps={{
+        label: "Recipient address",
+        sx: { width: "380px", maxWidth: "100%" },
+      }}
+    />
   </>
 }

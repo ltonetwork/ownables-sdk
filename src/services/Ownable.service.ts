@@ -184,6 +184,8 @@ export default class OwnableService {
     delete msg['@context']; // Shouldn't be set
     new Event({"@context": 'execute_msg.json', ...msg}).addTo(chain).signWith(LTOService.account);
 
+    await OwnableService.store(chain, stateDump);
+
     return newStateDump;
   }
 

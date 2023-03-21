@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import mime from "mime/lite";
 import IDBService from "./IDB.service";
 import calculateCid from "../utils/calculateCid";
+import {TypedCosmWasmMsg} from "../interfaces/TypedCosmWasmMsg";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl ? [
@@ -130,5 +131,20 @@ export default class PackageService {
   static getAssetAsDataUri(cid: string, name: string): Promise<string> {
     const read = (fr: FileReader, mediaFile: Blob | File) => fr.readAsDataURL(mediaFile);
     return this.getAsset(cid, name, read) as Promise<string>;
+  }
+
+
+  static async hasExecuteMethod(cid: string, name: string): Promise<boolean> {
+    const json = await this.getAssetAsText(cid, 'execute_msg.json');
+    const msg = JSON.parse(json) as TypedCosmWasmMsg;
+
+    return msg.oneOf.findIndex(method => method.required.includes(name)) >= 0;
+  }
+
+  static async hasQueryMethod(cid: string, name: string): Promise<boolean> {
+    const json = await this.getAssetAsText(cid, 'query_msg.json');
+    const msg = JSON.parse(json) as TypedCosmWasmMsg;
+
+    return msg.oneOf.findIndex(method => method.required.includes(name)) >= 0;
   }
 }
