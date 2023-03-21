@@ -140,7 +140,7 @@ async function query(msg: Dict, state: StateDump): Promise<Dict> {
 }
 
 async function refresh(state: StateDump): Promise<void> {
-  const widgetState = await query({get_ownable_config: {}}, state);
+  const widgetState = await query({get_ownable_widget_state: {}}, state);
 
   const iframe = document.getElementsByTagName('iframe')[0];
   iframe.contentWindow!.postMessage({ownable_id: ownableId, state: widgetState}, "*");

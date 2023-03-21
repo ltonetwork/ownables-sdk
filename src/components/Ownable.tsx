@@ -10,6 +10,7 @@ import OwnableService, {OwnableRPC, StateDump} from "../services/Ownable.service
 import {TypedMetadata} from "../interfaces/TypedMetadata";
 import isObject from "../utils/isObject";
 import ownableErrorMessage from "../utils/ownableErrorMessage";
+import TypedDict from "../interfaces/TypedDict";
 
 interface OwnableProps {
   chain: EventChain;
@@ -25,6 +26,8 @@ interface OwnableState {
   applied: EventChain;
   stateDump: StateDump;
   metadata?: TypedMetadata;
+  isConsumable: boolean;
+  isTransferable: boolean;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -45,6 +48,8 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       applied: new EventChain(this.chain.id),
       stateDump: [],
       metadata: { name: PackageService.info(this.packageCid).title },
+      isConsumable: false,
+      isTransferable: false,
     };
   }
 
@@ -87,15 +92,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  private windowMessageHandler = async (event: MessageEvent) => {
-    if (!isObject(event.data) || !('ownable_id' in event.data) || event.data.ownable_id !== this.id) return;
-    if (this.iframeRef.current!.contentWindow !== event.source)
-      throw Error("Not allowed to execute msg on other Ownable");
-
+  private async execute(msg: TypedDict<any>): Promise<void> {
     let stateDump: StateDump;
 
     try {
-      stateDump = await OwnableService.execute(this.chain, event.data.msg, this.state.stateDump);
+      console.log(this.chain, msg, this.state.stateDump);
+      stateDump = await OwnableService.execute(this.chain, msg, this.state.stateDump);
     } catch (error) {
       this.props.onError("The Ownable returned an error", ownableErrorMessage(error));
       return;
@@ -107,17 +109,26 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     this.setState({applied: this.chain, stateDump});
   }
 
+  private windowMessageHandler = async (event: MessageEvent) => {
+    if (!isObject(event.data) || !('ownable_id' in event.data) || event.data.ownable_id !== this.id) return;
+    if (this.iframeRef.current!.contentWindow !== event.source)
+      throw Error("Not allowed to execute msg on other Ownable");
+
+    await this.execute(event.data.msg);
+  }
+
   async componentDidMount() {
     window.addEventListener("message", this.windowMessageHandler);
+
+    const [isConsumable, isTransferable] = await Promise.all([
+      PackageService.hasExecuteMethod(this.packageCid, 'ownable_consume'),
+      PackageService.hasExecuteMethod(this.packageCid, 'ownable_transfer'),
+    ]);
+    this.setState({isConsumable, isTransferable});
   }
 
   shouldComponentUpdate(nextProps: OwnableProps, nextState: OwnableState): boolean {
-    if (!nextState.initialized) return false;
-
-    return !this.state.initialized ||
-      this.chain.state.hex !== nextState.applied.state.hex ||
-      this.props.selected !== nextProps.selected ||
-      this.state.metadata !== nextState.metadata;
+    return nextState.initialized;
   }
 
   async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
@@ -144,8 +155,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         <OwnableInfo sx={{position: 'absolute', left: 5, top: 5}} chain={this.chain} metadata={this.state.metadata}/>
         <OwnableActions
           sx={{position: 'absolute', right: 5, top: 5}}
+          isConsumable={this.state.isConsumable}
+          isTransferable={this.state.isTransferable}
           onDelete={this.props.onDelete}
           onConsume={this.props.onConsume}
+          onTransfer={address => this.execute({ownable_transfer: {to: address}})}
         />
         <OwnableFrame id={this.id} packageCid={this.packageCid} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
       </Paper>
