@@ -21,7 +21,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let derived_addr = address_lto(
-        msg.network_id,
+        msg.network_id as char,
         info.sender.to_string()
     )?;
 
@@ -181,7 +181,7 @@ fn try_register_lock(
             }
 
             let network_id = NETWORK_ID.load(deps.storage)?;
-            let address = address_lto(network_id, owner)?;
+            let address = address_lto(network_id as char, owner)?;
             Ok(try_release(info, deps, address)?)
         }
         _ => return Err(ContractError::MatchChainIdError { val: event.chain_id }),

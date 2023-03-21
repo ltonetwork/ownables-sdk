@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use cosmwasm_std::{Addr};
+use cosmwasm_std::{Addr, Uint64};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -11,7 +11,7 @@ pub struct InstantiateMsg {
     pub package: String,
     pub nft: Option<NFT>,
     pub ownable_type: Option<String>,
-    pub network_id: char,
+    pub network_id: u8,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

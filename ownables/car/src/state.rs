@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Uint128, Uint64};
 use cw_storage_plus::Item;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -42,4 +42,4 @@ pub const CW721: Item<Cw721> = Item::new("cw721");
 pub const NFT: Item<NFT> = Item::new("nft");
 pub const LOCKED: Item<bool> = Item::new("is_locked");
 pub const PACKAGE_IPFS: Item<String> = Item::new("package_ipfs");
-pub const NETWORK_ID: Item<char> = Item::new("network_id");
+pub const NETWORK_ID: Item<u8> = Item::new("network_id");
