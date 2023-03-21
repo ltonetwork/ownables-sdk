@@ -4,7 +4,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableInfoResponse, Quer
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_std::{Binary, StdError, to_binary};
 use cw2::set_contract_version;
-use crate::ExternalEvent;
+use crate::ExternalEventMsg;
 use crate::state::{Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID, NFT, OWNABLE_INFO, OwnableInfo, PACKAGE_IPFS};
 use crate::utils::{address_eip155, address_lto};
 
@@ -89,7 +89,7 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 pub fn register_external_event(
     info: MessageInfo,
     deps: DepsMut,
-    event: ExternalEvent,
+    event: ExternalEventMsg,
     _ownable_id: String,
 ) -> Result<Response, ContractError> {
     let mut response = Response::new()
@@ -134,7 +134,7 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
 fn try_register_lock(
     info: MessageInfo,
     deps: DepsMut,
-    event: ExternalEvent,
+    event: ExternalEventMsg,
 ) -> Result<Response, ContractError> {
     let owner = event.args.get("owner")
         .cloned()

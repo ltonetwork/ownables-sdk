@@ -11,7 +11,7 @@ use serde_json::{to_string};
 use wasm_bindgen::prelude::*;
 
 use utils::{create_lto_env, load_lto_deps};
-use crate::msg::{ExternalEvent, IdbStateDump};
+use crate::msg::{ExternalEventMsg, IdbStateDump};
 
 pub mod contract;
 pub mod error;
@@ -97,7 +97,7 @@ pub async fn register_external_event(
     ownable_id: String,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
-    let external_event: ExternalEvent = serde_wasm_bindgen::from_value(msg.clone())?;
+    let external_event: ExternalEventMsg = serde_wasm_bindgen::from_value(msg.clone())?;
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
     let mut deps = load_lto_deps(Some(state_dump));

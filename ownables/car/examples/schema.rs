@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use ownable_car::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, OwnableInfoResponse, QueryMsg};
+use ownable_car::msg::{ExecuteMsg, ExternalEventMsg, InstantiateMsg, OwnableInfoResponse, QueryMsg};
 use ownable_car::state::{Config, Cw721};
 
 fn main() {
@@ -15,7 +15,7 @@ fn main() {
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
-    export_schema(&schema_for!(ExternalEvent), &out_dir);
+    export_schema(&schema_for!(ExternalEventMsg), &out_dir);
     export_schema(&schema_for!(OwnableInfoResponse), &out_dir);
     export_schema(&schema_for!(Cw721), &out_dir);
     export_schema(&schema_for!(Config), &out_dir);

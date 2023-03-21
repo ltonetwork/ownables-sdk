@@ -24,7 +24,8 @@ pub enum ExecuteMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct ExternalEvent {
+#[serde(rename_all = "snake_case")]
+pub struct ExternalEventMsg {
     // CAIP-2 format: <namespace + ":" + reference>
     // e.g. ethereum: eip155:1
     pub chain_id: String,
