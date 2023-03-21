@@ -43,7 +43,7 @@ export default function App() {
   }, []);
 
   const onError = (title: string, message: string) => {
-    setAlert({severity: "error", title, message})
+    setAlert({severity: "error", title, message});
   }
 
   const onLogin = () => {
@@ -71,11 +71,13 @@ export default function App() {
       title: "Confirm delete",
       message: <span>Are you sure you want to delete this <em>{pkg.title}</em> Ownable?</span>,
       ok: "Delete",
-      onConfirm: async () => {
-        setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
-        await OwnableService.delete(id);
-      }
+      onConfirm: () => _delete(id)
     });
+  }
+
+  const _delete = async (id: string) => {
+    setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
+    await OwnableService.delete(id);
   }
 
   const consume = (consumer: EventChain, consumable: EventChain) => {
@@ -150,7 +152,10 @@ export default function App() {
             selected={consuming?.chain.id === chain.id}
             onDelete={() => deleteOwnable(chain.id, packageCid)}
             onConsume={() => setConsuming({chain, package: packageCid})}
-            onError={onError}
+            onError={(title, message, broken = false) => {
+              onError(title, message);
+              if (broken) _delete(chain.id);
+            }}
           />
           <Overlay
             hidden={consuming === null}

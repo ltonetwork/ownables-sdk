@@ -17,7 +17,7 @@ interface OwnableProps {
   selected: boolean;
   onDelete: () => void;
   onConsume: () => void;
-  onError: (title: string, message: string) => void;
+  onError: (title: string, message: string, broken?: boolean) => void;
 }
 
 interface OwnableState {
@@ -79,8 +79,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     const iframeWindow = this.iframeRef.current!.contentWindow;
     const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", {timeout: 5000});
 
-    const initialized = await OwnableService.init(this.chain, this.packageCid, rpc);
-    this.setState({initialized});
+    try {
+      const initialized = await OwnableService.init(this.chain, this.packageCid, rpc);
+      this.setState({initialized});
+    } catch (e) {
+      this.props.onError("Failed to forge Ownable", ownableErrorMessage(e), true);
+    }
   }
 
   private windowMessageHandler = async (event: MessageEvent) => {
