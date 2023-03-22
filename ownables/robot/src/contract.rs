@@ -158,9 +158,11 @@ fn try_register_consume(
     let ownership = OWNABLE_INFO.load(deps.storage)?;
 
     // only owner can consume
-    // if ownership.owner != info.sender.to_string() {
-    //     return Err(ContractError::Unauthorized { val: "Only owner can consume".to_string() });
-    // }
+    let network_id = NETWORK_ID.load(deps.storage)?;
+    let derived_addr = address_lto(
+        network_id as char,
+        info.sender.to_string()
+    )?;
 
     // validate issuer of collection matches
     if ownership.issuer.to_string() != issuer {
@@ -309,9 +311,13 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
             val: "Unable to transfer a locked ownable".to_string(),
         });
     }
-
+    let network_id = NETWORK_ID.load(deps.storage)?;
+    let derived_addr = address_lto(
+        network_id as char,
+        info.sender.to_string()
+    )?;
     let ownership = OWNABLE_INFO.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if info.sender != config.owner {
+        if derived_addr != config.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });
