@@ -6,9 +6,10 @@ ownables/*/target
 ownables/*/schema
 ownables/*/Cargo.lock
 ownables/*.zip
+ownables/*/assets/instantiate_msg.json
 /.pnp
-/build
 .pnp.js
+/build
 
 # testing
 /coverage
