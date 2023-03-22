@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableInfoResponse, QueryMsg};
 use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, OwnableInfo, PACKAGE_IPFS, OWNABLE_INFO, NETWORK_ID};
-use cosmwasm_std::{to_binary, Binary};
+use cosmwasm_std::{to_binary, Binary, Attribute, Event};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
@@ -257,28 +256,31 @@ pub fn try_consume(
     config.consumed_by = Some(ownership.clone().owner);
     CONFIG.save(deps.storage, &Some(config.clone()))?;
 
+    let mut event = Event::new("consume".to_string());
+    event = event.add_attributes(vec![
+        Attribute {
+            key: "issuer".to_string(),
+            value: ownership.issuer.to_string(),
+        },
+        Attribute {
+            key: "owner".to_string(),
+            value: ownership.owner.to_string()
+        },
+        Attribute {
+            key: "consumed_by".to_string(),
+            value: config.consumed_by.unwrap().to_string(),
+        },
+        Attribute {
+            key: "consumable_type".to_string(),
+            value: ownership.ownable_type.unwrap_or("armor".to_string()),
+        },
+    ]);
 
-    let mut event_args = HashMap::new();
-    event_args.insert("owner".to_string(), ownership.clone().owner.to_string());
-    event_args.insert("consumed_by".to_string(), config.consumed_by.unwrap().to_string());
-    event_args.insert("color".to_string(), config.color);
-    event_args.insert("issuer".to_string(), ownership.issuer.to_string());
-    event_args.insert("type".to_string(), "armor".to_string());
-
-    let external_event = ExternalEventMsg {
-        chain_id: "eip155:1".to_string(),
-        event_type: "consume".to_string(),
-        args: event_args,
-    };
-
-    let binary_data = serde_json::to_string(&external_event).unwrap();
-
-    let response = Response::new()
+    Ok(Response::new()
         .add_attribute("method", "try_consume")
         .add_attribute("external_event", true.to_string())
-        .set_data(to_binary(&binary_data)?);
-
-    Ok(response)
+        .add_event(event)
+    )
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {

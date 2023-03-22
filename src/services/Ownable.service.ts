@@ -191,7 +191,7 @@ export default class OwnableService {
 
   static async consume(consumer: EventChain, consumable: EventChain) {
     const info = {sender: LTOService.account.publicKey, funds: []};
-    const consumeMessage = {consume: {}}; //{consume: {ownable_id: consumer.id}};
+    const consumeMessage = {ownable_consume: {}}; //{consume: {ownable_id: consumer.id}};
 
     const consumerState = await this.getStateDump(consumer.id, consumer.state);
     const consumableState = await this.getStateDump(consumable.id, consumable.state);
