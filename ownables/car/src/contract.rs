@@ -71,8 +71,19 @@ pub fn execute(
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
-    OWNABLE_INFO.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if info.sender != config.owner {
+    let is_locked = LOCKED.load(deps.storage)?;
+    if is_locked {
+        return Err(ContractError::LockError {
+            val: "Unable to transfer a locked ownable".to_string(),
+        });
+    }
+    let network_id = NETWORK_ID.load(deps.storage)?;
+    let derived_addr = address_lto(
+        network_id as char,
+        info.sender.to_string()
+    )?;
+    let ownership = OWNABLE_INFO.update(deps.storage, |mut config| -> Result<_, ContractError> {
+        if derived_addr != config.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });
@@ -82,7 +93,7 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
     })?;
     Ok(Response::new()
         .add_attribute("method", "try_transfer")
-        .add_attribute("new_owner", to.to_string())
+        .add_attribute("new_owner", ownership.owner.to_string())
     )
 }
 

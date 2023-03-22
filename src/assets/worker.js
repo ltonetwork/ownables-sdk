@@ -25,7 +25,7 @@ addEventListener('message', (e) => {
         .catch(err => self.postMessage({err}));
       break;
     case "execute":
-      execute_contract(e.data.msg, e.data.info, e.data.ownable_id, e.data.mem)
+      execute_contract(e.data.msg, e.data.info, e.data.mem)
         .then(resp => self.postMessage(resp))
         .catch(err => self.postMessage({err}));
       break;
