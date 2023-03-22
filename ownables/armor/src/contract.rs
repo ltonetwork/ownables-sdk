@@ -49,7 +49,7 @@ pub fn instantiate(
     };
 
     NETWORK_ID.save(deps.storage, &msg.network_id)?;
-    CONFIG.save(deps.storage, &Some(config))?;
+    CONFIG.save(deps.storage, &Some(config.clone()))?;
     if let Some(nft) = msg.nft {
         NFT.save(deps.storage, &nft)?;
     }
@@ -62,7 +62,7 @@ pub fn instantiate(
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.clone().sender.to_string())
         .add_attribute("issuer", info.sender.to_string())
-        .add_attribute("color", state.color)
+        .add_attribute("color", config.color)
     )
 }
 
