@@ -32,11 +32,6 @@ pub fn instantiate(
         ownable_type: msg.ownable_type.clone(),
     };
 
-    let state = Config {
-        consumed_by: None,
-        color: get_random_color(msg.clone().ownable_id),
-    };
-
     let cw721 = Cw721 {
         image: None,
         image_data: None,
