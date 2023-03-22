@@ -4,87 +4,63 @@
   "type": "object",
   "required": [
     "network_id",
-    "nft",
-    "ownable_id"
+    "ownable_id",
+    "package"
   ],
   "properties": {
-    "animation_url": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "background_color": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "description": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "external_url": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "image": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "image_data": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "name": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
     "network_id": {
       "type": "integer",
       "format": "uint8",
       "minimum": 0.0
     },
     "nft": {
-      "$ref": "#/definitions/NFT"
+      "anyOf": [
+        {
+          "$ref": "#/definitions/NFT"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "ownable_id": {
       "type": "string"
     },
-    "youtube_url": {
+    "ownable_type": {
       "type": [
         "string",
         "null"
       ]
+    },
+    "package": {
+      "type": "string"
     }
   },
   "definitions": {
     "NFT": {
       "type": "object",
       "required": [
-        "network",
-        "nft_contract_address",
-        "nft_id"
+        "address",
+        "id"
       ],
       "properties": {
-        "network": {
+        "address": {
           "type": "string"
         },
-        "nft_contract_address": {
-          "type": "string"
-        },
-        "nft_id": {
+        "id": {
           "$ref": "#/definitions/Uint128"
+        },
+        "lock_service": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "network": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
