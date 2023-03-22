@@ -11,7 +11,7 @@ use serde_json::{to_string};
 use wasm_bindgen::prelude::*;
 
 use utils::{create_lto_env, load_lto_deps};
-use crate::msg::{ExternalEvent, IdbStateDump};
+use crate::msg::{ExternalEventMsg, IdbStateDump};
 
 pub mod contract;
 pub mod error;
@@ -44,10 +44,7 @@ pub async fn instantiate_contract(
             let resp = get_json_response(deps.storage, response)?;
             Ok(resp)
         }
-        Err(error) => {
-            log(&format!("[error] failed to instantiate consumable. {:?}", error));
-            Err(JsError::from(error))
-        },
+        Err(error) => Err(JsError::from(error)),
     }
 }
 
@@ -70,7 +67,6 @@ fn get_json_response(storage: MemoryStorage, response: Response) -> Result<JsVal
 pub async fn execute_contract(
     msg: JsValue,
     info: JsValue,
-    ownable_id: String,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = serde_wasm_bindgen::from_value(msg.clone())?;
@@ -90,7 +86,7 @@ pub async fn execute_contract(
             let resp = get_json_response(deps.storage, response)?;
             Ok(resp)
         }
-        Err(error) => Err(JsError::from(error))
+        Err(error) => Err(JsError::from(error)),
     }
 }
 
@@ -101,7 +97,7 @@ pub async fn register_external_event(
     ownable_id: String,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
-    let external_event: ExternalEvent = serde_wasm_bindgen::from_value(msg.clone())?;
+    let external_event: ExternalEventMsg = serde_wasm_bindgen::from_value(msg.clone())?;
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
     let mut deps = load_lto_deps(Some(state_dump));
@@ -118,7 +114,7 @@ pub async fn register_external_event(
             let resp = get_json_response(deps.storage, response)?;
             Ok(resp)
         }
-        Err(error) => Err(JsError::from(error))
+        Err(error) => Err(JsError::from(error)),
     }
 }
 
