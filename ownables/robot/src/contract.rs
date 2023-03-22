@@ -157,13 +157,6 @@ fn try_register_consume(
 
     let ownership = OWNABLE_INFO.load(deps.storage)?;
 
-    // only owner can consume
-    let network_id = NETWORK_ID.load(deps.storage)?;
-    let derived_addr = address_lto(
-        network_id as char,
-        info.sender.to_string()
-    )?;
-
     // validate issuer of collection matches
     if ownership.issuer.to_string() != issuer {
         return Err(ContractError::InvalidExternalEventArgs {})
