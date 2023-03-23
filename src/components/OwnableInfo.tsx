@@ -1,7 +1,7 @@
 import {Chip, DialogContent, DialogTitle, IconButton, SxProps, Theme} from "@mui/material";
 import {useState} from "react";
 import {Fingerprint, InfoOutlined} from "@mui/icons-material";
-import {TypedMetadata} from "../interfaces/TypedMetadata";
+import {TypedMetadata} from "../interfaces/TypedOwnableInfo";
 import Dialog from "@mui/material/Dialog";
 import {EventChain} from "@ltonetwork/lto";
 import EventCard from "./EventCard";

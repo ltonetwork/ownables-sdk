@@ -1,5 +1,5 @@
 import LocalStorageService from "./LocalStorage.service";
-import {TypedPackage, TypedPackageStub} from "../interfaces/TypedPackage";
+import {TypedPackageCapabilities, TypedPackage, TypedPackageStub} from "../interfaces/TypedPackage";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import IDBService from "./IDB.service";
@@ -39,15 +39,20 @@ export default class PackageService {
     return found;
   }
 
-  private static storePackageInfo(name: string, key: string, cid: string): TypedPackage {
+  private static storePackageInfo(
+    name: string,
+    key: string,
+    cid: string,
+    capabilities: TypedPackageCapabilities
+  ): TypedPackage {
     const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
     let pkg = packages.find(pkg => pkg.name === key);
 
     if (!pkg) {
-      pkg = {title: name, name: key, cid, versions: []};
+      pkg = {title: name, name: key, cid, ...capabilities, versions: []};
       packages.push(pkg);
     } else {
-      pkg.cid = cid;
+      Object.assign(pkg, {cid, ...capabilities});
     }
 
     pkg.versions.push({date: new Date(), cid});
@@ -80,6 +85,17 @@ export default class PackageService {
     );
   }
 
+  private static async getCapabilities(cid: string): Promise<TypedPackageCapabilities> {
+    const execute: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'execute_msg.json'));
+    const query: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'query_msg.json'));
+
+    return {
+      isConsumable: execute.oneOf.findIndex(method => method.required.includes('ownable_consume')) >= 0,
+      isConsumer: query.oneOf.findIndex(method => method.required.includes('can_ownable_consume')) >= 0,
+      isTransferable: execute.oneOf.findIndex(method => method.required.includes('ownable_transfer')) >= 0,
+    };
+  }
+
   static async import(zipFile: File): Promise<TypedPackage> {
     const key = zipFile.name.replace(/\.\w+$/, '');
     const name = key
@@ -90,7 +106,7 @@ export default class PackageService {
     const cid = await calculateCid(files);
     await this.storeAssets(cid, files);
 
-    return this.storePackageInfo(name, key, cid);
+    return this.storePackageInfo(name, key, cid, await this.getCapabilities(cid));
   }
 
   static async downloadExample(key: string): Promise<TypedPackage> {
@@ -133,18 +149,14 @@ export default class PackageService {
     return this.getAsset(cid, name, read) as Promise<string>;
   }
 
+  static async zip(cid: string): Promise<JSZip> {
+    const zip = new JSZip();
+    const files = await IDBService.getAll(`package:${cid}`);
 
-  static async hasExecuteMethod(cid: string, name: string): Promise<boolean> {
-    const json = await this.getAssetAsText(cid, 'execute_msg.json');
-    const msg = JSON.parse(json) as TypedCosmWasmMsg;
+    for (const file of files) {
+      zip.file(file.name, file);
+    }
 
-    return msg.oneOf.findIndex(method => method.required.includes(name)) >= 0;
-  }
-
-  static async hasQueryMethod(cid: string, name: string): Promise<boolean> {
-    const json = await this.getAssetAsText(cid, 'query_msg.json');
-    const msg = JSON.parse(json) as TypedCosmWasmMsg;
-
-    return msg.oneOf.findIndex(method => method.required.includes(name)) >= 0;
+    return zip;
   }
 }
