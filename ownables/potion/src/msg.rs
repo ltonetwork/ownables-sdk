@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use cosmwasm_std::{Addr};
+use cosmwasm_std::{Addr, Response};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -19,6 +19,8 @@ pub struct InstantiateMsg {
     // pub animation_url: Option<String>,
     // pub youtube_url: Option<String>,
 }
+
+
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]

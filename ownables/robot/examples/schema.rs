@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for, write_api};
 
-use ownable_robot::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, OwnableInfoResponse, ExternalEventMsg};
+use ownable_robot::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, InfoResponse, ExternalEventMsg};
 use ownable_robot::state::{Config, Cw721};
 
 fn main() {
@@ -16,7 +16,7 @@ fn main() {
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(ExternalEventMsg), &out_dir);
-    export_schema(&schema_for!(OwnableInfoResponse), &out_dir);
+    export_schema(&schema_for!(InfoResponse), &out_dir);
     export_schema(&schema_for!(Cw721), &out_dir);
     export_schema(&schema_for!(Config), &out_dir);
 }

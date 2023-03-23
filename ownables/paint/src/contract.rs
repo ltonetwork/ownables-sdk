@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableInfoResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, InfoResponse, QueryMsg};
 use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, OWNABLE_INFO, NETWORK_ID, PACKAGE_CID, OwnableInfo};
 use cosmwasm_std::{to_binary, Binary, Attribute, Event};
 #[cfg(not(feature = "library"))]
@@ -87,9 +87,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::OwnableConsume {} => try_consume(info, deps),
-        ExecuteMsg::OwnableTransfer { to } => try_transfer(info, deps, to),
-        ExecuteMsg::OwnableLock {} => try_lock(info, deps),
+        ExecuteMsg::Consume {} => try_consume(info, deps),
+        ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
+        ExecuteMsg::Lock {} => try_lock(info, deps),
     }
 }
 
@@ -310,10 +310,10 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwnableInfo {} => query_ownable_info(deps),
-        QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::GetOwnableWidgetState {} => query_ownable_widget_state(deps),
-        QueryMsg::IsOwnableLocked {} => query_lock_state(deps),
+        QueryMsg::GetInfo {} => query_ownable_info(deps),
+        QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
+        QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
+        QueryMsg::IsLocked {} => query_lock_state(deps),
         QueryMsg::IsConsumerOf {
             issuer,
             consumable_type
@@ -343,7 +343,7 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
     let nft = NFT.may_load(deps.storage)?;
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
-    to_binary(&OwnableInfoResponse {
+    to_binary(&InfoResponse {
         owner: ownable_info.owner,
         issuer: ownable_info.issuer,
         nft,
