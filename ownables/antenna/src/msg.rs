@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use cosmwasm_std::{Addr};
+use cosmwasm_std::{Addr, Response};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -55,6 +55,12 @@ pub struct OwnableInfoResponse {
     pub issuer: Addr,
     pub nft: Option<NFT>,
     pub ownable_type: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct JsonResponse {
+    pub mem: String,
+    pub result: Response,
 }
 
 #[serde_as]
