@@ -18,9 +18,9 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     // transfers ownership
-    OwnableTransfer { to: Addr },
+    Transfer { to: Addr },
     // locks the ownable
-    OwnableLock {},
+    Lock {},
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -36,10 +36,10 @@ pub struct ExternalEventMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetOwnableInfo {},
-    GetOwnableMetadata {},
-    GetOwnableWidgetState {},
-    IsOwnableLocked {},
+    GetInfo {},
+    GetMetadata {},
+    GetWidgetState {},
+    IsLocked {},
     IsConsumerOf {
         issuer: Addr,
         consumable_type: String,
@@ -48,7 +48,7 @@ pub enum QueryMsg {
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct OwnableInfoResponse {
+pub struct InfoResponse {
     pub owner: Addr,
     pub issuer: Addr,
     pub nft: Option<NFT>,

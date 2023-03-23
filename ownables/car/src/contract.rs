@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableInfoResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, InfoResponse, QueryMsg};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_std::{Binary, StdError, to_binary};
@@ -65,7 +65,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::OwnableTransfer { to } => try_transfer(info, deps, to),
+        ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         _ => Ok(Response::new())
     }
 }
@@ -199,10 +199,10 @@ fn try_register_lock(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwnableInfo {} => query_ownable_info(deps),
-        QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::GetOwnableWidgetState {} => query_ownable_widget_state(deps),
-        QueryMsg::IsOwnableLocked {} => query_lock_state(deps),
+        QueryMsg::GetInfo {} => query_ownable_info(deps),
+        QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
+        QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
+        QueryMsg::IsLocked {} => query_lock_state(deps),
         QueryMsg::IsConsumerOf {
             issuer,
             consumable_type
@@ -228,7 +228,7 @@ fn query_is_consumer_of(deps: Deps, issuer: Addr, consumable_type: String) -> St
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
     let nft = NFT.may_load(deps.storage)?;
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
-    to_binary(&OwnableInfoResponse {
+    to_binary(&InfoResponse {
         owner: ownable_info.owner,
         issuer: ownable_info.issuer,
         nft,
