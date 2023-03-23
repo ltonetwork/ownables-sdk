@@ -328,13 +328,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
         QueryMsg::GetOwnableWidgetState {} => query_ownable_widget_state(deps),
         QueryMsg::IsOwnableLocked {} => query_lock_state(deps),
-        QueryMsg::CanOwnableConsume {
+        QueryMsg::IsConsumerOf {
             issuer,
             consumable_type
-        } => query_consumption_option(deps, issuer, consumable_type),
+        } => query_is_consumer_of(deps, issuer, consumable_type),
     }
 }
-fn query_consumption_option(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
+fn query_is_consumer_of(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
     to_binary(&false)
 }
 
