@@ -2,16 +2,18 @@ extern crate core;
 
 pub mod utils;
 
+use std::ops::Add;
 use std::str;
 
 use contract::instantiate;
 use cosmwasm_std::{MemoryStorage, MessageInfo, Response};
+use js_sys::JsString;
 use msg::{ExecuteMsg, InstantiateMsg};
 use serde_json::{to_string};
 use wasm_bindgen::prelude::*;
 
 use utils::{create_lto_env, load_lto_deps};
-use crate::msg::{ExternalEvent, IdbStateDump};
+use crate::msg::{ExternalEventMsg, IdbStateDump, JsonResponse};
 
 pub mod contract;
 pub mod error;
@@ -67,7 +69,6 @@ fn get_json_response(storage: MemoryStorage, response: Response) -> Result<JsVal
 pub async fn execute_contract(
     msg: JsValue,
     info: JsValue,
-    ownable_id: String,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
     let message: ExecuteMsg = serde_wasm_bindgen::from_value(msg.clone())?;
@@ -84,7 +85,16 @@ pub async fn execute_contract(
 
     match result {
         Ok(response) => {
-            let resp = get_json_response(deps.storage, response)?;
+            // let resp = get_json_response(deps.storage, response)?;
+            let state_dump= IdbStateDump::from(deps.storage);
+
+            let json_response = JsonResponse {
+                mem: to_string(&state_dump)?,
+                result: response,
+            };
+
+            let resp = JsValue::from(to_string(&json_response)?);
+
             Ok(resp)
         }
         Err(error) => Err(JsError::from(error)),
@@ -98,7 +108,7 @@ pub async fn register_external_event(
     ownable_id: String,
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
-    let external_event: ExternalEvent = serde_wasm_bindgen::from_value(msg.clone())?;
+    let external_event: ExternalEventMsg = serde_wasm_bindgen::from_value(msg.clone())?;
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
     let mut deps = load_lto_deps(Some(state_dump));

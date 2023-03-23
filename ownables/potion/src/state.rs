@@ -12,9 +12,10 @@ pub struct Config {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Ownership {
+pub struct OwnableInfo {
     pub owner: Addr,
     pub issuer: Addr,
+    pub ownable_type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -34,19 +35,15 @@ pub struct Cw721 {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct NFT {
     pub network: String,    // eip155:1
-    pub nft_id: Uint128,
-    pub nft_contract_address: String, // 0x341...
+    pub id: Uint128,
+    pub address: String, // 0x341...
+    pub lock_service: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Network {
-    // ascii code of char
-    pub id: u8,
-}
-
-pub const NFT: Item<NFT> = Item::new("nft");
-pub const CONFIG: Item<Config> = Item::new("config");
+pub const CONFIG: Item<Option<Config>> = Item::new("config");
+pub const OWNABLE_INFO: Item<OwnableInfo> = Item::new("ownable_info");
 pub const CW721: Item<Cw721> = Item::new("cw721");
+pub const NFT: Item<NFT> = Item::new("nft");
 pub const LOCKED: Item<bool> = Item::new("is_locked");
-pub const NETWORK: Item<Network> = Item::new("network");
-pub const OWNERSHIP: Item<Ownership> = Item::new("ownership");
+pub const PACKAGE_CID: Item<String> = Item::new("package_cid");
+pub const NETWORK_ID: Item<u8> = Item::new("network_id");
