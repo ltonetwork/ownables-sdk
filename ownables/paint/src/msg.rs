@@ -42,7 +42,7 @@ pub enum QueryMsg {
     GetOwnableMetadata {},
     GetOwnableWidgetState {},
     IsOwnableLocked {},
-    CanOwnableConsume {
+    IsConsumerOf {
         issuer: Addr,
         consumable_type: String,
     }
