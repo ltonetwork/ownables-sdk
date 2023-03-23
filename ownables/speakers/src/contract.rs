@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, ExternalEvent, InstantiateMsg, Metadata, OwnableStateResponse, QueryMsg};
-use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK, Network, Ownership, OWNERSHIP};
-use cosmwasm_std::{to_binary, Binary};
+use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, OwnableInfoResponse, QueryMsg};
+use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID, OwnableInfo};
+use cosmwasm_std::{to_binary, Binary, Attribute, Event};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use crate::ExternalEventMsg;
 use crate::utils::{address_eip155, address_lto};
 
 // version info for migration info
@@ -20,24 +21,16 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let network = Network {
-        // id: msg.network_id,
-        id: 76,
-    };
 
     let derived_addr = address_lto(
-        network.id as char,
+        msg.network_id as char,
         info.sender.to_string()
     )?;
 
-    let ownership = Ownership {
+    let ownable_info = OwnableInfo {
         owner: derived_addr.clone(),
         issuer: derived_addr.clone(),
-    };
-
-    let state = Config {
-        consumed_by: None,
-        color: get_random_color(msg.clone().ownable_id),
+        ownable_type: msg.ownable_type.clone(),
     };
 
     let cw721 = Cw721 {
@@ -51,18 +44,26 @@ pub fn instantiate(
         youtube_url: None,
     };
 
-    CONFIG.save(deps.storage, &state)?;
-    NETWORK.save(deps.storage, &network)?;
-    // NFT.save(deps.storage, &msg.nft)?;
+    let config = Config {
+        consumed_by: None,
+        color: get_random_color(msg.clone().ownable_id),
+    };
+
+    NETWORK_ID.save(deps.storage, &msg.network_id)?;
+    CONFIG.save(deps.storage, &Some(config.clone()))?;
+    if let Some(nft) = msg.nft {
+        NFT.save(deps.storage, &nft)?;
+    }
     CW721.save(deps.storage, &cw721)?;
     LOCKED.save(deps.storage, &false)?;
-    OWNERSHIP.save(deps.storage, &ownership)?;
+    OWNABLE_INFO.save(deps.storage, &ownable_info)?;
+    PACKAGE_CID.save(deps.storage, &msg.package)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.clone().sender.to_string())
         .add_attribute("issuer", info.sender.to_string())
-        .add_attribute("color", state.color)
+        .add_attribute("color", config.color)
     )
 }
 
@@ -88,16 +89,16 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Consume {} => try_consume(info, deps),
-        ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
-        ExecuteMsg::Lock {} => try_lock(info, deps),
+        ExecuteMsg::OwnableConsume {} => try_consume(info, deps),
+        ExecuteMsg::OwnableTransfer { to } => try_transfer(info, deps, to),
+        ExecuteMsg::OwnableLock {} => try_lock(info, deps),
     }
 }
 
 pub fn register_external_event(
     info: MessageInfo,
     deps: DepsMut,
-    event: ExternalEvent,
+    event: ExternalEventMsg,
     _ownable_id: String,
 ) -> Result<Response, ContractError> {
     let mut response = Response::new()
@@ -121,7 +122,7 @@ pub fn register_external_event(
 fn try_register_lock(
     info: MessageInfo,
     deps: DepsMut,
-    event: ExternalEvent,
+    event: ExternalEventMsg,
 ) -> Result<Response, ContractError> {
     let owner = event.args.get("owner")
         .cloned()
@@ -138,18 +139,20 @@ fn try_register_lock(
     }
 
     let nft = NFT.load(deps.storage).unwrap();
-    if nft.nft_id.to_string() != nft_id {
+    if nft.id.to_string() != nft_id {
         return Err(ContractError::LockError {
             val: "nft_id mismatch".to_string()
         });
-    } else if nft.network != event.chain_id.clone() {
-        return Err(ContractError::LockError {
-            val: "network mismatch".to_string()
-        });
-    } else if nft.nft_contract_address != contract_addr {
+    } else if nft.address != contract_addr {
         return Err(ContractError::LockError {
             val: "locking contract mismatch".to_string()
         });
+    } else if let Some(network) = nft.network {
+        if event.chain_id != network {
+            return Err(ContractError::LockError {
+                val: "network mismatch".to_string()
+            });
+        }
     }
 
     let caip_2_fields: Vec<&str> = event.chain_id.split(":").collect();
@@ -165,8 +168,8 @@ fn try_register_lock(
                 });
             }
 
-            let network = NETWORK.load(deps.storage)?;
-            let address = address_lto(network.id as char, owner)?;
+            let network_id = NETWORK_ID.load(deps.storage)?;
+            let address = address_lto(network_id as char, owner)?;
             Ok(try_release(info, deps, address)?)
         }
         _ => return Err(ContractError::MatchChainIdError { val: event.chain_id }),
@@ -175,9 +178,9 @@ fn try_register_lock(
 
 pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
     // only ownable owner can lock it
-    let ownership = OWNERSHIP.load(deps.storage)?;
-    let network = NETWORK.load(deps.storage)?;
-    let network_id = network.id as char;
+    let ownership = OWNABLE_INFO.load(deps.storage)?;
+    let network = NETWORK_ID.load(deps.storage)?;
+    let network_id = network as char;
     if address_lto(network_id, info.sender.to_string())? != ownership.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized".into(),
@@ -210,11 +213,11 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
     }
 
     // transfer ownership and unlock
-    let mut ownership = OWNERSHIP.load(deps.storage)?;
+    let mut ownership = OWNABLE_INFO.load(deps.storage)?;
     ownership.owner = to;
     is_locked = false;
 
-    OWNERSHIP.save(deps.storage, &ownership)?;
+    OWNABLE_INFO.save(deps.storage, &ownership)?;
     LOCKED.save(deps.storage, &is_locked)?;
 
     Ok(Response::new()
@@ -234,44 +237,52 @@ pub fn try_consume(
             val: "Unable to consume a locked ownable".to_string(),
         });
     }
-    let network = NETWORK.load(deps.storage)?;
-    let ownership = OWNERSHIP.load(deps.storage)?;
-    let mut config = CONFIG.load(deps.storage)?;
-    if address_lto(network.id as char, info.sender.to_string())? != ownership.owner {
+    let network = NETWORK_ID.load(deps.storage)?;
+    let ownership = OWNABLE_INFO.load(deps.storage)?;
+    let config = CONFIG.load(deps.storage)?;
+    if address_lto(network as char, info.sender.to_string())? != ownership.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized consumption attempt".into(),
         });
     }
+    let mut config = match config {
+        None => return Err(ContractError::CustomError { val: "No config found".to_string() }),
+        Some(c) => c,
+    };
+
     if let Some(_) = config.consumed_by {
         return Err(ContractError::CustomError {
             val: "already consumed".into(),
         });
     }
     config.consumed_by = Some(ownership.clone().owner);
-    CONFIG.save(deps.storage, &config)?;
+    CONFIG.save(deps.storage, &Some(config.clone()))?;
 
+    let mut event = Event::new("consume".to_string());
+    event = event.add_attributes(vec![
+        Attribute {
+            key: "issuer".to_string(),
+            value: ownership.issuer.to_string(),
+        },
+        Attribute {
+            key: "owner".to_string(),
+            value: ownership.owner.to_string()
+        },
+        Attribute {
+            key: "consumed_by".to_string(),
+            value: config.consumed_by.unwrap().to_string(),
+        },
+        Attribute {
+            key: "consumable_type".to_string(),
+            value: ownership.ownable_type.unwrap_or("armor".to_string()),
+        },
+    ]);
 
-    let mut event_args = HashMap::new();
-    event_args.insert("owner".to_string(), ownership.clone().owner.to_string());
-    event_args.insert("consumed_by".to_string(), config.consumed_by.unwrap().to_string());
-    event_args.insert("color".to_string(), config.color);
-    event_args.insert("issuer".to_string(), ownership.issuer.to_string());
-    event_args.insert("type".to_string(), "speaker".to_string());
-
-    let external_event = ExternalEvent {
-        chain_id: "eip155:1".to_string(),
-        event_type: "consume".to_string(),
-        args: event_args,
-    };
-
-    let binary_data = serde_json::to_string(&external_event).unwrap();
-
-    let response = Response::new()
+    Ok(Response::new()
         .add_attribute("method", "try_consume")
         .add_attribute("external_event", true.to_string())
-        .set_data(to_binary(&binary_data)?);
-
-    Ok(response)
+        .add_event(event)
+    )
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
@@ -281,16 +292,19 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
             val: "Unable to transfer a locked ownable".to_string(),
         });
     }
-
-    let network = NETWORK.load(deps.storage)?;
-    let ownership = OWNERSHIP.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if address_lto(network.id as char, info.sender.to_string())? != state.owner {
+    let network_id = NETWORK_ID.load(deps.storage)?;
+    let derived_addr = address_lto(
+        network_id as char,
+        info.sender.to_string()
+    )?;
+    let ownership = OWNABLE_INFO.update(deps.storage, |mut config| -> Result<_, ContractError> {
+        if derived_addr != config.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
             });
         }
-        state.owner = to.clone();
-        Ok(state)
+        config.owner = to.clone();
+        Ok(config)
     })?;
     Ok(Response::new()
         .add_attribute("method", "try_transfer")
@@ -300,16 +314,29 @@ pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Respon
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwnableConfig {} => query_ownable_config(deps),
+        QueryMsg::GetOwnableInfo {} => query_ownable_info(deps),
         QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::GetOwnership {} => query_ownable_ownership(deps),
-        QueryMsg::IsLocked {} => query_lock_state(deps),
+        QueryMsg::GetOwnableWidgetState {} => query_ownable_widget_state(deps),
+        QueryMsg::IsOwnableLocked {} => query_lock_state(deps),
+        QueryMsg::CanOwnableConsume {
+            issuer,
+            consumable_type
+        } => query_consumption_option(deps, issuer, consumable_type),
     }
 }
 
-fn query_ownable_ownership(deps: Deps) -> StdResult<Binary> {
-    let ownership = OWNERSHIP.load(deps.storage)?;
-    to_binary(&ownership)
+fn query_consumption_option(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
+    let ownable_info = OWNABLE_INFO.load(deps.storage)?;
+    if let Some(ownable_type) = ownable_info.ownable_type {
+        let valid = (issuer == ownable_info.issuer) && (ownable_type == consumable_type);
+        return to_binary(&valid);
+    };
+    to_binary(&false)
+}
+
+fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
+    let widget_config = CONFIG.load(deps.storage)?;
+    to_binary(&widget_config)
 }
 
 fn query_lock_state(deps: Deps) -> StdResult<Binary> {
@@ -317,13 +344,15 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
     to_binary(&is_locked)
 }
 
-fn query_ownable_config(deps: Deps) -> StdResult<Binary> {
-    let config = CONFIG.load(deps.storage)?;
-    let resp = OwnableStateResponse {
-        consumed_by: config.consumed_by,
-        color: config.color,
-    };
-    to_binary(&resp)
+fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
+    let nft = NFT.may_load(deps.storage)?;
+    let ownable_info = OWNABLE_INFO.load(deps.storage)?;
+    to_binary(&OwnableInfoResponse {
+        owner: ownable_info.owner,
+        issuer: ownable_info.issuer,
+        nft,
+        ownable_type: ownable_info.ownable_type,
+    })
 }
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {

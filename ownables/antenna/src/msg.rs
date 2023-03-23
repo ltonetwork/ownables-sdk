@@ -8,33 +8,26 @@ use crate::state::NFT;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub ownable_id: String,
-    // pub nft: NFT,
-    // pub network_id: u8, // T/L in ascii: 76/84
-    // pub image: Option<String>,
-    // pub image_data: Option<String>,
-    // pub external_url: Option<String>,
-    // pub description: Option<String>,
-    // pub name: Option<String>,
-    // pub background_color: Option<String>,
-    // pub animation_url: Option<String>,
-    // pub youtube_url: Option<String>,
+    pub package: String,
+    pub nft: Option<NFT>,
+    pub ownable_type: Option<String>,
+    pub network_id: u8,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    // consumes the item
-    Consume {},
     // transfers ownership
-    Transfer { to: Addr },
+    OwnableTransfer { to: Addr },
     // locks the ownable
-    Lock {},
+    OwnableLock {},
+    // consumes the ownable
+    OwnableConsume {},
 }
 
-
-
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct ExternalEvent {
+#[serde(rename_all = "snake_case")]
+pub struct ExternalEventMsg {
     // CAIP-2 format: <namespace + ":" + reference>
     // e.g. ethereum: eip155:1
     pub chain_id: String,
@@ -45,23 +38,23 @@ pub struct ExternalEvent {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetOwnableConfig {},
+    GetOwnableInfo {},
     GetOwnableMetadata {},
-    GetOwnership {},
-    IsLocked {},
+    GetOwnableWidgetState {},
+    IsOwnableLocked {},
+    CanOwnableConsume {
+        issuer: Addr,
+        consumable_type: String,
+    }
 }
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct OwnableStateResponse {
-    pub consumed_by: Option<Addr>,
-    pub color: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct OwnershipResponse {
-    pub owner: String,
-    pub issuer: String,
+pub struct OwnableInfoResponse {
+    pub owner: Addr,
+    pub issuer: Addr,
+    pub nft: Option<NFT>,
+    pub ownable_type: Option<String>,
 }
 
 #[serde_as]
