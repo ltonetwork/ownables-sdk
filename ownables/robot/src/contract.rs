@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, ExternalEventMsg, InstantiateMsg, Metadata, OwnableInfoResponse, QueryMsg};
-use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID, PACKAGE_IPFS, OWNABLE_INFO, OwnableInfo};
+use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID, PACKAGE_CID, OWNABLE_INFO, OwnableInfo};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -57,7 +57,7 @@ pub fn instantiate(
     CW721.save(deps.storage, &cw721)?;
     LOCKED.save(deps.storage, &false)?;
     OWNABLE_INFO.save(deps.storage, &ownable_info)?;
-    PACKAGE_IPFS.save(deps.storage, &msg.package)?;
+    PACKAGE_CID.save(deps.storage, &msg.package)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -217,12 +217,10 @@ fn try_register_lock(
         return Err(ContractError::LockError {
             val: "locking contract mismatch".to_string()
         });
-    } else if let Some(network) = nft.network {
-        if event.chain_id != network {
-            return Err(ContractError::LockError {
-                val: "network mismatch".to_string()
-            });
-        }
+    } else if event.chain_id != nft.network {
+        return Err(ContractError::LockError {
+            val: "network mismatch".to_string()
+        });
     }
 
     let caip_2_fields: Vec<&str> = event.chain_id.split(":").collect();
@@ -343,11 +341,6 @@ fn query_consumption_option(deps: Deps, issuer: Addr, consumable_type: String) -
 fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
     let widget_config = CONFIG.load(deps.storage)?;
     to_binary(&widget_config)
-}
-
-fn query_ownable_ownership(deps: Deps) -> StdResult<Binary> {
-    let ownership = OWNABLE_INFO.load(deps.storage)?;
-    to_binary(&ownership)
 }
 
 fn query_lock_state(deps: Deps) -> StdResult<Binary> {

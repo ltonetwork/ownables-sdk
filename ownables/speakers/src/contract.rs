@@ -147,12 +147,10 @@ fn try_register_lock(
         return Err(ContractError::LockError {
             val: "locking contract mismatch".to_string()
         });
-    } else if let Some(network) = nft.network {
-        if event.chain_id != network {
-            return Err(ContractError::LockError {
-                val: "network mismatch".to_string()
-            });
-        }
+    } else if event.chain_id != nft.network {
+        return Err(ContractError::LockError {
+            val: "network mismatch".to_string()
+        });
     }
 
     let caip_2_fields: Vec<&str> = event.chain_id.split(":").collect();

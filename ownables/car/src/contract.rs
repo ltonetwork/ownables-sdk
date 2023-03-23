@@ -5,7 +5,7 @@ use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_std::{Binary, StdError, to_binary};
 use cw2::set_contract_version;
 use crate::ExternalEventMsg;
-use crate::state::{Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID, NFT, OWNABLE_INFO, OwnableInfo, PACKAGE_IPFS};
+use crate::state::{Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID, NFT, OWNABLE_INFO, OwnableInfo, PACKAGE_CID};
 use crate::utils::{address_eip155, address_lto};
 
 // version info for migration info
@@ -50,7 +50,7 @@ pub fn instantiate(
     CW721.save(deps.storage, &cw721)?;
     LOCKED.save(deps.storage, &false)?;
     OWNABLE_INFO.save(deps.storage, &ownable_info)?;
-    PACKAGE_IPFS.save(deps.storage, &msg.package)?;
+    PACKAGE_CID.save(deps.storage, &msg.package)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -170,12 +170,10 @@ fn try_register_lock(
         return Err(ContractError::LockError {
             val: "locking contract mismatch".to_string()
         });
-    } else if let Some(network) = nft.network {
-        if event.chain_id != network {
-            return Err(ContractError::LockError {
-                val: "network mismatch".to_string()
-            });
-        }
+    } else if event.chain_id != nft.network {
+        return Err(ContractError::LockError {
+            val: "network mismatch".to_string()
+        });
     }
 
     let caip_2_fields: Vec<&str> = event.chain_id.split(":").collect();
