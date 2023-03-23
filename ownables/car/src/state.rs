@@ -30,7 +30,7 @@ pub struct Cw721 {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct NFT {
-    pub network: Option<String>,    // eip155:1
+    pub network: String,    // eip155:1
     pub id: Uint128,
     pub address: String, // 0x341...
     pub lock_service: Option<String>,
@@ -41,5 +41,5 @@ pub const OWNABLE_INFO: Item<OwnableInfo> = Item::new("ownable_info");
 pub const CW721: Item<Cw721> = Item::new("cw721");
 pub const NFT: Item<NFT> = Item::new("nft");
 pub const LOCKED: Item<bool> = Item::new("is_locked");
-pub const PACKAGE_IPFS: Item<String> = Item::new("package_ipfs");
+pub const PACKAGE_CID: Item<String> = Item::new("package_cid");
 pub const NETWORK_ID: Item<u8> = Item::new("network_id");

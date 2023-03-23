@@ -33,7 +33,7 @@ pub struct Cw721 {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct NFT {
-    pub network: Option<String>,    // eip155:1
+    pub network: String,    // eip155:1
     pub id: Uint128,
     pub address: String, // 0x341...
     pub lock_service: Option<String>,
