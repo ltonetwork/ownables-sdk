@@ -9,6 +9,7 @@ import {Cancelled} from "simple-iframe-rpc";
 
 // @ts-ignore - Loaded as string, see `craco.config.js`
 import workerJsSource from "../assets/worker.js";
+import JSZip from "jszip";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -77,7 +78,7 @@ export default class OwnableService {
   }
 
   static async load(id: string): Promise<{chain: EventChain, package: string, created: Date}> {
-    const chainInfo = await IDBService.getAll(`ownable:${id}`)
+    const chainInfo = await IDBService.getMap(`ownable:${id}`)
         .then(map => Object.fromEntries(map.entries())) as StoredChainInfo;
 
     const {chain: chainJson, package: packageCid, created} = chainInfo;
@@ -96,7 +97,7 @@ export default class OwnableService {
   }
 
   private static async getCurrentStateDump(id: string): Promise<StateDump> {
-    const map = await IDBService.getAll(`ownable:${id}.state`);
+    const map = await IDBService.getMap(`ownable:${id}.state`);
     return Array.from(map.entries());
   }
 
@@ -260,5 +261,14 @@ export default class OwnableService {
 
   static async deleteAll(): Promise<void> {
     await IDBService.delete(/^ownable:.+/);
+  }
+
+  static async zip(chain: EventChain): Promise<JSZip> {
+    const packageCid: string = chain.events[0].parsedData.package;
+
+    const zip = await PackageService.zip(packageCid);
+    zip.file('chain.json', JSON.stringify(chain.toJSON()));
+
+    return zip;
   }
 }

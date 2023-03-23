@@ -1,3 +1,9 @@
+export interface TypedOwnableInfo {
+  owner: string;
+  issuer: string;
+  ownable_type?: string;
+}
+
 export interface TypedMetadata {
   name: string,
   image?: string,

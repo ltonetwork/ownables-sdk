@@ -7,10 +7,15 @@ import {EventChain} from "@ltonetwork/lto";
 import OwnableActions from "./OwnableActions";
 import OwnableInfo from "./OwnableInfo";
 import OwnableService, {OwnableRPC, StateDump} from "../services/Ownable.service";
-import {TypedMetadata} from "../interfaces/TypedMetadata";
+import {TypedMetadata, TypedOwnableInfo} from "../interfaces/TypedOwnableInfo";
 import isObject from "../utils/isObject";
 import ownableErrorMessage from "../utils/ownableErrorMessage";
 import TypedDict from "../interfaces/TypedDict";
+import {TypedPackage} from "../interfaces/TypedPackage";
+import Overlay, {OverlayBanner} from "./Overlay";
+import LTOService from "../services/LTO.service";
+import asDownload from "../utils/asDownload";
+import shortId from "../utils/shortId";
 
 interface OwnableProps {
   chain: EventChain;
@@ -25,14 +30,13 @@ interface OwnableState {
   initialized: boolean;
   applied: EventChain;
   stateDump: StateDump;
-  metadata?: TypedMetadata;
-  isConsumable: boolean;
-  isTransferable: boolean;
+  ownable_info?: TypedOwnableInfo;
+  metadata: TypedMetadata;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
   private readonly chain: EventChain;
-  private readonly packageCid: string;
+  private readonly pkg: TypedPackage;
   private readonly iframeRef: RefObject<HTMLIFrameElement>;
   private busy = false;
 
@@ -40,16 +44,14 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     super(props);
 
     this.chain = props.chain;
-    this.packageCid = props.packageCid;
+    this.pkg = PackageService.info(props.packageCid);
     this.iframeRef = createRef();
 
     this.state = {
       initialized: false,
       applied: new EventChain(this.chain.id),
       stateDump: [],
-      metadata: { name: PackageService.info(this.packageCid).title },
-      isConsumable: false,
-      isTransferable: false,
+      metadata: { name: this.pkg.title },
     };
   }
 
@@ -57,13 +59,30 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     return this.chain.id;
   }
 
+  get isTransferred(): boolean {
+    return !!this.state.ownable_info && this.state.ownable_info.owner !== LTOService.address;
+  }
+
+  private async transfer(to: string): Promise<void> {
+    await this.execute({ownable_transfer: {to: to}});
+
+    const zip = await OwnableService.zip(this.chain);
+    const content = await zip.generateAsync({type:"blob"});
+
+    const filename = `ownable.${shortId(this.chain.id, 12, '')}.${shortId(this.chain.state.base58, 8, '')}.zip`;
+
+    asDownload(content, filename);
+  }
+
   private async refresh(stateDump?: StateDump): Promise<void> {
     if (!stateDump) stateDump = this.state.stateDump;
 
     await OwnableService.rpc(this.id).refresh(stateDump);
 
+    const info = await OwnableService.rpc(this.id).query({get_ownable_info: {}}, stateDump) as TypedOwnableInfo;
     const metadata = await OwnableService.rpc(this.id).query({get_ownable_metadata: {}}, stateDump) as TypedMetadata;
-    this.setState({metadata});
+
+    this.setState({ownable_info: info, metadata});
   }
 
   private async apply(partialChain: EventChain): Promise<void> {
@@ -85,7 +104,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", {timeout: 5000});
 
     try {
-      const initialized = await OwnableService.init(this.chain, this.packageCid, rpc);
+      const initialized = await OwnableService.init(this.chain, this.pkg.cid, rpc);
       this.setState({initialized});
     } catch (e) {
       this.props.onError("Failed to forge Ownable", ownableErrorMessage(e), true);
@@ -96,7 +115,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     let stateDump: StateDump;
 
     try {
-      console.log(this.chain, msg, this.state.stateDump);
       stateDump = await OwnableService.execute(this.chain, msg, this.state.stateDump);
     } catch (error) {
       this.props.onError("The Ownable returned an error", ownableErrorMessage(error));
@@ -119,12 +137,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   async componentDidMount() {
     window.addEventListener("message", this.windowMessageHandler);
-
-    const [isConsumable, isTransferable] = await Promise.all([
-      PackageService.hasExecuteMethod(this.packageCid, 'ownable_consume'),
-      PackageService.hasExecuteMethod(this.packageCid, 'ownable_transfer'),
-    ]);
-    this.setState({isConsumable, isTransferable});
   }
 
   shouldComponentUpdate(nextProps: OwnableProps, nextState: OwnableState): boolean {
@@ -146,23 +158,33 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   render() {
-    return <>
+    return (
       <Paper sx={{
         aspectRatio: "1/1",
         position: 'relative',
         animation: this.props.selected ? "bounce .4s ease infinite alternate" : ''
       }}>
-        <OwnableInfo sx={{position: 'absolute', left: 5, top: 5}} chain={this.chain} metadata={this.state.metadata}/>
+        <OwnableInfo
+          sx={{position: 'absolute', left: 5, top: 5, zIndex: 10}}
+          chain={this.chain}
+          metadata={this.state.metadata}
+        />
         <OwnableActions
-          sx={{position: 'absolute', right: 5, top: 5}}
-          isConsumable={this.state.isConsumable}
-          isTransferable={this.state.isTransferable}
+          sx={{position: 'absolute', right: 5, top: 5, zIndex: 10}}
+          isConsumable={this.pkg.isConsumable && !this.isTransferred}
+          isTransferable={this.pkg.isTransferable && !this.isTransferred}
           onDelete={this.props.onDelete}
           onConsume={this.props.onConsume}
-          onTransfer={address => this.execute({ownable_transfer: {to: address}})}
+          onTransfer={address => this.transfer(address)}
         />
-        <OwnableFrame id={this.id} packageCid={this.packageCid} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
+        <OwnableFrame id={this.id} packageCid={this.pkg.cid} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
+        <Overlay
+          hidden={!this.isTransferred}
+          sx={{backgroundColor: "rgba(255, 255, 255, 0.8)"}}
+        >
+          <OverlayBanner>Transferred</OverlayBanner>
+        </Overlay>
       </Paper>
-    </>
+    )
   }
 }

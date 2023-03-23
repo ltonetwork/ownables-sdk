@@ -33,7 +33,18 @@ export default class IDBService {
     });
   }
 
-  static async getAll(store: string): Promise<Map<any, any>> {
+  static async getAll(store: string): Promise<Array<any>> {
+    return new Promise(async (resolve, reject) => {
+      const tx = this.db.transaction(store, "readonly")
+        .objectStore(store)
+        .getAll();
+
+      tx.onsuccess = () => resolve(tx.result);
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  static async getMap(store: string): Promise<Map<any, any>> {
     return new Promise(async (resolve, reject) => {
       const tx = this.db.transaction(store, "readonly")
         .objectStore(store)

@@ -71,10 +71,18 @@ pub fn execute(
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
+    let network_id = NETWORK_ID.load(deps.storage)?;
+    let address = address_lto(network_id as char, info.sender.to_string())?;
+
     OWNABLE_INFO.update(deps.storage, |mut config| -> Result<_, ContractError> {
-        if info.sender != config.owner {
+        if address != config.owner {
             return Err(ContractError::Unauthorized {
                 val: "Unauthorized transfer attempt".to_string(),
+            });
+        }
+        if address == to {
+            return Err(ContractError::CustomError {
+                val: "Unable to transfer: Recipient address is current owner".to_string(),
             });
         }
         config.owner = to.clone();
