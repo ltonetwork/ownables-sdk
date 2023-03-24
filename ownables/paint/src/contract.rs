@@ -87,7 +87,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Consume {} => try_consume(info, deps),
+        ExecuteMsg::Drink {} => try_drink(info, deps),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
     }
@@ -223,7 +223,7 @@ fn try_release(_info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, 
     )
 }
 
-pub fn try_consume(
+pub fn try_drink(
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
