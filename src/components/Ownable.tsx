@@ -1,5 +1,5 @@
 import {Component, createRef, RefObject} from "react";
-import {Paper} from "@mui/material";
+import {Paper, Tooltip} from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import {connect as rpcConnect} from "simple-iframe-rpc";
 import PackageService from "../services/Package.service";
@@ -16,6 +16,7 @@ import Overlay, {OverlayBanner} from "./Overlay";
 import LTOService from "../services/LTO.service";
 import asDownload from "../utils/asDownload";
 import shortId from "../utils/shortId";
+import If from "./If";
 
 interface OwnableProps {
   chain: EventChain;
@@ -177,13 +178,19 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onConsume={this.props.onConsume}
           onTransfer={address => this.transfer(address)}
         />
-        <OwnableFrame id={this.id} packageCid={this.pkg.cid} iframeRef={this.iframeRef} onLoad={() => this.onLoad()}/>
-        <Overlay
-          hidden={!this.isTransferred}
-          sx={{backgroundColor: "rgba(255, 255, 255, 0.8)"}}
-        >
-          <OverlayBanner>Transferred</OverlayBanner>
-        </Overlay>
+        <OwnableFrame
+          id={this.id}
+          packageCid={this.pkg.cid}
+          iframeRef={this.iframeRef}
+          onLoad={() => this.onLoad()}
+        />
+        <If condition={this.isTransferred}>
+          <Tooltip title="You're unable to interact with this Ownable, because it has been transferred to a different account." followCursor>
+            <Overlay sx={{backgroundColor: "rgba(255, 255, 255, 0.8)"}}>
+              <OverlayBanner>Transferred</OverlayBanner>
+            </Overlay>
+          </Tooltip>
+        </If>
       </Paper>
     )
   }
