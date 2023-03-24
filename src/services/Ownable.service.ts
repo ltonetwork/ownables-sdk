@@ -25,12 +25,12 @@ interface CosmWasmEvent {
 
 export interface OwnableRPC {
   init: (id: string, js: string, wasm: Uint8Array) => Promise<any>;
-  instantiate: (msg: TypedDict<any>, info: MsgInfo) => Promise<{attributes: TypedDict<string>, state: StateDump}>;
-  execute: (msg: TypedDict<any>, info: MsgInfo, state: StateDump)
+  instantiate: (msg: TypedDict, info: MsgInfo) => Promise<{attributes: TypedDict<string>, state: StateDump}>;
+  execute: (msg: TypedDict, info: MsgInfo, state: StateDump)
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
-  externalEvent: (msg: TypedDict<any>, info: MsgInfo, state: StateDump)
+  externalEvent: (msg: TypedDict, info: MsgInfo, state: StateDump)
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
-  query: (msg: TypedDict<any>, state: StateDump) => Promise<TypedDict<any>>;
+  query: (msg: TypedDict, state: StateDump) => Promise<TypedDict>;
   refresh: (state: StateDump) => Promise<void>;
 }
 
@@ -159,11 +159,11 @@ export default class OwnableService {
     rpc: OwnableRPC,
     event: Event,
     stateDump: StateDump
-  ): Promise<{result?: TypedDict<any>, state: StateDump}> {
+  ): Promise<{result?: TypedDict, state: StateDump}> {
     const info = {
       sender: event.signKey!.publicKey.base58,
       funds: [],
-    }
+    };
     const {'@context': context, ...msg} = event.parsedData;
 
     switch (context) {
@@ -178,7 +178,7 @@ export default class OwnableService {
     }
   }
 
-  static async execute(chain: EventChain, msg: TypedDict<any>, stateDump: StateDump): Promise<StateDump> {
+  static async execute(chain: EventChain, msg: TypedDict, stateDump: StateDump): Promise<StateDump> {
     const info = {sender: LTOService.account.publicKey, funds: []};
     const {state: newStateDump} = await this.rpc(chain.id).execute(msg, info, stateDump);
 

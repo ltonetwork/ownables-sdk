@@ -39,6 +39,7 @@ const cardStyle = {
   borderTopRightRadius: 0,
   borderBottomLeftRadius: 0,
   boxShadow: '0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 2px 3px 0px rgb(0 0 0 / 12%)',
+  marginBottom: {xs: 3, md: 0},
 }
 
 export default function EventCard(props: ChainViewProps) {
@@ -49,7 +50,7 @@ export default function EventCard(props: ChainViewProps) {
 
   return <Box sx={{display: 'flex', flexDirection: 'column'}}>
     <If condition={!props.isFirst}>
-      <CardTopLabel>
+      <CardTopLabel sx={{display: {xs: 'none', md: 'block'}}}>
         <div className="truncate"><strong>Previous: </strong>{event.previous?.base58}</div>
       </CardTopLabel>
     </If>
@@ -76,9 +77,10 @@ export default function EventCard(props: ChainViewProps) {
             <ReactJson style={{marginTop: 10}} src={event.parsedData} enableClipboard={false} />
           </If>
         </div>
+        <Box component="div" sx={{display: {xs: 'block', md: 'none'}, pt: 2}} className="truncate"><strong>Hash: </strong>{event.hash.base58}</Box>
       </CardContent>
     </Card>
-    <CardBottomLabel>
+    <CardBottomLabel sx={{display: {xs: 'none', md: 'block'}}}>
       <div className="truncate"><strong>Hash: </strong>{event.hash.base58}</div>
     </CardBottomLabel>
   </Box>

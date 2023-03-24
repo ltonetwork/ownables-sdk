@@ -111,7 +111,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  private async execute(msg: TypedDict<any>): Promise<void> {
+  private async execute(msg: TypedDict): Promise<void> {
     let stateDump: StateDump;
 
     try {
