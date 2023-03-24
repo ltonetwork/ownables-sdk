@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, OwnableInfoResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InfoResponse, InstantiateMsg, QueryMsg};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_std::{Binary, to_binary};
@@ -65,9 +65,39 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::OwnableTransfer { to } => try_transfer(info, deps, to),
-        _ => Ok(Response::new())
+        ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
+        ExecuteMsg::Lock {} => try_lock(info, deps),
     }
+}
+
+pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+    // only ownable owner can lock it
+    let ownership = OWNABLE_INFO.load(deps.storage)?;
+    let network = NETWORK_ID.load(deps.storage)?;
+    let network_id = network as char;
+    if address_lto(network_id, info.sender.to_string())? != ownership.owner {
+        return Err(ContractError::Unauthorized {
+            val: "Unauthorized".into(),
+        });
+    }
+
+    let is_locked = LOCKED.update(
+        deps.storage,
+        |mut is_locked| -> Result<_, ContractError> {
+            if is_locked {
+                return Err(
+                    ContractError::LockError { val: "Already locked".to_string() }
+                );
+            }
+            is_locked = true;
+            Ok(is_locked)
+        }
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "try_lock")
+        .add_attribute("is_locked", is_locked.to_string())
+    )
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
@@ -196,10 +226,10 @@ fn try_register_lock(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetOwnableInfo {} => query_ownable_info(deps),
-        QueryMsg::GetOwnableMetadata {} => query_ownable_metadata(deps),
-        QueryMsg::GetOwnableWidgetState {} => query_ownable_widget_state(deps),
-        QueryMsg::IsOwnableLocked {} => query_lock_state(deps),
+        QueryMsg::GetInfo {} => query_ownable_info(deps),
+        QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
+        QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
+        QueryMsg::IsLocked {} => query_lock_state(deps),
     }
 }
 
@@ -216,7 +246,7 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
     let nft = NFT.may_load(deps.storage)?;
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
-    to_binary(&OwnableInfoResponse {
+    to_binary(&InfoResponse {
         owner: ownable_info.owner,
         issuer: ownable_info.issuer,
         nft,
