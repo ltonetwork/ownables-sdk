@@ -90,9 +90,9 @@ export default class PackageService {
     const query: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'query_msg.json'));
 
     return {
-      isConsumable: execute.oneOf.findIndex(method => method.required.includes('ownable_consume')) >= 0,
-      isConsumer: query.oneOf.findIndex(method => method.required.includes('can_ownable_consume')) >= 0,
-      isTransferable: execute.oneOf.findIndex(method => method.required.includes('ownable_transfer')) >= 0,
+      isConsumable: execute.oneOf.findIndex(method => method.required.includes('consume')) >= 0,
+      isConsumer: query.oneOf.findIndex(method => method.required.includes('is_consumer_of')) >= 0,
+      isTransferable: execute.oneOf.findIndex(method => method.required.includes('transfer')) >= 0,
     };
   }
 

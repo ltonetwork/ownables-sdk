@@ -4,8 +4,9 @@
 // @ts-ignore
 import Listener from "simple-iframe-rpc/listener";
 
-type Dict = {[prop: string]: any}
-type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>
+type Dict = {[prop: string]: any};
+type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
+type CosmWasmEvent = {type: string, attributes: Dict};
 
 interface MsgInfo {
   sender: string;
@@ -14,7 +15,7 @@ interface MsgInfo {
 
 interface Response {
   attributes: Array<{key: string, value: any}>;
-  events?: Array<{ty: string, attributes: Array<{key: string, value: any}>}>;
+  events?: Array<{type: string, attributes: Array<{key: string, value: any}>}>;
   data?: string;
 }
 
@@ -104,29 +105,31 @@ async function execute(
   msg: Dict,
   info: MsgInfo,
   state: StateDump
-): Promise<{attributes: Dict, events: Array<{ty: string, attributes: Dict}>, data?: string, state: StateDump}> {
+): Promise<{attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump}> {
   const {response, state: newState} = await workerCall<Response>("execute", ownableId, msg, info, state);
-
-  return {
-    attributes: attributesToDict(response.attributes),
-    events: response.events?.map(event => ({ty: event.ty, attributes: attributesToDict(event.attributes)})) || [],
-    data: response.data,
-    state: newState,
-  };
+  return executeResponse(response, newState);
 }
 
 async function externalEvent(
   msg: Dict,
   info: MsgInfo,
   state: StateDump
-): Promise<{attributes: Dict, events: Array<{ty: string, attributes: Dict}>, data?: string, state: StateDump}> {
+): Promise<{attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump}> {
   const {response, state: newState} = await workerCall<Response>("external_event", ownableId, msg, info, state);
+  return executeResponse(response, newState);
+}
 
+function executeResponse(
+  response: Response,
+  state: StateDump
+): {attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump} {
   return {
     attributes: attributesToDict(response.attributes),
-    events: response.events?.map(event => ({ty: event.ty, attributes: attributesToDict(event.attributes)})) || [],
+    events: (response.events || []).map(
+      event => ({type: event.type, attributes: attributesToDict(event.attributes)})
+    ),
     data: response.data,
-    state: newState,
+    state,
   };
 }
 
@@ -140,7 +143,7 @@ async function query(msg: Dict, state: StateDump): Promise<Dict> {
 }
 
 async function refresh(state: StateDump): Promise<void> {
-  const widgetState = await query({get_ownable_widget_state: {}}, state);
+  const widgetState = await query({get_widget_state: {}}, state);
 
   const iframe = document.getElementsByTagName('iframe')[0];
   iframe.contentWindow!.postMessage({ownable_id: ownableId, state: widgetState}, "*");

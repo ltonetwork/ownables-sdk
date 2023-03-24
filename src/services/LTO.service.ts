@@ -39,7 +39,7 @@ export default class LTOService {
   }
 
   public static get address(): string {
-    return this._account?.address || LocalStorageService.get('@accountData')?.address || '';
+    return this._account?.address || LocalStorageService.get('@accountData')[0]?.address || '';
   }
 
   public static storeAccount(nickname: string, password: string): void {
