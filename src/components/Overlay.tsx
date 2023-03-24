@@ -25,6 +25,8 @@ export function OverlayBanner(props: {children: React.ReactNode}) {
           marginLeft: "-10%",
           fontSize: 28,
           transform: "rotate(-10deg)",
+          cursor: 'default',
+          userSelect: 'none',
         })}>
           {props.children}
         </Box>

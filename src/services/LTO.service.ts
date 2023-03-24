@@ -20,7 +20,7 @@ export default class LTOService {
   }
 
   public static unlock(password: string): void {
-    const [encryptedAccount] = LocalStorageService.get('@accountData');
+    const [encryptedAccount] = LocalStorageService.get('@accountData') || [];
     this._account = lto.account({seedPassword: password, ...encryptedAccount});
     SessionStorageService.set('@seed', this._account.seed);
   }
@@ -39,7 +39,12 @@ export default class LTOService {
   }
 
   public static get address(): string {
-    return this._account?.address || LocalStorageService.get('@accountData')[0]?.address || '';
+    if (!!this._account) return this._account!.address;
+
+    const [encryptedAccount] = LocalStorageService.get('@accountData') || [];
+    if (encryptedAccount) return encryptedAccount.address;
+
+    return '';
   }
 
   public static storeAccount(nickname: string, password: string): void {
