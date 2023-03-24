@@ -22,7 +22,7 @@ pub enum ExecuteMsg {
     // locks the ownable
     Lock {},
     // consumes the ownable
-    Consume {},
+    Drink {},
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
