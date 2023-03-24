@@ -30,7 +30,7 @@ interface OwnableState {
   initialized: boolean;
   applied: EventChain;
   stateDump: StateDump;
-  ownable_info?: TypedOwnableInfo;
+  info?: TypedOwnableInfo;
   metadata: TypedMetadata;
 }
 
@@ -60,11 +60,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   get isTransferred(): boolean {
-    return !!this.state.ownable_info && this.state.ownable_info.owner !== LTOService.address;
+    return !!this.state.info && this.state.info.owner !== LTOService.address;
   }
 
   private async transfer(to: string): Promise<void> {
-    await this.execute({ownable_transfer: {to: to}});
+    await this.execute({transfer: {to: to}});
 
     const zip = await OwnableService.zip(this.chain);
     const content = await zip.generateAsync({type:"blob"});
@@ -79,10 +79,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
     await OwnableService.rpc(this.id).refresh(stateDump);
 
-    const info = await OwnableService.rpc(this.id).query({get_ownable_info: {}}, stateDump) as TypedOwnableInfo;
-    const metadata = await OwnableService.rpc(this.id).query({get_ownable_metadata: {}}, stateDump) as TypedMetadata;
+    const info = await OwnableService.rpc(this.id).query({get_info: {}}, stateDump) as TypedOwnableInfo;
+    const metadata = await OwnableService.rpc(this.id).query({get_metadata: {}}, stateDump) as TypedMetadata;
 
-    this.setState({ownable_info: info, metadata});
+    this.setState({info, metadata});
   }
 
   private async apply(partialChain: EventChain): Promise<void> {
