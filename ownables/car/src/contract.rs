@@ -66,8 +66,38 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
-        _ => Ok(Response::new())
+        ExecuteMsg::Lock {} => try_lock(info, deps),
     }
+}
+
+pub fn try_lock(info: MessageInfo, deps: DepsMut) -> Result<Response, ContractError> {
+    // only ownable owner can lock it
+    let ownership = OWNABLE_INFO.load(deps.storage)?;
+    let network = NETWORK_ID.load(deps.storage)?;
+    let network_id = network as char;
+    if address_lto(network_id, info.sender.to_string())? != ownership.owner {
+        return Err(ContractError::Unauthorized {
+            val: "Unauthorized".into(),
+        });
+    }
+
+    let is_locked = LOCKED.update(
+        deps.storage,
+        |mut is_locked| -> Result<_, ContractError> {
+            if is_locked {
+                return Err(
+                    ContractError::LockError { val: "Already locked".to_string() }
+                );
+            }
+            is_locked = true;
+            Ok(is_locked)
+        }
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "try_lock")
+        .add_attribute("is_locked", is_locked.to_string())
+    )
 }
 
 pub fn try_transfer(info: MessageInfo, deps: DepsMut, to: Addr) -> Result<Response, ContractError> {
