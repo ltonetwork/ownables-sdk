@@ -10,6 +10,7 @@ import {Cancelled} from "simple-iframe-rpc";
 // @ts-ignore - Loaded as string, see `craco.config.js`
 import workerJsSource from "../assets/worker.js";
 import JSZip from "jszip";
+import {TypedPackage} from "../interfaces/TypedPackage";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -101,20 +102,22 @@ export default class OwnableService {
     return Array.from(map.entries());
   }
 
-  static create(packageCid: string): EventChain {
+  static create(pkg: TypedPackage): EventChain {
     const account = LTOService.account;
     const chain = EventChain.create(account);
 
-    const msg = {
-      "@context": "instantiate_msg.json",
-      ownable_id: chain.id,
-      package: packageCid,
-      network_id: LTOService.networkId,
-    };
+    if (pkg.isDynamic) {
+      const msg = {
+        "@context": "instantiate_msg.json",
+        ownable_id: chain.id,
+        package: pkg.cid,
+        network_id: LTOService.networkId,
+      };
 
-    new Event(msg)
-      .addTo(chain)
-      .signWith(account);
+      new Event(msg)
+        .addTo(chain)
+        .signWith(account);
+    }
 
     return chain;
   }

@@ -40,16 +40,16 @@ export default class PackageService {
   }
 
   private static storePackageInfo(
+    title: string,
     name: string,
-    key: string,
     cid: string,
     capabilities: TypedPackageCapabilities
   ): TypedPackage {
     const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
-    let pkg = packages.find(pkg => pkg.name === key);
+    let pkg = packages.find(pkg => pkg.name === name);
 
     if (!pkg) {
-      pkg = {title: name, name: key, cid, ...capabilities, versions: []};
+      pkg = {title, name, cid, ...capabilities, versions: []};
       packages.push(pkg);
     } else {
       Object.assign(pkg, {cid, ...capabilities});
@@ -86,10 +86,14 @@ export default class PackageService {
   }
 
   private static async getCapabilities(cid: string): Promise<TypedPackageCapabilities> {
+    if (!await this.hasAsset(cid, 'ownable_bg.wasm'))
+      return { isDynamic: false, isConsumable: false, isConsumer: false, isTransferable: false };
+
     const execute: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'execute_msg.json'));
     const query: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'query_msg.json'));
 
     return {
+      isDynamic: true,
       isConsumable: execute.oneOf.findIndex(method => method.required.includes('consume')) >= 0,
       isConsumer: query.oneOf.findIndex(method => method.required.includes('is_consumer_of')) >= 0,
       isTransferable: execute.oneOf.findIndex(method => method.required.includes('transfer')) >= 0,
@@ -97,8 +101,8 @@ export default class PackageService {
   }
 
   static async import(zipFile: File): Promise<TypedPackage> {
-    const key = zipFile.name.replace(/\.\w+$/, '');
-    const name = key
+    const name = zipFile.name.replace(/\.\w+$/, '');
+    const title = name
       .replace(/[-_]+/, ' ')
       .replace(/\b\w/, c => c.toUpperCase());
 
@@ -106,7 +110,7 @@ export default class PackageService {
     const cid = await calculateCid(files);
     await this.storeAssets(cid, files);
 
-    return this.storePackageInfo(name, key, cid, await this.getCapabilities(cid));
+    return this.storePackageInfo(name, title, cid, await this.getCapabilities(cid));
   }
 
   static async downloadExample(key: string): Promise<TypedPackage> {
@@ -137,6 +141,10 @@ export default class PackageService {
         read(fileReader, mediaFile);
       }, error => reject(error));
     });
+  }
+
+  static hasAsset(cid: string, name: string): Promise<boolean> {
+    return IDBService.has(`package:${cid}`, name);
   }
 
   static getAssetAsText(cid: string, name: string): Promise<string> {

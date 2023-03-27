@@ -1,4 +1,4 @@
-import {Chip, DialogContent, DialogTitle, IconButton, SxProps, Theme} from "@mui/material";
+import {Chip, DialogContent, DialogTitle, IconButton, SxProps, Theme, Typography} from "@mui/material";
 import {useState} from "react";
 import {Fingerprint, InfoOutlined} from "@mui/icons-material";
 import {TypedMetadata} from "../interfaces/TypedOwnableInfo";
@@ -8,6 +8,7 @@ import EventCard from "./EventCard";
 import shortId from "../utils/shortId";
 import Tooltip from "./Tooltip";
 import backgroundImage from "../assets/background.svg";
+import If from "./If";
 
 interface OwnableInfoProps {
   sx?: SxProps<Theme>;
@@ -41,6 +42,11 @@ export default function OwnableInfo(props: OwnableInfoProps) {
         {metadata?.description}
       </DialogTitle>
       <DialogContent>
+        <If condition={chain.events.length === 0}>
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            This is a static ownable. It does not contain any events.
+          </Typography>
+        </If>
         {chain.events.map((event, i) =>
           <EventCard key={event.hash.hex} event={event} isFirst={i === 0} />
         )}
