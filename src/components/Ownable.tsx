@@ -101,6 +101,8 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   async onLoad(): Promise<void> {
+    if (!this.pkg.isDynamic) return;
+
     const iframeWindow = this.iframeRef.current!.contentWindow;
     const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", {timeout: 5000});
 
@@ -181,6 +183,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         <OwnableFrame
           id={this.id}
           packageCid={this.pkg.cid}
+          isDynamic={this.pkg.isDynamic}
           iframeRef={this.iframeRef}
           onLoad={() => this.onLoad()}
         />

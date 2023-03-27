@@ -16,24 +16,26 @@ async function generateWidgetHTML(id: string, packageCid: string): Promise<strin
   return root.outerHTML;
 }
 
-async function generate(id: string, packageCid: string) {
-  const widget = document.createElement('iframe');
-  widget.setAttribute("sandbox", "allow-scripts");
-  widget.srcdoc = await generateWidgetHTML(id, packageCid);
-
-  const script = document.createElement('script');
-  script.src = './ownable.js';
+async function generate(id: string, packageCid: string, isDynamic: boolean): Promise<string> {
+  const body = document.createElement('body');
 
   const style = document.createElement('style');
   style.textContent = `
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
     iframe { height: 100%; width: 100%; border: none; }
   `;
-
-  const body = document.createElement('body');
   body.appendChild(style)
+
+  const widget = document.createElement('iframe');
+  widget.setAttribute("sandbox", "allow-scripts");
+  widget.srcdoc = await generateWidgetHTML(id, packageCid);
   body.appendChild(widget);
-  body.appendChild(script);
+
+  if (isDynamic) {
+    const script = document.createElement('script');
+    script.src = './ownable.js';
+    body.appendChild(script);
+  }
 
   return body.outerHTML;
 }
@@ -41,13 +43,14 @@ async function generate(id: string, packageCid: string) {
 export interface OwnableFrameProps {
   id: string;
   packageCid: string;
+  isDynamic: boolean;
   iframeRef: RefObject<HTMLIFrameElement>;
   onLoad: () => void;
 }
 
 export default class OwnableFrame extends Component<OwnableFrameProps> {
   async componentDidMount(): Promise<void> {
-    this.props.iframeRef.current!.srcdoc = await generate(this.props.id, this.props.packageCid);
+    this.props.iframeRef.current!.srcdoc = await generate(this.props.id, this.props.packageCid, this.props.isDynamic);
   }
 
   shouldComponentUpdate(): boolean {

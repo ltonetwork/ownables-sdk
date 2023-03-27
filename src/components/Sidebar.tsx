@@ -36,7 +36,7 @@ export default function Sidebar(props: SidebarProps) {
   const [anchoring, setAnchoring] = useState(OwnableService.anchoring);
   const [showNoBalance, setShowNoBalance] = useState(false);
   const address = LTOService.address;
-  const [balance, setBalance] = useState<number>(0);
+  const [balance, setBalance] = useState<number>();
 
   const loadBalance = () => {
     if (!LTOService.isUnlocked()) return;
@@ -50,7 +50,7 @@ export default function Sidebar(props: SidebarProps) {
   useInterval(() => loadBalance(), 5 * 1000)
 
   useEffect(() => {
-    if (anchoring && balance < 0.1) {
+    if (anchoring && balance !== undefined && balance < 0.1) {
       setShowNoBalance(true);
       setAnchoring(false);
       return;
