@@ -1,12 +1,11 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, Metadata, InfoResponse, QueryMsg};
-use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, OwnableInfo, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
 use cosmwasm_std::{to_binary, Binary, Attribute, Event};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
-use crate::ExternalEventMsg;
-use crate::utils::{address_eip155, address_lto};
+use ownable_std::{address_eip155, address_lto, ExternalEventMsg, InfoResponse, Metadata, OwnableInfo};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-armor";
@@ -31,7 +30,7 @@ pub fn instantiate(
         ownable_type: msg.ownable_type.clone(),
     };
 
-    let cw721 = Cw721 {
+    let metadata = Metadata {
         image: None,
         image_data: None,
         external_url: None,
@@ -50,9 +49,9 @@ pub fn instantiate(
     NETWORK_ID.save(deps.storage, &msg.network_id)?;
     CONFIG.save(deps.storage, &Some(config.clone()))?;
     if let Some(nft) = msg.nft {
-        NFT.save(deps.storage, &nft)?;
+        NFT_ITEM.save(deps.storage, &nft)?;
     }
-    CW721.save(deps.storage, &cw721)?;
+    METADATA.save(deps.storage, &metadata)?;
     LOCKED.save(deps.storage, &false)?;
     OWNABLE_INFO.save(deps.storage, &ownable_info)?;
     PACKAGE_CID.save(deps.storage, &msg.package)?;
@@ -136,7 +135,7 @@ fn try_register_lock(
         return Err(ContractError::InvalidExternalEventArgs {});
     }
 
-    let nft = NFT.load(deps.storage).unwrap();
+    let nft = NFT_ITEM.load(deps.storage).unwrap();
     if nft.id.to_string() != nft_id {
         return Err(ContractError::LockError {
             val: "nft_id mismatch".to_string()
@@ -341,7 +340,7 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
-    let nft = NFT.may_load(deps.storage)?;
+    let nft = NFT_ITEM.may_load(deps.storage)?;
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
     to_binary(&InfoResponse {
         owner: ownable_info.owner,
@@ -352,7 +351,7 @@ fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
-    let cw721 = CW721.load(deps.storage)?;
+    let cw721 = METADATA.load(deps.storage)?;
     to_binary(&Metadata {
         image: cw721.image,
         image_data: cw721.image_data,
