@@ -1,10 +1,11 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use cosmwasm_schema::{export_schema, remove_schemas, schema_for, write_api};
+use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
+use ownable_std::{ExternalEventMsg, InfoResponse, Metadata};
 
-use ownable_armor::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, InfoResponse, ExternalEventMsg};
-use ownable_armor::state::{Config, Cw721};
+use ownable_armor::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
+use ownable_armor::state::{Config};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -17,7 +18,7 @@ fn main() {
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(ExternalEventMsg), &out_dir);
     export_schema(&schema_for!(InfoResponse), &out_dir);
-    export_schema(&schema_for!(Cw721), &out_dir);
+    export_schema(&schema_for!(Metadata), &out_dir);
     export_schema(&schema_for!(Config), &out_dir);
 }
 
