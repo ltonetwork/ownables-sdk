@@ -1,25 +1,18 @@
 extern crate core;
 
-pub mod utils;
-
-use std::ops::Add;
 use std::str;
 
 use contract::instantiate;
 use cosmwasm_std::{MemoryStorage, MessageInfo, Response};
-use js_sys::JsString;
+use ownable_std::{create_lto_env, ExternalEventMsg, IdbStateDump, load_lto_deps};
 use msg::{ExecuteMsg, InstantiateMsg};
 use serde_json::{to_string};
 use wasm_bindgen::prelude::*;
-
-use utils::{create_lto_env, load_lto_deps};
-use crate::msg::{ExternalEventMsg, IdbStateDump, JsonResponse};
 
 pub mod contract;
 pub mod error;
 pub mod msg;
 pub mod state;
-pub mod store;
 
 #[wasm_bindgen]
 extern "C" {
@@ -85,16 +78,7 @@ pub async fn execute_contract(
 
     match result {
         Ok(response) => {
-            // let resp = get_json_response(deps.storage, response)?;
-            let state_dump= IdbStateDump::from(deps.storage);
-
-            let json_response = JsonResponse {
-                mem: to_string(&state_dump)?,
-                result: response,
-            };
-
-            let resp = JsValue::from(to_string(&json_response)?);
-
+            let resp = get_json_response(deps.storage, response)?;
             Ok(resp)
         }
         Err(error) => Err(JsError::from(error)),
