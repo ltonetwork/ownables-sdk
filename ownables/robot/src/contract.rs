@@ -1,11 +1,11 @@
-use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, ExternalEventMsg, InstantiateMsg, Metadata, InfoResponse, QueryMsg};
-use crate::state::{NFT, Config, CONFIG, Cw721, CW721, LOCKED, NETWORK_ID, PACKAGE_CID, OWNABLE_INFO, OwnableInfo};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
 use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
-use crate::utils::{address_eip155, address_lto};
+use ownable_std::{address_eip155, address_lto, ExternalEventMsg, InfoResponse, Metadata, OwnableInfo};
+use crate::error::ContractError;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-robot";
@@ -38,7 +38,7 @@ pub fn instantiate(
         has_armor: false
     };
 
-    let cw721 = Cw721 {
+    let meta = Metadata {
         image: None,
         image_data: None,
         external_url: None,
@@ -52,9 +52,9 @@ pub fn instantiate(
     NETWORK_ID.save(deps.storage, &msg.network_id)?;
     CONFIG.save(deps.storage, &Some(config.clone()))?;
     if let Some(nft) = msg.nft {
-        NFT.save(deps.storage, &nft)?;
+        NFT_ITEM.save(deps.storage, &nft)?;
     }
-    CW721.save(deps.storage, &cw721)?;
+    METADATA.save(deps.storage, &meta)?;
     LOCKED.save(deps.storage, &false)?;
     OWNABLE_INFO.save(deps.storage, &ownable_info)?;
     PACKAGE_CID.save(deps.storage, &msg.package)?;
@@ -91,8 +91,16 @@ pub fn execute(
     match msg {
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
+        ExecuteMsg::Consume {} => try_consume(),
     }
 }
+
+fn try_consume() -> Result<Response, ContractError> {
+    Ok(Response::new()
+        .add_attribute("method", "try_consume")
+    )
+}
+
 pub fn register_external_event(
     info: MessageInfo,
     deps: DepsMut,
@@ -208,7 +216,7 @@ fn try_register_lock(
         return Err(ContractError::InvalidExternalEventArgs {});
     }
 
-    let nft = NFT.load(deps.storage).unwrap();
+    let nft = NFT_ITEM.load(deps.storage).unwrap();
     if nft.id.to_string() != nft_id {
         return Err(ContractError::LockError {
             val: "nft_id mismatch".to_string()
@@ -349,7 +357,7 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
-    let nft = NFT.may_load(deps.storage)?;
+    let nft = NFT_ITEM.may_load(deps.storage)?;
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
     to_binary(&InfoResponse {
         owner: ownable_info.owner,
@@ -360,15 +368,6 @@ fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
-    let cw721 = CW721.load(deps.storage)?;
-    to_binary(&Metadata {
-        image: cw721.image,
-        image_data: cw721.image_data,
-        external_url: cw721.external_url,
-        description: cw721.description,
-        name: cw721.name,
-        background_color: cw721.background_color,
-        animation_url: cw721.animation_url,
-        youtube_url: cw721.youtube_url,
-    })
+    let meta = METADATA.load(deps.storage)?;
+    to_binary(&meta)
 }
