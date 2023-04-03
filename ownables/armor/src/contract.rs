@@ -1,4 +1,3 @@
-use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
 use cosmwasm_std::{to_binary, Binary, Attribute, Event};
@@ -6,6 +5,7 @@ use cosmwasm_std::{to_binary, Binary, Attribute, Event};
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 use ownable_std::{address_eip155, address_lto, ExternalEventMsg, InfoResponse, Metadata, OwnableInfo};
+use crate::error::ContractError;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable-armor";
