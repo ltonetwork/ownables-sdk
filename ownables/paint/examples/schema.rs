@@ -3,8 +3,9 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use ownable_paint::msg::{ExecuteMsg, ExternalEventMsg, InstantiateMsg, InfoResponse, QueryMsg};
-use ownable_paint::state::{Config, Cw721};
+use ownable_paint::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use ownable_paint::state::{Config};
+use ownable_std::{ExternalEventMsg, InfoResponse, Metadata};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -17,6 +18,6 @@ fn main() {
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(ExternalEventMsg), &out_dir);
     export_schema(&schema_for!(InfoResponse), &out_dir);
-    export_schema(&schema_for!(Cw721), &out_dir);
+    export_schema(&schema_for!(Metadata), &out_dir);
     export_schema(&schema_for!(Config), &out_dir);
 }
