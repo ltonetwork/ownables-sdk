@@ -2,38 +2,20 @@ use cosmwasm_std::{Addr};
 use ownable_std::NFT;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use ownable_std_macros::{ownables_std_execute_msg, ownables_std_query_msg, ownables_std_instantiate_msg};
 
+#[ownables_std_instantiate_msg]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InstantiateMsg {
-    pub ownable_id: String,
-    pub package: String,
-    pub nft: Option<NFT>,
-    pub ownable_type: Option<String>,
-    pub network_id: u8,
-}
+pub struct InstantiateMsg {}
 
+#[ownables_std_execute_msg]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ExecuteMsg {
-    // transfers ownership
-    Transfer { to: Addr },
-    // locks the ownable
-    Lock {},
-    // consumes the ownable
-    Consume {},
-}
+pub enum ExecuteMsg {}
 
+#[ownables_std_query_msg]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum QueryMsg {
-    GetInfo {},
-    GetMetadata {},
-    GetWidgetState {},
-    IsLocked {},
-    IsConsumerOf {
-        issuer: Addr,
-        consumable_type: String,
-    }
-}
+pub enum QueryMsg {}
 
 
