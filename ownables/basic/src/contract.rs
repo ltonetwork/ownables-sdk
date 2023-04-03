@@ -1,12 +1,11 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InfoResponse, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cosmwasm_std::{Binary, to_binary};
 use cw2::set_contract_version;
-use crate::ExternalEventMsg;
-use crate::state::{CONFIG, Metadata, METADATA, LOCKED, NETWORK_ID, NFT, OWNABLE_INFO, OwnableInfo, PACKAGE_CID};
-use crate::utils::{address_eip155, address_lto};
+use crate::state::{NFT_ITEM, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
+use ownable_std::{address_eip155, address_lto, ExternalEventMsg, InfoResponse, Metadata, OwnableInfo};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:ownable";
@@ -45,7 +44,7 @@ pub fn instantiate(
     NETWORK_ID.save(deps.storage, &msg.network_id)?;
     CONFIG.save(deps.storage, &None)?;
     if let Some(nft) = msg.nft {
-        NFT.save(deps.storage, &nft)?;
+        NFT_ITEM.save(deps.storage, &nft)?;
     }
     METADATA.save(deps.storage, &metadata)?;
     LOCKED.save(deps.storage, &false)?;
@@ -67,6 +66,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
+        _ => Ok(Response::new())
     }
 }
 
@@ -188,7 +188,7 @@ fn try_register_lock(
         return Err(ContractError::InvalidExternalEventArgs {});
     }
 
-    let nft = NFT.load(deps.storage).unwrap();
+    let nft = NFT_ITEM.load(deps.storage).unwrap();
     if event.chain_id != nft.network {
         return Err(ContractError::LockError {
             val: "network mismatch".to_string()
@@ -224,13 +224,22 @@ fn try_register_lock(
     }
 }
 
+
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetInfo {} => query_ownable_info(deps),
         QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
         QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
         QueryMsg::IsLocked {} => query_lock_state(deps),
+        QueryMsg::IsConsumerOf {
+            issuer,
+            consumable_type
+        } => query_is_consumer_of(deps, issuer, consumable_type),
     }
+}
+
+fn query_is_consumer_of(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
+    to_binary(&false)
 }
 
 fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
@@ -244,7 +253,7 @@ fn query_lock_state(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
-    let nft = NFT.may_load(deps.storage)?;
+    let nft = NFT_ITEM.may_load(deps.storage)?;
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
     to_binary(&InfoResponse {
         owner: ownable_info.owner,
@@ -255,6 +264,16 @@ fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
 }
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
-    let metadata = METADATA.load(deps.storage)?;
-    to_binary(&metadata)
+    let cw721 = METADATA.load(deps.storage)?;
+    to_binary(&Metadata {
+        image: cw721.image,
+        image_data: cw721.image_data,
+        external_url: cw721.external_url,
+        description: cw721.description,
+        name: cw721.name,
+        background_color: cw721.background_color,
+        animation_url: cw721.animation_url,
+        youtube_url: cw721.youtube_url,
+    })
 }
+
