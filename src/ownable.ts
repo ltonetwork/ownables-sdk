@@ -8,7 +8,7 @@ type Dict = {[prop: string]: any};
 type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 type CosmWasmEvent = {type: string, attributes: Dict};
 
-interface MsgInfo {
+interface MessageInfo {
   sender: string;
   funds: Array<never>;
 }
@@ -73,7 +73,7 @@ function workerCall<T extends Response|string>(
       reject(`Unable to ${type}: not initialized`);
       return;
     }
-
+    console.log("worker call info: ", info);
     worker.addEventListener('message', (event: MessageEvent<Map<string, any>|{err: any}>) => {
       if ('err' in event.data) {
         reject(new Error(`Ownable ${type} failed`, { cause: event.data.err }));
@@ -103,7 +103,7 @@ async function instantiate(msg: Dict, info: Dict): Promise<{attributes: Dict, st
 
 async function execute(
   msg: Dict,
-  info: MsgInfo,
+  info: MessageInfo,
   state: StateDump
 ): Promise<{attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump}> {
   const {response, state: newState} = await workerCall<Response>("execute", ownableId, msg, info, state);
@@ -112,9 +112,14 @@ async function execute(
 
 async function externalEvent(
   msg: Dict,
-  info: MsgInfo,
+  messageInfo: MessageInfo,
   state: StateDump
 ): Promise<{attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump}> {
+  const info = {
+    info: messageInfo,
+  };
+  console.log("external event call with ", msg, info);
+
   const {response, state: newState} = await workerCall<Response>("external_event", ownableId, msg, info, state);
   return executeResponse(response, newState);
 }
