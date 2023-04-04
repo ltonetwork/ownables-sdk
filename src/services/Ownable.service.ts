@@ -14,22 +14,22 @@ import {TypedPackage} from "../interfaces/TypedPackage";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
-interface MsgInfo {
+interface MessageInfo {
   sender: string;
-  funds: Array<never>;
+  funds: Array<{}>;
 }
 
 interface CosmWasmEvent {
-  ty: string;
+  type: string;
   attributes: TypedDict<string>
 }
 
 export interface OwnableRPC {
   init: (id: string, js: string, wasm: Uint8Array) => Promise<any>;
-  instantiate: (msg: TypedDict, info: MsgInfo) => Promise<{attributes: TypedDict<string>, state: StateDump}>;
-  execute: (msg: TypedDict, info: MsgInfo, state: StateDump)
+  instantiate: (msg: TypedDict, info: MessageInfo) => Promise<{attributes: TypedDict<string>, state: StateDump}>;
+  execute: (msg: TypedDict, info: MessageInfo, state: StateDump)
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
-  externalEvent: (msg: TypedDict, info: MsgInfo, state: StateDump)
+  externalEvent: (msg: TypedDict, info: MessageInfo, state: StateDump)
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
   query: (msg: TypedDict, state: StateDump) => Promise<TypedDict>;
   refresh: (state: StateDump) => Promise<void>;
@@ -195,7 +195,7 @@ export default class OwnableService {
 
   static async consume(consumer: EventChain, consumable: EventChain) {
     const info = {sender: LTOService.account.publicKey, funds: []};
-    const consumeMessage = {ownable_consume: {}}; //{consume: {ownable_id: consumer.id}};
+    const consumeMessage = {consume: {}}; //{consume: {ownable_id: consumer.id}};
 
     const consumerState = await this.getStateDump(consumer.id, consumer.state);
     const consumableState = await this.getStateDump(consumable.id, consumable.state);
@@ -204,13 +204,21 @@ export default class OwnableService {
     const {events, state: consumableStateDump} =
       await this.rpc(consumable.id).execute(consumeMessage, info, consumableState);
 
-    const consumeEvent: {contract?: string, ty: string, attributes: TypedDict<string>}|undefined
-      = events.find(event => event.ty === 'consume');
+    const consumeEvent: {contract?: string, type: string, attributes: TypedDict<string>}|undefined
+      = events.find(event => event.type === 'consume');
     if (!consumeEvent) throw Error("No consume event emitted");
     consumeEvent.contract = consumable.id;
 
+    const externalEventMsg = {
+      msg: {
+        attributes: consumeEvent.attributes,
+        network: "",
+        event_type: consumeEvent.type
+      }
+    };
+
     const {state: consumerStateDump} =
-      await this.rpc(consumer.id).externalEvent(consumeEvent, info, consumerState);
+      await this.rpc(consumer.id).externalEvent(externalEventMsg, info, consumerState);
 
     // Race condition because we're modifying the event chain before storing?
 

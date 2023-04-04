@@ -142,20 +142,20 @@ fn try_register_consume(
     ownable_id: String,
 ) -> Result<Response, ContractError> {
 
-    let owner = event.args.get("owner")
+    let owner = event.attributes.get("owner")
         .cloned()
         .unwrap_or_default();
-    let consumed_by = event.args.get("consumed_by")
+    let consumed_by = event.attributes.get("consumed_by")
         .cloned()
         .unwrap_or_default();
-    let issuer = event.args.get("issuer")
+    let issuer = event.attributes.get("issuer")
         .cloned()
         .unwrap_or_default();
-    let color = event.args.get("color")
+    let color = event.attributes.get("color")
         .cloned()
         .unwrap_or_default();
 
-    let consumable_type = event.args.get("type")
+    let consumable_type = event.attributes.get("type")
         .cloned()
         .unwrap_or_default();
 
@@ -202,13 +202,13 @@ fn try_register_lock(
     deps: DepsMut,
     event: ExternalEventMsg,
 ) -> Result<Response, ContractError> {
-    let owner = event.args.get("owner")
+    let owner = event.attributes.get("owner")
         .cloned()
         .unwrap_or_default();
-    let nft_id = event.args.get("token_id")
+    let nft_id = event.attributes.get("token_id")
         .cloned()
         .unwrap_or_default();
-    let contract_addr = event.args.get("contract")
+    let contract_addr = event.attributes.get("contract")
         .cloned()
         .unwrap_or_default();
 
@@ -225,13 +225,18 @@ fn try_register_lock(
         return Err(ContractError::LockError {
             val: "locking contract mismatch".to_string()
         });
-    } else if event.chain_id != nft.network {
+    }
+
+    let event_network = event.network.unwrap_or("".to_string());
+    if event_network == "" {
+        return Err(ContractError::MatchChainIdError { val: "No network".to_string() })
+    } else if event_network != nft.network {
         return Err(ContractError::LockError {
             val: "network mismatch".to_string()
         });
     }
 
-    let caip_2_fields: Vec<&str> = event.chain_id.split(":").collect();
+    let caip_2_fields: Vec<&str> = event_network.split(":").collect();
     let namespace = caip_2_fields.get(0).unwrap();
 
     match *namespace {
@@ -248,7 +253,7 @@ fn try_register_lock(
             let address = address_lto(network_id as char, owner)?;
             Ok(try_release(info, deps, address)?)
         }
-        _ => return Err(ContractError::MatchChainIdError { val: event.chain_id }),
+        _ => return Err(ContractError::MatchChainIdError { val: event_network }),
     }
 }
 

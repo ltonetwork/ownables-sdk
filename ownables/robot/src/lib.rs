@@ -93,6 +93,10 @@ pub async fn register_external_event(
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
     let external_event: ExternalEventMsg = serde_wasm_bindgen::from_value(msg.clone())?;
+    log(&format!("external event: {:?}", external_event));
+    log(&format!("info: {:?}", info));
+    log(&format!("ownable_id: {:?}", ownable_id));
+
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
     let mut deps = load_lto_deps(Some(state_dump));
