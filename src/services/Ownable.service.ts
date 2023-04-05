@@ -220,7 +220,6 @@ export default class OwnableService {
       }
     };
 
-    console.log('passing info ', info);
     const {state: consumerStateDump} =
       await this.rpc(consumer.id).externalEvent(externalEventMsg, info, consumerState);
 
@@ -229,12 +228,14 @@ export default class OwnableService {
     new Event({"@context": 'execute_msg.json', ...consumeMessage}).addTo(consumable).signWith(LTOService.account);
     new Event({"@context": 'external_event_msg.json', ...consumeEvent}).addTo(consumer).signWith(LTOService.account);
 
-    await IDBService.setAll(Object.fromEntries([
+    const entries = Object.fromEntries([
       [`ownable:${consumer.id}`, { chain: consumer.toJSON(), state: consumer.state.hex }],
       [`ownable:${consumer.id}.state`, new Map(consumerStateDump)],
       [`ownable:${consumable.id}`, { chain: consumable.toJSON(), state: consumable.state.hex }],
       [`ownable:${consumable.id}.state`, new Map(consumableStateDump)],
-    ]));
+    ]);
+
+    await IDBService.setAll(entries);
   }
 
   private static async initStore(chain: EventChain, pkg: string, stateDump: StateDump): Promise<void> {

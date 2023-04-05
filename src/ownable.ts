@@ -75,13 +75,13 @@ function workerCall<T extends Response|string>(
     }
 
     worker.addEventListener('message', (event: MessageEvent<Map<string, any>|{err: any}>) => {
-      console.log("worker callback ", event);
-
       if ('err' in event.data) {
         reject(new Error(`Ownable ${type} failed`, { cause: event.data.err }));
         return;
       }
-      const response = JSON.parse(event.data.get('result'));
+
+      const result = event.data.get('result');
+      const response = JSON.parse(result);
       const nextState: StateDump = event.data.has('mem') ? JSON.parse(event.data.get('mem')).state_dump : state;
 
       resolve({response, state: nextState});
