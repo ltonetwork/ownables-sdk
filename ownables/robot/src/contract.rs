@@ -154,12 +154,16 @@ fn try_register_consume(
     let color = event.attributes.get("color")
         .cloned()
         .unwrap_or_default();
-
-    let consumable_type = event.attributes.get("type")
+    let consumable_type = event.attributes.get("consumable_type")
         .cloned()
         .unwrap_or_default();
 
-    if consumable_type.is_empty() || color.is_empty() || issuer.is_empty() || consumed_by.is_empty() || owner.is_empty() {
+    if consumable_type == "paint" {
+        if color.is_empty() {
+            return Err(ContractError::InvalidExternalEventArgs {});
+        }
+    }
+    if consumable_type.is_empty() || issuer.is_empty() || consumed_by.is_empty() || owner.is_empty() {
         return Err(ContractError::InvalidExternalEventArgs {});
     }
 

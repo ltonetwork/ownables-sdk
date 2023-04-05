@@ -10,7 +10,7 @@ type CosmWasmEvent = {type: string, attributes: Dict};
 
 interface MessageInfo {
   sender: string;
-  funds: Array<never>;
+  funds: ArrayLike<any>;
 }
 
 interface Response {
@@ -73,13 +73,14 @@ function workerCall<T extends Response|string>(
       reject(`Unable to ${type}: not initialized`);
       return;
     }
-    console.log("worker call info: ", info);
+
     worker.addEventListener('message', (event: MessageEvent<Map<string, any>|{err: any}>) => {
+      console.log("worker callback ", event);
+
       if ('err' in event.data) {
         reject(new Error(`Ownable ${type} failed`, { cause: event.data.err }));
         return;
       }
-
       const response = JSON.parse(event.data.get('result'));
       const nextState: StateDump = event.data.has('mem') ? JSON.parse(event.data.get('mem')).state_dump : state;
 
