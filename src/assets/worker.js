@@ -30,8 +30,8 @@ addEventListener('message', (e) => {
         .catch(err => self.postMessage({err}));
       break;
     case "external_event":
-      console.log("worker message: ", e.data);
-      register_external_event(e.data.msg.msg, e.data.msg.info, e.data.ownable_id, e.data.mem)
+      const messageInfo = e.data.info;
+      register_external_event(e.data.msg.msg, messageInfo.info, e.data.ownable_id, e.data.mem)
         .then(resp => self.postMessage(resp))
         .catch(err => self.postMessage({err}));
       break;

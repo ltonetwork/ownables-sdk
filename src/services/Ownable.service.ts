@@ -29,7 +29,7 @@ export interface OwnableRPC {
   instantiate: (msg: TypedDict, info: MessageInfo) => Promise<{attributes: TypedDict<string>, state: StateDump}>;
   execute: (msg: TypedDict, info: MessageInfo, state: StateDump)
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
-  externalEvent: (msg: TypedDict, info: MessageInfo, state: StateDump)
+  externalEvent: (msg: TypedDict, info: TypedDict, state: StateDump)
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
   query: (msg: TypedDict, state: StateDump) => Promise<TypedDict>;
   refresh: (state: StateDump) => Promise<void>;
@@ -194,7 +194,10 @@ export default class OwnableService {
   }
 
   static async consume(consumer: EventChain, consumable: EventChain) {
-    const info = {sender: LTOService.account.publicKey, funds: []};
+    const info: MessageInfo = {
+      sender: LTOService.account.publicKey,
+      funds: [],
+    };
     const consumeMessage = {consume: {}}; //{consume: {ownable_id: consumer.id}};
 
     const consumerState = await this.getStateDump(consumer.id, consumer.state);
@@ -217,6 +220,7 @@ export default class OwnableService {
       }
     };
 
+    console.log('passing info ', info);
     const {state: consumerStateDump} =
       await this.rpc(consumer.id).externalEvent(externalEventMsg, info, consumerState);
 
