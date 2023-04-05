@@ -110,7 +110,7 @@ export default class PackageService {
     const cid = await calculateCid(files);
     await this.storeAssets(cid, files);
 
-    return this.storePackageInfo(name, title, cid, await this.getCapabilities(cid));
+    return this.storePackageInfo(title, name, cid, await this.getCapabilities(cid));
   }
 
   static async downloadExample(key: string): Promise<TypedPackage> {
