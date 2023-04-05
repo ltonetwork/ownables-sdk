@@ -83,6 +83,7 @@ export default function App() {
   const consume = (consumer: EventChain, consumable: EventChain) => {
     if (consumer.id === consumable.id) return;
     OwnableService.consume(consumer, consumable)
+      .then(r => console.log("Consume success"))
       .catch(error => onError("Consume failed", ownableErrorMessage(error)));
   }
 
