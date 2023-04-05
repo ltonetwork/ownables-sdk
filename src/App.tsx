@@ -82,8 +82,12 @@ export default function App() {
 
   const consume = (consumer: EventChain, consumable: EventChain) => {
     if (consumer.id === consumable.id) return;
+
     OwnableService.consume(consumer, consumable)
-      .then(r => console.log("Consume success"))
+      .then(() => {
+        setConsuming(null);
+        setOwnables(ownables => [...ownables]);
+      })
       .catch(error => onError("Consume failed", ownableErrorMessage(error)));
   }
 
@@ -153,10 +157,7 @@ export default function App() {
             selected={consuming?.chain.id === chain.id}
             onDelete={() => deleteOwnable(chain.id, packageCid)}
             onConsume={() => setConsuming({chain, package: packageCid})}
-            onError={(title, message, broken = false) => {
-              onError(title, message);
-              if (broken) _delete(chain.id);
-            }}
+            onError={onError}
           />
           <Overlay
             hidden={consuming === null}

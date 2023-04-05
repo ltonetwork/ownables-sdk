@@ -193,7 +193,7 @@ export default class OwnableService {
     return newStateDump;
   }
 
-  static async consume(consumer: EventChain, consumable: EventChain) {
+  static async consume(consumer: EventChain, consumable: EventChain): Promise<void> {
     const info: MessageInfo = {
       sender: LTOService.account.publicKey,
       funds: [],
@@ -222,8 +222,6 @@ export default class OwnableService {
 
     const {state: consumerStateDump} =
       await this.rpc(consumer.id).externalEvent(externalEventMsg, info, consumerState);
-
-    // Race condition because we're modifying the event chain before storing?
 
     new Event({"@context": 'execute_msg.json', ...consumeMessage}).addTo(consumable).signWith(LTOService.account);
     new Event({"@context": 'external_event_msg.json', ...consumeEvent}).addTo(consumer).signWith(LTOService.account);

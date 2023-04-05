@@ -3,7 +3,7 @@ import {Paper, Tooltip} from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import {connect as rpcConnect} from "simple-iframe-rpc";
 import PackageService from "../services/Package.service";
-import {EventChain} from "@ltonetwork/lto";
+import {Binary, EventChain} from "@ltonetwork/lto";
 import OwnableActions from "./OwnableActions";
 import OwnableInfo from "./OwnableInfo";
 import OwnableService, {OwnableRPC, StateDump} from "../services/Ownable.service";
@@ -24,19 +24,18 @@ interface OwnableProps {
   selected: boolean;
   onDelete: () => void;
   onConsume: () => void;
-  onError: (title: string, message: string, broken?: boolean) => void;
+  onError: (title: string, message: string) => void;
 }
 
 interface OwnableState {
   initialized: boolean;
-  applied: EventChain;
+  applied: Binary;
   stateDump: StateDump;
   info?: TypedOwnableInfo;
   metadata: TypedMetadata;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
-  private readonly chain: EventChain;
   private readonly pkg: TypedPackage;
   private readonly iframeRef: RefObject<HTMLIFrameElement>;
   private busy = false;
@@ -44,20 +43,19 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   constructor(props: OwnableProps) {
     super(props);
 
-    this.chain = props.chain;
     this.pkg = PackageService.info(props.packageCid);
     this.iframeRef = createRef();
 
     this.state = {
       initialized: false,
-      applied: new EventChain(this.chain.id),
+      applied: new EventChain(this.chain.id).latestHash,
       stateDump: [],
       metadata: { name: this.pkg.title },
     };
   }
 
-  get id(): string {
-    return this.chain.id;
+  get chain(): EventChain {
+    return this.props.chain;
   }
 
   get isTransferred(): boolean {
@@ -78,10 +76,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   private async refresh(stateDump?: StateDump): Promise<void> {
     if (!stateDump) stateDump = this.state.stateDump;
 
-    await OwnableService.rpc(this.id).refresh(stateDump);
+    await OwnableService.rpc(this.chain.id).refresh(stateDump);
 
-    const info = await OwnableService.rpc(this.id).query({get_info: {}}, stateDump) as TypedOwnableInfo;
-    const metadata = await OwnableService.rpc(this.id).query({get_metadata: {}}, stateDump) as TypedMetadata;
+    const info = await OwnableService.rpc(this.chain.id).query({get_info: {}}, stateDump) as TypedOwnableInfo;
+    const metadata = await OwnableService.rpc(this.chain.id).query({get_metadata: {}}, stateDump) as TypedMetadata;
 
     this.setState({info, metadata});
   }
@@ -91,12 +89,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     this.busy = true;
 
     const stateDump =
-      await OwnableService.getStateDump(this.id, partialChain.state) || // Use stored state dump if available
+      await OwnableService.getStateDump(this.chain.id, partialChain.state) || // Use stored state dump if available
       await OwnableService.apply(partialChain, this.state.stateDump);
 
     await this.refresh(stateDump);
 
-    this.setState({applied: this.chain, stateDump});
+    this.setState({applied: this.chain.latestHash, stateDump});
     this.busy = false;
   }
 
@@ -110,7 +108,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       const initialized = await OwnableService.init(this.chain, this.pkg.cid, rpc);
       this.setState({initialized});
     } catch (e) {
-      this.props.onError("Failed to forge Ownable", ownableErrorMessage(e), true);
+      this.props.onError("Failed to forge Ownable", ownableErrorMessage(e));
     }
   }
 
@@ -127,11 +125,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     await OwnableService.store(this.chain, stateDump);
 
     await this.refresh(stateDump);
-    this.setState({applied: this.chain, stateDump});
+    this.setState({applied: this.chain.latestHash, stateDump});
   }
 
   private windowMessageHandler = async (event: MessageEvent) => {
-    if (!isObject(event.data) || !('ownable_id' in event.data) || event.data.ownable_id !== this.id) return;
+    if (!isObject(event.data) || !('ownable_id' in event.data) || event.data.ownable_id !== this.chain.id) return;
     if (this.iframeRef.current!.contentWindow !== event.source)
       throw Error("Not allowed to execute msg on other Ownable");
 
@@ -147,16 +145,16 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
-    const partial = this.chain.startingAfter(this.state.applied.latestHash);
+    const partial = this.chain.startingAfter(this.state.applied);
 
     if (partial.events.length > 0)
       await this.apply(partial);
-    else if (this.state.initialized !== prev.initialized || this.state.applied.state.hex !== prev.applied.state.hex)
+    else if (this.state.initialized !== prev.initialized || this.state.applied.hex !== prev.applied.hex)
       await this.refresh();
   }
 
   componentWillUnmount() {
-    OwnableService.clearRpc(this.id);
+    OwnableService.clearRpc(this.chain.id);
     window.removeEventListener("message", this.windowMessageHandler);
   }
 
@@ -181,7 +179,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onTransfer={address => this.transfer(address)}
         />
         <OwnableFrame
-          id={this.id}
+          id={this.chain.id}
           packageCid={this.pkg.cid}
           isDynamic={this.pkg.isDynamic}
           iframeRef={this.iframeRef}
