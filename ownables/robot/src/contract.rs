@@ -91,14 +91,8 @@ pub fn execute(
     match msg {
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
-        ExecuteMsg::Consume {} => try_consume(),
+        _ => Err(ContractError::NotImplemented {}),
     }
-}
-
-fn try_consume() -> Result<Response, ContractError> {
-    Ok(Response::new()
-        .add_attribute("method", "try_consume")
-    )
 }
 
 pub fn register_external_event(

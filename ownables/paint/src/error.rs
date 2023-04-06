@@ -23,4 +23,7 @@ pub enum ContractError {
 
     #[error("Invalid external event args")]
     InvalidExternalEventArgs {},
+
+    #[error("Method is not implemented for this Ownable")]
+    NotImplemented {},
 }
