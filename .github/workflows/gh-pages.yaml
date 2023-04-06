@@ -1,14 +1,26 @@
-name: Deploy Demo wallet
+name: Ownables SDK Demo
+
 on:
   push:
     branches:
       - main
+
 permissions:
   contents: write
+
 jobs:
-  build-and-deploy:
+  build-ownables:
     concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - antenna
+          - armor
+          - paint
+          - potion
+          - robot
+          - speakers
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -18,8 +30,8 @@ jobs:
         with:
           key: ownables-cargo
           path: |
-            ownables/*/Cargo.lock
-            ownables/*/target
+            ownables/${{matrix.package}}/Cargo.lock
+            ownables/${{matrix.package}}/target
       - name: Setup NodeJS
         uses: actions/setup-node@v3
         with:
@@ -27,16 +39,39 @@ jobs:
           cache: 'npm'
       - name: Setup wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
+      - name: Build
+        run: npm run ownables:build --package=${{ matrix.package }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: {{matrix.package}}
+          path: ownables/{{matrix.package}}.zip
+
+  build-and-deploy:
+    concurrency: ci-${{ github.ref }}
+    needs: build-ownables
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
       - name: NPM Install
         run: npm ci
-      - name: Build Ownables
-        run: npm run ownables:build-all
-      - name: Build SDK wallet
-        run: npm run build
-      - name: Copy Ownable packages
+      - name: Download Ownables packages
+        uses: actions/download-artifact@v3
+        with:
+          path: ownables
+      - name: Copy Ownables packages
         run: |
           mkdir public/ownables
-          cp ownables/*.zip public ownables
+          cp ownables/**/*.zip public/ownables
+      - name: Build
+        env:
+          - REACT_APP_OWNABLE_EXAMPLES_URL=/ownables
+        run: npm run build
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
