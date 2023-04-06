@@ -1,8 +1,0 @@
-{
-  "name": "ownable-car",
-  "collaborators": [
-    "bekauz <bekauz@protonmail.com>"
-  ],
-  "description": "ownable that displays a spinning car",
-  "version": "0.1.0"
-}

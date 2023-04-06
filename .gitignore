@@ -6,6 +6,7 @@ ownables/*/target
 ownables/*/schema
 ownables/*/Cargo.lock
 ownables/*.zip
+ownables/car
 ownables/*/assets/instantiate_msg.json
 /.pnp
 .pnp.js
