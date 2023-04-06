@@ -27,7 +27,7 @@ pub fn instantiate(
     let ownable_info = OwnableInfo {
         owner: derived_addr.clone(),
         issuer: derived_addr.clone(),
-        ownable_type: msg.ownable_type,
+        ownable_type: Some("basic".to_string()),
     };
 
     let metadata = Metadata {

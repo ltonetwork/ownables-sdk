@@ -180,7 +180,7 @@ fn try_register_consume(
             "paint" => {
                 config.color = color;
             },
-            "speaker" => {
+            "speakers" => {
                 config.has_speaker = true;
             },
             _ => {},
