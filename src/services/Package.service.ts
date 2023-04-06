@@ -98,13 +98,18 @@ export default class PackageService {
     const execute: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'execute_msg.json'));
     const query: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'query_msg.json'));
 
+    const hasMethod = (schema: TypedCosmWasmMsg, find: string) =>
+      schema.oneOf.findIndex(method => method.required.includes(find)) >= 0;
+
+    if (!hasMethod(query, 'get_info')) throw new Error('Invalid package: missing get_info method in query_msg.json');
+
     return {
       isDynamic: true,
-      hasMetadata: query.oneOf.findIndex(method => method.required.includes('get_metadata')) >= 0,
-      hasWidgetState: query.oneOf.findIndex(method => method.required.includes('get_widget_state')) >= 0,
-      isConsumable: execute.oneOf.findIndex(method => method.required.includes('consume')) >= 0,
-      isConsumer: query.oneOf.findIndex(method => method.required.includes('is_consumer_of')) >= 0,
-      isTransferable: execute.oneOf.findIndex(method => method.required.includes('transfer')) >= 0,
+      hasMetadata: hasMethod(query, 'get_metadata'),
+      hasWidgetState: hasMethod(query, 'get_widget_state'),
+      isConsumable: hasMethod(execute, 'consume'),
+      isConsumer: hasMethod(query, 'get_consumer'),
+      isTransferable: hasMethod(execute, 'transfer'),
     };
   }
 
@@ -116,9 +121,10 @@ export default class PackageService {
 
     const files = await this.extractAssets(zipFile);
     const cid = await calculateCid(files);
-    await this.storeAssets(cid, files);
+    const capabilities = await this.getCapabilities(cid);
 
-    return this.storePackageInfo(title, name, cid, await this.getCapabilities(cid));
+    await this.storeAssets(cid, files);
+    return this.storePackageInfo(title, name, cid, capabilities);
   }
 
   static async downloadExample(key: string): Promise<TypedPackage> {
