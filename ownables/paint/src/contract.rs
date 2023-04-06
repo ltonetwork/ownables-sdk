@@ -1,7 +1,7 @@
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
-use cosmwasm_std::{to_binary, Binary, Attribute, Event};
+use cosmwasm_std::{to_binary, Binary, Attribute, Event, StdError};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
@@ -317,20 +317,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
         QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
         QueryMsg::IsLocked {} => query_lock_state(deps),
-        QueryMsg::IsConsumerOf {
-            issuer,
-            consumable_type
-        } => query_is_consumer_of(deps, issuer, consumable_type),
+        _ => Err(StdError::not_found("Not implemented")),
     }
-}
-
-fn query_is_consumer_of(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
-    let ownable_info = OWNABLE_INFO.load(deps.storage)?;
-    if let Some(ownable_type) = ownable_info.ownable_type {
-        let valid = (issuer == ownable_info.issuer) && (ownable_type == consumable_type);
-        return to_binary(&valid);
-    };
-    to_binary(&false)
 }
 
 fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
