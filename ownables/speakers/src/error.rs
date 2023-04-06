@@ -1,10 +1,9 @@
-use cosmwasm_std::StdError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ContractError {
     #[error("{0}")]
-    Std(#[from] StdError),
+    Std(#[from] cosmwasm_std::StdError),
 
     #[error("Unauthorized error val: {val:?}")]
     Unauthorized { val: String },
@@ -23,4 +22,7 @@ pub enum ContractError {
 
     #[error("Invalid external event args")]
     InvalidExternalEventArgs {},
+
+    #[error("Method is not implemented for this Ownable")]
+    NotImplemented {},
 }

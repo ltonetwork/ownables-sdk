@@ -87,17 +87,11 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Consume {} => try_consume(),
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
         ExecuteMsg::Drink { amount } => try_drink(info, deps, amount),
+        _ => Err(ContractError::NotImplemented {}),
     }
-}
-
-fn try_consume() -> Result<Response, ContractError> {
-    Ok(Response::new()
-        .add_attribute("method", "try_consume")
-    )
 }
 
 pub fn register_external_event(
