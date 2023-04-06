@@ -142,13 +142,13 @@ async function queryRaw(msg: Dict, state: StateDump): Promise<string> {
   return (await workerCall<string>("query", ownableId, msg, {}, state)).response;
 }
 
-async function query(msg: Dict, state: StateDump): Promise<Dict> {
+async function query(msg: Dict, state: StateDump): Promise<any> {
   const resultB64 = await queryRaw(msg, state);
   return JSON.parse(atob(resultB64)) as Dict;
 }
 
 async function refresh(state: StateDump): Promise<void> {
-  const widgetState = await query({get_widget_state: {}}, state);
+  const widgetState: Dict = await query({get_widget_state: {}}, state);
 
   const iframe = document.getElementsByTagName('iframe')[0];
   iframe.contentWindow!.postMessage({ownable_id: ownableId, state: widgetState}, "*");

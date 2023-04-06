@@ -120,7 +120,7 @@ export default class PackageService {
       hasMetadata: hasMethod(query, 'get_metadata'),
       hasWidgetState: hasMethod(query, 'get_widget_state'),
       isConsumable: hasMethod(execute, 'consume'),
-      isConsumer: hasMethod(query, 'get_consumer'),
+      isConsumer: hasMethod(query, 'is_consumer_of'),
       isTransferable: hasMethod(execute, 'transfer'),
     };
   }

@@ -11,6 +11,7 @@ import {Cancelled} from "simple-iframe-rpc";
 import workerJsSource from "../assets/worker.js";
 import JSZip from "jszip";
 import {TypedPackage} from "../interfaces/TypedPackage";
+import {TypedOwnableInfo} from "../interfaces/TypedOwnableInfo";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -31,7 +32,7 @@ export interface OwnableRPC {
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
   externalEvent: (msg: TypedDict, info: TypedDict, state: StateDump)
     => Promise<{attributes: TypedDict<string>, events: Array<CosmWasmEvent>, data: string, state: StateDump}>;
-  query: (msg: TypedDict, state: StateDump) => Promise<TypedDict>;
+  query: (msg: TypedDict, state: StateDump) => Promise<any>;
   refresh: (state: StateDump) => Promise<void>;
 }
 
@@ -200,6 +201,18 @@ export default class OwnableService {
     return newStateDump;
   }
 
+  static async canConsume(consumer: {chain: EventChain, package: string}, info: TypedOwnableInfo): Promise<boolean> {
+    if (!PackageService.info(consumer.package).isConsumer) return false;
+
+    return true; // TODO: The check below is not working
+
+    const state = await this.getStateDump(consumer.chain.id, consumer.chain.state);
+    if (!state) return false;
+
+    return await this.rpc(consumer.chain.id)
+      .query({is_consumer_of: {consumable_type: info.ownable_type, issuer: info.issuer}}, state!);
+  }
+
   static async consume(consumer: EventChain, consumable: EventChain): Promise<void> {
     const info: MessageInfo = {
       sender: LTOService.account.publicKey,
@@ -214,8 +227,8 @@ export default class OwnableService {
     const {events, state: consumableStateDump} =
       await this.rpc(consumable.id).execute(consumeMessage, info, consumableState);
 
-    const consumeEvent: {contract?: string, type: string, attributes: TypedDict<string>}|undefined
-      = events.find(event => event.type === 'consume');
+    const consumeEvent: {contract?: string, type: string, attributes: TypedDict<string>}|undefined =
+      events.find(event => event.type === 'consume');
     if (!consumeEvent) throw Error("No consume event emitted");
     consumeEvent.contract = consumable.id;
 

@@ -24,6 +24,7 @@ import ownableErrorMessage from "./utils/ownableErrorMessage";
 import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from 'notistack';
+import {TypedOwnableInfo} from "./interfaces/TypedOwnableInfo";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -32,9 +33,10 @@ export default function App() {
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
   const [ownables, setOwnables] = useState<Array<{chain: EventChain, package: string}>>([]);
-  const [consuming, setConsuming] = useState<{chain: EventChain, package: string}|null>(null);
+  const [consuming, setConsuming] = useState<{chain: EventChain, package: string, info: TypedOwnableInfo}|null>(null);
   const [alert, setAlert] = useState<{title: string, message: React.ReactNode, severity: AlertColor}|null>(null);
-  const [confirm, setConfirm] = useState<{title: string, message: React.ReactNode, severity?: AlertColor, ok?: string, onConfirm: () => void}|null>(null);
+  const [confirm, setConfirm] =
+    useState<{title: string, message: React.ReactNode, severity?: AlertColor, ok?: string, onConfirm: () => void}|null>(null);
 
   useEffect(() => {
     IDBService.open()
@@ -79,6 +81,16 @@ export default function App() {
         enqueueSnackbar(`${pkg.title} deleted`);
       }
     });
+  }
+
+  const canConsume = async (consumer: {chain: EventChain, package: string}): Promise<boolean> => {
+    try {
+      console.log("canConsume", consumer);
+      return !!consuming?.info && await OwnableService.canConsume(consumer, consuming!.info);
+    } catch (e) {
+      console.error(e, (e as any).cause);
+      return false;
+    }
   }
 
   const consume = (consumer: EventChain, consumable: EventChain) => {
@@ -159,14 +171,18 @@ export default function App() {
             packageCid={packageCid}
             selected={consuming?.chain.id === chain.id}
             onDelete={() => deleteOwnable(chain.id, packageCid)}
-            onConsume={() => setConsuming({chain, package: packageCid})}
+            onConsume={(info) => setConsuming({chain, package: packageCid, info})}
             onError={showError}
-          />
-          <Overlay
-            hidden={consuming === null}
-            sx={{cursor: consuming?.chain.id !== chain.id ? 'pointer' : ''}}
-            onClick={() => consume(chain, consuming!.chain)}
-          />
+          >
+            <If condition={consuming?.chain.id === chain.id}><Overlay zIndex={1000} /></If>
+            <If condition={consuming !== null && consuming.chain.id !== chain.id}>
+              <Overlay
+                zIndex={1000}
+                disabled={canConsume({chain, package: packageCid}).then(can => !can)}
+                onClick={() => consume(chain, consuming!.chain)}
+              />
+            </If>
+          </Ownable>
         </Grid>
       )}
     </Grid>
