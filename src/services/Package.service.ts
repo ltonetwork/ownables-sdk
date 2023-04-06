@@ -86,14 +86,22 @@ export default class PackageService {
   }
 
   private static async getCapabilities(cid: string): Promise<TypedPackageCapabilities> {
-    if (!await this.hasAsset(cid, 'ownable_bg.wasm'))
-      return { isDynamic: false, isConsumable: false, isConsumer: false, isTransferable: false };
+    if (!await this.hasAsset(cid, 'ownable_bg.wasm')) return {
+      isDynamic: false,
+      hasMetadata: false,
+      hasWidgetState: false,
+      isConsumable: false,
+      isConsumer: false,
+      isTransferable: false
+    };
 
     const execute: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'execute_msg.json'));
     const query: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'query_msg.json'));
 
     return {
       isDynamic: true,
+      hasMetadata: query.oneOf.findIndex(method => method.required.includes('get_metadata')) >= 0,
+      hasWidgetState: query.oneOf.findIndex(method => method.required.includes('get_widget_state')) >= 0,
       isConsumable: execute.oneOf.findIndex(method => method.required.includes('consume')) >= 0,
       isConsumer: query.oneOf.findIndex(method => method.required.includes('is_consumer_of')) >= 0,
       isTransferable: execute.oneOf.findIndex(method => method.required.includes('transfer')) >= 0,

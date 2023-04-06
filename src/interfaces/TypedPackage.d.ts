@@ -1,5 +1,7 @@
 export interface TypedPackageCapabilities {
   isDynamic: boolean;
+  hasMetadata: boolean;
+  hasWidgetState: boolean;
   isConsumable: boolean;
   isConsumer: boolean;
   isTransferable: boolean;
