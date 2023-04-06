@@ -345,7 +345,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => query_is_consumer_of(deps, issuer, consumable_type),
     }
 }
+
 fn query_is_consumer_of(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
+    let ownable_info = OWNABLE_INFO.load(deps.storage)?;
+    if let Some(ownable_type) = ownable_info.ownable_type {
+        let valid = (issuer == ownable_info.issuer) && (ownable_type == consumable_type);
+        return to_binary(&valid);
+    };
     to_binary(&false)
 }
 
