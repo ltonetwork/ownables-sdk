@@ -143,6 +143,10 @@ export default class PackageService {
     if (!exampleUrl) throw new Error("Unable to download example ownable: URL not configured");
 
     const response = await fetch(`${exampleUrl}/${key}.zip`);
+    if (!response.ok) throw new Error(`Failed to download example ownable: ${response.statusText}`);
+    if (response.headers.get('Content-Type') !== 'application/zip')
+      throw new Error('Failed to download example ownable: invalid content type');
+
     const zipFile = new File([await response.blob()], `${key}.zip`, { type: 'application/zip' });
 
     return this.import(zipFile);
