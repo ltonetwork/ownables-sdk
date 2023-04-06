@@ -76,10 +76,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   private async refresh(stateDump?: StateDump): Promise<void> {
     if (!stateDump) stateDump = this.state.stateDump;
 
-    await OwnableService.rpc(this.chain.id).refresh(stateDump);
+    if (this.pkg.hasWidgetState) await OwnableService.rpc(this.chain.id).refresh(stateDump);
 
     const info = await OwnableService.rpc(this.chain.id).query({get_info: {}}, stateDump) as TypedOwnableInfo;
-    const metadata = await OwnableService.rpc(this.chain.id).query({get_metadata: {}}, stateDump) as TypedMetadata;
+    const metadata = this.pkg.hasMetadata
+      ? await OwnableService.rpc(this.chain.id).query({get_metadata: {}}, stateDump) as TypedMetadata
+      : this.state.metadata;
 
     this.setState({info, metadata});
   }
