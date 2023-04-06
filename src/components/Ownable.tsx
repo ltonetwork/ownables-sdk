@@ -1,4 +1,4 @@
-import {Component, createRef, RefObject} from "react";
+import {Component, createRef, ReactNode, RefObject} from "react";
 import {Paper, Tooltip} from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import {connect as rpcConnect} from "simple-iframe-rpc";
@@ -23,8 +23,9 @@ interface OwnableProps {
   packageCid: string;
   selected: boolean;
   onDelete: () => void;
-  onConsume: () => void;
+  onConsume: (info: TypedOwnableInfo) => void;
   onError: (title: string, message: string) => void;
+  children?: ReactNode;
 }
 
 interface OwnableState {
@@ -177,7 +178,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           isConsumable={this.pkg.isConsumable && !this.isTransferred}
           isTransferable={this.pkg.isTransferable && !this.isTransferred}
           onDelete={this.props.onDelete}
-          onConsume={this.props.onConsume}
+          onConsume={() => !!this.state.info && this.props.onConsume(this.state.info)}
           onTransfer={address => this.transfer(address)}
         />
         <OwnableFrame
@@ -187,6 +188,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           iframeRef={this.iframeRef}
           onLoad={() => this.onLoad()}
         />
+        {this.props.children}
         <If condition={this.isTransferred}>
           <Tooltip title="You're unable to interact with this Ownable, because it has been transferred to a different account." followCursor>
             <Overlay sx={{backgroundColor: "rgba(255, 255, 255, 0.8)"}}>
