@@ -43,8 +43,8 @@ jobs:
         run: npm run ownables:build --package=${{ matrix.package }}
       - uses: actions/upload-artifact@v3
         with:
-          name: {{matrix.package}}
-          path: ownables/{{matrix.package}}.zip
+          name: "${{matrix.package}}"
+          path: "ownables/${{matrix.package}}.zip"
 
   build-and-deploy:
     concurrency: ci-${{ github.ref }}
@@ -70,7 +70,7 @@ jobs:
           cp ownables/**/*.zip public/ownables
       - name: Build
         env:
-          - REACT_APP_OWNABLE_EXAMPLES_URL=/ownables
+          REACT_APP_OWNABLE_EXAMPLES_URL: /ownables
         run: npm run build
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
