@@ -86,7 +86,6 @@ function workerCall<T extends Response|string>(
 
       resolve({response, state: nextState});
     }, { once: true });
-
     worker.postMessage({type, ownable_id: ownableId, msg, info, mem: {state_dump: state}});
   });
 }
