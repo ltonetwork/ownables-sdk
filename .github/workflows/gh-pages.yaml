@@ -9,9 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build-ownables:
-    concurrency: ci-${{ github.ref }}
-    runs-on: ubuntu-latest
+  ownables:
     strategy:
       matrix:
         package:
@@ -21,6 +19,8 @@ jobs:
           - potion
           - robot
           - speakers
+    concurrency: ci-${{ github.ref }}-${{ matrix.package }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -46,9 +46,9 @@ jobs:
           name: "${{matrix.package}}"
           path: "ownables/${{matrix.package}}.zip"
 
-  build-and-deploy:
+  wallet:
     concurrency: ci-${{ github.ref }}
-    needs: build-ownables
+    needs: ownables
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
