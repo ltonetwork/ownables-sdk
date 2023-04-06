@@ -175,7 +175,14 @@ export default class OwnableService {
       case "execute_msg.json":
         return await rpc.execute(msg, info, stateDump);
       case "external_event_msg.json":
-        return await rpc.externalEvent(msg, info, stateDump);
+        const message = {
+          msg: {
+            event_type: msg.type,
+            attributes: msg.attributes,
+            network: "",
+          }
+        };
+        return await rpc.externalEvent(message, info, stateDump);
       default:
         throw new Error(`Unknown event type`);
     }
