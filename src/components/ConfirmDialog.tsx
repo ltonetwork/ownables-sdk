@@ -26,7 +26,7 @@ export default function ConfirmDialog(props: ConfirmDialogProps) {
     <DialogActions>
       <Button onClick={onClose} color="secondary">{props.cancel || 'Cancel'}</Button>
       <Button
-        onClick={() => {onClose(); onConfirm();}}
+        onClick={() => { onConfirm(); onClose();}}
         autoFocus
         color={props.severity}
         variant="contained"

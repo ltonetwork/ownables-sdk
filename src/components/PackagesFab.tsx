@@ -57,6 +57,7 @@ interface PackagesFabProps {
   onOpen: () => void;
   onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
+  onError: (title: string, message: string) => void;
 }
 
 export default function PackagesFab(props: PackagesFabProps) {
@@ -67,7 +68,7 @@ export default function PackagesFab(props: PackagesFabProps) {
     right: 20,
   };
 
-  const {open, onOpen, onClose, onSelect} = props;
+  const {open, onOpen, onClose, onSelect, onError} = props;
   const [packages, setPackages] = React.useState<Array<TypedPackage|TypedPackageStub>>([]);
   const [isBusy, busy] = useBusy();
 
@@ -78,14 +79,23 @@ export default function PackagesFab(props: PackagesFabProps) {
     const files = await selectFile({ accept: '.zip', multiple: true });
     if (files.length === 0) return;
 
-    await busy(Promise.all(Array.from(files).map(file => PackageService.import(file))));
-    updatePackages();
+    try {
+      await busy(Promise.all(Array.from(files).map(file => PackageService.import(file))));
+      updatePackages();
+    } catch (error) {
+      onError("Failed to import package", (error as Error).message || (error as string));
+    }
   };
 
   const selectPackage = async (pkg: TypedPackage|TypedPackageStub) => {
     if ("stub" in pkg) {
-      pkg = await busy(PackageService.downloadExample(pkg.name));
-      updatePackages();
+      try {
+        pkg = await busy(PackageService.downloadExample(pkg.name));
+        updatePackages();
+      } catch (error) {
+        onError("Failed to import package", (error as Error).message || (error as string));
+        return;
+      }
     }
 
     onSelect(pkg);
@@ -100,7 +110,8 @@ export default function PackagesFab(props: PackagesFabProps) {
       open={open}
       onClose={onClose}
       onSelect={selectPackage}
-      onImport={importPackages} />
+      onImport={importPackages}
+    />
     <Loading show={isBusy} />
   </>
 }

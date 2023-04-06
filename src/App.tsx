@@ -23,6 +23,7 @@ import {AlertColor} from "@mui/material/Alert/Alert";
 import ownableErrorMessage from "./utils/ownableErrorMessage";
 import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
+import { SnackbarProvider, enqueueSnackbar } from 'notistack';
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -42,7 +43,7 @@ export default function App() {
       .then(() => setLoaded(true))
   }, []);
 
-  const onError = (title: string, message: string) => {
+  const showError = (title: string, message: string) => {
     setAlert({severity: "error", title, message});
   }
 
@@ -61,6 +62,7 @@ export default function App() {
     const chain = OwnableService.create(pkg);
     setOwnables([...ownables, {chain, package: pkg.cid}]);
     setShowPackages(false);
+    enqueueSnackbar(`${pkg.title} forged`, {variant: "success"});
   }
 
   const deleteOwnable = (id: string, packageCid: string) => {
@@ -71,13 +73,12 @@ export default function App() {
       title: "Confirm delete",
       message: <span>Are you sure you want to delete this <em>{pkg.title}</em> Ownable?</span>,
       ok: "Delete",
-      onConfirm: () => _delete(id)
+      onConfirm: async () => {
+        setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
+        await OwnableService.delete(id);
+        enqueueSnackbar(`${pkg.title} deleted`);
+      }
     });
-  }
-
-  const _delete = async (id: string) => {
-    setOwnables(current => current.filter(ownable => ownable.chain.id !== id));
-    await OwnableService.delete(id);
   }
 
   const consume = (consumer: EventChain, consumable: EventChain) => {
@@ -87,8 +88,9 @@ export default function App() {
       .then(() => {
         setConsuming(null);
         setOwnables(ownables => [...ownables]);
+        enqueueSnackbar("Consumed", {variant: "success"});
       })
-      .catch(error => onError("Consume failed", ownableErrorMessage(error)));
+      .catch(error => showError("Consume failed", ownableErrorMessage(error)));
   }
 
   const reset = async () => {
@@ -103,6 +105,7 @@ export default function App() {
       onConfirm: async () => {
         setOwnables([]);
         await OwnableService.deleteAll();
+        enqueueSnackbar("All Ownables are deleted");
       }
     });
   }
@@ -157,7 +160,7 @@ export default function App() {
             selected={consuming?.chain.id === chain.id}
             onDelete={() => deleteOwnable(chain.id, packageCid)}
             onConsume={() => setConsuming({chain, package: packageCid})}
-            onError={onError}
+            onError={showError}
           />
           <Overlay
             hidden={consuming === null}
@@ -173,6 +176,7 @@ export default function App() {
       onOpen={() => setShowPackages(true)}
       onClose={() => setShowPackages(false)}
       onSelect={forge}
+      onError={showError}
     />
 
     <Sidebar
@@ -193,13 +197,9 @@ export default function App() {
       </Box>
     </HelpDrawer>
 
-    <AlertDialog open={alert !== null} onClose={() => setAlert(null)} {...alert!}>
-      {alert?.message}
-    </AlertDialog>
-    <ConfirmDialog open={confirm !== null} onClose={() => setConfirm(null)} {...confirm!}>
-      {confirm?.message}
-    </ConfirmDialog>
-
+    <SnackbarProvider />
+    <AlertDialog open={alert !== null} onClose={() => setAlert(null)} {...alert!}>{alert?.message}</AlertDialog>
+    <ConfirmDialog open={confirm !== null} onClose={() => setConfirm(null)} {...confirm!}>{confirm?.message}</ConfirmDialog>
     <Loading show={!loaded} />
   </>
 }

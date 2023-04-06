@@ -18,6 +18,15 @@ const examples: TypedPackageStub[] = exampleUrl ? [
 ] : [];
 export const HAS_EXAMPLES = exampleUrl !== '';
 
+const capabilitiesStaticOwnable = {
+  isDynamic: false,
+  hasMetadata: false,
+  hasWidgetState: false,
+  isConsumable: false,
+  isConsumer: false,
+  isTransferable: false,
+};
+
 export default class PackageService {
   static list(): Array<TypedPackage|TypedPackageStub> {
     const local = (LocalStorageService.get('packages') || []) as TypedPackage[];
@@ -65,7 +74,7 @@ export default class PackageService {
     const zip = await JSZip.loadAsync(zipFile);
 
     return await Promise.all(Array.from(Object.entries(zip.files))
-      .filter(([filename]) => !filename.startsWith('.') && !filename.includes('MAC'))
+      .filter(([filename]) => !filename.startsWith('.') && filename !== 'chain.json')
       .map(async ([filename, file]) => {
         const blob = await file.async("blob");
         const type = mime.getType(filename) || 'application/octet-stream';
@@ -85,23 +94,26 @@ export default class PackageService {
     );
   }
 
-  private static async getCapabilities(cid: string): Promise<TypedPackageCapabilities> {
-    if (!await this.hasAsset(cid, 'ownable_bg.wasm')) return {
-      isDynamic: false,
-      hasMetadata: false,
-      hasWidgetState: false,
-      isConsumable: false,
-      isConsumer: false,
-      isTransferable: false
-    };
+  private static async getPackageJson(filename: string, files: File[]): Promise<TypedCosmWasmMsg> {
+    const file = files.find(file => file.name === filename);
+    if (!file) throw new Error(`Invalid package: missing ${filename}`);
 
-    const execute: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'execute_msg.json'));
-    const query: TypedCosmWasmMsg = JSON.parse(await this.getAssetAsText(cid, 'query_msg.json'));
+    return JSON.parse(await file.text());
+  }
+
+  private static async getCapabilities(files: File[]): Promise<TypedPackageCapabilities> {
+    if (files.findIndex(file => file.name === 'package.json') < 0)
+      throw new Error('Invalid package: missing package.json');
+
+    if (files.findIndex(file => file.name === 'ownable_bg.wasm') < 0) return capabilitiesStaticOwnable;
+
+    const query = await this.getPackageJson('query_msg.json', files);
+    const execute = await this.getPackageJson('execute_msg.json', files);
 
     const hasMethod = (schema: TypedCosmWasmMsg, find: string) =>
       schema.oneOf.findIndex(method => method.required.includes(find)) >= 0;
 
-    if (!hasMethod(query, 'get_info')) throw new Error('Invalid package: missing get_info method in query_msg.json');
+    if (!hasMethod(query, 'get_info')) throw new Error('Invalid package: missing `get_info` query method');
 
     return {
       isDynamic: true,
@@ -121,7 +133,7 @@ export default class PackageService {
 
     const files = await this.extractAssets(zipFile);
     const cid = await calculateCid(files);
-    const capabilities = await this.getCapabilities(cid);
+    const capabilities = await this.getCapabilities(files);
 
     await this.storeAssets(cid, files);
     return this.storePackageInfo(title, name, cid, capabilities);
@@ -155,10 +167,6 @@ export default class PackageService {
         read(fileReader, mediaFile);
       }, error => reject(error));
     });
-  }
-
-  static hasAsset(cid: string, name: string): Promise<boolean> {
-    return IDBService.has(`package:${cid}`, name);
   }
 
   static getAssetAsText(cid: string, name: string): Promise<string> {
