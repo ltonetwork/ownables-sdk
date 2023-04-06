@@ -27,7 +27,7 @@ pub fn instantiate(
     let ownable_info = OwnableInfo {
         owner: derived_addr.clone(),
         issuer: derived_addr.clone(),
-        ownable_type: msg.ownable_type.clone(),
+        ownable_type: Some("paint".to_string()),
     };
 
     let metadata = Metadata {
@@ -275,6 +275,10 @@ pub fn try_consume(
             key: "consumable_type".to_string(),
             value: ownership.ownable_type.unwrap_or("armor".to_string()),
         },
+        Attribute {
+            key: "color".to_string(),
+            value: config.color.to_string(),
+        }
     ]);
 
     Ok(Response::new()
