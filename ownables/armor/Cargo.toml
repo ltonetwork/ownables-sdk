@@ -1,6 +1,8 @@
 [package]
 name = "ownable-armor"
 version = "0.1.0"
+description = "Add-on for Robot"
+license = "MIT"
 authors = ["bekauz <bekauz@protonmail.com>"]
 edition = "2018"
 

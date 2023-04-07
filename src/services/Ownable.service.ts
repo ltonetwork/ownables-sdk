@@ -66,7 +66,13 @@ export default class OwnableService {
     const rpc = this._rpc.get(id);
     if (!rpc) return;
 
-    delete (rpc as any).handler;
+    try {
+      delete (rpc as any).handler;
+    } catch (e) {
+      if (e instanceof Cancelled) return;
+      throw e;
+    }
+
     this._rpc.delete(id);
   }
 
@@ -123,8 +129,13 @@ export default class OwnableService {
     return chain;
   }
 
-  static async init(chain: EventChain, pkg: string, rpc: OwnableRPC) {
-    if (this._rpc.has(chain.id)) delete (this._rpc.get(chain.id) as any).handler;
+  static async init(chain: EventChain, pkg: string, rpc: OwnableRPC): Promise<void> {
+    if (this._rpc.has(chain.id)) {
+      try {
+        delete (this._rpc.get(chain.id) as any).handler;
+      } catch (e) { }
+    }
+
     this._rpc.set(chain.id, rpc);
 
     const moduleJs = await PackageService.getAssetAsText(pkg, 'ownable.js');
@@ -136,17 +147,10 @@ export default class OwnableService {
       (fr, file) => fr.readAsArrayBuffer(file)
     ) as ArrayBuffer;
 
-    try {
-      await rpc.init(chain.id, js, new Uint8Array(wasm));
-    } catch (e) {
-      if (!(e instanceof Cancelled)) throw e;
-      return false;
-    }
+    await rpc.init(chain.id, js, new Uint8Array(wasm));
 
     const stateDump = await this.apply(chain, []);
     await OwnableService.initStore(chain, pkg, stateDump);
-
-    return true;
   }
 
   static async apply(partialChain: EventChain, stateDump: StateDump): Promise<StateDump> {
@@ -256,15 +260,13 @@ export default class OwnableService {
     await IDBService.setAll(entries);
   }
 
-  private static async initStore(chain: EventChain, pkg: string, stateDump: StateDump): Promise<void> {
+  static async initStore(chain: EventChain, pkg: string, stateDump?: StateDump): Promise<void> {
     if (IDBService.exists(`ownable:${chain.id}`)) {
       return;
     }
 
-    await IDBService.create(
-      `ownable:${chain.id}`,
-      `ownable:${chain.id}.state`,
-    );
+    const dbs = [`ownable:${chain.id}`];
+    if (stateDump) dbs.push(`ownable:${chain.id}.state`);
 
     const chainData = {
       chain: chain.toJSON(),
@@ -273,10 +275,12 @@ export default class OwnableService {
       created: new Date(),
     };
 
-    await IDBService.setAll(Object.fromEntries([
-      [`ownable:${chain.id}`, chainData],
-      [`ownable:${chain.id}.state`, new Map(stateDump)],
-    ]));
+    const data: TypedDict = {};
+    data[`ownable:${chain.id}`] = chainData;
+    if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
+
+    await IDBService.create(...dbs);
+    await IDBService.setAll(data);
   }
 
   static async store(chain: EventChain, stateDump: StateDump): Promise<void> {

@@ -3,6 +3,7 @@
   "collaborators": [
     "bekauz <bekauz@protonmail.com>"
   ],
-  "description": "ownable that displays a spinning car",
+  "description": "Ownable that displays a spinning car",
+  "license": "MIT",
   "version": "0.1.0"
 }

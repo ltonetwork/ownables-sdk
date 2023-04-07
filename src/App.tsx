@@ -60,7 +60,7 @@ export default function App() {
     setShowLogin(true);
   }
 
-  const forge = (pkg: TypedPackage) => {
+  const forge = async (pkg: TypedPackage) => {
     const chain = OwnableService.create(pkg);
     setOwnables([...ownables, {chain, package: pkg.cid}]);
     setShowPackages(false);
@@ -85,7 +85,6 @@ export default function App() {
 
   const canConsume = async (consumer: {chain: EventChain, package: string}): Promise<boolean> => {
     try {
-      console.log("canConsume", consumer);
       return !!consuming?.info && await OwnableService.canConsume(consumer, consuming!.info);
     } catch (e) {
       console.error(e, (e as any).cause);

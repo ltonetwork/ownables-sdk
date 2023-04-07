@@ -5,16 +5,17 @@ import mime from "mime/lite";
 import IDBService from "./IDB.service";
 import calculateCid from "../utils/calculateCid";
 import {TypedCosmWasmMsg} from "../interfaces/TypedCosmWasmMsg";
+import TypedDict from "../interfaces/TypedDict";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl ? [
-  { title: 'Antenna', name: 'antenna', stub: true },
-  { title: 'Armor', name: 'armor', stub: true },
-  { title: 'Car', name: 'car', stub: true },
-  { title: 'Paint', name: 'paint', stub: true },
-  { title: 'Potion', name: 'potion', stub: true },
-  { title: 'Robot', name: 'robot', stub: true },
-  { title: 'Speakers', name: 'speakers', stub: true },
+  { title: 'Antenna', name: 'ownable-antenna', description: 'Add-on for Robot', stub: true },
+  { title: 'Armor', name: 'ownable-armor', description: 'Add-on for Robot', stub: true },
+  { title: 'Car', name: 'ownable-car', description: 'Add-on for Robot', stub: true },
+  { title: 'Paint', name: 'ownable-paint', description: 'Add-on for Robot', stub: true },
+  { title: 'Potion', name: 'ownable-potion', description: 'Add-on for Robot', stub: true },
+  { title: 'Robot', name: 'ownable-robot', description: 'An adorable robot companion', stub: true },
+  { title: 'Speakers', name: 'ownable-speakers', description: 'Add-on for Robot', stub: true },
 ] : [];
 export const HAS_EXAMPLES = exampleUrl !== '';
 
@@ -51,6 +52,7 @@ export default class PackageService {
   private static storePackageInfo(
     title: string,
     name: string,
+    description: string|undefined,
     cid: string,
     capabilities: TypedPackageCapabilities
   ): TypedPackage {
@@ -58,10 +60,10 @@ export default class PackageService {
     let pkg = packages.find(pkg => pkg.name === name);
 
     if (!pkg) {
-      pkg = {title, name, cid, ...capabilities, versions: []};
+      pkg = {title, name, description, cid, ...capabilities, versions: []};
       packages.push(pkg);
     } else {
-      Object.assign(pkg, {cid, ...capabilities});
+      Object.assign(pkg, {cid, description, ...capabilities});
     }
 
     pkg.versions.push({date: new Date(), cid});
@@ -94,7 +96,7 @@ export default class PackageService {
     );
   }
 
-  private static async getPackageJson(filename: string, files: File[]): Promise<TypedCosmWasmMsg> {
+  private static async getPackageJson(filename: string, files: File[]): Promise<any> {
     const file = files.find(file => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
 
@@ -107,8 +109,8 @@ export default class PackageService {
 
     if (files.findIndex(file => file.name === 'ownable_bg.wasm') < 0) return capabilitiesStaticOwnable;
 
-    const query = await this.getPackageJson('query_msg.json', files);
-    const execute = await this.getPackageJson('execute_msg.json', files);
+    const query: TypedCosmWasmMsg = await this.getPackageJson('query_msg.json', files);
+    const execute: TypedCosmWasmMsg = await this.getPackageJson('execute_msg.json', files);
 
     const hasMethod = (schema: TypedCosmWasmMsg, find: string) =>
       schema.oneOf.findIndex(method => method.required.includes(find)) >= 0;
@@ -126,23 +128,29 @@ export default class PackageService {
   }
 
   static async import(zipFile: File): Promise<TypedPackage> {
-    const name = zipFile.name.replace(/\.\w+$/, '');
+    const files = await this.extractAssets(zipFile);
+    const packageJson: TypedDict = await this.getPackageJson('package.json', files);
+
+    const name: string = packageJson.name || zipFile.name.replace(/\.\w+$/, '');
     const title = name
+      .replace(/^ownable-|-ownable$/, '')
       .replace(/[-_]+/, ' ')
       .replace(/\b\w/, c => c.toUpperCase());
+    const description: string|undefined = packageJson.description;
 
-    const files = await this.extractAssets(zipFile);
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
 
     await this.storeAssets(cid, files);
-    return this.storePackageInfo(title, name, cid, capabilities);
+    return this.storePackageInfo(title, name, description, cid, capabilities);
   }
 
   static async downloadExample(key: string): Promise<TypedPackage> {
     if (!exampleUrl) throw new Error("Unable to download example ownable: URL not configured");
 
-    const response = await fetch(`${exampleUrl}/${key}.zip`);
+    const filename = key.replace(/^ownable-/, '') + '.zip';
+
+    const response = await fetch(`${exampleUrl}/${filename}`);
     if (!response.ok) throw new Error(`Failed to download example ownable: ${response.statusText}`);
     if (response.headers.get('Content-Type') !== 'application/zip')
       throw new Error('Failed to download example ownable: invalid content type');
