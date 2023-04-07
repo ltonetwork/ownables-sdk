@@ -1,7 +1,7 @@
 import {Component, createRef, ReactNode, RefObject} from "react";
 import {Paper, Tooltip} from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
-import {connect as rpcConnect} from "simple-iframe-rpc";
+import {Cancelled, connect as rpcConnect} from "simple-iframe-rpc";
 import PackageService from "../services/Package.service";
 import {Binary, EventChain} from "@ltonetwork/lto";
 import OwnableActions from "./OwnableActions";
@@ -102,15 +102,19 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   async onLoad(): Promise<void> {
-    if (!this.pkg.isDynamic) return;
+    if (!this.pkg.isDynamic) {
+      await OwnableService.initStore(this.chain, this.pkg.cid);
+      return;
+    }
 
     const iframeWindow = this.iframeRef.current!.contentWindow;
     const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", {timeout: 5000});
 
     try {
-      const initialized = await OwnableService.init(this.chain, this.pkg.cid, rpc);
-      this.setState({initialized});
+      await OwnableService.init(this.chain, this.pkg.cid, rpc);
+      this.setState({initialized: true});
     } catch (e) {
+      if (e instanceof Cancelled) return;
       this.props.onError("Failed to forge Ownable", ownableErrorMessage(e));
     }
   }

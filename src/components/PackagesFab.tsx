@@ -28,12 +28,15 @@ function PackagesDialog(props: PackagesDialogProps) {
 
   return (
     <Dialog onClose={onClose} open={open}>
-      <List sx={{pt: 0}} disablePadding>
+      <List sx={{pt: 0, minWidth: 250}} disablePadding>
         {packages.map((pkg) => (
           <ListItem disablePadding disableGutters key={pkg.title}>
             <Tooltip condition={"stub" in pkg} title={`Import ${pkg.title} example`} placement="right" arrow>
               <ListItemButton onClick={() => onSelect(pkg)} style={{textAlign: "center", color: "stub" in pkg ? "#666" : undefined }}>
-                <ListItemText primary={pkg.title} />
+                <ListItemText
+                  primary={pkg.title}
+                  secondary={pkg.description}
+                  secondaryTypographyProps={{color: "stub" in pkg ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.6)', fontSize: '0.75em'}}/>
               </ListItemButton>
             </Tooltip>
           </ListItem>

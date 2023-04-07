@@ -18,5 +18,6 @@ export interface TypedPackage extends TypedPackageCapabilities {
 export interface TypedPackageStub {
   title: string;
   name: string;
+  description?: string;
   stub: true;
 }

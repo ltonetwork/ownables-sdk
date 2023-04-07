@@ -134,7 +134,6 @@ export default class IDBService {
   private static async upgrade(action: (db: IDBDatabase) => void): Promise<void> {
     const version = this.db.version; // Get version before closing DB
     this.db.close();
-    delete this._db;
 
     try {
       this._db = await new Promise(async (resolve, reject) => {
