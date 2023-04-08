@@ -51,7 +51,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       initialized: false,
       applied: new EventChain(this.chain.id).latestHash,
       stateDump: [],
-      metadata: { name: this.pkg.title },
+      metadata: { name: this.pkg.title, description: this.pkg.description },
     };
   }
 
