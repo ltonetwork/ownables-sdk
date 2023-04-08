@@ -210,11 +210,11 @@ export default class OwnableService {
 
     return true; // TODO: The check below is not working
 
-    const state = await this.getStateDump(consumer.chain.id, consumer.chain.state);
+    /*const state = await this.getStateDump(consumer.chain.id, consumer.chain.state);
     if (!state) return false;
 
     return await this.rpc(consumer.chain.id)
-      .query({is_consumer_of: {consumable_type: info.ownable_type, issuer: info.issuer}}, state!);
+      .query({is_consumer_of: {consumable_type: info.ownable_type, issuer: info.issuer}}, state!);*/
   }
 
   static async consume(consumer: EventChain, consumable: EventChain): Promise<void> {
