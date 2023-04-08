@@ -11,9 +11,9 @@ const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl ? [
   { title: 'Antenna', name: 'ownable-antenna', description: 'Add-on for Robot', stub: true },
   { title: 'Armor', name: 'ownable-armor', description: 'Add-on for Robot', stub: true },
-  { title: 'Car', name: 'ownable-car', description: 'Add-on for Robot', stub: true },
-  { title: 'Paint', name: 'ownable-paint', description: 'Add-on for Robot', stub: true },
-  { title: 'Potion', name: 'ownable-potion', description: 'Add-on for Robot', stub: true },
+  { title: 'Car', name: 'ownable-car', description: 'Ride for HODLers', stub: true },
+  { title: 'Paint', name: 'ownable-paint', description: 'Consumable for Robot', stub: true },
+  { title: 'Potion', name: 'ownable-potion', description: 'Drink a colorful potion', stub: true },
   { title: 'Robot', name: 'ownable-robot', description: 'An adorable robot companion', stub: true },
   { title: 'Speakers', name: 'ownable-speakers', description: 'Add-on for Robot', stub: true },
 ] : [];
@@ -87,9 +87,9 @@ export default class PackageService {
   }
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
-    if (IDBService.exists(`package:${cid}`)) return;
+    if (await IDBService.hasStore(`package:${cid}`)) return;
 
-    await IDBService.create(`package:${cid}`);
+    await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
       `package:${cid}`,
       Object.fromEntries(files.map(file => [file.name, file])),

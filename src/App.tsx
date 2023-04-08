@@ -132,9 +132,9 @@ export default function App() {
       onConfirm: async () => {
         setLoaded(false);
 
-        await IDBService.destroy();
         LocalStorageService.clear();
         SessionStorageService.clear();
+        await IDBService.deleteDatabase();
 
         window.location.reload();
       }
