@@ -254,7 +254,7 @@ pub fn try_drink(
         Some(mut c) => {
             if c.current_amount < consumption_amount {
                 return Err(ContractError::CustomError {
-                    val: "attempt to consume more than possible".into(),
+                    val: "Attempt to drink more than is available".into(),
                 });
             }
             c.current_amount -= consumption_amount;
