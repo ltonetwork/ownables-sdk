@@ -77,7 +77,7 @@ export default class OwnableService {
   }
 
   static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date}>> {
-    const ids = IDBService.list()
+    const ids = (await IDBService.listStores())
       .filter(name => name.match(/^ownable:\w+$/))
       .map(name => name.replace(/^ownable:(\w+)$/, '$1'));
 
@@ -96,7 +96,7 @@ export default class OwnableService {
 
   // Return `null` if the stored state dump doesn't match the requested event chain state
   static async getStateDump(id: string, state: string|Binary): Promise<StateDump|null> {
-    const storedState = IDBService.exists(`ownable:${id}`)
+    const storedState = (await IDBService.hasStore(`ownable:${id}`))
       ? await IDBService.get(`ownable:${id}`, 'state')
       : undefined;
     if (storedState !== (state instanceof Binary ? state.hex : state)) return null;
@@ -261,7 +261,7 @@ export default class OwnableService {
   }
 
   static async initStore(chain: EventChain, pkg: string, stateDump?: StateDump): Promise<void> {
-    if (IDBService.exists(`ownable:${chain.id}`)) {
+    if (await IDBService.hasStore(`ownable:${chain.id}`)) {
       return;
     }
 
@@ -279,7 +279,7 @@ export default class OwnableService {
     data[`ownable:${chain.id}`] = chainData;
     if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
 
-    await IDBService.create(...dbs);
+    await IDBService.createStore(...dbs);
     await IDBService.setAll(data);
   }
 
@@ -294,11 +294,11 @@ export default class OwnableService {
   }
 
   static async delete(id: string): Promise<void> {
-    await IDBService.delete(new RegExp(`^ownable:${id}(\\..+)?$`));
+    await IDBService.deleteStore(new RegExp(`^ownable:${id}(\\..+)?$`));
   }
 
   static async deleteAll(): Promise<void> {
-    await IDBService.delete(/^ownable:.+/);
+    await IDBService.deleteStore(/^ownable:.+/);
   }
 
   static async zip(chain: EventChain): Promise<JSZip> {
