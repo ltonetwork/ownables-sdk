@@ -1,6 +1,6 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
-use cosmwasm_std::{to_binary, Binary, Attribute, Event, StdError};
+use cosmwasm_std::{to_binary, Binary, StdError};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
@@ -242,7 +242,7 @@ pub fn try_drink(
     }
     let network = NETWORK_ID.load(deps.storage)?;
     let ownership = OWNABLE_INFO.load(deps.storage)?;
-    let mut config = CONFIG.load(deps.storage)?;
+    let config = CONFIG.load(deps.storage)?;
     if address_lto(network as char, info.sender.to_string())? != ownership.owner {
         return Err(ContractError::Unauthorized {
             val: "Unauthorized consumption attempt".into(),
