@@ -90,7 +90,6 @@ pub fn execute(
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
         ExecuteMsg::Drink { amount } => try_drink(info, deps, amount),
-        _ => Err(ContractError::NotImplemented {}),
     }
 }
 

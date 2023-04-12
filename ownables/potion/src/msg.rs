@@ -2,21 +2,28 @@ use cosmwasm_std::{Addr};
 use ownable_std::NFT;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use ownable_std_macros::{ownables_std_execute_msg, ownables_std_query_msg, ownables_std_instantiate_msg};
+use ownable_std_macros::{
+    ownables_transfer, ownables_lock,
+    ownables_query_info, ownables_query_locked, ownables_query_metadata,
+    ownables_query_widget_state, ownables_instantiate_msg
+};
 
-#[ownables_std_instantiate_msg]
+#[ownables_instantiate_msg]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {}
 
-#[ownables_std_execute_msg]
+#[ownables_transfer]
+#[ownables_lock]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     // consumes percentage of remaining potion
     Drink { amount: u8 },
 }
 
-#[ownables_std_query_msg]
+#[ownables_query_info]
+#[ownables_query_locked]
+#[ownables_query_metadata]
+#[ownables_query_widget_state]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {}

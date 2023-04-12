@@ -1,6 +1,6 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
-use cosmwasm_std::{to_binary, Binary, Attribute, Event, StdError};
+use cosmwasm_std::{to_binary, Binary, Attribute, Event};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
@@ -317,7 +317,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
         QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
         QueryMsg::IsLocked {} => query_lock_state(deps),
-        _ => Err(StdError::not_found("Not implemented")),
     }
 }
 

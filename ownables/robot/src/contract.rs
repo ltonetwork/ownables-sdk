@@ -67,17 +67,6 @@ pub fn instantiate(
     )
 }
 
-fn get_random_color(hash: String) -> String {
-    let (red, green, blue) = derive_rgb_values(hash);
-    rgb_hex(red, green, blue)
-}
-
-fn derive_rgb_values(hash: String) -> (u8, u8, u8) {
-    let mut decoded_hash = bs58::decode(&hash).into_vec().unwrap();
-    decoded_hash.reverse();
-    (decoded_hash[0], decoded_hash[1], decoded_hash[2])
-}
-
 fn rgb_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
@@ -91,7 +80,6 @@ pub fn execute(
     match msg {
         ExecuteMsg::Transfer { to } => try_transfer(info, deps, to),
         ExecuteMsg::Lock {} => try_lock(info, deps),
-        _ => Err(ContractError::NotImplemented {}),
     }
 }
 
@@ -130,7 +118,7 @@ pub fn register_external_event(
 }
 
 fn try_register_consume(
-    info: MessageInfo,
+    _info: MessageInfo,
     deps: DepsMut,
     event: ExternalEventMsg,
     ownable_id: String,
@@ -168,7 +156,7 @@ fn try_register_consume(
         return Err(ContractError::InvalidExternalEventArgs {})
     }
 
-    let mut config_option = CONFIG.load(deps.storage)?;
+    let config_option = CONFIG.load(deps.storage)?;
     if let Some(mut config) = config_option {
         match consumable_type.as_str() {
             "antenna" => {
