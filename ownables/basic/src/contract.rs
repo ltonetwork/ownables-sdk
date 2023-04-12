@@ -189,13 +189,13 @@ fn try_register_lock(
     }
 
     let nft = NFT_ITEM.load(deps.storage).unwrap();
-    if event.chain_id != nft.network {
+    if nft.id.to_string() != nft_id {
         return Err(ContractError::LockError {
-            val: "network mismatch".to_string()
+            val: "nft_id mismatch".to_string()
         });
     } else if nft.address != contract_addr {
         return Err(ContractError::LockError {
-            val: "contract address mismatch".to_string()
+            val: "locking contract mismatch".to_string()
         });
     }
 
@@ -236,7 +236,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
         QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
         QueryMsg::IsLocked {} => query_lock_state(deps),
-        _ => Err(StdError::not_found("Not implemented")),
     }
 }
 
