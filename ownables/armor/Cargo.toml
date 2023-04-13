@@ -65,7 +65,7 @@ blake2 = "0.10.6"
 hex = "0.4.3"
 secp256k1 = "0.26.0"
 ownable-std = "0.2.2"
-ownable-std-macros = { path = "../../../ownable-std/macros/ownable-std-macros" }
+ownable-std-macros = "0.1.1"
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"

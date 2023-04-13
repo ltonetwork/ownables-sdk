@@ -67,7 +67,7 @@ secp256k1 = "0.26.0"
 sha2 = "0.10.6"
 sha3 = "0.7.2"
 ownable-std = "0.2.2"
-ownable-std-macros = { path = "../../../ownable-std/macros/ownable-std-macros" }
+ownable-std-macros = "0.1.1"
 
 [dev-dependencies]
 cw-multi-test = "0.13.2"
