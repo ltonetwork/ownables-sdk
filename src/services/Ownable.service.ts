@@ -1,8 +1,6 @@
-import {EventChain, Event, Binary} from "@ltonetwork/lto";
+import {EventChain, Event} from "@ltonetwork/lto";
 import LTOService from "./LTO.service";
 import IDBService from "./IDB.service";
-import LocalStorageService from "./LocalStorage.service";
-import {IEventChainJSON} from "@ltonetwork/lto/interfaces";
 import TypedDict from "../interfaces/TypedDict";
 import PackageService from "./Package.service";
 import {Cancelled} from "simple-iframe-rpc";
@@ -12,6 +10,7 @@ import workerJsSource from "../assets/worker.js";
 import JSZip from "jszip";
 import {TypedPackage} from "../interfaces/TypedPackage";
 import {TypedOwnableInfo} from "../interfaces/TypedOwnableInfo";
+import EventChainService from "./EventChain.service";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -36,23 +35,11 @@ export interface OwnableRPC {
   refresh: (state: StateDump) => Promise<void>;
 }
 
-interface StoredChainInfo {
-  chain: IEventChainJSON;
-  state: string;
-  package: string;
-  created: Date;
-}
-
 export default class OwnableService {
-  private static _anchoring = !!LocalStorageService.get('anchoring');
   private static readonly _rpc = new Map<string,OwnableRPC>();
 
-  static get anchoring(): boolean {
-    return this._anchoring;
-  }
-  static set anchoring(enabled: boolean) {
-    LocalStorageService.set('anchoring', enabled);
-    this._anchoring = enabled;
+  static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date}>> {
+    return EventChainService.loadAll();
   }
 
   static rpc(id: string): OwnableRPC {
@@ -74,39 +61,6 @@ export default class OwnableService {
     }
 
     this._rpc.delete(id);
-  }
-
-  static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date}>> {
-    const ids = (await IDBService.listStores())
-      .filter(name => name.match(/^ownable:\w+$/))
-      .map(name => name.replace(/^ownable:(\w+)$/, '$1'));
-
-    return (await Promise.all(ids.map(id => this.load(id))))
-      .sort(({created: a}, {created: b}) => a.getTime() - b.getTime())
-  }
-
-  static async load(id: string): Promise<{chain: EventChain, package: string, created: Date}> {
-    const chainInfo = await IDBService.getMap(`ownable:${id}`)
-        .then(map => Object.fromEntries(map.entries())) as StoredChainInfo;
-
-    const {chain: chainJson, package: packageCid, created} = chainInfo;
-
-    return { chain: EventChain.from(chainJson), package: packageCid, created };
-  }
-
-  // Return `null` if the stored state dump doesn't match the requested event chain state
-  static async getStateDump(id: string, state: string|Binary): Promise<StateDump|null> {
-    const storedState = (await IDBService.hasStore(`ownable:${id}`))
-      ? await IDBService.get(`ownable:${id}`, 'state')
-      : undefined;
-    if (storedState !== (state instanceof Binary ? state.hex : state)) return null;
-
-    return this.getCurrentStateDump(id);
-  }
-
-  private static async getCurrentStateDump(id: string): Promise<StateDump> {
-    const map = await IDBService.getMap(`ownable:${id}.state`);
-    return Array.from(map.entries());
   }
 
   static create(pkg: TypedPackage): EventChain {
@@ -150,7 +104,7 @@ export default class OwnableService {
     await rpc.init(chain.id, js, new Uint8Array(wasm));
 
     const stateDump = await this.apply(chain, []);
-    await OwnableService.initStore(chain, pkg, stateDump);
+    await EventChainService.initStore(chain, pkg, stateDump);
   }
 
   static async apply(partialChain: EventChain, stateDump: StateDump): Promise<StateDump> {
@@ -200,7 +154,7 @@ export default class OwnableService {
     delete msg['@context']; // Shouldn't be set
     new Event({"@context": 'execute_msg.json', ...msg}).addTo(chain).signWith(LTOService.account);
 
-    await OwnableService.store(chain, stateDump);
+    await EventChainService.store({ chain, stateDump });
 
     return newStateDump;
   }
@@ -210,7 +164,7 @@ export default class OwnableService {
 
     return true; // TODO: The check below is not working
 
-    /*const state = await this.getStateDump(consumer.chain.id, consumer.chain.state);
+    /*const state = await EventChainService.getStateDump(consumer.chain.id, consumer.chain.state);
     if (!state) return false;
 
     return await this.rpc(consumer.chain.id)
@@ -224,8 +178,8 @@ export default class OwnableService {
     };
     const consumeMessage = {consume: {}}; //{consume: {ownable_id: consumer.id}};
 
-    const consumerState = await this.getStateDump(consumer.id, consumer.state);
-    const consumableState = await this.getStateDump(consumable.id, consumable.state);
+    const consumerState = await EventChainService.getStateDump(consumer.id, consumer.state);
+    const consumableState = await EventChainService.getStateDump(consumable.id, consumable.state);
     if (!consumerState || !consumableState) throw Error("State mismatch for consume");
 
     const {events, state: consumableStateDump} =
@@ -250,14 +204,10 @@ export default class OwnableService {
     new Event({"@context": 'execute_msg.json', ...consumeMessage}).addTo(consumable).signWith(LTOService.account);
     new Event({"@context": 'external_event_msg.json', ...consumeEvent}).addTo(consumer).signWith(LTOService.account);
 
-    const entries = Object.fromEntries([
-      [`ownable:${consumer.id}`, { chain: consumer.toJSON(), state: consumer.state.hex }],
-      [`ownable:${consumer.id}.state`, new Map(consumerStateDump)],
-      [`ownable:${consumable.id}`, { chain: consumable.toJSON(), state: consumable.state.hex }],
-      [`ownable:${consumable.id}.state`, new Map(consumableStateDump)],
-    ]);
-
-    await IDBService.setAll(entries);
+    await EventChainService.store(
+      { chain: consumable, stateDump: consumableStateDump },
+      { chain: consumer, stateDump: consumerStateDump },
+    );
   }
 
   static async initStore(chain: EventChain, pkg: string, stateDump?: StateDump): Promise<void> {
@@ -294,11 +244,11 @@ export default class OwnableService {
   }
 
   static async delete(id: string): Promise<void> {
-    await IDBService.deleteStore(new RegExp(`^ownable:${id}(\\..+)?$`));
+    await EventChainService.delete(id);
   }
 
   static async deleteAll(): Promise<void> {
-    await IDBService.deleteStore(/^ownable:.+/);
+    await EventChainService.deleteAll();
   }
 
   static async zip(chain: EventChain): Promise<JSZip> {

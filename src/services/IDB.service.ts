@@ -85,8 +85,8 @@ export default class IDBService {
     });
   }
 
-  static async setAll(store: string, map: TypedDict|Map<any, any>): Promise<void>;
-  static async setAll(data: TypedDict<TypedDict|Map<any, any>>): Promise<void>;
+  static async setAll(store: string, map: TypedDict | Map<any, any>): Promise<void>;
+  static async setAll(data: TypedDict<TypedDict | Map<any, any>>): Promise<void>;
   static async setAll(a: any, b?: any): Promise<void> {
     const storeNames: string | string[] = b ? a : Object.keys(a);
     const data: {[_: string]: TypedDict|Map<any, any>} = b ? Object.fromEntries([[a, b]]) : a;

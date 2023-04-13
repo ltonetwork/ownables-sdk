@@ -107,6 +107,35 @@ export default class LTOService {
     if (response.status >= 400) throw new Error('Broadcast transaction failed: ' + await response.text());
   }
 
+  public static async anchor(...anchors: Array<{key: Binary, value: Binary}>|Array<Binary>): Promise<void> {
+    if (anchors[0] instanceof Uint8Array) {
+      await lto.anchor(this.account, ...anchors as Array<Binary>);
+    } else {
+      await lto.mappedAnchor(this.account, ...anchors as Array<{key: Binary, value: Binary}>);
+    }
+  }
+
+  public static async verifyAnchors(...anchors: Array<{key: Binary, value: Binary}>|Array<Binary>): Promise<boolean> {
+    const data = anchors[0] instanceof Uint8Array
+      ? (anchors as Array<Binary>).map(anchor => anchor.hex)
+      : (anchors as Array<{key: Binary, value: Binary}>).map(({key, value}) => (
+        { key: key.hex, value: value.hex }
+      ));
+
+    const url = this.apiUrl('/index/hash/verify?encoding=hex');
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data),
+    });
+
+    console.log(await response.json());
+
+    return true;
+  }
+
   public static isValidAddress(address: string): boolean {
     try {
       return lto.isValidAddress(address);
