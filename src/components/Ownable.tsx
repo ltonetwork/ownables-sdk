@@ -17,6 +17,7 @@ import LTOService from "../services/LTO.service";
 import asDownload from "../utils/asDownload";
 import shortId from "../utils/shortId";
 import If from "./If";
+import EventChainService from "../services/EventChain.service";
 
 interface OwnableProps {
   chain: EventChain;
@@ -92,7 +93,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     this.busy = true;
 
     const stateDump =
-      await OwnableService.getStateDump(this.chain.id, partialChain.state) || // Use stored state dump if available
+      await EventChainService.getStateDump(this.chain.id, partialChain.state) || // Use stored state dump if available
       await OwnableService.apply(partialChain, this.state.stateDump);
 
     await this.refresh(stateDump);

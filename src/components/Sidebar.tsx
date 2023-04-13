@@ -16,12 +16,12 @@ import {
 import LTOService from "../services/LTO.service";
 import {useEffect, useState} from "react";
 import useInterval from "../utils/useInterval";
-import OwnableService from "../services/Ownable.service";
 import {ArrowBack} from "@mui/icons-material";
 import ltoLogo from "../assets/ltonetwork.png";
 import ltoExplorerIcon from "../assets/explorer-icon.png";
 import ltoWalletIcon from "../assets/wallet-icon.png";
 import Dialog from "@mui/material/Dialog";
+import EventChainService from "../services/EventChain.service";
 
 interface SidebarProps {
   open: boolean;
@@ -33,7 +33,7 @@ interface SidebarProps {
 
 export default function Sidebar(props: SidebarProps) {
   const {open, onClose, onLogout, onReset, onFactoryReset} = props;
-  const [anchoring, setAnchoring] = useState(OwnableService.anchoring);
+  const [anchoring, setAnchoring] = useState(EventChainService.anchoring);
   const [showNoBalance, setShowNoBalance] = useState(false);
   const address = LTOService.address;
   const [balance, setBalance] = useState<number>();
@@ -56,7 +56,7 @@ export default function Sidebar(props: SidebarProps) {
       return;
     }
 
-    OwnableService.anchoring = anchoring;
+    EventChainService.anchoring = anchoring;
   }, [anchoring, balance]);
 
   return <>
