@@ -10,11 +10,13 @@ use ownable_std_macros::{
 
 #[ownables_instantiate_msg]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {}
 
 #[ownables_transfer]
 #[ownables_lock]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     // consumes percentage of remaining potion
     Drink { amount: u8 },

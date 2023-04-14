@@ -11,6 +11,7 @@ use ownable_std_macros::{
 
 #[ownables_instantiate_msg]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {}
 
 #[ownables_transfer]
