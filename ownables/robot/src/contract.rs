@@ -27,7 +27,7 @@ pub fn instantiate(
     let ownable_info = OwnableInfo {
         owner: derived_addr.clone(),
         issuer: derived_addr.clone(),
-        ownable_type: msg.ownable_type.clone(),
+        ownable_type: Some("robot".to_string()),
     };
 
     let config = Config {
@@ -332,11 +332,17 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 fn query_is_consumer_of(deps: Deps, issuer: Addr, consumable_type: String) -> StdResult<Binary> {
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
-    if let Some(ownable_type) = ownable_info.ownable_type {
-        let valid = (issuer == ownable_info.issuer) && (ownable_type == consumable_type);
-        return to_binary(&valid);
+
+    let can_consume = match consumable_type.as_str() {
+        "antenna" => true,
+        "armor" => true,
+        "paint" => true,
+        "speakers" => true,
+        _ => false,
+
     };
-    to_binary(&false)
+    let same_issuer = ownable_info.issuer == issuer;
+    to_binary(&(can_consume && same_issuer))
 }
 
 fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
