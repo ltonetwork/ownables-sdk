@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
-use ownable_std::{address_eip155, address_lto, ExternalEventMsg, InfoResponse, Metadata, OwnableInfo};
+use ownable_std::{address_eip155, address_lto, ExternalEventMsg, InfoResponse, Metadata, OwnableInfo, rgb_hex};
 use crate::error::ContractError;
 
 // version info for migration info
@@ -65,10 +65,6 @@ pub fn instantiate(
         .add_attribute("issuer", info.sender.to_string())
         .add_attribute("color", config.color)
     )
-}
-
-fn rgb_hex(r: u8, g: u8, b: u8) -> String {
-    format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
 
 pub fn execute(

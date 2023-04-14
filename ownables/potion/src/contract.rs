@@ -1,10 +1,10 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
-use cosmwasm_std::{to_binary, Binary, StdError};
+use cosmwasm_std::{to_binary, Binary};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
-use ownable_std::{address_eip155, address_lto, ExternalEventMsg, InfoResponse, Metadata, OwnableInfo};
+use ownable_std::{address_eip155, address_lto, ExternalEventMsg, get_random_color, InfoResponse, Metadata, OwnableInfo};
 use crate::error::ContractError;
 
 // version info for migration info
@@ -63,21 +63,6 @@ pub fn instantiate(
         .add_attribute("issuer", info.sender.to_string())
         .add_attribute("color", config.color)
         .add_attribute("current_amount", config.max_capacity.to_string()))
-}
-
-fn get_random_color(hash: String) -> String {
-    let (red, green, blue) = derive_rgb_values(hash);
-    rgb_hex(red, green, blue)
-}
-
-fn derive_rgb_values(hash: String) -> (u8, u8, u8) {
-    let mut decoded_hash = bs58::decode(&hash).into_vec().unwrap();
-    decoded_hash.reverse();
-    (decoded_hash[0], decoded_hash[1], decoded_hash[2])
-}
-
-fn rgb_hex(r: u8, g: u8, b: u8) -> String {
-    format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
 
 pub fn execute(
@@ -303,7 +288,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetMetadata {} => query_ownable_metadata(deps),
         QueryMsg::GetWidgetState {} => query_ownable_widget_state(deps),
         QueryMsg::IsLocked {} => query_lock_state(deps),
-        _ => Err(StdError::not_found("Not implemented")),
     }
 }
 
