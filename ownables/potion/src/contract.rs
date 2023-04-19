@@ -40,7 +40,7 @@ pub fn instantiate(
         image: None,
         image_data: None,
         external_url: None,
-        description: Some("Ownable potion that can be consumed".to_string()),
+        description: Some("Drink a colorful potion".to_string()),
         name: Some("Potion".to_string()),
         background_color: None,
         animation_url: None,
@@ -221,7 +221,7 @@ pub fn try_drink(
     let is_locked = LOCKED.load(deps.storage)?;
     if is_locked {
         return Err(ContractError::LockError {
-            val: "Unable to consume a locked ownable".to_string(),
+            val: "Unable to drink potion".to_string(),
         });
     }
     let network = NETWORK_ID.load(deps.storage)?;
@@ -229,7 +229,7 @@ pub fn try_drink(
     let config = CONFIG.load(deps.storage)?;
     if address_lto(network as char, info.sender.to_string())? != ownership.owner {
         return Err(ContractError::Unauthorized {
-            val: "Unauthorized consumption attempt".into(),
+            val: "Unable to drink potion".into(),
         });
     }
 
@@ -245,7 +245,7 @@ pub fn try_drink(
             CONFIG.save(deps.storage, &Some(c.clone()))?;
 
             Ok(Response::new()
-                .add_attribute("method", "try_consume")
+                .add_attribute("method", "try_drink")
                 .add_attribute(
                     "new_amount",
                     c.current_amount.to_string()
