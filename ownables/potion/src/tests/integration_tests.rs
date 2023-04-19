@@ -72,7 +72,7 @@ fn proper_instantiate() -> (App, Addr) {
 }
 
 #[test]
-fn consume_percentage() {
+fn drink_percentage() {
     let (mut app, ownable_addr) = proper_instantiate();
 
     let msg = ExecuteMsg::Consume { amount: 1 };

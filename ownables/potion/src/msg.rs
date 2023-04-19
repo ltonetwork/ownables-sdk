@@ -18,7 +18,7 @@ pub struct InstantiateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    // consumes percentage of remaining potion
+    // drinks percentage of remaining potion
     Drink { amount: u8 },
 }
 

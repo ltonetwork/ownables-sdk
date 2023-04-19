@@ -39,7 +39,7 @@ fn setup_test(network: String) -> CommonTest {
         image: None,
         image_data: None,
         external_url: None,
-        description: Some("ownable to consume".to_string()),
+        description: Some("Drink a colorful potion".to_string()),
         name: Some("Potion".to_string()),
         background_color: None,
         animation_url: None,
@@ -79,7 +79,7 @@ fn test_initialize() {
 }
 
 #[test]
-fn test_consume() {
+fn test_drink() {
     let CommonTest {
         mut deps,
         info,
@@ -91,12 +91,12 @@ fn test_consume() {
     let res: Response = execute(deps, mock_env(), info, msg).unwrap();
 
     assert_eq!(0, res.messages.len());
-    assert_eq!(res.attributes.get(0).unwrap().value, "try_consume".to_string());
+    assert_eq!(res.attributes.get(0).unwrap().value, "try_drink".to_string());
     assert_eq!(res.attributes.get(1).unwrap().value, "50".to_string());
 }
 
 #[test]
-fn test_consume_unauthorized() {
+fn test_drink_unauthorized() {
     let CommonTest {
         mut deps,
         mut info,
@@ -110,13 +110,13 @@ fn test_consume_unauthorized() {
         .unwrap_err();
 
     let _expected_err = ContractError::Unauthorized {
-        val: "Unauthorized consumption attempt".to_string(),
+        val: "Unable to drink potion".to_string(),
     };
     assert!(matches!(err, _expected_err));
 }
 
 #[test]
-fn test_consume_locked() {
+fn test_drink_locked() {
     let CommonTest {
         mut deps,
         info,
@@ -131,7 +131,7 @@ fn test_consume_locked() {
         ExecuteMsg::Lock {},
     ).unwrap();
 
-    // attempt to consume a locked ownable
+    // attempt to drink a locked ownable
     let err = execute(
         deps.as_mut(),
         create_lto_env(),
@@ -145,7 +145,7 @@ fn test_consume_locked() {
 }
 
 #[test]
-fn test_overconsume() {
+fn test_drink_too_much() {
     let CommonTest {
         mut deps,
         info,
@@ -157,7 +157,7 @@ fn test_overconsume() {
     let err: ContractError = execute(deps, mock_env(), info, msg)
         .unwrap_err();
 
-    let _expected_err_val = "attempt to consume more than possible".to_string();
+    let _expected_err_val = "attempt to drink more than possible".to_string();
     assert!(matches!(err, ContractError::CustomError { val: _expected_err_val }));
 }
 
@@ -269,7 +269,7 @@ fn test_query_metadata() {
 
     let msg = QueryMsg::GetOwnableMetadata {};
     let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
-    let json: String = "{\"image\":null,\"image_data\":null,\"external_url\":null,\"description\":\"Ownable potion that can be consumed\",\"name\":\"Potion\",\"background_color\":null,\"animation_url\":null,\"youtube_url\":null}".to_string();
+    let json: String = "{\"image\":null,\"image_data\":null,\"external_url\":null,\"description\":\"Ownable potion that can be drinkd\",\"name\":\"Potion\",\"background_color\":null,\"animation_url\":null,\"youtube_url\":null}".to_string();
     let expected_binary = Binary::from(json.as_bytes());
 
     assert_eq!(resp, expected_binary);
