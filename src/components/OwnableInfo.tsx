@@ -1,5 +1,5 @@
 import {Chip, DialogContent, DialogTitle, IconButton, SxProps, Theme, Typography} from "@mui/material";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {Fingerprint, InfoOutlined} from "@mui/icons-material";
 import {TypedMetadata} from "../interfaces/TypedOwnableInfo";
 import Dialog from "@mui/material/Dialog";
@@ -9,6 +9,8 @@ import shortId from "../utils/shortId";
 import Tooltip from "./Tooltip";
 import backgroundImage from "../assets/background.svg";
 import If from "./If";
+import EventChainService from "../services/EventChain.service";
+import useInterval from "../utils/useInterval";
 
 interface OwnableInfoProps {
   sx?: SxProps<Theme>;
@@ -26,6 +28,20 @@ const style = {
 export default function OwnableInfo(props: OwnableInfoProps) {
   const {chain, metadata} = props;
   const [open, setOpen] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [anchors, setAnchors] = useState<Array<{ tx: string | undefined, verified: boolean } | null>>([]);
+
+  const verify = () => {
+    if (!open) return;
+
+    EventChainService.verify(chain).then(({verified, anchors, map}) => {
+      setVerified(verified);
+      setAnchors(chain.anchorMap.map(({key, value}) => ({ tx: anchors[key.hex], verified: map[key.hex] === value.hex })))
+    });
+  }
+
+  useEffect(() => verify(), [chain, open, verify]);
+  useInterval(() => verify(), 5 * 1000)
 
   return <>
     <IconButton sx={props.sx} onClick={() => setOpen(true)}><InfoOutlined /></IconButton>
@@ -34,6 +50,9 @@ export default function OwnableInfo(props: OwnableInfoProps) {
         <Tooltip title={chain.id}>
           <Chip label={shortId(chain.id)} icon={<Fingerprint />} color="primary" size="small" variant="outlined" />
         </Tooltip>
+        <If condition={verified}>
+          <Chip label="Anchors verfied" color="success" size="small" sx={{ ml: 1 }} />
+        </If>
       </DialogTitle>
       <DialogTitle sx={{ pt: 1, pb: 1 }}>
         {metadata?.name}
@@ -48,7 +67,7 @@ export default function OwnableInfo(props: OwnableInfoProps) {
           </Typography>
         </If>
         {chain.events.map((event, i) =>
-          <EventCard key={event.hash.hex} event={event} isFirst={i === 0} />
+          <EventCard key={event.hash.hex} event={event} anchorTx={anchors[i]?.tx} verified={!!anchors[i]?.verified} isFirst={i === 0} />
         )}
       </DialogContent>
     </Dialog>

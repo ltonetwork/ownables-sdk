@@ -86,12 +86,12 @@ export default function Sidebar(props: SidebarProps) {
           <FormControlLabel control={<Switch checked={anchoring} onChange={e => setAnchoring(e.target.checked)} />} label="Anchor events" sx={{mb: 1}} />
 
           <Typography sx={{ fontSize: 14 }} gutterBottom>
-            <Link href="https://explorer.testnet.lto.network" target="_blank" underline="none" color="inherit" style={{display: "block"}}>
+            <Link href={process.env.REACT_APP_LTO_EXPLORER_URL} target="_blank" underline="none" color="inherit" style={{display: "block"}}>
               <img src={ltoExplorerIcon} style={{width: 20, marginRight: 3, verticalAlign: -3}} alt="Explorer icon" /> LTO Testnet Explorer
             </Link>
           </Typography>
           <Typography sx={{ fontSize: 14 }} gutterBottom>
-            <Link href="https://wallet.testnet.lto.network" target="_blank" underline="none" color="inherit" style={{display: "block"}}>
+            <Link href={process.env.REACT_APP_LTO_WALLET_URL} target="_blank" underline="none" color="inherit" style={{display: "block"}}>
               <img src={ltoWalletIcon} style={{width: 20, marginRight: 3, verticalAlign: -3}} alt="Wallet icon" /> LTO Testnet Wallet
             </Link>
           </Typography>
