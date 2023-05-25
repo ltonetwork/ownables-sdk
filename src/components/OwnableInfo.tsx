@@ -31,7 +31,7 @@ export default function OwnableInfo(props: OwnableInfoProps) {
   const [verified, setVerified] = useState(false);
   const [anchors, setAnchors] = useState<Array<{ tx: string | undefined, verified: boolean } | null>>([]);
 
-  const verify = () => {
+  const verify = (chain: EventChain, open: boolean) => {
     if (!open) return;
 
     EventChainService.verify(chain).then(({verified, anchors, map}) => {
@@ -40,8 +40,8 @@ export default function OwnableInfo(props: OwnableInfoProps) {
     });
   }
 
-  useEffect(() => verify(), [chain, open, verify]);
-  useInterval(() => verify(), 5 * 1000)
+  useEffect(() => verify(chain, open), [chain, open]);
+  useInterval(() => verify(chain, open), 5 * 1000)
 
   return <>
     <IconButton sx={props.sx} onClick={() => setOpen(true)}><InfoOutlined /></IconButton>
