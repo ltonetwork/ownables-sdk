@@ -115,12 +115,12 @@ export default class LTOService {
     }
   }
 
-  public static async verifyAnchors(...anchors: Array<{key: Binary, value: Binary}>|Array<Binary>): Promise<boolean> {
+  public static async verifyAnchors(...anchors: Array<{key: Binary, value: Binary}>|Array<Binary>): Promise<any> {
     const data = anchors[0] instanceof Uint8Array
       ? (anchors as Array<Binary>).map(anchor => anchor.hex)
-      : (anchors as Array<{key: Binary, value: Binary}>).map(({key, value}) => (
-        { key: key.hex, value: value.hex }
-      ));
+      : Object.fromEntries((anchors as Array<{key: Binary, value: Binary}>).map(({key, value}) => (
+        [key.hex, value.hex]
+      )));
 
     const url = this.apiUrl('/index/hash/verify?encoding=hex');
     const response = await fetch(url, {
@@ -131,9 +131,7 @@ export default class LTOService {
       body: JSON.stringify(data),
     });
 
-    console.log(await response.json());
-
-    return true;
+    return await response.json();
   }
 
   public static isValidAddress(address: string): boolean {

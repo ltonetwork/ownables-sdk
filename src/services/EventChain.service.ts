@@ -118,6 +118,6 @@ export default class EventChainService {
   }
 
   public static async verify(chain: EventChain) {
-    await LTOService.verifyAnchors(...chain.anchorMap);
+    return await LTOService.verifyAnchors(...chain.anchorMap);
   }
 }
