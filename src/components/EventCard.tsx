@@ -1,13 +1,16 @@
 import {Event} from "@ltonetwork/lto";
-import {Box, Card, CardContent, Paper, styled} from "@mui/material";
+import {Box, Card, CardContent, Link, Paper, styled} from "@mui/material";
 import AntSwitch from "./AntSwitch";
 import {useState} from "react";
 import If from "./If";
 import ReactJson from "react-json-view";
 import LTOService from "../services/LTO.service";
+import {Cancel, CheckCircle} from "@mui/icons-material";
 
-interface ChainViewProps {
+interface EventCardProps {
   event: Event;
+  anchorTx: string | undefined;
+  verified: boolean;
   isFirst: boolean;
 }
 
@@ -42,11 +45,11 @@ const cardStyle = {
   marginBottom: {xs: 3, md: 0},
 }
 
-export default function EventCard(props: ChainViewProps) {
+export default function EventCard(props: EventCardProps) {
   const [dataView, setDataView] = useState<DataView>(
     props.event.mediaType === 'application/json' ? DataView.JSON : DataView.BASE64
   );
-  const {event} = props;
+  const {event, anchorTx, verified} = props;
 
   return <Box sx={{display: 'flex', flexDirection: 'column'}}>
     <If condition={!props.isFirst}>
@@ -60,6 +63,14 @@ export default function EventCard(props: ChainViewProps) {
         <div className="truncate"><strong>Signed by: </strong>{event.signKey ? LTOService.accountOf(event.signKey.publicKey) : ''}</div>
         <div className="truncate"><strong>Public key: </strong>{event.signKey?.publicKey.base58}</div>
         <div className="truncate"><strong>Signature: </strong>{event.signature?.base58}</div>
+        <If condition={anchorTx !== null}>
+          <div style={{marginTop: 10}}>
+            <strong>Anchor tx: </strong>
+            <Link href={process.env.REACT_APP_LTO_EXPLORER_URL + '/transaction/' + anchorTx}>{ anchorTx }</Link>
+            <If condition={verified}><CheckCircle fontSize="small" sx={{verticalAlign: -5, ml: 1}} color="success" /></If>
+            <If condition={!verified}><Cancel fontSize="small" sx={{verticalAlign: -5, ml: 1}} color="error" /></If>
+          </div>
+        </If>
         <div style={{marginTop: 10}}><strong>Media type: </strong>{event.mediaType}</div>
         <div>
           <strong>Data: </strong>
