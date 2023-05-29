@@ -1,8 +1,10 @@
 // This file is appended to bindgen.js from the ownable package. It allows the ownable iframe to message the worker.
 
 addEventListener('message', (e) => {
+  const _init = init || __wbg_init;
+
   if (wasm === undefined) {
-    init(e.data).then(
+    _init(e.data).then(
       () => {
         let responseMsg = {
           success: true,
