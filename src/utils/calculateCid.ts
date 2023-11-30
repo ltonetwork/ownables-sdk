@@ -9,7 +9,7 @@ class DummyBlockstore extends BaseBlockstore {
 export default async function calculateCid(files: File[]): Promise<string> {
   const source = await Promise.all(
     files.map(async file => ({
-      path: `./${file.name}`,
+      path: `./package/${file.name}`,
       content: new Uint8Array(await file.arrayBuffer()),
     }))
   );
@@ -17,7 +17,7 @@ export default async function calculateCid(files: File[]): Promise<string> {
   const blockstore = new DummyBlockstore();
 
   for await (const entry of importer(source, blockstore)) {
-    if (entry.path === '' && entry.unixfs?.type === 'directory') return entry.cid.toString();
+    if (entry.path === 'package' && entry.unixfs?.type === 'directory') return entry.cid.toString();
   }
 
   throw new Error("Failed to calculate directory CID: importer did not find a directory entry in the input files");
