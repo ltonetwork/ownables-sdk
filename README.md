@@ -7,6 +7,9 @@ can run directly in a wallet using the [LTO Network](https://ltonetwork.com) pri
 
 The SDK contains examples and tools for developing Ownables.
 
+## Requirements
+- [Node.js](https://nodejs.org/en/download)
+
 ## Quickstart
 
 This quickstart is written for Linux/Mac devices, for Windows please refer to the [Windows quickstart](#windows-quickstart).
