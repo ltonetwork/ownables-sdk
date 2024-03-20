@@ -25,6 +25,7 @@ import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from 'notistack';
 import {TypedOwnableInfo} from "./interfaces/TypedOwnableInfo";
+import CreateOwnable from './components/CreateOwnable';
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -37,12 +38,23 @@ export default function App() {
   const [alert, setAlert] = useState<{title: string, message: React.ReactNode, severity: AlertColor}|null>(null);
   const [confirm, setConfirm] =
     useState<{title: string, message: React.ReactNode, severity?: AlertColor, ok?: string, onConfirm: () => void}|null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     IDBService.open()
       .then(() => OwnableService.loadAll())
       .then(ownables => setOwnables(ownables))
       .then(() => setLoaded(true))
+  }, []);
+
+  useEffect(() => {
+    // Disable horizontal scrolling when component mounts
+    document.body.style.overflowX = 'hidden';
+
+    // Re-enable horizontal scrolling when component unmounts
+    return () => {
+      document.body.style.overflowX = 'auto';
+    };
   }, []);
 
   const showError = (title: string, message: string) => {
@@ -157,6 +169,7 @@ export default function App() {
           <Typography variant="subtitle1" color="text.secondary" textAlign="center" sx={{mt: 2}}>
             Read <Link href="https://docs.ltonetwork.com/ownables/what-are-ownables" target="_blank">the documentation</Link> to learn how to issue an Ownable
             <If condition={HAS_EXAMPLES}><br />or try one of <Link component="button" onClick={() => setShowPackages(true)} style={{fontSize: 'inherit'}}>the examples</Link></If>.
+            <br />Or you can also <Link component="button" onClick={() => setShowCreate(true)} style={{fontSize: 'inherit'}}>create your own</Link>.
           </Typography>
         </Grid>
       </Grid>
@@ -200,7 +213,14 @@ export default function App() {
       onLogout={logout}
       onReset={reset}
       onFactoryReset={factoryReset}
+      onCreate={() => {setShowCreate(true); setShowSidebar(false)}}
     />
+
+    <CreateOwnable 
+      open={showCreate} 
+      onClose={() => setShowCreate(false)} 
+    />
+
     <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
 
     <HelpDrawer open={consuming !== null}>

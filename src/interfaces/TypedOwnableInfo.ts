@@ -14,3 +14,23 @@ export interface TypedMetadata {
   animation_url?: string,
   youtube_url?: string,
 }
+
+export interface TypedOwnable {
+  owner: string;
+  email: string;
+  name: string;
+  description?: string;
+  keywords?: string[];
+  ethereumAddress: string;
+  network: string;
+  image: File | null;
+}
+
+export interface TypedReadyOwnable {
+  name: string;
+  status: string;
+}
+
+export interface TypedTxInfo {
+  id: string;
+}

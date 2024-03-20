@@ -4,6 +4,7 @@
   "license": "MIT",
   "description": "Development tools for LTO Ownables",
   "homepage": "https://ownables.info",
+  "proxy": "http://[::1]:3000",
   "dependencies": {
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
@@ -22,7 +23,9 @@
     "blockstore-core": "^4.0.1",
     "buffer": "^6.0.3",
     "craco": "^0.0.3",
+    "heic2any": "^0.0.4",
     "ipfs-unixfs-importer": "^15.1.0",
+    "json-server": "^1.0.0-alpha.23",
     "jszip": "^3.10.0",
     "mime": "^3.0.0",
     "notistack": "^3.0.1",
@@ -53,7 +56,8 @@
     "ownables:build": "if test -f ./ownables/$npm_config_package/Cargo.toml; then rm -rf ./ownables/$npm_config_package/pkg/ && wasm-pack build --out-name ownable --target web ./ownables/$npm_config_package/ && cd ./ownables/$npm_config_package/ && cargo schema && cd ../../ && zip -r -j ./ownables/$npm_config_package.zip ./ownables/$npm_config_package/assets/ ./ownables/$npm_config_package/pkg/*.js ./ownables/$npm_config_package/pkg/*.wasm ./ownables/$npm_config_package/pkg/package.json ./ownables/$npm_config_package/schema/*.json; else zip -r -j ./ownables/$npm_config_package.zip ./ownables/$npm_config_package/*; fi",
     "ownables:build-all": "for DIR in $(ls ./ownables); do test -d ./ownables/$DIR && npm run ownables:build --package=$DIR; done",
     "ownables:clean": "rm -rf ./ownables/*.zip ./ownables/*/target/ ./ownables/*/pkg/ ./ownables/*/schema/ ./ownables/*/Cargo.lock",
-    "ownables:cid": "node bin/package-cid.mjs ownables/$npm_config_package.zip"
+    "ownables:cid": "node bin/package-cid.mjs ownables/$npm_config_package.zip",
+    "start-server": "json-server --watch ./src/database.json"
   },
   "repository": {
     "type": "git",

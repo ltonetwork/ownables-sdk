@@ -105,6 +105,9 @@ export default class LTOService {
     });
 
     if (response.status >= 400) throw new Error('Broadcast transaction failed: ' + await response.text());
+
+    // Return the data from the response
+    return await response.json();
   }
 
   public static async anchor(...anchors: Array<{key: Binary, value: Binary}>|Array<Binary>): Promise<void> {
@@ -144,5 +147,13 @@ export default class LTOService {
 
   public static accountOf(publicKey: Binary|string): string {
     return lto.account({publicKey: publicKey instanceof Binary ? publicKey.base58 : publicKey}).address;
+  }
+
+  public static getAccount = async (): Promise<Account> => {
+    if (!this.account) {
+        throw new Error("Not logged in")
+    }
+
+    return this.account
   }
 }

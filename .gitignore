@@ -35,8 +35,10 @@ yarn-error.log*
 # IDEs
 *.iml
 .idea
+.vscode
 
 # Local
 /public/ownables
 /public/ownable.js
 /public/ownable.js.map
+src/database.json

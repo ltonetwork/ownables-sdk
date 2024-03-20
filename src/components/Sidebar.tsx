@@ -29,10 +29,11 @@ interface SidebarProps {
   onLogout: () => void;
   onReset: () => void;
   onFactoryReset: () => void;
+  onCreate: () => void;
 }
 
 export default function Sidebar(props: SidebarProps) {
-  const {open, onClose, onLogout, onReset, onFactoryReset} = props;
+  const {open, onClose, onLogout, onReset, onFactoryReset, onCreate} = props;
   const [anchoring, setAnchoring] = useState(EventChainService.anchoring);
   const [showNoBalance, setShowNoBalance] = useState(false);
   const address = LTOService.address;
@@ -95,6 +96,9 @@ export default function Sidebar(props: SidebarProps) {
               <img src={ltoWalletIcon} style={{width: 20, marginRight: 3, verticalAlign: -3}} alt="Wallet icon" /> LTO Testnet Wallet
             </Link>
           </Typography>
+        </Box>
+        <Box component="div" sx={{mt: 2}}>
+          <Button variant="contained" fullWidth sx={{mt: 2}} color="secondary" onClick={onCreate}>Create Ownable</Button>
         </Box>
       </Box>
 
