@@ -87,6 +87,7 @@ export default class PackageService {
   }
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
+    console.log(`Storing ${files.length} files in ${cid}`);
     if (await IDBService.hasStore(`package:${cid}`)) return;
 
     await IDBService.createStore(`package:${cid}`);
@@ -129,6 +130,7 @@ export default class PackageService {
 
   static async import(zipFile: File): Promise<TypedPackage> {
     const files = await this.extractAssets(zipFile);
+    console.log(files);
     const packageJson: TypedDict = await this.getPackageJson('package.json', files);
 
     const name: string = packageJson.name || zipFile.name.replace(/\.\w+$/, '');
@@ -139,7 +141,9 @@ export default class PackageService {
     const description: string|undefined = packageJson.description;
 
     const cid = await calculateCid(files);
+    console.log(cid);
     const capabilities = await this.getCapabilities(files);
+    console.log(capabilities);
 
     await this.storeAssets(cid, files);
     return this.storePackageInfo(title, name, description, cid, capabilities);
@@ -159,6 +163,44 @@ export default class PackageService {
 
     return this.import(zipFile);
   }
+
+  static async downloadOwnable(ownable: { link: string, name: string }): Promise<TypedPackage> {
+    const { link, name } = ownable;
+    console.log(link);
+  
+    if (!link) throw new Error("Unable to download ownable: URL not configured");
+  
+    const response = await fetch(link);
+    if (!response.ok) throw new Error(`Failed to download ownable: ${response.statusText}`);
+  //   if (response.headers.get('Content-Type') !== 'application/octet-stream')
+  // throw new Error('Failed to download ownable: invalid content type');
+  
+    const zipFile = new File([await response.blob()], `ownable-${name}.zip`, { type: 'application/zip' });
+    console.log(zipFile);
+    return this.import(zipFile);
+  }
+
+//   static async downloadOwnable(ownable: { link: string, name: string }): Promise<void> {
+//   const { link, name } = ownable;
+
+//   try {
+//     const response = await fetch(link);
+//     if (!response.ok) throw new Error(`Failed to download ownable: ${response.statusText}`);
+
+//     const blob = await response.blob();
+//     const url = window.URL.createObjectURL(blob);
+
+//     const link = document.createElement('a');
+//     link.href = url;
+//     link.setAttribute('download', `${name}.zip`);
+//     document.body.appendChild(link);
+//     link.click();
+//     link.remove();
+//   } catch (error) {
+//     console.error(`Failed to download ownable: ${error.message}`);
+//     throw error;
+//   }
+// }
 
   static async getAsset(
     cid: string,

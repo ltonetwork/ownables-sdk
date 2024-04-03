@@ -29,6 +29,7 @@ export interface TypedOwnable {
 export interface TypedReadyOwnable {
   name: string;
   status: string;
+  link: string;
 }
 
 export interface TypedTxInfo {

@@ -4,9 +4,10 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import {IconButton, SxProps, Theme} from "@mui/material";
 import MoreVert from "@mui/icons-material/MoreVert";
 import {useState, MouseEvent} from "react";
-import {Delete, PrecisionManufacturing, SwapHoriz} from "@mui/icons-material";
+import {Delete, PrecisionManufacturing, SwapHoriz, Lock} from "@mui/icons-material";
 import PromptDialog from "./PromptDialog";
 import LTOService from "../services/LTO.service";
+import LockDialog from "./LockDialog";
 
 interface OwnableActionsProps {
   sx?: SxProps<Theme>;
@@ -15,12 +16,14 @@ interface OwnableActionsProps {
   onDelete: () => void;
   onConsume: () => void;
   onTransfer: (address: string) => void;
+  onLock: (address: string) => void;
 }
 
 export default function OwnableActions(props: OwnableActionsProps) {
-  const {onDelete, onConsume, onTransfer, isConsumable, isTransferable} = props;
+  const {onDelete, onConsume, onTransfer, onLock, isConsumable, isTransferable} = props;
   const [anchorEl, setAnchorEl] = useState<null|HTMLElement>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showLockDialog, setShowLockDialog] = useState(false);
 
   const open = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -59,6 +62,10 @@ export default function OwnableActions(props: OwnableActionsProps) {
       transformOrigin={{horizontal: 'right', vertical: 'top'}}
       anchorOrigin={{horizontal: 'right', vertical: 'bottom'}}
     >
+      <MenuItem onClick={() => {close(); setShowLockDialog(true);}}>
+        <ListItemIcon><Lock fontSize="small"/></ListItemIcon>
+        Lock
+      </MenuItem>
       <MenuItem disabled={!isConsumable} onClick={() => {close(); onConsume();}}>
         <ListItemIcon><PrecisionManufacturing fontSize="small"/></ListItemIcon>
         Consume
@@ -72,6 +79,13 @@ export default function OwnableActions(props: OwnableActionsProps) {
         Delete
       </MenuItem>
     </Menu>
+
+    <LockDialog
+      title = "Are you sure you want to lock the ownable to the bridge"
+      open = {showLockDialog}
+      onClose = {() => {setShowLockDialog(false)}}
+      onSubmit={onLock}
+      />
 
     <PromptDialog
       title="Transfer Ownable"

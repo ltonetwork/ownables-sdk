@@ -1,18 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   AlertTitle,
   Box,
   Button,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControlLabel,
   Hidden,
   IconButton,
   Input,
+  Radio,
+  RadioGroup,
   Tab,
   Tabs,
   Typography,
 } from "@mui/material";
-import Grid from '@mui/material/Grid';
-import GridItem from '@mui/material/Grid';
+import Grid from "@mui/material/Grid";
+import GridItem from "@mui/material/Grid";
 import LTOService from "../services/LTO.service";
 import useInterval from "../utils/useInterval";
 import Dialog from "@mui/material/Dialog";
@@ -20,8 +27,14 @@ import JSZip from "jszip";
 import axios from "axios";
 import heic2any from "heic2any";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
-import {Transfer as TransferTx} from '@ltonetwork/lto';
-import { TypedOwnable, TypedReadyOwnable } from "../interfaces/TypedOwnableInfo";
+import DownloadIcon from "@mui/icons-material/Download";
+import { Transfer as TransferTx } from "@ltonetwork/lto";
+import {
+  TypedOwnable,
+  TypedReadyOwnable,
+} from "../interfaces/TypedOwnableInfo";
+import { useSnackbar } from "notistack";
+import PackageService from "../services/Package.service";
 
 interface CreateOwnableProps {
   open: boolean;
@@ -41,17 +54,20 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     description: "",
     keywords: [],
     ethereumAddress: "",
-    network: "",
+    network: "ethereum",
     image: null,
   });
   const [ownables, setOwnables] = useState<TypedReadyOwnable[]>([]);
   const [missingFields, setMissingFields] = useState<string[]>([]);
-  const [tx, setTx] = useState<TransferTx | undefined>();
+  // const [tx, setTx] = useState<TransferTx | undefined>();
   const [available, setAvailable] = useState(0);
   const [lowBalance, setLowBalance] = useState(false);
   const [amount, setAmount] = useState(0);
   const [showAmount, setShowAmount] = useState<number>(0);
-  const [recipient, setShowAddress] = useState(null);
+  const [recipient, setShowAddress] = useState<string | undefined>();
+  const [noConnection, setNoConnection] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedNetwork, setSelectedNetwork] = useState('ethereum');
 
   // const recipient = "3NBq1gTwDg2SfQvArc3C7E9PCFnS7hqqdzo";
   // // const recipient = "3N5vwNey9aFkyrQ5KUzMt3qfuwg5jKKzrLB";
@@ -60,45 +76,78 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   // const LTO_REPRESENTATION = 100000000;
   // const amount = (Math.floor(parseFloat(value.toString()) / LTO_REPRESENTATION)+1)
 
-  const fetchBuildAmount = async () => {
+  const fetchBuildAmount = useCallback(async () => {
     try {
-      const response = await axios.get("http://localhost:3000/api/v1/templateCost?template=1", {
-        headers: {
-          "Accept": "*/*"
+      const response = await axios.get(
+        "http://localhost:3000/api/v1/templateCost?template=1",
+        {
+          headers: {
+            Accept: "*/*",
+          },
         }
-      });
-      const value = +response.data.templateCost;
-      console.log('BuildAmount', value);
-      const serverAddress = response.data.serverWalletAddressLTO;
-      console.log('serverAddress', serverAddress);
+      );
+      console.log("response", response);
+      console.log("response.data", response.data[selectedNetwork]);
+      const value = +response.data[selectedNetwork];
+      console.log("BuildAmount", value);
+      const address = await axios.get(
+        "http://localhost:3000/api/v1/ServerWalletAddressLTO",
+        {
+          headers: {
+            Accept: "*/*",
+          },
+        }
+      )
+      console.log("address", address.data.serverWalletAddressLTO);
+      const serverAddress = address.data.serverWalletAddressLTO;
+      // for testing now use 3NBq1gTwDg2SfQvArc3C7E9PCFnS7hqqdzo
+      // const serverAddress = "3NBq1gTwDg2SfQvArc3C7E9PCFnS7hqqdzo";
+      console.log("serverAddress", serverAddress);
       const LTO_REPRESENTATION = 100000000;
-      const calculatesAmount = (Math.floor(parseFloat(value.toString()) / LTO_REPRESENTATION)+1)
-      console.log('calculatesAmount', calculatesAmount);
-      if (calculatesAmount < 2)
-      {
+      const calculatesAmount =
+        // Math.ceil(parseFloat(value.toString()) / LTO_REPRESENTATION) + 1;
+        (parseFloat(value.toString()) / LTO_REPRESENTATION) + 1;
+      console.log("calculatesAmount", calculatesAmount);
+      if (calculatesAmount < 2) {
         console.log("error server is not ready yet");
         return;
-      }
-      else{
+      } else {
         setAmount(value);
         setShowAmount(calculatesAmount);
         setShowAddress(serverAddress);
       }
     } catch (error) {
-      console.error('Error fetching build amount:', error);
+      console.error("Error fetching build amount:", error);
+      setNoConnection(true);
     }
-  };
+  }, [selectedNetwork]);
 
   useEffect(() => {
     fetchBuildAmount();
-  }, []);
+  }, [fetchBuildAmount]);
 
+  // useEffect(() => {
+  //   if (recipient) {
+  //     setTx(new TransferTx(recipient, amount));
+  //   }
+  // }, [recipient, amount]);
 
-  useEffect(() => {
-    if(recipient){
-      setTx(new TransferTx(recipient, amount));
-    }
-  }, [recipient, amount]);
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const handleClose = () => {
+    handleCloseDialog();
+    clearFields();
+    onClose();
+  };
+
+  const { enqueueSnackbar } = useSnackbar();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(ltoWalletAddress);
+    enqueueSnackbar("Address copied to clipboard", { variant: "success" });
+  };
 
   const clearFields = () => {
     setOwnable({
@@ -108,9 +157,10 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       description: "",
       keywords: [],
       ethereumAddress: "",
-      network: "",
+      network: "ethereum",
       image: null,
     });
+    setSelectedNetwork('ethereum');
   };
 
   const loadBalance = () => {
@@ -123,18 +173,18 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   };
 
   useEffect(() => loadBalance(), []);
-  useInterval(() => loadBalance(), 5 * 1000)
+  useInterval(() => loadBalance(), 5 * 1000);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
   };
 
   useEffect(() => {
-      if (balance !== undefined && balance < 0.1) {
-        setShowNoBalance(true);
-        return;
-      }
-  },  [balance]);
+    if (balance !== undefined && balance < 0.1) {
+      setShowNoBalance(true);
+      return;
+    }
+  }, [balance]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -153,12 +203,13 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     }));
   };
 
-  const handleNetworkChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleNetworkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
     setOwnable((prevOwnable) => ({
       ...prevOwnable,
       network: value,
     }));
+    fetchBuildAmount();
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,15 +251,23 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     if (newMissingFields.length > 0) {
       return;
     }
-    try{
+    if (!recipient || !amount) {
+      console.error('Recipient or amount is not defined');
+      setNoConnection(true);
+      return;
+    }
+    const tx = new TransferTx(recipient, amount);
+    try {
       const account = await LTOService.getAccount();
-      // console.log('Account', account);
       const info = await LTOService.broadcast(tx!.signWith(account));
-      // console.log('Transaction id', info.id);
-      setTimeout(()=> {
+      console.log('Transaction id', info.id);
+      console.log('Transaction info', info);
+      setTimeout(() => {
         if (info.id) {
-          console.log('Transaction id', info.id,'ready');
-          const imageType = ownable.image ? ownable.image.type.split("/")[1] : "";
+          console.log("Transaction id", info.id, "ready");
+          const imageType = ownable.image
+            ? ownable.image.type.split("/")[1]
+            : "";
           const imageName = ownable.name.replace(/\s+/g, "-");
           const formattedName = ownable.name.toLowerCase().replace(/\s+/g, "_");
 
@@ -216,6 +275,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             {
               template: "template1",
               NFT_BLOCKCHAIN: ownable.network,
+              NFT_TOKEN_URI: "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
               NFT_PUBLIC_USER_WALLET_ADDRESS: ownable.ethereumAddress,
               OWNABLE_THUMBNAIL: imageName + "." + imageType,
               OWNABLE_LTO_TRANSACTION_ID: info.id,
@@ -226,53 +286,58 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               PLACEHOLDER1_KEYWORDS: ownable.keywords,
               PLACEHOLDER2_TITLE: ownable.name,
               PLACEHOLDER2_IMG: imageName + "." + imageType,
-              PLACEHOLDER3_MSG: "ownable_" + formattedName,
-              PLACEHOLDER3_STATE: "ownable_" + formattedName,
-              PLACEHOLDER4_CONTRACT_NAME: "crates.io:ownable-" + formattedName,
               PLACEHOLDER4_TYPE: ownable.name,
               PLACEHOLDER4_DESCRIPTION: ownable.description,
               PLACEHOLDER4_NAME: ownable.name,
             },
           ];
 
-          // Zip the JSON object and image file
           const zip = new JSZip();
           zip.file("ownableData.json", JSON.stringify(ownableData, null, 2));
           if (ownable.image) {
             zip.file(`${imageName}.${imageType}`, ownable.image);
           }
           console.log("zip", zip);
-          // Generate the zip file
-          zip.generateAsync({ type: "blob" }).then((content: Blob) => {
+          zip.generateAsync({ type: "blob" }).then((zipFile: Blob) => {
+            // for testing creating download zip file, remove for live version
             // Create a temporary link element
             const link = document.createElement("a");
-            link.href = URL.createObjectURL(content);
+            link.href = URL.createObjectURL(zipFile);
             link.download = formattedName + ".zip";
             // Simulate a click on the link to trigger the download
             link.click();
 
-            // // Send the zip file to the REST API
+            // Send the zip file to the REST API
             // const url = 'http://httpbin.org/post';
-            // // Send via axios
-            // axios.post(url, zip)
-            // .then(res => {
-            //     console.log(res.data)})
-            // .catch(err => {
-            //     console.log(err)});
-
+            const url = 'http://localhost:3000/api/v1/upload';
+            const formData = new FormData();
+            formData.append('file', zipFile, formattedName + ".zip");
+            axios.post(url, formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+                'Accept': '*/*'
+              }
+            })
+            .then(res => {
+                console.log(res.data)})
+            .catch(err => {
+                console.log(err)});
+            setOpenDialog(true);
           });
-          clearFields();
+          handleCloseDialog();
         }
-      },500);
+      }, 8000);
     } catch (error) {
-      console.error('Error sending transaction:', error);
+      console.error("Error sending transaction:", error);
       setLowBalance(true);
     }
   };
 
   const getOwnables = async () => {
     try {
-      const response = await axios.get("http://localhost:3000/Ownables");
+      // const response = await axios.get("http://localhost:3000/Ownables");
+      const response = await axios.get("http://[::1]:3000/api/v1/CIDs");
+      console.log("response", response);
       // const data = await response.json();
       setOwnables(response.data);
     } catch (error) {
@@ -285,6 +350,14 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       getOwnables();
     }
   }, [activeTab]);
+
+  const getOwnable = async (ownable: { link: string; name: string }) => {
+    try {
+      await PackageService.downloadOwnable(ownable);
+    } catch (error) {
+      console.error("Failed to download ownable:", error);
+    }
+  };
 
   return (
     <>
@@ -302,6 +375,8 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               <Typography
                 sx={{ fontSize: 12, fontWeight: 600 }}
                 component="div"
+                onClick={handleCopy}
+                style={{ cursor: "pointer" }}
               >
                 {ltoWalletAddress}
               </Typography>
@@ -309,7 +384,9 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                 balance: {balance !== undefined ? balance + " LTO" : ""}
               </Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                build cost: {showAmount !== undefined ? showAmount + " LTO" : ""} (incl. Fee: 1 LTO)
+                build cost:{" "}
+                {showAmount !== undefined ? showAmount + " LTO" : ""} (incl.
+                Fee: 1 LTO)
               </Typography>
             </Box>
             <Hidden smUp>
@@ -326,11 +403,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               value={activeTab}
               onChange={(event, value) => handleTabChange(value)}
             >
-              <Tab 
-                label="Build" 
-                value="build" 
-                sx={{ mr: { xs: 1, sm: 2 } }} 
-              />
+              <Tab label="Build" value="build" sx={{ mr: { xs: 1, sm: 2 } }} />
               <Tab
                 label="Import"
                 value="import"
@@ -341,6 +414,149 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           <Box>
             {activeTab === "build" && (
               <Box component="div" sx={{ mt: 2 }}>
+                <Box display="flex" flexDirection="column" alignItems="center">
+                  <Typography sx={{ fontSize: 12 }} color="text.secondary">
+                    Choose your network
+                  </Typography>
+                  <RadioGroup
+                    row
+                    name="network"
+                    value={ownable.network}
+                    // onChange={handleNetworkChange}
+                    onChange={(event) => {
+                      handleNetworkChange(event);
+                      setSelectedNetwork(event.target.value);
+                    }}
+                    sx={{ justifyContent: "center" }}
+                  >
+                    <FormControlLabel
+                      value="ethereum"
+                      // control={<Radio />}
+                      control={
+                        <Radio
+                          sx={{
+                            width: { xs: "12px", sm: "16px" },
+                            height: { xs: "12px", sm: "16px" },
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography
+                          sx={{
+                            fontSize: {
+                              xs: "0.7rem",
+                              sm: "0.9rem",
+                              md: "1.1rem",
+                            },
+                            ml: 1,
+                          }}
+                          color="text.secondary"
+                        >
+                          Ethereum
+                        </Typography>
+                      }
+                    />
+                    <FormControlLabel
+                      value="arbitrum"
+                      // control={<Radio />}
+                      control={
+                        <Radio
+                          sx={{
+                            width: { xs: "12px", sm: "16px" },
+                            height: { xs: "12px", sm: "16px" },
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography
+                          sx={{
+                            fontSize: {
+                              xs: "0.7rem",
+                              sm: "0.9rem",
+                              md: "1.1rem",
+                            },
+                            ml: 1,
+                          }}
+                          color="text.secondary"
+                        >
+                          Arbitrum
+                        </Typography>
+                      }
+                    />
+                    <FormControlLabel
+                      value="polygon"
+                      // control={<Radio />}
+                      control={
+                        <Radio
+                          sx={{
+                            width: { xs: "12px", sm: "16px" },
+                            height: { xs: "12px", sm: "16px" },
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography
+                          sx={{
+                            fontSize: {
+                              xs: "0.7rem",
+                              sm: "0.9rem",
+                              md: "1.1rem",
+                            },
+                            ml: 1,
+                          }}
+                          color="text.secondary"
+                        >
+                          Polygon
+                        </Typography>
+                      }
+                    />
+                  </RadioGroup>
+                </Box>
+                {/* <div className={missingFields.includes("network") ? "error" : ""}>
+                  <label>
+                    <input
+                      type="radio"
+                      name="network"
+                      value="ethereum"
+                      checked={ownable.network === 'ethereum'}
+                      onChange={handleNetworkChange}
+                    />
+                    Ethereum
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="network"
+                      value="arbitrumSepolia"
+                      checked={ownable.network === 'arbitrumSepolia'}
+                      onChange={handleNetworkChange}
+                    />
+                    Arbitrum
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="network"
+                      value="polygon"
+                      checked={ownable.network === 'polygon'}
+                      onChange={handleNetworkChange}
+                    />
+                    Polygon
+                  </label>
+                </div> */}
+                {/* <select
+                    className={missingFields.includes("network") ? "error" : ""}
+                    name="network"
+                    value={ownable.network}
+                    onChange={handleNetworkChange}
+                  >
+                    <option value="">Select Network</option>
+                    <option value="arbitrumSepolia">Arbitrum</option>
+                    <option value="polygon">Polygon</option>
+                    <option value="ethereum">Ethereum</option>
+                  </select>
+                  <br></br> */}
+                <br></br>
                 <Input
                   error={missingFields.includes("owner")}
                   fullWidth
@@ -416,7 +632,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                     }}
                   />
                   <br></br>
-                  <br></br>
+                  {/* <br></br>
                   <select
                     className={missingFields.includes("network") ? "error" : ""}
                     name="network"
@@ -428,7 +644,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                     <option value="polygon">Polygon</option>
                     <option value="ethereum">Ethereum</option>
                   </select>
-                  <br></br>
+                  <br></br> */}
                   <br></br>
                   <input
                     className={missingFields.includes("image") ? "error" : ""}
@@ -444,12 +660,17 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                       style={{ width: "100px", height: "auto" }}
                     />
                   )}
-                  <Box component="div" sx={{ mt: 1, display: "flex", justifyContent: "center"}}>
+                  <Box
+                    component="div"
+                    sx={{ mt: 1, display: "flex", justifyContent: "center" }}
+                  >
                     <Button
                       variant="contained"
                       sx={{ mt: 2 }}
                       onClick={handleCreateOwnable}
-                      disabled={(isNaN(amount) || amount <= 0 || amount > (available))}
+                      disabled={
+                        isNaN(amount) || amount <= 0 || amount > available
+                      }
                     >
                       Create Ownable
                     </Button>
@@ -459,17 +680,17 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             )}
             {activeTab === "import" && (
               <div>
-                  <Grid container justifyContent="space-between">
-                    <GridItem item xs={3}>
-                      <strong>Name</strong>
-                    </GridItem>
-                    <GridItem item xs={3}>
-                      <strong>Status</strong>
-                    </GridItem>
-                    <GridItem item xs={3}>
-                      <strong>Action</strong>
-                    </GridItem>
-                  </Grid>
+                <Grid container justifyContent="space-between">
+                  <GridItem item xs={3}>
+                    <strong>Name</strong>
+                  </GridItem>
+                  <GridItem item xs={3}>
+                    <strong>Status</strong>
+                  </GridItem>
+                  <GridItem item xs={3}>
+                    <strong>Action</strong>
+                  </GridItem>
+                </Grid>
                 {/* </div> */}
                 {ownables.length === 0 && (
                   <div>
@@ -478,7 +699,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                   </div>
                 )}
                 {ownables.map((readyOwnable) => (
-                  <Grid container justifyContent="space-between" key={readyOwnable.name}>
+                  <Grid
+                    container
+                    justifyContent="space-between"
+                    key={readyOwnable.name}
+                  >
                     <GridItem item xs={3}>
                       <span>{readyOwnable.name}</span>
                     </GridItem>
@@ -486,7 +711,12 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                       <span>{readyOwnable.status}</span>
                     </GridItem>
                     <GridItem item xs={3}>
-                      <Button disabled={readyOwnable.status !== 'ready'}>Download</Button>
+                      <Button
+                        disabled={readyOwnable.status !== "ready"}
+                        onClick={() => getOwnable(readyOwnable)}
+                      >
+                        <DownloadIcon />
+                      </Button>
                     </GridItem>
                   </Grid>
                 ))}
@@ -494,18 +724,52 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             )}
           </Box>
         </Box>
-        <Dialog open={showNoBalance} hideBackdrop onClose={() => setShowNoBalance(false)}>
+        <Dialog
+          open={noConnection}
+          hideBackdrop
+          onClose={() => setNoConnection(false)}
+        >
           <Alert variant="outlined" severity="warning">
-            <AlertTitle>Your balance is zero</AlertTitle>
-            A minumum of {showAmount + 1 } LTO is required to build a ownable.
+            <AlertTitle>No server Connection</AlertTitle>
+            The server seems to be down, please try again later.
           </Alert>
         </Dialog>
-          <Dialog open={lowBalance} hideBackdrop onClose={() => setLowBalance(false)}>
-            <Alert variant="outlined" severity="warning">
-            <AlertTitle>Your balance is to low. A A minumum of {showAmount + 1 } LTO is required to build a ownable. </AlertTitle>
-              Please top up.
-            </Alert>
-          </Dialog>
+        <Dialog
+          open={showNoBalance}
+          hideBackdrop
+          onClose={() => setShowNoBalance(false)}
+        >
+          <Alert variant="outlined" severity="warning">
+            <AlertTitle>Your balance is zero</AlertTitle>A minumum of{" "}
+            {showAmount + 1} LTO is required to build a ownable.
+          </Alert>
+        </Dialog>
+        <Dialog
+          open={lowBalance}
+          hideBackdrop
+          onClose={() => setLowBalance(false)}
+        >
+          <Alert variant="outlined" severity="warning">
+            <AlertTitle>
+              Your balance is to low. A A minumum of {showAmount + 1} LTO is
+              required to build a ownable.{" "}
+            </AlertTitle>
+            Please top up.
+          </Alert>
+        </Dialog>
+        <Dialog open={openDialog} onClose={handleCloseDialog}>
+          <DialogTitle>Ownable Sent</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              The ownable has been successfully sent.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose} color="primary">
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Dialog>
     </>
   );

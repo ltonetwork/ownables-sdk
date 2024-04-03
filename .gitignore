@@ -41,4 +41,7 @@ yarn-error.log*
 /public/ownables
 /public/ownable.js
 /public/ownable.js.map
+/public/*.zip
 src/database.json
+src/middleware.js
+src/server.js

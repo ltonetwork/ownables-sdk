@@ -64,6 +64,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     return !!this.state.info && this.state.info.owner !== LTOService.address;
   }
 
+  private async lock (to: string): Promise<void> {
+    
+  }
+
   private async transfer(to: string): Promise<void> {
     await this.execute({transfer: {to: to}});
 
@@ -185,6 +189,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onDelete={this.props.onDelete}
           onConsume={() => !!this.state.info && this.props.onConsume(this.state.info)}
           onTransfer={address => this.transfer(address)}
+          onLock ={address => this.lock(address)}
         />
         <OwnableFrame
           id={this.chain.id}
