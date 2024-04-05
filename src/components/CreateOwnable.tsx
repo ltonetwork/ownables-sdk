@@ -218,19 +218,78 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     if (file && file.type === "image/heic") {
       const blob = await heic2any({
         blob: file,
-        toType: "image/png",
+        toType: "image/webp",
         quality: 0.7,
       });
       if (blob instanceof Blob) {
-        file = new File([blob], file.name, { type: "image/png" });
+        file = new File([blob], file.name, { type: "image/webp" });
       }
     }
+
+    if (file) {
+      const resizedImage = await resizeImage(file);
+      file = new File([resizedImage], file.name, { type: "image/webp" });
+    }
+
     setOwnable((prevOwnable) => ({
       ...prevOwnable,
       image: file,
     }));
   };
 
+  async function resizeImage(file: File): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+
+        // If the image is already square, no need to resize
+        if (width === height) {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = width;
+          canvas.height = height;
+          ctx!.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(blob => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Could not create blob'));
+            }
+          },'image/webp');
+          // }, file.type);
+        } else {
+          // Determine the larger dimension and set the canvas size to create a square
+          const maxSize = Math.max(width, height);
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = maxSize;
+          canvas.height = maxSize;
+        
+          // Fill the canvas with a transparent background
+          ctx!.fillStyle = 'rgba(0, 0, 0, 0)';
+          ctx!.fillRect(0, 0, maxSize, maxSize);
+        
+          // Draw the image in the center of the canvas
+          const x = maxSize / 2 - width / 2;
+          const y = maxSize / 2 - height / 2;
+          ctx!.drawImage(img, x, y, width, height);
+        
+          canvas.toBlob(blob => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Could not create blob'));
+            }
+          },'image/webp');
+          // }, file.type);
+        }
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  
   const handleCreateOwnable = async () => {
     const requiredFields = [
       "name",
@@ -265,9 +324,10 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       setTimeout(() => {
         if (info.id) {
           console.log("Transaction id", info.id, "ready");
-          const imageType = ownable.image
-            ? ownable.image.type.split("/")[1]
-            : "";
+          // const imageType = ownable.image
+          //   ? ownable.image.type.split("/")[1]
+          //   : "";
+          const imageType = "webp";
           const imageName = ownable.name.replace(/\s+/g, "-");
           const formattedName = ownable.name.toLowerCase().replace(/\s+/g, "_");
 
@@ -336,7 +396,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const getOwnables = async () => {
     try {
       // const response = await axios.get("http://localhost:3000/Ownables");
-      const response = await axios.get("http://[::1]:3000/api/v1/CIDs");
+      const response = await axios.get("http://[::1]:3000/api/v1/requestIDs");
       console.log("response", response);
       // const data = await response.json();
       setOwnables(response.data);
@@ -646,13 +706,41 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                   </select>
                   <br></br> */}
                   <br></br>
+                  <label 
+                    htmlFor="fileUpload" 
+                    className="custom-file-upload"
+                    style={{
+                      display: "inline-block",
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                      backgroundColor: "#1cb7ff",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "4px",
+                      textAlign: "center",
+                      textDecoration: "none",
+                      transitionDuration: "0.4s",
+                      margin: "10px 0",
+                    }}
+                    >
+                    Choose File
+                  </label>
+                  <br></br>
                   <input
+                    id="fileUpload"
+                    className={missingFields.includes("image") ? "error" : ""}
+                    type="file"
+                    accept="image/*,.heic"
+                    onChange={handleImageUpload}
+                    style={{ marginBottom: "10px", display: "none"}}
+                  />
+                  {/* <input
                     className={missingFields.includes("image") ? "error" : ""}
                     type="file"
                     accept="image/*,.heic"
                     onChange={handleImageUpload}
                     style={{ marginBottom: "10px" }}
-                  />
+                  /> */}
                   {ownable.image && (
                     <img
                       src={URL.createObjectURL(ownable.image)}
