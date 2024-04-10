@@ -79,7 +79,8 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const fetchBuildAmount = useCallback(async () => {
     try {
       const response = await axios.get(
-        "http://localhost:3000/api/v1/templateCost?template=1",
+        // "http://localhost:3000/api/v1/templateCost?template=1",
+        'http://localhost:3000/api/v1/templateCost?templateId=1&chain='+selectedNetwork,
         {
           headers: {
             Accept: "*/*",
