@@ -8,7 +8,7 @@
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
     "@fontsource/montserrat": "^4.5.14",
-    "@ltonetwork/lto": "^0.10.10",
+    "@ltonetwork/lto": "^0.15.15",
     "@mui/icons-material": "^5.11.9",
     "@mui/material": "^5.11.10",
     "@testing-library/jest-dom": "^5.16.5",
