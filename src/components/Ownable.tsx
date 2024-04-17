@@ -24,7 +24,7 @@ import asDownload from "../utils/asDownload";
 import shortId from "../utils/shortId";
 import If from "./If";
 import EventChainService from "../services/EventChain.service";
-import { sendZip } from "../services/Relay.service";
+import { sendOwnable } from "../services/Relay.service";
 
 interface OwnableProps {
   chain: EventChain;
@@ -76,11 +76,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
     const zip = await OwnableService.zip(this.chain);
     const content = await zip.generateAsync({
-      type: "blob",
-      mimeType: "application/octet-stream",
+      type: "uint8array",
     });
 
-    sendZip(to, content);
+    //transfer via relay server
+    sendOwnable(to, content);
 
     // const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
     //   this.chain.state.base58,
