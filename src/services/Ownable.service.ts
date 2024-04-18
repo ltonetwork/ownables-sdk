@@ -38,7 +38,7 @@ export interface OwnableRPC {
 export default class OwnableService {
   private static readonly _rpc = new Map<string,OwnableRPC>();
 
-  static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date}>> {
+  static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date, keywords: string[]}>> {
     return EventChainService.loadAll();
   }
 
@@ -73,6 +73,7 @@ export default class OwnableService {
         ownable_id: chain.id,
         package: pkg.cid,
         network_id: LTOService.networkId,
+        keywords: pkg.keywords,
       };
 
       new Event(msg)
@@ -223,6 +224,7 @@ export default class OwnableService {
       state: chain.state.hex,
       package: pkg,
       created: new Date(),
+      keywords: PackageService.info(pkg).keywords,
     };
 
     const data: TypedDict = {};
