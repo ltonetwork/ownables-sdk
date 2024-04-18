@@ -54,17 +54,16 @@ export default class PackageService {
     name: string,
     description: string|undefined,
     cid: string,
-    keywords: string[],
     capabilities: TypedPackageCapabilities
   ): TypedPackage {
     const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
     let pkg = packages.find(pkg => pkg.name === name);
 
     if (!pkg) {
-      pkg = {title, name, description, cid, keywords, ...capabilities, versions: []};
+      pkg = {title, name, description, cid, ...capabilities, versions: []};
       packages.push(pkg);
     } else {
-      Object.assign(pkg, {cid, description, keywords, ...capabilities});
+      Object.assign(pkg, {cid, description, ...capabilities});
     }
 
     pkg.versions.push({date: new Date(), cid});
@@ -144,9 +143,10 @@ export default class PackageService {
     const cid = await calculateCid(files);
     console.log(cid);
     const capabilities = await this.getCapabilities(files);
+    console.log(capabilities);
 
     await this.storeAssets(cid, files);
-    return this.storePackageInfo(title, name, description, cid, keywords, capabilities);
+    return this.storePackageInfo(title, name, description, cid, capabilities);
   }
 
   static async downloadExample(key: string): Promise<TypedPackage> {

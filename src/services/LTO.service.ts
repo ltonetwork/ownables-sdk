@@ -10,7 +10,6 @@ const sessionSeed = SessionStorageService.get('@seed');
 export default class LTOService {
   public static readonly networkId = lto.networkId;
   private static _account?: Account = sessionSeed ? lto.account({seed: sessionSeed}) : undefined;
-  private static _ethAccount?: Account = sessionSeed ? lto.account({ seed: sessionSeed}): undefined;
 
   public static accountExists(): boolean {
     return !!LocalStorageService.get('@accountData');
@@ -41,16 +40,6 @@ export default class LTOService {
 
   public static get address(): string {
     if (!!this._account) return this._account!.address;
-
-    const [encryptedAccount] = LocalStorageService.get('@accountData') || [];
-    if (encryptedAccount) return encryptedAccount.address;
-
-    return '';
-  }
-
-  public static get ethAddress(): string {
-    if (!!this._ethAccount) return this._ethAccount!.keyType;
-    console.log('ethAdress', this._ethAccount);
 
     const [encryptedAccount] = LocalStorageService.get('@accountData') || [];
     if (encryptedAccount) return encryptedAccount.address;

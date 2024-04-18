@@ -33,7 +33,7 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
-  const [ownables, setOwnables] = useState<Array<{chain: EventChain, package: string, keywords:string[]}>>([]);
+  const [ownables, setOwnables] = useState<Array<{chain: EventChain, package: string}>>([]);
   const [consuming, setConsuming] = useState<{chain: EventChain, package: string, info: TypedOwnableInfo}|null>(null);
   const [alert, setAlert] = useState<{title: string, message: React.ReactNode, severity: AlertColor}|null>(null);
   const [confirm, setConfirm] =
@@ -74,7 +74,7 @@ export default function App() {
 
   const forge = async (pkg: TypedPackage) => {
     const chain = OwnableService.create(pkg);
-    setOwnables([...ownables, {chain, package: pkg.cid, keywords: pkg.keywords || []}]);
+    setOwnables([...ownables, {chain, package: pkg.cid}]);
     setShowPackages(false);
     enqueueSnackbar(`${pkg.title} forged`, {variant: "success"});
   }
