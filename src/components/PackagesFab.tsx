@@ -99,6 +99,7 @@ interface PackagesFabProps {
   onOpen: () => void;
   onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
+  onImport: () => void;
   onError: (title: string, message: string) => void;
 }
 
@@ -110,7 +111,7 @@ export default function PackagesFab(props: PackagesFabProps) {
     right: 20,
   };
 
-  const { open, onOpen, onClose, onSelect, onError } = props;
+  const { open, onOpen, onClose, onSelect, onImport, onError } = props;
   const [packages, setPackages] = React.useState<
     Array<TypedPackage | TypedPackageStub>
   >([]);
@@ -149,6 +150,7 @@ export default function PackagesFab(props: PackagesFabProps) {
       //   )
       // );
       const file = PackageService.importFromRelay();
+      onImport();
       updatePackages();
     } catch (error) {
       onError(
