@@ -144,6 +144,7 @@ export default class PackageService {
     const cid = await calculateCid(files);
     console.log(cid);
     const capabilities = await this.getCapabilities(files);
+    const keywords: string[] = packageJson.keywords || '';
 
     await this.storeAssets(cid, files);
     return this.storePackageInfo(title, name, description, cid, keywords, capabilities);
