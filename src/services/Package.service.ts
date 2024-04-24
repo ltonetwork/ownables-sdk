@@ -1,4 +1,5 @@
 import LocalStorageService from "./LocalStorage.service";
+import LTOService from "./LTO.service";
 import {
   TypedPackageCapabilities,
   TypedPackage,
@@ -11,6 +12,8 @@ import calculateCid from "../utils/calculateCid";
 import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { readRelayData } from "./Relay.service";
+import { EventChain } from "@ltonetwork/lto";
+import OwnableService from "./Ownable.service";
 import asDownload from "../utils/asDownload";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
@@ -144,6 +147,7 @@ export default class PackageService {
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (await IDBService.hasStore(`package:${cid}`)) return;
+    console.log(cid);
 
     await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
@@ -212,9 +216,8 @@ export default class PackageService {
 
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
-
+    console.log(cid);
     await this.storeAssets(cid, files);
-    console.log(title, name, description, cid, capabilities);
     return this.storePackageInfo(title, name, description, cid, capabilities);
   }
 
@@ -270,21 +273,44 @@ export default class PackageService {
             .replace(/\b\w/, (c) => c.toUpperCase());
           const description: string | undefined = packageJson.description;
 
-          const cid = await calculateCid(processedFiles);
+          const cids: any = await calculateCid(processedFiles);
+          let chain: any;
+          const handleChains = files
+            .filter((file) => file.name === "chain.json")
+            .map(async (chainFile) => {
+              let counter = 0;
+              const chainJsonContent = await chainFile.async("text");
+              chain = JSON.parse(chainJsonContent);
+              chain.networkId = LTOService.networkId;
+
+              const pkg: any = files.filter(
+                (file) => file.name === "instantiate_msg.json"
+              );
+
+              console.log(pkg);
+
+              const msg = {
+                "@context": "instantiate_msg.json",
+                ownable_id: chain.id,
+                package: calculateCid(pkg),
+                network_id: LTOService.networkId,
+              };
+              chain.events[counter].parsedData = msg;
+              counter++;
+            });
+
           const capabilities = await this.getCapabilities(processedFiles);
-
-          await this.storeAssets(cid, processedFiles);
-
-          return this.storePackageInfo(
+          await this.storeAssets(cids, processedFiles);
+          const detail = await this.storePackageInfo(
             title,
             name,
             description,
-            cid,
+            cids,
             capabilities
           );
+          return { detail, chain, cids };
         })
       );
-
       return processedPackages.filter((packageInfo) => packageInfo !== null);
     } catch (error) {
       console.error("Error:", error);

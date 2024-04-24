@@ -38,10 +38,10 @@ export async function sendOwnable(recipient: string, content: Uint8Array) {
 export async function readRelayData() {
   try {
     const Address = sender.address;
+
     const responses = await axios.get(
       `${relayURL ? relayURL : relayLocalURL}/inboxes/${Address}/`
     );
-
     const ownableData = await Promise.all(
       responses.data.map(async (response: any) => {
         const infoResponse = await axios.get(
