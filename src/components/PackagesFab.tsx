@@ -21,11 +21,16 @@ interface PackagesDialogProps {
   onClose: () => void;
   onSelect: (pkg: TypedPackage | TypedPackageStub) => void;
   onImport: () => void;
-  onImportFR: () => void;
+  fetchPkgFromRelay: () => void;
 }
 
 function PackagesDialog(props: PackagesDialogProps) {
-  const { onClose, onSelect, onImport, onImportFR, open, packages } = props;
+  const { onClose, onSelect, onImport, fetchPkgFromRelay, open, packages } =
+    props;
+
+  // useEffect(() => {
+  //   fetchPkgFromRelay();
+  // }, [fetchPkgFromRelay]);
 
   return (
     <Dialog onClose={onClose} open={open}>
@@ -80,7 +85,7 @@ function PackagesDialog(props: PackagesDialogProps) {
         <ListItem disablePadding disableGutters key="add">
           <ListItemButton
             autoFocus
-            onClick={() => onImportFR()}
+            onClick={() => fetchPkgFromRelay()}
             style={{ textAlign: "center" }}
           >
             <ListItemIcon>
@@ -99,7 +104,7 @@ interface PackagesFabProps {
   onOpen: () => void;
   onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
-  onImport: () => void;
+  onImportFR: (pkg: any) => void;
   onError: (title: string, message: string) => void;
 }
 
@@ -111,7 +116,7 @@ export default function PackagesFab(props: PackagesFabProps) {
     right: 20,
   };
 
-  const { open, onOpen, onClose, onSelect, onImport, onError } = props;
+  const { open, onOpen, onClose, onSelect, onImportFR, onError } = props;
   const [packages, setPackages] = React.useState<
     Array<TypedPackage | TypedPackageStub>
   >([]);
@@ -140,18 +145,11 @@ export default function PackagesFab(props: PackagesFabProps) {
   };
 
   const importPackagesFromRelay = async () => {
-    // const files = await selectFile({ accept: ".zip", multiple: true });
-    // if (files.length === 0) return;
-
     try {
-      // await busy(
-      //   Promise.all(
-      //     Array.from(files).map((file) => PackageService.importFromRelay())
-      //   )
-      // );
-      const file = PackageService.importFromRelay();
-      onImport();
-      updatePackages();
+      const pkg = await PackageService.importFromRelay();
+      console.log(pkg);
+      onImportFR(pkg);
+      //updatePackages();
     } catch (error) {
       onError(
         "Failed to import package",
@@ -188,7 +186,7 @@ export default function PackagesFab(props: PackagesFabProps) {
         onClose={onClose}
         onSelect={selectPackage}
         onImport={importPackages}
-        onImportFR={importPackagesFromRelay}
+        fetchPkgFromRelay={importPackagesFromRelay}
       />
       <Loading show={isBusy} />
     </>

@@ -77,16 +77,30 @@ export default function App() {
 
   const forge = async (pkg: TypedPackage) => {
     const chain = OwnableService.create(pkg);
+    console.log(chain);
     setOwnables([...ownables, { chain, package: pkg.cid }]);
     setShowPackages(false);
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
-  const relayImport = async () => {
+  const relayImport = async (pkg: any) => {
+    setOwnables((prevOwnables) => [
+      ...prevOwnables,
+      ...pkg.map((data: any) => {
+        console.log(data);
+        return {
+          chain: data.chain,
+          package: data.cids,
+        };
+      }),
+    ]);
+
+    if (pkg.length > 0) {
+      enqueueSnackbar(`Ownable successfully loaded!`, {
+        variant: "success",
+      });
+    }
     setShowPackages(false);
-    enqueueSnackbar(`Ownable is currently being forged, please wait`, {
-      variant: "success",
-    });
   };
 
   const deleteOwnable = (id: string, packageCid: string) => {
@@ -290,7 +304,7 @@ export default function App() {
         onOpen={() => setShowPackages(true)}
         onClose={() => setShowPackages(false)}
         onSelect={forge}
-        onImport={relayImport}
+        onImportFR={relayImport}
         onError={showError}
       />
 

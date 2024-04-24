@@ -76,6 +76,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
     const zip = await OwnableService.zip(this.chain);
     const content = await zip.generateAsync({
+      //type: "blob",
       type: "uint8array",
     });
 
@@ -140,6 +141,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     });
 
     try {
+      console.log(this.chain);
       await OwnableService.init(this.chain, this.pkg.cid, rpc);
       this.setState({ initialized: true });
     } catch (e) {
