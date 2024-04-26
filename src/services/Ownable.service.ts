@@ -61,7 +61,6 @@ export default class OwnableService {
     Array<{ chain: EventChain; package: string; created: Date }>
   > {
     const chain = EventChainService.loadAll();
-    console.log(chain);
     return EventChainService.loadAll();
   }
 
@@ -103,11 +102,7 @@ export default class OwnableService {
     return chain;
   }
 
-  static async init(
-    chain: EventChain,
-    pkg: string,
-    rpc: OwnableRPC
-  ): Promise<void> {
+  static async init(chain: any, pkg: string, rpc: OwnableRPC): Promise<void> {
     if (this._rpc.has(chain.id)) {
       try {
         delete (this._rpc.get(chain.id) as any).handler;
@@ -124,10 +119,35 @@ export default class OwnableService {
       "ownable_bg.wasm",
       (fr, file) => fr.readAsArrayBuffer(file)
     )) as ArrayBuffer;
-
+    console.log(chain);
     await rpc.init(chain.id, js, new Uint8Array(wasm));
-
     const stateDump = await this.apply(chain, []);
+    if (chain.isImport) {
+      const dbs = [`ownable:${chain.id}`];
+      if (stateDump) dbs.push(`ownable:${chain.id}.state`);
+
+      const len = chain.events.length - 1;
+      const latestHash = chain.events[len].hash;
+      const chainData = {
+        chain: chain,
+        state: stateDump,
+        latestHash: latestHash,
+        package: pkg,
+        created: new Date(),
+      };
+
+      const data: TypedDict = {};
+      data[`ownable:${chain.id}`] = chainData;
+      if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
+
+      // if (this.anchoring) {
+      //   await LTOService.anchor(...chain.anchorMap);
+      // }
+
+      await IDBService.createStore(...dbs);
+      await IDBService.setAll(data);
+      return;
+    }
     await EventChainService.initStore(chain, pkg, stateDump);
   }
 
@@ -150,7 +170,9 @@ export default class OwnableService {
     stateDump: StateDump
   ): Promise<{ result?: TypedDict; state: StateDump }> {
     const info = {
-      sender: event.signKey!.publicKey.base58,
+      sender: event.signKey!.publicKey.base58
+        ? event.signKey!.publicKey.base58
+        : event.signKey!.publicKey.toString(),
       funds: [],
     };
     const { "@context": context, ...msg } = event.parsedData;
@@ -272,10 +294,10 @@ export default class OwnableService {
     pkg: string,
     stateDump?: StateDump
   ): Promise<void> {
+    console.log(chain, pkg, stateDump);
     if (await IDBService.hasStore(`ownable:${chain.id}`)) {
       return;
     }
-
     const dbs = [`ownable:${chain.id}`];
     if (stateDump) dbs.push(`ownable:${chain.id}.state`);
 

@@ -147,7 +147,6 @@ export default function PackagesFab(props: PackagesFabProps) {
   const importPackagesFromRelay = async () => {
     try {
       const pkg = await PackageService.importFromRelay();
-      console.log(pkg);
       onImportFR(pkg);
       //updatePackages();
     } catch (error) {
