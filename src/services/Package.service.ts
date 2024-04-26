@@ -222,6 +222,7 @@ export default class PackageService {
   static async importFromRelay() {
     try {
       const relayData = await readRelayData();
+      const recipient = relayData ? relayData[0].recipient : "";
       if (!relayData || !Array.isArray(relayData)) {
         console.error("No relay data received or invalid data format");
         return null;
@@ -294,7 +295,7 @@ export default class PackageService {
                 const msg = {
                   "@context": "execute_msg.json",
                   transfer: {
-                    to: LTOService.account.address,
+                    to: recipient,
                   },
                 };
                 console.log(msg);

@@ -122,33 +122,39 @@ export default class OwnableService {
     console.log(chain);
     await rpc.init(chain.id, js, new Uint8Array(wasm));
     const stateDump = await this.apply(chain, []);
+
     if (chain.isImport) {
-      const dbs = [`ownable:${chain.id}`];
-      if (stateDump) dbs.push(`ownable:${chain.id}.state`);
-
-      const len = chain.events.length - 1;
-      const latestHash = chain.events[len].hash;
-      const chainData = {
-        chain: chain,
-        state: stateDump,
-        latestHash: latestHash,
-        package: pkg,
-        created: new Date(),
-      };
-
-      const data: TypedDict = {};
-      data[`ownable:${chain.id}`] = chainData;
-      if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
-
-      // if (this.anchoring) {
-      //   await LTOService.anchor(...chain.anchorMap);
-      // }
-
-      await IDBService.createStore(...dbs);
-      await IDBService.setAll(data);
+      await this.storeFromRelay(chain, stateDump, pkg);
       return;
     }
     await EventChainService.initStore(chain, pkg, stateDump);
+  }
+
+  static async storeFromRelay(chain: any, stateDump: StateDump, pkg: string) {
+    const dbs = [`ownable:${chain.id}`];
+    if (stateDump) dbs.push(`ownable:${chain.id}.state`);
+
+    const len = chain.events.length - 1;
+    const latestHash = chain.events[len].hash;
+    const chainData = {
+      chain: chain,
+      state: stateDump,
+      latestHash: latestHash,
+      package: pkg,
+      created: new Date(),
+    };
+
+    const data: TypedDict = {};
+    data[`ownable:${chain.id}`] = chainData;
+    if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
+
+    // if (this.anchoring) {
+    //   await LTOService.anchor(...chain.anchorMap);
+    // }
+
+    await IDBService.createStore(...dbs);
+    await IDBService.setAll(data);
+    return;
   }
 
   static async apply(
