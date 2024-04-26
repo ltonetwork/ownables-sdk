@@ -147,7 +147,6 @@ export default class PackageService {
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (await IDBService.hasStore(`package:${cid}`)) return;
-    console.log(cid);
 
     await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
@@ -216,7 +215,6 @@ export default class PackageService {
 
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
-    console.log(cid);
     await this.storeAssets(cid, files);
     return this.storePackageInfo(title, name, description, cid, capabilities);
   }
@@ -224,7 +222,6 @@ export default class PackageService {
   static async importFromRelay() {
     try {
       const relayData = await readRelayData();
-      console.log(relayData);
       if (!relayData || !Array.isArray(relayData)) {
         console.error("No relay data received or invalid data format");
         return null;
@@ -273,7 +270,7 @@ export default class PackageService {
             .replace(/\b\w/, (c) => c.toUpperCase());
           const description: string | undefined = packageJson.description;
 
-          const cids: any = await calculateCid(processedFiles);
+          const cid: any = await calculateCid(processedFiles);
           let chain: any;
           const handleChains = files
             .filter((file) => file.name === "chain.json")
@@ -283,32 +280,39 @@ export default class PackageService {
               chain = JSON.parse(chainJsonContent);
               chain.networkId = LTOService.networkId;
 
-              const pkg: any = files.filter(
-                (file) => file.name === "instantiate_msg.json"
-              );
-
-              console.log(pkg);
-
-              const msg = {
-                "@context": "instantiate_msg.json",
-                ownable_id: chain.id,
-                package: calculateCid(pkg),
-                network_id: LTOService.networkId,
-              };
-              chain.events[counter].parsedData = msg;
-              counter++;
+              if (counter < 1) {
+                const msg = {
+                  "@context": "instantiate_msg.json",
+                  ownable_id: chain.id,
+                  package: cid,
+                  network_id: LTOService.networkId,
+                };
+                chain.events[counter].parsedData = msg;
+                counter++;
+              }
+              if (counter >= 1) {
+                const msg = {
+                  "@context": "execute_msg.json",
+                  transfer: {
+                    to: LTOService.account.address,
+                  },
+                };
+                console.log(msg);
+                chain.events[counter].parsedData = msg;
+              }
             });
 
           const capabilities = await this.getCapabilities(processedFiles);
-          await this.storeAssets(cids, processedFiles);
+          await this.storeAssets(cid, processedFiles);
           const detail = await this.storePackageInfo(
             title,
             name,
             description,
-            cids,
+            cid,
             capabilities
           );
-          return { detail, chain, cids };
+          chain.isImport = true;
+          return { detail, chain, cid };
         })
       );
       return processedPackages.filter((packageInfo) => packageInfo !== null);

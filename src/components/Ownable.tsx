@@ -141,7 +141,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     });
 
     try {
-      console.log(this.chain);
       await OwnableService.init(this.chain, this.pkg.cid, rpc);
       this.setState({ initialized: true });
     } catch (e) {
