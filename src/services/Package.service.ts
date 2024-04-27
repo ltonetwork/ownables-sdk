@@ -12,8 +12,6 @@ import calculateCid from "../utils/calculateCid";
 import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { readRelayData } from "./Relay.service";
-import { EventChain } from "@ltonetwork/lto";
-import OwnableService from "./Ownable.service";
 import asDownload from "../utils/asDownload";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
@@ -222,7 +220,8 @@ export default class PackageService {
   static async importFromRelay() {
     try {
       const relayData = await readRelayData();
-      const recipient = relayData ? relayData[0].recipient : "";
+      const recipient =
+        relayData && relayData?.length !== 0 ? relayData[0].recipient : "";
       if (!relayData || !Array.isArray(relayData)) {
         console.error("No relay data received or invalid data format");
         return null;
@@ -273,13 +272,16 @@ export default class PackageService {
 
           const cid: any = await calculateCid(processedFiles);
           let chain: any;
-          const handleChains = files
+
+          files
             .filter((file) => file.name === "chain.json")
             .map(async (chainFile) => {
               let counter = 0;
               const chainJsonContent = await chainFile.async("text");
               chain = JSON.parse(chainJsonContent);
+              console.log(chain);
               chain.networkId = LTOService.networkId;
+              const eventsLength = chain.events.length;
 
               if (counter < 1) {
                 const msg = {
@@ -291,14 +293,22 @@ export default class PackageService {
                 chain.events[counter].parsedData = msg;
                 counter++;
               }
-              if (counter >= 1) {
+              if (counter > 0 && counter < eventsLength - 1) {
                 const msg = {
                   "@context": "execute_msg.json",
                   transfer: {
-                    to: recipient,
+                    to: recipient ? recipient : "",
                   },
                 };
-                console.log(msg);
+                chain.events[counter].parsedData = msg;
+              }
+              if (counter === eventsLength - 1) {
+                const msg = {
+                  "@context": "execute_msg.json",
+                  transfer: {
+                    to: recipient ? recipient : "",
+                  },
+                };
                 chain.events[counter].parsedData = msg;
               }
             });
@@ -312,7 +322,7 @@ export default class PackageService {
             cid,
             capabilities
           );
-          chain.isImport = true;
+          chain.fromRelay = true;
           return { detail, chain, cid };
         })
       );

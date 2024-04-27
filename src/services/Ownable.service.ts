@@ -119,11 +119,10 @@ export default class OwnableService {
       "ownable_bg.wasm",
       (fr, file) => fr.readAsArrayBuffer(file)
     )) as ArrayBuffer;
-    console.log(chain);
     await rpc.init(chain.id, js, new Uint8Array(wasm));
     const stateDump = await this.apply(chain, []);
 
-    if (chain.isImport) {
+    if (chain.fromRelay) {
       await this.storeFromRelay(chain, stateDump, pkg);
       return;
     }
@@ -136,6 +135,7 @@ export default class OwnableService {
 
     const len = chain.events.length - 1;
     const latestHash = chain.events[len].hash;
+
     const chainData = {
       chain: chain,
       state: stateDump,
@@ -145,6 +145,7 @@ export default class OwnableService {
     };
 
     const data: TypedDict = {};
+
     data[`ownable:${chain.id}`] = chainData;
     if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
 
@@ -349,7 +350,7 @@ export default class OwnableService {
     const packageCid: string = chain.events[0].parsedData.package;
 
     const zip = await PackageService.zip(packageCid);
-    zip.file("chain.json", JSON.stringify(chain.toJSON()));
+    zip.file("chain.json", JSON.stringify(chain));
 
     return zip;
   }

@@ -73,7 +73,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async transfer(to: string): Promise<void> {
     await this.execute({ transfer: { to: to } });
-
     const zip = await OwnableService.zip(this.chain);
     const content = await zip.generateAsync({
       //type: "blob",
@@ -151,7 +150,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async execute(msg: TypedDict): Promise<void> {
     let stateDump: StateDump;
-
     try {
       stateDump = await OwnableService.execute(
         this.chain,
