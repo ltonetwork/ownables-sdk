@@ -54,6 +54,10 @@ export default function App() {
   } | null>(null);
 
   useEffect(() => {
+    // IDBService.open();
+    // LocalStorageService.clear();
+    // SessionStorageService.clear();
+    // IDBService.deleteDatabase();
     IDBService.open()
       .then(() => OwnableService.loadAll())
       .then((ownables) => setOwnables(ownables))

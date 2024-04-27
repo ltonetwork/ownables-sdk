@@ -42,7 +42,7 @@ export default class EventChainService {
     const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
-
+    console.log(chainInfo);
     const { chain: chainJson, package: packageCid, created } = chainInfo;
 
     return { chain: EventChain.from(chainJson), package: packageCid, created };
@@ -102,7 +102,6 @@ export default class EventChainService {
       package: pkg,
       created: new Date(),
     };
-    console.log(chain.state);
 
     const data: TypedDict = {};
     data[`ownable:${chain.id}`] = chainData;
