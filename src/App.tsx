@@ -88,9 +88,11 @@ export default function App() {
 
   const relayImport = async (pkg: any) => {
     console.log(pkg);
+    //setOwnables([...ownables, { chain: pkg[0].chain, package: pkg[0].cid }]);
     setOwnables((prevOwnables) => [
       ...prevOwnables,
       ...pkg.map((data: any) => {
+        console.log(data);
         return {
           chain: data.chain,
           package: data.cid,
@@ -99,7 +101,7 @@ export default function App() {
     ]);
 
     if (pkg.length > 0) {
-      enqueueSnackbar(`Ownable successfully loaded!`, {
+      enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
     }

@@ -21,12 +21,6 @@ export async function sendOwnable(recipient: string, content: Uint8Array) {
   try {
     if (sender && recipient) {
       sendFile(content, sender, recipient);
-      // const file = await content;
-      // let message = new Message(file).to(recipient).signWith(sender);
-      // console.log(content, file, message);
-      // await lto.relay?.send(message);
-      // await lto.anchor(sender, message.hash);
-      // console.log("Message sent successfully!");
     } else {
       console.log("provide the signer and recipient");
     }

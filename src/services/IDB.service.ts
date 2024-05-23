@@ -35,11 +35,13 @@ export default class IDBService {
   }
 
   static async getAll(store: string): Promise<Array<any>> {
+    console.log(store);
     return new Promise(async (resolve, reject) => {
       const tx = (await this.db)
         .transaction(store, "readonly")
         .objectStore(store)
         .getAll();
+      console.log(tx);
 
       tx.onsuccess = () => resolve(tx.result);
       tx.onerror = (event) => reject(this.error(event));

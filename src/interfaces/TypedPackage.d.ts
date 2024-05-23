@@ -13,6 +13,7 @@ export interface TypedPackage extends TypedPackageCapabilities {
   name: string;
   description?: string;
   cid: string;
+  chain?;
   versions: Array<{ date: Date; cid: string }>;
 }
 

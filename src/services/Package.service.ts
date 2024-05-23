@@ -126,10 +126,27 @@ export default class PackageService {
     return pkg;
   }
 
-  private static async extractAssets(zipFile: File): Promise<File[]> {
+  private static async extractAssets(
+    zipFile: File,
+    chain?: boolean
+  ): Promise<File[]> {
     const zip = await JSZip.loadAsync(zipFile);
 
-    return await Promise.all(
+    if (chain) {
+      const chainFiles = await Promise.all(
+        Array.from(Object.entries(zip.files))
+          .filter(([filename]) => !filename.startsWith("."))
+          .map(async ([filename, file]) => {
+            const blob = await file.async("blob");
+            const type = mime.getType(filename) || "application/octet-stream";
+            return new File([blob], filename, { type });
+          })
+      );
+      console.log(chainFiles);
+      return chainFiles;
+    }
+
+    const assetFiles = await Promise.all(
       Array.from(Object.entries(zip.files))
         .filter(
           ([filename]) => !filename.startsWith(".") && filename !== "chain.json"
@@ -137,10 +154,11 @@ export default class PackageService {
         .map(async ([filename, file]) => {
           const blob = await file.async("blob");
           const type = mime.getType(filename) || "application/octet-stream";
-
           return new File([blob], filename, { type });
         })
     );
+
+    return assetFiles;
   }
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
@@ -151,6 +169,96 @@ export default class PackageService {
       `package:${cid}`,
       Object.fromEntries(files.map((file) => [file.name, file]))
     );
+  }
+
+  private static async storeAssetsFromRelay(
+    cid: string,
+    files: File[],
+    chainLength?: string
+  ): Promise<void> {
+    //const a = await IDBService.hasStore(`ownable:${cid}`);
+    console.log("THE STORE FROM RELAY");
+    console.log(cid);
+    const b = await IDBService.hasStore(`package:${cid}`);
+    if (b) {
+      //await this.reviewAsset(cid, chainLength);
+      await IDBService.deleteStore(`ownable:${cid}`);
+      return;
+    }
+
+    await IDBService.createStore(`package:${cid}`);
+    await IDBService.setAll(
+      `package:${cid}`,
+      Object.fromEntries(files.map((file) => [file.name, file]))
+    );
+  }
+
+  private static async reviewAsset(cid: string, chainLength?: string) {
+    // Get the chain.json file from IndexedDB
+    console.log("REVIEWING");
+    const existingChainJson = await IDBService.get(
+      `ownable:${cid}`,
+      "chain.json"
+    );
+
+    console.log(existingChainJson);
+
+    if (!existingChainJson) {
+      console.error(`No chain.json found for package: ${cid}`);
+      return;
+    }
+
+    // Read the chain.json file
+    const existingChain = JSON.parse(await existingChainJson.text());
+    const existingChainLength = existingChain.events.length;
+
+    // If the provided chainLength is not defined or the existing chain is longer, do nothing
+    if (!chainLength || existingChainLength > parseInt(chainLength, 10)) {
+      return;
+    }
+
+    // Get the new chain.json file
+    const newChainJson = await this.getAsset(
+      cid,
+      "chain.json",
+      (fr, contents) => fr.readAsText(contents)
+    );
+    console.log(newChainJson);
+    const newChain = JSON.parse(newChainJson as string);
+    const newChainLength = newChain.events.length;
+
+    // Check if the new chain.json file has more events than the existing one
+    if (newChainLength > existingChainLength) {
+      // Delete the existing chain.json file
+      await IDBService.deleteStore(`ownable:${cid}`);
+
+      // Replace with the new chain.json file
+      const files = await IDBService.getAll(`ownable:${cid}`);
+      const updatedFiles = files.filter((file) => file.name !== "chain.json");
+      updatedFiles.push(
+        new File([new Blob([JSON.stringify(newChain)])], "chain.json", {
+          type: "application/json",
+        })
+      );
+
+      console.log("ownable cid reached");
+      await IDBService.setAll(
+        `package:${cid}`,
+        Object.fromEntries(updatedFiles.map((file) => [file.name, file]))
+      );
+    }
+  }
+
+  private static async getChainJson(
+    filename: string,
+    files: any
+  ): Promise<any> {
+    const extractedFile = await this.extractAssets(files, true);
+    console.log(extractedFile);
+    const file = extractedFile.find((file) => file.name === filename);
+    if (!file) throw new Error(`Invalid package: missing ${filename}`);
+
+    return JSON.parse(await file.text());
   }
 
   private static async getPackageJson(
@@ -205,6 +313,7 @@ export default class PackageService {
     );
 
     const name: string = packageJson.name || zipFile.name.replace(/\.\w+$/, "");
+    console.log(zipFile);
     const title = name
       .replace(/^ownable-|-ownable$/, "")
       .replace(/[-_]+/, " ")
@@ -220,118 +329,214 @@ export default class PackageService {
   static async importFromRelay() {
     try {
       const relayData = await readRelayData();
-      const recipient =
-        relayData && relayData?.length !== 0 ? relayData[0].recipient : "";
-      if (!relayData || !Array.isArray(relayData)) {
+      console.log(relayData);
+
+      if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         console.error("No relay data received or invalid data format");
-        return null;
+        return;
       }
 
-      const processedPackages = await Promise.all(
-        relayData.map(async (zipBuffer) => {
-          const zip = new JSZip();
-          const zipFile = await zip.loadAsync(zipBuffer.data.buffer);
-          const files = Object.values(zipFile.files);
+      const recipient = relayData[0]?.recipient || "";
 
-          const blobs = await Promise.all(
-            files.map(async (file) => {
-              const content = await file.async("blob");
-              return new Blob([content], {
-                type: file.dir
-                  ? "application/octet-stream"
-                  : file.name.split(".").pop(),
-              });
-            })
+      const results = await Promise.all(
+        relayData.map(async (data: any) => {
+          console.log(data);
+
+          const asset = await this.extractAssets(data.data.buffer);
+          console.log(asset);
+          const chainJson = await this.getChainJson(
+            "chain.json",
+            data.data.buffer
           );
 
-          const processedFiles = blobs.map((blob, index) => {
-            const file = new File([blob], files[index].name, {
-              type: blob.type,
-              lastModified: Date.now(),
-            });
-            return file;
-          });
-
-          const packageJsonFile = files.find(
-            (file) => file.name === "package.json"
+          const packageJson: TypedDict = await this.getPackageJson(
+            "package.json",
+            asset
           );
-          if (!packageJsonFile) {
-            console.error("No package.json found in the ZIP file");
-            return null;
-          }
-
-          const packageJsonContent = await packageJsonFile.async("text");
-          const packageJson = JSON.parse(packageJsonContent);
-          const name: string =
-            packageJson.name || packageJsonFile.name.replace(/\.\w+$/, "");
+          const name: string = packageJson.name;
           const title = name
             .replace(/^ownable-|-ownable$/, "")
             .replace(/[-_]+/, " ")
             .replace(/\b\w/, (c) => c.toUpperCase());
           const description: string | undefined = packageJson.description;
+          const cid = await calculateCid(asset);
+          const capabilities = await this.getCapabilities(asset);
 
-          const cid: any = await calculateCid(processedFiles);
-          let chain: any;
-
-          files
-            .filter((file) => file.name === "chain.json")
-            .map(async (chainFile) => {
-              let counter = 0;
-              const chainJsonContent = await chainFile.async("text");
-              chain = JSON.parse(chainJsonContent);
-              console.log(chain);
-              chain.networkId = LTOService.networkId;
-              const eventsLength = chain.events.length;
-
-              if (counter < 1) {
-                const msg = {
-                  "@context": "instantiate_msg.json",
-                  ownable_id: chain.id,
-                  package: cid,
-                  network_id: LTOService.networkId,
-                };
-                chain.events[counter].parsedData = msg;
-                counter++;
-              }
-              if (counter > 0 && counter < eventsLength - 1) {
-                const msg = {
-                  "@context": "execute_msg.json",
-                  transfer: {
-                    to: recipient ? recipient : "",
-                  },
-                };
-                chain.events[counter].parsedData = msg;
-              }
-              if (counter === eventsLength - 1) {
-                const msg = {
-                  "@context": "execute_msg.json",
-                  transfer: {
-                    to: recipient ? recipient : "",
-                  },
-                };
-                chain.events[counter].parsedData = msg;
-              }
-            });
-
-          const capabilities = await this.getCapabilities(processedFiles);
-          await this.storeAssets(cid, processedFiles);
-          const detail = await this.storePackageInfo(
+          this.storeAssets(cid, asset);
+          const pkg = this.storePackageInfo(
             title,
             name,
             description,
             cid,
             capabilities
           );
-          chain.fromRelay = true;
-          return { detail, chain, cid };
+
+          const eventsLength = chainJson.events.length;
+
+          //Temporary solution - needs to be dynamic and accurate
+          for (let counter = 0; counter < eventsLength; counter++) {
+            let msg;
+            if (counter === 0) {
+              msg = {
+                "@context": "instantiate_msg.json",
+                ownable_id: chainJson.id,
+                package: cid,
+                network_id: LTOService.networkId,
+              };
+            } else {
+              msg = {
+                "@context": "execute_msg.json",
+                transfer: {
+                  to: recipient,
+                },
+              };
+            }
+            chainJson.events[counter].parsedData = msg;
+          }
+
+          pkg.chain = chainJson;
+          pkg.chain.isRelay = true;
+          console.log(pkg);
+
+          return pkg;
         })
       );
-      return processedPackages.filter((packageInfo) => packageInfo !== null);
+
+      return results;
     } catch (error) {
       console.error("Error:", error);
       return null;
     }
   }
+
+  // static async importFromRelay() {
+  //   try {
+  //     const relayData = await readRelayData();
+  //     if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
+  //       console.error("No relay data received or invalid data format");
+  //       return;
+  //     }
+
+  //     const recipient = relayData[0]?.recipient || "";
+  //     const chainMap = new Map();
+  //     let chainLength: string;
+
+  //     const processedPackages = await Promise.all(
+  //       relayData.map(async (zipBuffer) => {
+  //         const zip = new JSZip();
+  //         const zipFile = await zip.loadAsync(zipBuffer.data.buffer);
+  //         const files = Object.values(zipFile.files);
+
+  //         const blobs = await Promise.all(
+  //           files.map(async (file) => {
+  //             const content = await file.async("blob");
+  //             return new Blob([content], {
+  //               type: file.dir
+  //                 ? "application/octet-stream"
+  //                 : file.name.split(".").pop(),
+  //             });
+  //           })
+  //         );
+
+  //         const processedFiles = blobs.map((blob, index) => {
+  //           const file = new File([blob], files[index].name, {
+  //             type: blob.type,
+  //             lastModified: Date.now(),
+  //           });
+  //           return file;
+  //         });
+
+  //         const packageJsonFile = files.find(
+  //           (file) => file.name === "package.json"
+  //         );
+  //         if (!packageJsonFile) {
+  //           console.error("No package.json found in the ZIP file");
+  //           return null;
+  //         }
+
+  //         const packageJsonContent = await packageJsonFile.async("text");
+  //         const packageJson = JSON.parse(packageJsonContent);
+  //         const name =
+  //           packageJson.name || packageJsonFile.name.replace(/\.\w+$/, "");
+  //         const title = name
+  //           .replace(/^ownable-|-ownable$/, "")
+  //           .replace(/[-_]+/, " ")
+  //           .replace(/\b\w/, (c: any) => c.toUpperCase());
+  //         const description = packageJson.description;
+
+  //         const cid = await calculateCid(processedFiles);
+
+  //         await Promise.all(
+  //           files
+  //             .filter((file) => file.name === "chain.json")
+  //             .map(async (chainFile) => {
+  //               const chainJsonContent = await chainFile.async("text");
+  //               const chain = JSON.parse(chainJsonContent);
+  //               console.log("Print Chain");
+  //               console.log(chain);
+  //               chainLength = chain.events.length;
+
+  //               if (
+  //                 !chainMap.has(cid) ||
+  //                 chainMap.get(cid).length < chainLength
+  //               ) {
+  //                 chainMap.set(cid, { chain, chainLength });
+  //               }
+  //             })
+  //         );
+
+  //         const { chain } = chainMap.get(cid) || {};
+
+  //         if (!chain) {
+  //           console.error("No valid chain.json found");
+  //           return null;
+  //         }
+
+  //         const eventsLength = chain.events.length;
+
+  //         for (let counter = 0; counter < eventsLength; counter++) {
+  //           let msg;
+  //           if (counter === 0) {
+  //             msg = {
+  //               "@context": "instantiate_msg.json",
+  //               ownable_id: chain.id,
+  //               package: cid,
+  //               network_id: LTOService.networkId,
+  //             };
+  //           } else {
+  //             msg = {
+  //               "@context": "execute_msg.json",
+  //               transfer: {
+  //                 to: recipient,
+  //               },
+  //             };
+  //           }
+  //           chain.events[counter].parsedData = msg;
+  //         }
+
+  //         console.log(cid);
+
+  //         const capabilities = await this.getCapabilities(processedFiles);
+
+  //         await this.storeAssetsFromRelay(cid, processedFiles, chainLength);
+  //         const detail = await this.storePackageInfo(
+  //           title,
+  //           name,
+  //           description,
+  //           cid,
+  //           capabilities
+  //         );
+  //         chain.fromRelay = true;
+  //         return { detail, chain, cid };
+  //       })
+  //     );
+
+  //     return processedPackages.filter((packageInfo) => packageInfo !== null);
+  //   } catch (error) {
+  //     console.error("Error:", error);
+  //     return null;
+  //   }
+  // }
 
   static async downloadExample(key: string): Promise<TypedPackage> {
     if (!exampleUrl)
@@ -394,12 +599,15 @@ export default class PackageService {
 
   static async zip(cid: string): Promise<JSZip> {
     const zip = new JSZip();
+    console.log(cid);
     const files = await IDBService.getAll(`package:${cid}`);
-
+    await IDBService.setAll(
+      `package:${cid}`,
+      Object.fromEntries(files.map((file) => [file.name, file]))
+    );
     for (const file of files) {
       zip.file(file.name, file);
     }
-
     return zip;
   }
 }
