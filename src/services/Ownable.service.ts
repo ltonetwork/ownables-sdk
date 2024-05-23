@@ -60,14 +60,12 @@ export default class OwnableService {
   static async loadAll(): Promise<
     Array<{ chain: EventChain; package: string; created: Date }>
   > {
-    const chain = EventChainService.loadAll();
     return EventChainService.loadAll();
   }
 
   static rpc(id: string): OwnableRPC {
     const rpc = this._rpc.get(id);
     if (!rpc) throw new Error(`No RPC for ownable ${id}`);
-
     return rpc;
   }
 
@@ -102,7 +100,7 @@ export default class OwnableService {
     return chain;
   }
 
-  static async init(chain: any, pkg: string, rpc: OwnableRPC): Promise<void> {
+  static async init(chain: any, cid: string, rpc: OwnableRPC): Promise<void> {
     if (this._rpc.has(chain.id)) {
       try {
         delete (this._rpc.get(chain.id) as any).handler;
@@ -110,52 +108,17 @@ export default class OwnableService {
     }
 
     this._rpc.set(chain.id, rpc);
-
-    const moduleJs = await PackageService.getAssetAsText(pkg, "ownable.js");
+    const moduleJs = await PackageService.getAssetAsText(cid, "ownable.js");
     const js = workerJsSource + moduleJs;
 
     const wasm = (await PackageService.getAsset(
-      pkg,
+      cid,
       "ownable_bg.wasm",
       (fr, file) => fr.readAsArrayBuffer(file)
     )) as ArrayBuffer;
     await rpc.init(chain.id, js, new Uint8Array(wasm));
     const stateDump = await this.apply(chain, []);
-
-    if (chain.fromRelay) {
-      await this.storeFromRelay(chain, stateDump, pkg);
-      return;
-    }
-    await EventChainService.initStore(chain, pkg, stateDump);
-  }
-
-  static async storeFromRelay(chain: any, stateDump: StateDump, pkg: string) {
-    const dbs = [`ownable:${chain.id}`];
-    if (stateDump) dbs.push(`ownable:${chain.id}.state`);
-
-    const len = chain.events.length - 1;
-    const latestHash = chain.events[len].hash;
-
-    const chainData = {
-      chain: chain,
-      state: stateDump,
-      latestHash: latestHash,
-      package: pkg,
-      created: new Date(),
-    };
-
-    const data: TypedDict = {};
-
-    data[`ownable:${chain.id}`] = chainData;
-    if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
-
-    // if (this.anchoring) {
-    //   await LTOService.anchor(...chain.anchorMap);
-    // }
-
-    await IDBService.createStore(...dbs);
-    await IDBService.setAll(data);
-    return;
+    await EventChainService.initStore(chain, cid, stateDump);
   }
 
   static async apply(
@@ -165,6 +128,7 @@ export default class OwnableService {
     const rpc = this.rpc(partialChain.id);
 
     for (const event of partialChain.events) {
+      console.log(event);
       stateDump = (await this.applyEvent(rpc, event, stateDump)).state;
     }
 
@@ -215,10 +179,15 @@ export default class OwnableService {
       stateDump
     );
 
+    console.log("Reached 2");
+    console.log(chain, msg, stateDump);
+
     delete msg["@context"]; // Shouldn't be set
     new Event({ "@context": "execute_msg.json", ...msg })
       .addTo(chain)
       .signWith(LTOService.account);
+
+    console.log(chain, stateDump);
 
     await EventChainService.store({ chain, stateDump });
 
@@ -248,7 +217,7 @@ export default class OwnableService {
       sender: LTOService.account.publicKey,
       funds: [],
     };
-    const consumeMessage = { consume: {} }; //{consume: {ownable_id: consumer.id}};
+    const consumeMessage = { consume: {} };
 
     const consumerState = await EventChainService.getStateDump(
       consumer.id,
@@ -258,6 +227,7 @@ export default class OwnableService {
       consumable.id,
       consumable.state
     );
+    console.log(consumable);
     if (!consumerState || !consumableState)
       throw Error("State mismatch for consume");
 
@@ -308,8 +278,10 @@ export default class OwnableService {
     const dbs = [`ownable:${chain.id}`];
     if (stateDump) dbs.push(`ownable:${chain.id}.state`);
 
+    console.log(chain);
+
     const chainData = {
-      chain: chain.toJSON(),
+      chain: chain,
       state: chain.state.hex,
       package: pkg,
       created: new Date(),
@@ -324,9 +296,11 @@ export default class OwnableService {
   }
 
   static async store(chain: EventChain, stateDump: StateDump): Promise<void> {
-    const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
-    if (storedState === chain.state) return;
+    console.log("reached store");
 
+    const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
+
+    if (storedState === chain.state) return;
     await IDBService.setAll(
       Object.fromEntries([
         [
@@ -346,7 +320,8 @@ export default class OwnableService {
     await EventChainService.deleteAll();
   }
 
-  static async zip(chain: EventChain): Promise<JSZip> {
+  static async zip(chain: EventChain, files?: File[]): Promise<JSZip> {
+    console.log(`package:${chain.events[0].parsedData.package}`);
     const packageCid: string = chain.events[0].parsedData.package;
 
     const zip = await PackageService.zip(packageCid);

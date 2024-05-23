@@ -24,6 +24,7 @@ export default async function sendFile(content, sender, recipient) {
       console.log("provide the signer and recipient");
     }
     await lto.relay.send(message);
+    console.log(message);
     console.log("Message sent successfully!");
   } catch (error) {
     console.error("Error sending message:", error);

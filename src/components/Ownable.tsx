@@ -25,6 +25,7 @@ import shortId from "../utils/shortId";
 import If from "./If";
 import EventChainService from "../services/EventChain.service";
 import { sendOwnable } from "../services/Relay.service";
+import IDBService from "../services/IDB.service";
 
 interface OwnableProps {
   chain: EventChain;
@@ -72,23 +73,36 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   private async transfer(to: string): Promise<void> {
-    await this.execute({ transfer: { to: to } });
-    const zip = await OwnableService.zip(this.chain);
-    const content = await zip.generateAsync({
-      //type: "blob",
-      type: "uint8array",
-    });
+    try {
+      await this.execute({ transfer: { to: to } });
 
-    //transfer via relay server
-    sendOwnable(to, content);
+      console.log(this.chain);
 
-    // const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
-    //   this.chain.state.base58,
-    //   8,
-    //   ""
-    // )}.zip`;
+      const zip = await OwnableService.zip(this.chain);
 
-    // asDownload(content, filename);
+      const content = await zip.generateAsync({
+        type: "uint8array",
+      });
+
+      //Get the file from indexDB
+      //unzip
+      //update the chain.json
+
+      console.log(this.chain);
+
+      //IDBService.getAll();
+
+      await sendOwnable(to, content);
+
+      // const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
+      //   this.chain.state?.base58,
+      //   8,
+      //   ""
+      // )}.zip`;
+      // asDownload(content, filename);
+    } catch (error) {
+      console.error("Error during transfer:", error);
+    }
   }
 
   private async refresh(stateDump?: StateDump): Promise<void> {
@@ -150,12 +164,16 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async execute(msg: TypedDict): Promise<void> {
     let stateDump: StateDump;
+
     try {
       stateDump = await OwnableService.execute(
         this.chain,
         msg,
         this.state.stateDump
       );
+      await OwnableService.store(this.chain, stateDump);
+      await this.refresh(stateDump);
+      this.setState({ applied: this.chain.latestHash, stateDump });
     } catch (error) {
       this.props.onError(
         "The Ownable returned an error",
@@ -163,11 +181,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       );
       return;
     }
-
-    await OwnableService.store(this.chain, stateDump);
-
-    await this.refresh(stateDump);
-    this.setState({ applied: this.chain.latestHash, stateDump });
   }
 
   private windowMessageHandler = async (event: MessageEvent) => {

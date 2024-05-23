@@ -67,7 +67,6 @@ export default class EventChainService {
           ...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
         );
       }
-
       data[`ownable:${chain.id}`] = {
         chain: chain.toJSON(),
         state: chain.state.hex,
@@ -96,9 +95,9 @@ export default class EventChainService {
     if (stateDump) dbs.push(`ownable:${chain.id}.state`);
 
     const chainData = {
-      chain: chain.toJSON(),
-      state: chain.state.hex,
-      latestHash: chain.latestHash.hex,
+      chain: chain,
+      state: chain.state?.hex,
+      latestHash: chain.latestHash?.hex,
       package: pkg,
       created: new Date(),
     };
@@ -142,7 +141,21 @@ export default class EventChainService {
     await IDBService.deleteStore(/^ownable:.+/);
   }
 
+  // public static async verify(chain: EventChain) {
+  //   return await LTOService.verifyAnchors(...chain.anchorMap);
+  // }
+
   public static async verify(chain: EventChain) {
-    return await LTOService.verifyAnchors(...chain.anchorMap);
+    let anchors: any[];
+
+    if (Array.isArray(chain.anchorMap)) {
+      anchors = chain.anchorMap;
+    } else if (chain.anchorMap && typeof chain.anchorMap === "object") {
+      anchors = Object.values(chain.anchorMap);
+    } else {
+      throw new Error("chain.anchorMap is not an iterable or a valid object");
+    }
+
+    return await LTOService.verifyAnchors(...anchors);
   }
 }
