@@ -86,23 +86,29 @@ export default function App() {
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
-  const relayImport = async (pkg: any) => {
-    console.log(pkg);
-    //setOwnables([...ownables, { chain: pkg[0].chain, package: pkg[0].cid }]);
-    setOwnables((prevOwnables) => [
-      ...prevOwnables,
-      ...pkg.map((data: any) => {
-        console.log(data);
-        return {
-          chain: data.chain,
-          package: data.cid,
-        };
-      }),
-    ]);
+  const relayImport = async (pkg: any | null) => {
+    if (!pkg == null) {
+      setOwnables((prevOwnables) => [
+        ...prevOwnables,
+        ...pkg.map((data: any) => {
+          console.log(data);
+          return {
+            chain: data.chain,
+            package: data.cid,
+          };
+        }),
+      ]);
+      OwnableService.loadAll();
+    }
 
-    if (pkg.length > 0) {
+    if (pkg != null) {
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
+      });
+    }
+    if (pkg == null) {
+      enqueueSnackbar(`Nothing to Load from relay`, {
+        variant: "error",
       });
     }
     setShowPackages(false);

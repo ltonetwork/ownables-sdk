@@ -1,5 +1,5 @@
-import * as React from "react";
-import { Divider, Fab, ListItemIcon } from "@mui/material";
+import React, { useState, useEffect } from "react";
+import { Divider, Fab, ListItemIcon, Badge } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import List from "@mui/material/List";
@@ -10,10 +10,13 @@ import { TypedPackage, TypedPackageStub } from "../interfaces/TypedPackage";
 import If from "./If";
 import selectFile from "../utils/selectFile";
 import PackageService from "../services/Package.service";
-import { useEffect } from "react";
 import Tooltip from "./Tooltip";
 import Loading from "./Loading";
 import useBusy from "../utils/useBusy";
+import { checkForMessages } from "../services/CheckMessages.service";
+
+//globally pass the messages in the relay
+export let newMessage: number | null;
 
 interface PackagesDialogProps {
   packages: Array<TypedPackage | TypedPackageStub>;
@@ -91,7 +94,22 @@ function PackagesDialog(props: PackagesDialogProps) {
             <ListItemIcon>
               <AddIcon />
             </ListItemIcon>
+
             <ListItemText primary="Import from relay" />
+            <span
+              style={{
+                backgroundColor: newMessage ? "#D32F2F" : "",
+                padding: "4px",
+                margin: "2px",
+                fontSize: "11px",
+                fontWeight: "bold",
+                color: "white",
+                minWidth: "auto",
+              }}
+              color="error"
+            >
+              {newMessage}
+            </span>
           </ListItemButton>
         </ListItem>
       </List>
@@ -121,9 +139,24 @@ export default function PackagesFab(props: PackagesFabProps) {
     Array<TypedPackage | TypedPackageStub>
   >([]);
   const [isBusy, busy] = useBusy();
+  const [message, setMessages] = useState(0);
 
   const updatePackages = () => setPackages(PackageService.list());
   useEffect(updatePackages, []);
+
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      try {
+        const count = await checkForMessages.valueOfValidCids();
+        newMessage = count;
+        setMessages(count || 0);
+      } catch (error) {
+        console.error("Error occurred while checking messages:", error);
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const importPackages = async () => {
     const files = await selectFile({ accept: ".zip", multiple: true });
@@ -151,7 +184,7 @@ export default function PackagesFab(props: PackagesFabProps) {
       //updatePackages();
     } catch (error) {
       onError(
-        "Failed to import package",
+        "Failed to import ownable",
         (error as Error).message || (error as string)
       );
     }
@@ -177,7 +210,9 @@ export default function PackagesFab(props: PackagesFabProps) {
   return (
     <>
       <Fab sx={fabStyle} aria-label="add" size="large" onClick={onOpen}>
-        <AddIcon fontSize="large" />
+        <Badge badgeContent={message} color="error">
+          <AddIcon fontSize="large" />
+        </Badge>
       </Fab>
       <PackagesDialog
         packages={packages}

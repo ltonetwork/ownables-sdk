@@ -219,6 +219,9 @@ export default class OwnableService {
     };
     const consumeMessage = { consume: {} };
 
+    console.log(consumer);
+    console.log(consumable);
+
     const consumerState = await EventChainService.getStateDump(
       consumer.id,
       consumer.state
@@ -227,7 +230,8 @@ export default class OwnableService {
       consumable.id,
       consumable.state
     );
-    console.log(consumable);
+    console.log(consumable.id);
+    console.log(consumable.state);
     if (!consumerState || !consumableState)
       throw Error("State mismatch for consume");
 
