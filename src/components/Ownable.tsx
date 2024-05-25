@@ -74,6 +74,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async transfer(to: string): Promise<void> {
     try {
+      OwnableService.loadAll();
       await this.execute({ transfer: { to: to } });
 
       console.log(this.chain);

@@ -113,7 +113,7 @@ export default function OwnableInfo(props: OwnableInfoProps) {
           </If>
           {chain.events.map((event, i) => (
             <EventCard
-              key={event.hash.hex}
+              key={event.timestamp}
               event={event}
               anchorTx={anchors[i]?.tx}
               verified={!!anchors[i]?.verified}

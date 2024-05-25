@@ -43,10 +43,11 @@ export async function readRelayData() {
             response.hash
           }`
         );
-        //console.log(infoResponse.data);
         return Message.from(infoResponse.data);
       })
     );
+    const validData = ownableData;
+    if (validData.length < 1) return null;
     return ownableData;
   } catch (error) {
     console.error("Error:", error);
