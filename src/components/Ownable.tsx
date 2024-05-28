@@ -74,24 +74,14 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async transfer(to: string): Promise<void> {
     try {
-      OwnableService.loadAll();
+      //await OwnableService.loadAll();
       await this.execute({ transfer: { to: to } });
-
-      console.log(this.chain);
 
       const zip = await OwnableService.zip(this.chain);
 
       const content = await zip.generateAsync({
         type: "uint8array",
       });
-
-      //Get the file from indexDB
-      //unzip
-      //update the chain.json
-
-      console.log(this.chain);
-
-      //IDBService.getAll();
 
       await sendOwnable(to, content);
 

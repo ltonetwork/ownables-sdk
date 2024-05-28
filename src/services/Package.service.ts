@@ -14,6 +14,8 @@ import TypedDict from "../interfaces/TypedDict";
 import { readRelayData } from "./Relay.service";
 import asDownload from "../utils/asDownload";
 import OwnableService from "./Ownable.service";
+import { LTO, Account, Message, Relay } from "@ltonetwork/lto";
+import { Buffer } from "buffer";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -140,7 +142,6 @@ export default class PackageService {
             return new File([blob], filename, { type });
           })
       );
-      console.log(chainFiles);
       return chainFiles;
     }
 
@@ -161,7 +162,6 @@ export default class PackageService {
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (await IDBService.hasStore(`package:${cid}`)) return;
-
     await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
       `package:${cid}`,
@@ -169,72 +169,42 @@ export default class PackageService {
     );
   }
 
-  private static async reviewAsset(cid: string, chainLength?: string) {
-    // Get the chain.json file from IndexedDB
-    console.log("REVIEWING");
-    const existingChainJson = await IDBService.get(
-      `ownable:${cid}`,
-      "chain.json"
-    );
-
-    console.log(existingChainJson);
-
-    if (!existingChainJson) {
-      console.error(`No chain.json found for package: ${cid}`);
-      return;
-    }
-
-    // Read the chain.json file
-    const existingChain = JSON.parse(await existingChainJson.text());
-    const existingChainLength = existingChain.events.length;
-
-    // If the provided chainLength is not defined or the existing chain is longer, do nothing
-    if (!chainLength || existingChainLength > parseInt(chainLength, 10)) {
-      return;
-    }
-
-    // Get the new chain.json file
-    const newChainJson = await this.getAsset(
-      cid,
-      "chain.json",
-      (fr, contents) => fr.readAsText(contents)
-    );
-    console.log(newChainJson);
-    const newChain = JSON.parse(newChainJson as string);
-    const newChainLength = newChain.events.length;
-
-    // Check if the new chain.json file has more events than the existing one
-    if (newChainLength > existingChainLength) {
-      // Delete the existing chain.json file
-      await IDBService.deleteStore(`ownable:${cid}`);
-
-      // Replace with the new chain.json file
-      const files = await IDBService.getAll(`ownable:${cid}`);
-      const updatedFiles = files.filter((file) => file.name !== "chain.json");
-      updatedFiles.push(
-        new File([new Blob([JSON.stringify(newChain)])], "chain.json", {
-          type: "application/json",
-        })
-      );
-
-      console.log("ownable cid reached");
-      await IDBService.setAll(
-        `package:${cid}`,
-        Object.fromEntries(updatedFiles.map((file) => [file.name, file]))
-      );
-    }
+  static stringToBuffer(str: string): Buffer {
+    return Buffer.from(str, "utf8");
   }
 
-  private static async getChainJson(
-    filename: string,
-    files: any
-  ): Promise<any> {
+  static base64ToBuffer(base64: string): Buffer {
+    return Buffer.from(base64, "base64");
+  }
+
+  static bufferToString(buffer: Buffer): string {
+    return buffer.toString("utf8");
+  }
+
+  static async getChainJson(filename: string, files: any): Promise<any> {
     const extractedFile = await this.extractAssets(files, true);
-    console.log(extractedFile);
     const file = extractedFile.find((file) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
 
-    return JSON.parse(await file.text());
+    const fileContent = await file.text();
+    const json = JSON.parse(fileContent);
+
+    json.events = json.events.map((event: any) => {
+      //event.previous = this.stringToBuffer(event.previous);
+      //event.signature = this.stringToBuffer(event.signature);
+      //event.hash = this.stringToBuffer(event.hash);
+      //event.signKey.publicKey = this.stringToBuffer(event.signKey.publicKey);
+
+      if (event.data.startsWith("base64:")) {
+        const base64Data = event.data.slice(7);
+        const bufferData = this.base64ToBuffer(base64Data);
+        const data = JSON.parse(this.bufferToString(bufferData));
+        event.parsedData = data;
+      }
+      return event;
+    });
+
+    return json;
   }
 
   private static async getPackageJson(
@@ -243,7 +213,6 @@ export default class PackageService {
   ): Promise<any> {
     const file = files.find((file) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
-
     return JSON.parse(await file.text());
   }
 
@@ -282,24 +251,19 @@ export default class PackageService {
   }
 
   static async import(zipFile: File): Promise<TypedPackage> {
-    console.log("using import");
     const files = await this.extractAssets(zipFile);
     const packageJson: TypedDict = await this.getPackageJson(
       "package.json",
       files
     );
-
     const name: string = packageJson.name || zipFile.name.replace(/\.\w+$/, "");
-    console.log(zipFile);
     const title = name
       .replace(/^ownable-|-ownable$/, "")
       .replace(/[-_]+/, " ")
       .replace(/\b\w/, (c) => c.toUpperCase());
     const description: string | undefined = packageJson.description;
-
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
-    console.log(cid);
     await this.storeAssets(cid, files);
     return this.storePackageInfo(title, name, description, cid, capabilities);
   }
@@ -307,26 +271,19 @@ export default class PackageService {
   static async importFromRelay() {
     try {
       const relayData = await readRelayData();
-      console.log(relayData);
 
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
-        console.error("No relay data received or invalid data format");
+        //   console.error("No relay data received or invalid data format");
         return null;
       }
 
-      const recipient = relayData[0]?.recipient || "";
-
       const results = await Promise.all(
         relayData.map(async (data) => {
-          console.log(data);
-
           const asset = await this.extractAssets(data.data.buffer);
 
           const cid = await calculateCid(asset);
 
-          // Check if the CID already exists
           if (await IDBService.hasStore(`package:${cid}`)) {
-            console.log(`CID ${cid} already exists. Skipping...`);
             return null;
           }
 
@@ -343,7 +300,7 @@ export default class PackageService {
           const description = packageJson.description;
           const capabilities = await this.getCapabilities(asset);
 
-          this.storeAssets(cid, asset);
+          await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
             title,
             name,
@@ -352,32 +309,8 @@ export default class PackageService {
             capabilities
           );
 
-          const eventsLength = chainJson.events.length;
-
-          // Temporary solution - needs to be dynamic and accurate
-          for (let counter = 0; counter < eventsLength; counter++) {
-            let msg;
-            if (counter === 0) {
-              msg = {
-                "@context": "instantiate_msg.json",
-                ownable_id: chainJson.id,
-                package: cid,
-                network_id: LTOService.networkId,
-              };
-            } else if (counter == eventsLength - 1) {
-              msg = {
-                "@context": "execute_msg.json",
-                transfer: {
-                  to: "",
-                },
-              };
-            }
-            chainJson.events[counter].parsedData = msg;
-          }
-
-          pkg.chain = chainJson;
-          pkg.chain.isRelay = true;
-          console.log(pkg);
+          const chain = chainJson;
+          pkg.chain = chain;
 
           return pkg;
         })
@@ -451,7 +384,6 @@ export default class PackageService {
 
   static async zip(cid: string): Promise<JSZip> {
     const zip = new JSZip();
-    console.log(cid);
     const files = await IDBService.getAll(`package:${cid}`);
     await IDBService.setAll(
       `package:${cid}`,
