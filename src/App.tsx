@@ -81,27 +81,33 @@ export default function App() {
 
   const forge = async (pkg: TypedPackage) => {
     const chain = OwnableService.create(pkg);
+    console.log(chain);
     setOwnables([...ownables, { chain, package: pkg.cid }]);
     setShowPackages(false);
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
+  const isEmpty = (obj: any) => {
+    if (Array.isArray(obj)) {
+      return obj.length === 0;
+    } else if (obj && typeof obj === "object") {
+      return Object.keys(obj).length === 0;
+    }
+    return true;
+  };
+
   const relayImport = async (pkg: any | null) => {
-    if (!pkg == null) {
+    if (pkg != null && !isEmpty(pkg)) {
       setOwnables((prevOwnables) => [
         ...prevOwnables,
         ...pkg.map((data: any) => {
-          console.log(data);
           return {
             chain: data.chain,
             package: data.cid,
           };
         }),
       ]);
-      OwnableService.loadAll();
-    }
-
-    if (pkg != null) {
+      setShowPackages(false);
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
@@ -111,7 +117,6 @@ export default function App() {
         variant: "error",
       });
     }
-    setShowPackages(false);
   };
 
   const deleteOwnable = (id: string, packageCid: string) => {

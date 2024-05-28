@@ -93,10 +93,8 @@ export default class OwnableService {
         package: pkg.cid,
         network_id: LTOService.networkId,
       };
-
       new Event(msg).addTo(chain).signWith(account);
     }
-
     return chain;
   }
 
@@ -128,7 +126,6 @@ export default class OwnableService {
     const rpc = this.rpc(partialChain.id);
 
     for (const event of partialChain.events) {
-      console.log(event);
       stateDump = (await this.applyEvent(rpc, event, stateDump)).state;
     }
 
@@ -179,15 +176,10 @@ export default class OwnableService {
       stateDump
     );
 
-    console.log("Reached 2");
-    console.log(chain, msg, stateDump);
-
     delete msg["@context"]; // Shouldn't be set
     new Event({ "@context": "execute_msg.json", ...msg })
       .addTo(chain)
       .signWith(LTOService.account);
-
-    console.log(chain, stateDump);
 
     await EventChainService.store({ chain, stateDump });
 
@@ -218,10 +210,6 @@ export default class OwnableService {
       funds: [],
     };
     const consumeMessage = { consume: {} };
-
-    console.log(consumer);
-    console.log(consumable);
-
     const consumerState = await EventChainService.getStateDump(
       consumer.id,
       consumer.state
@@ -230,8 +218,7 @@ export default class OwnableService {
       consumable.id,
       consumable.state
     );
-    console.log(consumable.id);
-    console.log(consumable.state);
+    console.log(consumerState, consumableState);
     if (!consumerState || !consumableState)
       throw Error("State mismatch for consume");
 
@@ -275,14 +262,11 @@ export default class OwnableService {
     pkg: string,
     stateDump?: StateDump
   ): Promise<void> {
-    console.log(chain, pkg, stateDump);
     if (await IDBService.hasStore(`ownable:${chain.id}`)) {
       return;
     }
     const dbs = [`ownable:${chain.id}`];
     if (stateDump) dbs.push(`ownable:${chain.id}.state`);
-
-    console.log(chain);
 
     const chainData = {
       chain: chain,
@@ -300,8 +284,6 @@ export default class OwnableService {
   }
 
   static async store(chain: EventChain, stateDump: StateDump): Promise<void> {
-    console.log("reached store");
-
     const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
 
     if (storedState === chain.state) return;
@@ -325,7 +307,6 @@ export default class OwnableService {
   }
 
   static async zip(chain: EventChain, files?: File[]): Promise<JSZip> {
-    console.log(`package:${chain.events[0].parsedData.package}`);
     const packageCid: string = chain.events[0].parsedData.package;
 
     const zip = await PackageService.zip(packageCid);
