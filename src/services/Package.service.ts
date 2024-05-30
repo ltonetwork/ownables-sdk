@@ -1,5 +1,4 @@
 import LocalStorageService from "./LocalStorage.service";
-import LTOService from "./LTO.service";
 import {
   TypedPackageCapabilities,
   TypedPackage,
@@ -12,9 +11,6 @@ import calculateCid from "../utils/calculateCid";
 import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { readRelayData } from "./Relay.service";
-import asDownload from "../utils/asDownload";
-import OwnableService from "./Ownable.service";
-import { LTO, Account, Message, Relay } from "@ltonetwork/lto";
 import { Buffer } from "buffer";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
