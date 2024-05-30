@@ -791,7 +791,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                   <Grid
                     container
                     justifyContent="space-between"
-                    key={readyOwnable.name}
+                    key={readyOwnable.id}
                   >
                     <GridItem item xs={3}>
                       <span>{readyOwnable.name}</span>

@@ -27,6 +27,7 @@ export interface TypedOwnable {
 }
 
 export interface TypedReadyOwnable {
+  id?: string;
   name: string;
   status: string;
   link: string;
