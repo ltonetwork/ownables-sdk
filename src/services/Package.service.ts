@@ -310,7 +310,8 @@ export default class PackageService {
             name,
             description,
             cid,
-            capabilities
+            capabilities,
+            packageJson.keywords
           );
 
           const chain = chainJson;
