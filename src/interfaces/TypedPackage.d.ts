@@ -15,6 +15,7 @@ export interface TypedPackage extends TypedPackageCapabilities {
   cid: string;
   chain?;
   versions: Array<{ date: Date; cid: string }>;
+  keywords: string[];
 }
 
 export interface TypedPackageStub {
