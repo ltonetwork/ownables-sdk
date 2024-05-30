@@ -34,7 +34,7 @@ export class checkForMessages {
   static async valueOfValidCids() {
     try {
       const validCids = await this.getValidCids();
-      if (validCids.length == 0) return null;
+      if (validCids.length === 0) return null;
       return validCids.length;
     } catch (error) {
       console.log(`${error}, could not get value`);

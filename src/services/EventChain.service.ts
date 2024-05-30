@@ -113,7 +113,7 @@ export default class EventChainService {
     const storedState = (await IDBService.hasStore(`ownable:${id}`))
       ? await IDBService.get(`ownable:${id}`, "state")
       : undefined;
-    const instance = state instanceof Binary ? state.hex : state;
+    // const instance = state instanceof Binary ? state.hex : state;
     if (storedState !== (state instanceof Binary ? state.hex : state))
       return null;
 
