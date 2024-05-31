@@ -1,24 +1,11 @@
 import LocalStorageService from "./LocalStorage.service";
-<<<<<<< HEAD
-import {
-  TypedPackageCapabilities,
-  TypedPackage,
-  TypedPackageStub,
-} from "../interfaces/TypedPackage";
-=======
 import {TypedPackageCapabilities, TypedPackage, TypedPackageStub} from "../interfaces/TypedPackage";
->>>>>>> parent of 85571e6 (Merge pull request #73 from ltonetwork/WithRelayService)
 import JSZip from "jszip";
 import mime from "mime/lite";
 import IDBService from "./IDB.service";
 import calculateCid from "../utils/calculateCid";
 import {TypedCosmWasmMsg} from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
-<<<<<<< HEAD
-import { readRelayData } from "./Relay.service";
-import { Buffer } from "buffer";
-=======
->>>>>>> parent of 85571e6 (Merge pull request #73 from ltonetwork/WithRelayService)
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl ? [
