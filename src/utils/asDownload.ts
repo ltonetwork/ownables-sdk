@@ -1,4 +1,4 @@
-export default function asDownload(content: Blob, filename: string) {
+export default function asDownload(content: any, filename: string) {
   const downloadLink = document.createElement("a");
   downloadLink.href = URL.createObjectURL(content);
   downloadLink.download = filename;
