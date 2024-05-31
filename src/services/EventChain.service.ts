@@ -1,10 +1,10 @@
-import {Binary, EventChain} from "@ltonetwork/lto";
+import { Binary, EventChain } from "@ltonetwork/lto";
 import LTOService from "./LTO.service";
 import IDBService from "./IDB.service";
-import {StateDump} from "./Ownable.service";
+import { StateDump } from "./Ownable.service";
 import LocalStorageService from "./LocalStorage.service";
 import TypedDict from "../interfaces/TypedDict";
-import {IEventChainJSON} from "@ltonetwork/lto/interfaces";
+import { IEventChainJSON } from "@ltonetwork/lto/interfaces";
 
 interface StoredChainInfo {
   chain: IEventChainJSON;
@@ -15,20 +15,20 @@ interface StoredChainInfo {
 }
 
 export default class EventChainService {
-  private static _anchoring = !!LocalStorageService.get('anchoring');
+  private static _anchoring = !!LocalStorageService.get("anchoring");
 
   static get anchoring(): boolean {
     return this._anchoring;
   }
   static set anchoring(enabled: boolean) {
-    LocalStorageService.set('anchoring', enabled);
+    LocalStorageService.set("anchoring", enabled);
     this._anchoring = enabled;
   }
 
   static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date, keywords: string[]}>> {
     const ids = (await IDBService.listStores())
-      .filter(name => name.match(/^ownable:\w+$/))
-      .map(name => name.replace(/^ownable:(\w+)$/, '$1'));
+      .filter((name) => name.match(/^ownable:\w+$/))
+      .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
 
       return (await Promise.all(ids.map(async id => {
         const { chain, package: packageCid, created, keywords} = await this.load(id);
@@ -49,16 +49,24 @@ export default class EventChainService {
     const anchors: Array<{ key: Binary, value: Binary }> = [];
     const data: TypedDict<TypedDict | Map<any, any>> = {};
 
-    for (const {chain, stateDump} of chains) {
-      const storedState = await IDBService.get(`ownable:${chain.id}`, 'state');
+    for (const { chain, stateDump } of chains) {
+      const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
       if (storedState === chain.state) continue;
 
       if (this.anchoring) {
-        const previousHash = await IDBService.get(`ownable:${chain.id}`, 'latestHash');
-        anchors.push(...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap)
+        const previousHash = await IDBService.get(
+          `ownable:${chain.id}`,
+          "latestHash"
+        );
+        anchors.push(
+          ...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
+        );
       }
-
-      data[`ownable:${chain.id}`] = { chain: chain.toJSON(), state: chain.state.hex, latestHash: chain.latestHash.hex };
+      data[`ownable:${chain.id}`] = {
+        chain: chain.toJSON(),
+        state: chain.state.hex,
+        latestHash: chain.latestHash.hex,
+      };
       data[`ownable:${chain.id}.state`] = new Map(stateDump);
     }
 
@@ -78,9 +86,9 @@ export default class EventChainService {
     if (stateDump) dbs.push(`ownable:${chain.id}.state`);
 
     const chainData = {
-      chain: chain.toJSON(),
-      state: chain.state.hex,
-      latestHash: chain.latestHash.hex,
+      chain: chain,
+      state: chain.state?.hex,
+      latestHash: chain.latestHash?.hex,
       package: pkg,
       created: new Date(),
       keywords: keywords,
@@ -99,11 +107,16 @@ export default class EventChainService {
   }
 
   // Return `null` if the stored state dump doesn't match the requested event chain state
-  static async getStateDump(id: string, state: string|Binary): Promise<StateDump|null> {
+  static async getStateDump(
+    id: string,
+    state: string | Binary
+  ): Promise<StateDump | null> {
     const storedState = (await IDBService.hasStore(`ownable:${id}`))
-      ? await IDBService.get(`ownable:${id}`, 'state')
+      ? await IDBService.get(`ownable:${id}`, "state")
       : undefined;
-    if (storedState !== (state instanceof Binary ? state.hex : state)) return null;
+    // const instance = state instanceof Binary ? state.hex : state;
+    if (storedState !== (state instanceof Binary ? state.hex : state))
+      return null;
 
     return this.getCurrentStateDump(id);
   }
@@ -121,7 +134,21 @@ export default class EventChainService {
     await IDBService.deleteStore(/^ownable:.+/);
   }
 
+  // public static async verify(chain: EventChain) {
+  //   return await LTOService.verifyAnchors(...chain.anchorMap);
+  // }
+
   public static async verify(chain: EventChain) {
-    return await LTOService.verifyAnchors(...chain.anchorMap);
+    let anchors: any[];
+
+    if (Array.isArray(chain.anchorMap)) {
+      anchors = chain.anchorMap;
+    } else if (chain.anchorMap && typeof chain.anchorMap === "object") {
+      anchors = Object.values(chain.anchorMap);
+    } else {
+      throw new Error("chain.anchorMap is not an iterable or a valid object");
+    }
+
+    return await LTOService.verifyAnchors(...anchors);
   }
 }
