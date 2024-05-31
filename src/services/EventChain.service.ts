@@ -30,9 +30,10 @@ export default class EventChainService {
       .filter((name) => name.match(/^ownable:\w+$/))
       .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
 
-    return (await Promise.all(ids.map((id) => this.load(id)))).sort(
-      ({ created: a }, { created: b }) => a.getTime() - b.getTime()
-    );
+      return (await Promise.all(ids.map(async id => {
+        const { chain, package: packageCid, created, keywords} = await this.load(id);
+        return { chain, package: packageCid, created, keywords };
+      }))).sort(({created: a}, {created: b}) => a.getTime() - b.getTime());
   }
   
   static async load(id: string): Promise<{chain: EventChain, package: string, created: Date, keywords: string[]}> {
