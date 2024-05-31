@@ -34,6 +34,7 @@ export default class EventChainService {
         const { chain, package: packageCid, created, keywords} = await this.load(id);
         return { chain, package: packageCid, created, keywords };
       }))).sort(({created: a}, {created: b}) => a.getTime() - b.getTime());
+      
   }
 
   static async load(id: string): Promise<{chain: EventChain, package: string, created: Date, keywords: string[]}> {
