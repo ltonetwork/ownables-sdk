@@ -31,6 +31,8 @@ export default class EventChainService {
       .filter((name) => name.match(/^ownable:\w+$/))
       .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
 
+    console.log(ids);
+
     return (await Promise.all(ids.map((id) => this.load(id)))).sort(
       ({ created: a }, { created: b }) => a.getTime() - b.getTime()
     );
@@ -42,8 +44,8 @@ export default class EventChainService {
     const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
+    console.log(chainInfo);
     const { chain: chainJson, package: packageCid, created } = chainInfo;
-
     return { chain: EventChain.from(chainJson), package: packageCid, created };
   }
 

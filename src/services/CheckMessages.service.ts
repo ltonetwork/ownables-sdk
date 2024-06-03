@@ -14,7 +14,6 @@ export class checkForMessages {
         ownables.map(async (data: any) => {
           const asset = await PackageService.extractAssets(data.data.buffer);
           const thisCid = await calculateCid(asset);
-
           if (await IDBService.hasStore(`package:${thisCid}`)) {
             return null;
           } else {
@@ -34,7 +33,7 @@ export class checkForMessages {
   static async valueOfValidCids() {
     try {
       const validCids = await this.getValidCids();
-      if (validCids.length == 0) return null;
+      if (validCids.length === 0) return null;
       return validCids.length;
     } catch (error) {
       console.log(`${error}, could not get value`);
