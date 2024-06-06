@@ -109,7 +109,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         // Math.ceil(parseFloat(value.toString()) / LTO_REPRESENTATION) + 1;
         (parseFloat(value.toString()) / LTO_REPRESENTATION) + 1;
       console.log("calculatesAmount", calculatesAmount);
-      if (calculatesAmount < 2) {
+      if (calculatesAmount < 1.1) {
         console.log("error server is not ready yet");
         return;
       } else {
@@ -394,31 +394,47 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     }
   };
 
-  const getOwnables = async () => {
-    try {
-      // const response = await axios.get("http://localhost:3000/Ownables");
-      const response = await axios.get("http://[::1]:3000/api/v1/requestIDs");
-      console.log("response", response);
-      // const data = await response.json();
-      setOwnables(response.data);
-    } catch (error) {
-      console.error("Error fetching ownables:", error);
-    }
-  };
+  // const getOwnables = async () => {
+  //   try {
+  //     // const response = await axios.get("http://localhost:3000/Ownables");
+  //     const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
+  //     // http://localhost:3000/api/v1/requestIDs?ltoUserAddress=3NCfghPcoym62MrXj6To5uRkiFp4xNDi5LK
+  //     console.log("response", response);
+  //     console.log("response data", response.data);
+  //     // const data = await response.json();
+  //     setOwnables(response.data);
+  //   } catch (error) {
+  //     console.error("Error fetching ownables:", error);
+  //   }
+  // };
 
   useEffect(() => {
+    const getOwnables = async () => {
+      try {
+        // const response = await axios.get("http://localhost:3000/Ownables");
+        const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
+        // http://localhost:3000/api/v1/requestIDs?ltoUserAddress=3NCfghPcoym62MrXj6To5uRkiFp4xNDi5LK
+        console.log("response", response);
+        console.log("response data", response.data);
+        // const data = await response.json();
+        setOwnables(response.data);
+      } catch (error) {
+        console.error("Error fetching ownables:", error);
+      }
+    };
     if (activeTab === "import") {
       getOwnables();
     }
-  }, [activeTab]);
+  }, [activeTab, ltoWalletAddress]);
 
-  const getOwnable = async (ownable: { link: string; name: string }) => {
-    try {
-      await PackageService.downloadOwnable(ownable);
-    } catch (error) {
-      console.error("Failed to download ownable:", error);
-    }
-  };
+  // const getOwnable = async (ownable: { link: string; name: string }) => {
+  //   const response = await axios.get("http://localhost:3000/api/v1/claim?requestId="+"bafybeib4uezr6yj2o2ea52iy7xfa5nbeuwsxo2rfjmiflciae7xmtwdgei");
+  //   // try {
+  //   //   await PackageService.downloadOwnable(ownable);
+  //   // } catch (error) {
+  //   //   console.error("Failed to download ownable:", error);
+  //   // }
+  // };
 
   return (
     <>
@@ -544,7 +560,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                         </Typography>
                       }
                     />
-                    <FormControlLabel
+                    {/* <FormControlLabel
                       value="polygon"
                       // control={<Radio />}
                       control={
@@ -570,7 +586,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                           Polygon
                         </Typography>
                       }
-                    />
+                    /> */}
                   </RadioGroup>
                 </Box>
                 {/* <div className={missingFields.includes("network") ? "error" : ""}>
@@ -770,36 +786,36 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             {activeTab === "import" && (
               <div>
                 <Grid container justifyContent="space-between">
-                  <GridItem item xs={3}>
+                  <GridItem item xs={8}>
                     <strong>Name</strong>
                   </GridItem>
-                  <GridItem item xs={3}>
+                  {/* <GridItem item xs={3}>
                     <strong>Status</strong>
-                  </GridItem>
-                  <GridItem item xs={3}>
+                  </GridItem> */}
+                  <GridItem item xs={2}>
                     <strong>Action</strong>
                   </GridItem>
                 </Grid>
                 {/* </div> */}
-                {ownables.length === 0 && (
+                {/* {ownables.length === 0 && (
                   <div>
                     <br></br>No ownables for import yet<br></br>
                     Build your first one
                   </div>
-                )}
-                {ownables.map((readyOwnable) => (
+                )} */}
+                {/* {ownables.map((readyOwnable) => (
                   <Grid
                     container
                     justifyContent="space-between"
                     key={readyOwnable.id}
                   >
-                    <GridItem item xs={3}>
+                    <GridItem item xs={6} key={readyOwnable.name}>
                       <span>{readyOwnable.name}</span>
-                    </GridItem>
-                    <GridItem item xs={3}>
+                    </GridItem> */}
+                    {/* <GridItem item xs={3}>
                       <span>{readyOwnable.status}</span>
-                    </GridItem>
-                    <GridItem item xs={3}>
+                    </GridItem> */}
+                    {/* <GridItem item xs={6} key={readyOwnable.status}>
                       <Button
                         disabled={readyOwnable.status !== "ready"}
                         onClick={() => getOwnable(readyOwnable)}
@@ -808,7 +824,36 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                       </Button>
                     </GridItem>
                   </Grid>
-                ))}
+                ))} */}
+                {ownables.hasOwnProperty('error') || ownables.length === 0 ? (
+                  <div>
+                    <br></br>No ownables for import yet<br></br>
+                    Build your first one
+                  </div>
+                ):(
+                  ownables.map((readyOwnable) => (
+                  <Grid
+                    container
+                    justifyContent="space-between"
+                    key={readyOwnable.RID} // Assuming RID is unique for each readyOwnable
+                  >
+                    <GridItem item xs={6}>
+                      <span>{readyOwnable.NAME}</span>
+                    </GridItem>
+                    {/* <GridItem item xs={4}>
+                      <span>{readyOwnable.CLAIMED ? "Claimed" : "Not Claimed"}</span>
+                    </GridItem> */}
+                    <GridItem item xs={2}>
+                      <Button
+                        disabled={!readyOwnable.CLAIMED}
+                        // onClick={() => getOwnable(readyOwnable.CID)} // Assuming you want to pass the CID to getOwnable
+                      >
+                        <DownloadIcon />
+                      </Button>
+                    </GridItem>
+                  </Grid>
+                ))
+                )}
               </div>
             )}
           </Box>

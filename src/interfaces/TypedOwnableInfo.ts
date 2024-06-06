@@ -27,6 +27,10 @@ export interface TypedOwnable {
 }
 
 export interface TypedReadyOwnable {
+  RID?: string;
+  NAME?: string;
+  CLAIMED?: boolean;
+  CID?: string;
   id?: string;
   name: string;
   status: string;
