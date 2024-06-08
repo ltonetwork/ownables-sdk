@@ -1,5 +1,4 @@
 import LocalStorageService from "./LocalStorage.service";
-import LTOService from "./LTO.service";
 import {
   TypedPackageCapabilities,
   TypedPackage,
@@ -12,9 +11,6 @@ import calculateCid from "../utils/calculateCid";
 import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { readRelayData } from "./Relay.service";
-import asDownload from "../utils/asDownload";
-import OwnableService from "./Ownable.service";
-import { LTO, Account, Message, Relay } from "@ltonetwork/lto";
 import { Buffer } from "buffer";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
@@ -162,6 +158,7 @@ export default class PackageService {
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (await IDBService.hasStore(`package:${cid}`)) return;
+
     await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
       `package:${cid}`,
@@ -264,6 +261,7 @@ export default class PackageService {
     const description: string | undefined = packageJson.description;
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
+
     await this.storeAssets(cid, files);
     return this.storePackageInfo(title, name, description, cid, capabilities);
   }
