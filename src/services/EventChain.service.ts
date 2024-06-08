@@ -5,6 +5,7 @@ import { StateDump } from "./Ownable.service";
 import LocalStorageService from "./LocalStorage.service";
 import TypedDict from "../interfaces/TypedDict";
 import { IEventChainJSON } from "@ltonetwork/lto/interfaces";
+import PackageService from "./Package.service";
 
 interface StoredChainInfo {
   chain: IEventChainJSON;
@@ -45,6 +46,13 @@ export default class EventChainService {
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
     console.log(chainInfo);
+    // if (chainInfo.chain.events.length == 1) {
+    //   //convert from buffer to json
+    //   const newEvent = PackageService.getChainJson(
+    //     "",
+    //     chainInfo.chain.events[0].data
+    //   );
+    // }
     const { chain: chainJson, package: packageCid, created } = chainInfo;
     return { chain: EventChain.from(chainJson), package: packageCid, created };
   }
