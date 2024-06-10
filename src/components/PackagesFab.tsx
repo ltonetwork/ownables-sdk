@@ -203,13 +203,13 @@ export default function PackagesFab(props: PackagesFabProps) {
         return;
       }
     }
-
     onSelect(pkg);
   };
 
   return (
     <>
       <Fab sx={fabStyle} aria-label="add" size="large" onClick={onOpen}>
+        {/* The notification message */}
         <Badge badgeContent={message} color="error">
           <AddIcon fontSize="large" />
         </Badge>
