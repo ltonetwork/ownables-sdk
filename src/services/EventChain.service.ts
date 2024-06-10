@@ -37,12 +37,20 @@ export default class EventChainService {
     );
   }
 
+  static async handleType(chain: any) {
+    chain.events.map((event: any) => {
+      event.data = event.data; //convert fields to base64
+    });
+  }
+
   static async load(
     id: string
   ): Promise<{ chain: EventChain; package: string; created: Date }> {
     const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
+
+    //if(instanceof chainInfo.chain.events[0].data == uintArray)
     console.log(chainInfo);
     const { chain: chainJson, package: packageCid, created } = chainInfo;
     return { chain: EventChain.from(chainJson), package: packageCid, created };
