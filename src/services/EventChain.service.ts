@@ -59,6 +59,7 @@ export default class EventChainService {
     //     chainInfo.chain.events[0].data
     //   );
     // }
+    //Check updates
 
     //if(instanceof chainInfo.chain.events[0].data == uintArray)
     console.log(chainInfo);
