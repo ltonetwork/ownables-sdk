@@ -73,7 +73,7 @@ function PackagesDialog(props: PackagesDialogProps) {
         <Divider />
       </If>
       <List sx={{ pt: 0 }} disablePadding>
-        <ListItem disablePadding disableGutters key="add-local">
+        <ListItem disablePadding disableGutters key="add">
           <ListItemButton
             autoFocus
             onClick={() => onImport()}
