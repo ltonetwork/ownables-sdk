@@ -51,33 +51,7 @@ export default class EventChainService {
     const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
-
-    // if (chainInfo.chain.events.length == 1) {
-    //   //convert from buffer to json
-    //   const newEvent = PackageService.getChainJson(
-    //     "",
-    //     chainInfo.chain.events[0].data
-    //   );
-    // }
-    //Check updates
-
-    //if(instanceof chainInfo.chain.events[0].data == uintArray)
-    console.log(chainInfo);
     const { chain: chainJson, package: packageCid, created } = chainInfo;
-    console.log(chainJson);
-    const mappedEvents = chainJson.events.map((event: any) => ({
-      ...event,
-      data: JSON.parse(new TextDecoder().decode(event.data)), // Convert Uint8Array to string
-      previous: Array.from(event.previous), // Convert Uint8Array to regular array
-      signKey: {
-        ...event.signKey,
-        publicKey: new TextDecoder().decode(event.signKey.publicKey),
-      },
-      signature: Array.from(event.signature), // Convert Uint8Array to regular array
-      _hash: Array.from(event._hash), // Convert Uint8Array to regular array
-    }));
-    console.log(mappedEvents);
-    chainJson.events = mappedEvents;
     console.log(chainJson);
     return { chain: EventChain.from(chainJson), package: packageCid, created };
   }
