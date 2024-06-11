@@ -40,28 +40,45 @@ export default class EventChainService {
     );
   }
 
-  // static async handleType(chain: any) {
-  //   chain.events.map((event: any) => {
-  //     event.data = event.data; //convert fields to base64
+  // static async handleTypes(chain: any) {
+  //   const event = chain.events.map((event: any) => {
+  //     event.data = Buffer.from(event.data).toString("base64");
+  //     event.data = `base64:${event.data}`;
+  //     //event.data = Binary.from(event.data);
+  //     //event.data = Buffer.from(event.data, "base64").toString("utf-8");
+  //     //event.previous = Binary.from(event.previous);
+  //     //event.previous = Buffer.from(event.previous, "base64").toString("utf-8");
+  //     // console.log(event.previous);
+  //     //event.signKey.publicKey = Binary.from(event.signKey.publicKey);
+  //     // event.signature = Binary.from(event.signature);
+  //     //event._hash = Binary.from(event._hash);
+  //     return event;
   //   });
+
+  // let t: any = { events: [], id };
+
+  // if (chainJson.events.length === 1) {
+  //   const feedback = await this.handleTypes(chainJson);
+  //   feedback[0].attachments = [];
+  //   console.log(feedback);
+  //   chainJson.events = feedback;
+  //   feedback.id = chainJson.id;
+  //   t = feedback;
+  //   t.events = feedback;
+  //   t.data = feedback[0].data;
+  //   t.data = t.data.toString();
+  //   t.attachments = feedback[0].attachments;
+  //   t.timestamp = feedback[0].timestamp;
+  //   t.previous = feedback[0].previous;
+  //   t._hash = feedback[0]._hash;
+  //   t.signKey = feedback[0].signKey;
+  //   t.signature = feedback[0].signature;
+  //   t.mediaType = feedback[0].mediaType;
+  //   console.log(t);
   // }
 
-  static async handleTypes(chain: any) {
-    const event = chain.events.map((event: any) => {
-      event.data = Buffer.from(event.data).toString("base64");
-      event.data = `base64:${event.data}`;
-      //event.data = Buffer.from(event.data, "base64").toString("utf-8");
-      //event.previous = Buffer.from(event.previous, "utf8");
-      //event.previous = Buffer.from(event.previous, "base64").toString("utf-8");
-      // console.log(event.previous);
-      event.signKey.publicKey = Buffer.from(event.signKey.publicKey);
-      // event.signature = Buffer.from(event.signature).toString("base64");
-      // event._hash = Buffer.from(event._hash);
-      return event;
-    });
-
-    return event;
-  }
+  //   return event;
+  // }
 
   static async load(
     id: string
@@ -70,12 +87,12 @@ export default class EventChainService {
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
     const { chain: chainJson, package: packageCid, created } = chainInfo;
-    const feedback = await this.handleTypes(chainJson);
-    console.log(chainJson);
-    console.log(feedback);
-    chainJson.events = feedback;
-    //console.log(chainJson);
-    return { chain: EventChain.from(chainJson), package: packageCid, created };
+
+    return {
+      chain: EventChain.from(chainJson),
+      package: packageCid,
+      created,
+    };
   }
 
   static async store(
