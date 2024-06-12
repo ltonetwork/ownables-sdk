@@ -33,8 +33,6 @@ export default class EventChainService {
       .filter((name) => name.match(/^ownable:\w+$/))
       .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
 
-    console.log(ids);
-
     return (await Promise.all(ids.map((id) => this.load(id)))).sort(
       ({ created: a }, { created: b }) => a.getTime() - b.getTime()
     );
@@ -64,8 +62,6 @@ export default class EventChainService {
     for (const { chain, stateDump } of chains) {
       const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
       if (storedState === chain.state) continue;
-
-      console.log(chain, chain.toJSON());
 
       if (this.anchoring) {
         const previousHash = await IDBService.get(

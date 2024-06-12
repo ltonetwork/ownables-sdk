@@ -2,12 +2,12 @@
 import PackageService from "./Package.service";
 import calculateCid from "../utils/calculateCid";
 import IDBService from "./IDB.service";
-import { readRelayData } from "./Relay.service";
+import { RelayService } from "./Relay.service";
 
 export class checkForMessages {
   static async getValidCids() {
     try {
-      const ownables = await readRelayData();
+      const ownables = await RelayService.readRelayData();
       if (ownables == null) return [];
 
       const cids = await Promise.all(
