@@ -116,7 +116,7 @@ export default class OwnableService {
     )) as ArrayBuffer;
     await rpc.init(chain.id, js, new Uint8Array(wasm));
     const stateDump = await this.apply(chain, []);
-    await EventChainService.initStore(chain, cid, stateDump);
+    await this.initStore(chain, cid, stateDump);
   }
 
   static async apply(
@@ -269,7 +269,7 @@ export default class OwnableService {
     if (stateDump) dbs.push(`ownable:${chain.id}.state`);
 
     const chainData = {
-      chain: chain,
+      chain: chain.toJSON(),
       state: chain.state.hex,
       package: pkg,
       created: new Date(),

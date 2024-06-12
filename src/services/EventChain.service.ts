@@ -40,46 +40,6 @@ export default class EventChainService {
     );
   }
 
-  // static async handleTypes(chain: any) {
-  //   const event = chain.events.map((event: any) => {
-  //     event.data = Buffer.from(event.data).toString("base64");
-  //     event.data = `base64:${event.data}`;
-  //     //event.data = Binary.from(event.data);
-  //     //event.data = Buffer.from(event.data, "base64").toString("utf-8");
-  //     //event.previous = Binary.from(event.previous);
-  //     //event.previous = Buffer.from(event.previous, "base64").toString("utf-8");
-  //     // console.log(event.previous);
-  //     //event.signKey.publicKey = Binary.from(event.signKey.publicKey);
-  //     // event.signature = Binary.from(event.signature);
-  //     //event._hash = Binary.from(event._hash);
-  //     return event;
-  //   });
-
-  // let t: any = { events: [], id };
-
-  // if (chainJson.events.length === 1) {
-  //   const feedback = await this.handleTypes(chainJson);
-  //   feedback[0].attachments = [];
-  //   console.log(feedback);
-  //   chainJson.events = feedback;
-  //   feedback.id = chainJson.id;
-  //   t = feedback;
-  //   t.events = feedback;
-  //   t.data = feedback[0].data;
-  //   t.data = t.data.toString();
-  //   t.attachments = feedback[0].attachments;
-  //   t.timestamp = feedback[0].timestamp;
-  //   t.previous = feedback[0].previous;
-  //   t._hash = feedback[0]._hash;
-  //   t.signKey = feedback[0].signKey;
-  //   t.signature = feedback[0].signature;
-  //   t.mediaType = feedback[0].mediaType;
-  //   console.log(t);
-  // }
-
-  //   return event;
-  // }
-
   static async load(
     id: string
   ): Promise<{ chain: EventChain; package: string; created: Date }> {
@@ -105,6 +65,8 @@ export default class EventChainService {
       const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
       if (storedState === chain.state) continue;
 
+      console.log(chain, chain.toJSON());
+
       if (this.anchoring) {
         const previousHash = await IDBService.get(
           `ownable:${chain.id}`,
@@ -129,39 +91,6 @@ export default class EventChainService {
     await IDBService.setAll(data);
   }
 
-  static async initStore(
-    chain: EventChain,
-    pkg: string,
-    stateDump?: StateDump
-  ): Promise<void> {
-    if (await IDBService.hasStore(`ownable:${chain.id}`)) {
-      return;
-    }
-
-    const dbs = [`ownable:${chain.id}`];
-    if (stateDump) dbs.push(`ownable:${chain.id}.state`);
-
-    const chainData = {
-      chain: chain,
-      state: chain.state?.hex,
-      latestHash: chain.latestHash?.hex,
-      package: pkg,
-      created: new Date(),
-    };
-
-    const data: TypedDict = {};
-    data[`ownable:${chain.id}`] = chainData;
-    if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
-
-    if (this.anchoring) {
-      await LTOService.anchor(...chain.anchorMap);
-    }
-
-    await IDBService.createStore(...dbs);
-    await IDBService.setAll(data);
-  }
-
-  // Return `null` if the stored state dump doesn't match the requested event chain state
   static async getStateDump(
     id: string,
     state: string | Binary
