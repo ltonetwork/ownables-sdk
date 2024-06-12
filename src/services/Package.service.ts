@@ -272,7 +272,6 @@ export default class PackageService {
       const relayData = await RelayService.readRelayData();
 
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
-        //   console.error("No relay data received or invalid data format");
         return null;
       }
 
