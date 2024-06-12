@@ -24,7 +24,7 @@ import asDownload from "../utils/asDownload";
 import shortId from "../utils/shortId";
 import If from "./If";
 import EventChainService from "../services/EventChain.service";
-import { sendOwnable } from "../services/Relay.service";
+import { RelayService } from "../services/Relay.service";
 import IDBService from "../services/IDB.service";
 
 interface OwnableProps {
@@ -83,7 +83,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         type: "uint8array",
       });
 
-      await sendOwnable(to, content);
+      await RelayService.sendOwnable(to, content);
 
       // const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
       //   this.chain.state?.base58,

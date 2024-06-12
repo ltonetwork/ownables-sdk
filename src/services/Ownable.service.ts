@@ -218,7 +218,6 @@ export default class OwnableService {
       consumable.id,
       consumable.state
     );
-    console.log(consumerState, consumableState);
     if (!consumerState || !consumableState)
       throw Error("State mismatch for consume");
 

@@ -10,7 +10,7 @@ import IDBService from "./IDB.service";
 import calculateCid from "../utils/calculateCid";
 import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
-import { readRelayData } from "./Relay.service";
+import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
 import { EventChain } from "@ltonetwork/lto";
 
@@ -269,7 +269,7 @@ export default class PackageService {
 
   static async importFromRelay() {
     try {
-      const relayData = await readRelayData();
+      const relayData = await RelayService.readRelayData();
 
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         //   console.error("No relay data received or invalid data format");
