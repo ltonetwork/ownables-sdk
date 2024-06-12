@@ -12,6 +12,7 @@ import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { readRelayData } from "./Relay.service";
 import { Buffer } from "buffer";
+import { EventChain } from "@ltonetwork/lto";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -307,7 +308,7 @@ export default class PackageService {
             capabilities
           );
 
-          const chain = chainJson;
+          const chain = EventChain.from(chainJson);
           pkg.chain = chain;
 
           return pkg;
