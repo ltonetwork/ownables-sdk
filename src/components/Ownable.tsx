@@ -26,6 +26,7 @@ import If from "./If";
 import EventChainService from "../services/EventChain.service";
 import { RelayService } from "../services/Relay.service";
 import IDBService from "../services/IDB.service";
+import { enqueueSnackbar } from "notistack";
 
 interface OwnableProps {
   chain: EventChain;
@@ -74,16 +75,23 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async transfer(to: string): Promise<void> {
     try {
-      //await OwnableService.loadAll();
-      await this.execute({ transfer: { to: to } });
-
       const zip = await OwnableService.zip(this.chain);
-
       const content = await zip.generateAsync({
         type: "uint8array",
       });
+      const value = await RelayService.checkTransferError(content);
 
-      await RelayService.sendOwnable(to, content);
+      if (!value) {
+        await this.execute({ transfer: { to: to } });
+        const zip = await OwnableService.zip(this.chain);
+        const content = await zip.generateAsync({
+          type: "uint8array",
+        });
+        await RelayService.sendOwnable(to, content);
+        enqueueSnackbar("Ownable sent Successfully!!", { variant: "success" });
+      } else {
+        enqueueSnackbar("Server is down", { variant: "error" });
+      }
 
       // const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
       //   this.chain.state?.base58,
