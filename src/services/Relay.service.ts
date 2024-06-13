@@ -9,18 +9,19 @@ const initializer = () => {
   const relayURL =
     process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
   lto.relay = new Relay(`${relayURL}/`);
+  const relay = lto.relay;
   const sender = lto.account({ seed });
 
-  return { lto, relayURL, sender };
+  return { relay, lto, relayURL, sender };
 };
 
-const { lto, relayURL, sender } = initializer();
+export const { relay, lto, relayURL, sender } = initializer();
 
 export class RelayService {
-  static async sendOwnable(recipient: string, content: Uint8Array) {
+  static async sendOwnable(recipient: string, content?: Uint8Array) {
     try {
       if (sender && recipient) {
-        sendFile(content, sender, recipient);
+        await sendFile(content, sender, recipient);
       } else {
         console.error("No recipient provided");
       }
@@ -48,5 +49,20 @@ export class RelayService {
     } catch (error) {
       console.error("Error:", error);
     }
+  }
+
+  //Check whether relay is up before attempting to send a message
+  static async checkTransferError(content: Uint8Array) {
+    let receiver;
+    //These addresses are catcher addresses that helps us to
+    //know if a transfer will fail via the relay before initiating a transfer.
+    //ownables sent here are lost
+    if (process.env.REACT_APP_LTO_NETWORK_ID === "T") {
+      receiver = "3N5iXP4b18uEW6M4pctyaAQw2yqfTk3M3iD";
+    } else {
+      receiver = "3JdXMYkcaySbAa2UUXZfKWJf8dSAyZV9Ca4";
+    }
+    const value = await sendFile(content, sender, receiver);
+    return value;
   }
 }
