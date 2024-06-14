@@ -1,4 +1,4 @@
-import { LTO, Account, Message, Relay } from "@ltonetwork/lto";
+import { LTO, Message, Relay } from "@ltonetwork/lto";
 import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
