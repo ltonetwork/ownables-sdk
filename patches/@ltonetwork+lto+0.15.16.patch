@@ -1,0 +1,13 @@
+diff --git a/node_modules/@ltonetwork/lto/src/events/EventChain.ts b/node_modules/@ltonetwork/lto/src/events/EventChain.ts
+index a045843..5d31f6b 100644
+--- a/node_modules/@ltonetwork/lto/src/events/EventChain.ts
++++ b/node_modules/@ltonetwork/lto/src/events/EventChain.ts
+@@ -250,7 +250,7 @@ export default class EventChain {
+ 
+     if (data.events.length === 0) return chain;
+ 
+-    if ('state' in data.events[0]) {
++    if ('state' in data.events[0] || data.events) {
+       const partial = data.events.shift() as { hash: string; state: string };
+       chain.partial = {
+         hash: Binary.fromBase58(partial.hash),
