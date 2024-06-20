@@ -5,8 +5,6 @@ import { StateDump } from "./Ownable.service";
 import LocalStorageService from "./LocalStorage.service";
 import TypedDict from "../interfaces/TypedDict";
 import { IEventChainJSON } from "@ltonetwork/lto/interfaces";
-import PackageService from "./Package.service";
-import { Buffer } from "buffer";
 
 interface StoredChainInfo {
   chain: IEventChainJSON;
@@ -94,7 +92,6 @@ export default class EventChainService {
     const storedState = (await IDBService.hasStore(`ownable:${id}`))
       ? await IDBService.get(`ownable:${id}`, "state")
       : undefined;
-    const instance = state instanceof Binary ? state.hex : state;
     if (storedState !== (state instanceof Binary ? state.hex : state))
       return null;
 

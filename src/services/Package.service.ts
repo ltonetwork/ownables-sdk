@@ -76,6 +76,7 @@ export default class PackageService {
   static list(): Array<TypedPackage | TypedPackageStub> {
     const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
     for (const pkg of local) {
+      //console.log(pkg);
       pkg.versions = pkg.versions.map(({ date, cid }) => ({
         date: new Date(date),
         cid,
@@ -107,14 +108,23 @@ export default class PackageService {
     name: string,
     description: string | undefined,
     cid: string,
-    capabilities: TypedPackageCapabilities
+    capabilities: TypedPackageCapabilities,
+    isNotLocal?: boolean
   ): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
     let pkg = packages.find((pkg) => pkg.name === name);
 
     if (!pkg) {
-      pkg = { title, name, description, cid, ...capabilities, versions: [] };
+      pkg = {
+        title,
+        name,
+        description,
+        cid,
+        isNotLocal,
+        ...capabilities,
+        versions: [],
+      };
       packages.push(pkg);
     } else {
       Object.assign(pkg, { cid, description, ...capabilities });
@@ -297,6 +307,7 @@ export default class PackageService {
             .replace(/\b\w/, (c: any) => c.toUpperCase());
           const description = packageJson.description;
           const capabilities = await this.getCapabilities(asset);
+          const isNotLocal = true;
 
           await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
@@ -304,7 +315,8 @@ export default class PackageService {
             name,
             description,
             cid,
-            capabilities
+            capabilities,
+            isNotLocal
           );
 
           const chain = EventChain.from(chainJson);

@@ -20,12 +20,11 @@ import TypedDict from "../interfaces/TypedDict";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import Overlay, { OverlayBanner } from "./Overlay";
 import LTOService from "../services/LTO.service";
-import asDownload from "../utils/asDownload";
-import shortId from "../utils/shortId";
+// import asDownload from "../utils/asDownload";
+// import shortId from "../utils/shortId";
 import If from "./If";
 import EventChainService from "../services/EventChain.service";
 import { RelayService } from "../services/Relay.service";
-import IDBService from "../services/IDB.service";
 import { enqueueSnackbar } from "notistack";
 
 interface OwnableProps {
