@@ -1,4 +1,4 @@
-import { LTO, Account, Message, Relay } from "@ltonetwork/lto";
+import { LTO, Message, Relay } from "@ltonetwork/lto";
 import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
@@ -34,20 +34,27 @@ export class RelayService {
     try {
       const Address = sender.address;
 
-      const responses = await axios.get(`${relayURL}/inboxes/${Address}/`);
-      const ownableData = await Promise.all(
-        responses.data.map(async (response: any) => {
-          const infoResponse = await axios.get(
-            `${relayURL}/inboxes/${Address}/${response.hash}`
-          );
-          return Message.from(infoResponse.data);
-        })
-      );
-      const validData = ownableData;
-      if (validData.length < 1) return null;
-      return ownableData;
-    } catch (error) {
-      console.error("Error:", error);
+      const responses = relayURL
+        ? await axios.get(`${relayURL}/inboxes/${Address}/`)
+        : null;
+
+      if (responses !== null) {
+        const ownableData = await Promise.all(
+          responses.data.map(async (response: any) => {
+            const infoResponse = await axios.get(
+              `${relayURL}/inboxes/${Address}/${response.hash}`
+            );
+            return Message.from(infoResponse.data);
+          })
+        );
+        const validData = ownableData;
+        if (validData.length < 1) return null;
+        return ownableData;
+      } else {
+        return;
+      }
+    } catch {
+      console.error("can't connect");
     }
   }
 

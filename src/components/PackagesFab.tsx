@@ -30,15 +30,12 @@ interface PackagesDialogProps {
 function PackagesDialog(props: PackagesDialogProps) {
   const { onClose, onSelect, onImport, fetchPkgFromRelay, open, packages } =
     props;
-
-  // useEffect(() => {
-  //   fetchPkgFromRelay();
-  // }, [fetchPkgFromRelay]);
+  const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
 
   return (
     <Dialog onClose={onClose} open={open}>
       <List sx={{ pt: 0, minWidth: 250 }} disablePadding>
-        {packages.map((pkg) => (
+        {filteredPackages.map((pkg) => (
           <ListItem disablePadding disableGutters key={pkg.title}>
             <Tooltip
               condition={"stub" in pkg}
