@@ -65,7 +65,7 @@ export class RelayService {
     //know if a transfer will fail via the relay before initiating a transfer.
     //ownables sent here are lost
     if (process.env.REACT_APP_LTO_NETWORK_ID === "T") {
-      receiver = "3N5iXP4b18uEW6M4pctyaAQw2yqfTk3M3iD";
+      receiver = "3N2mAxjMqmXTHmL2XQ77svRKwqWSBCw7RF7";
     } else {
       receiver = "3JdXMYkcaySbAa2UUXZfKWJf8dSAyZV9Ca4";
     }
