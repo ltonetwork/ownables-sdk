@@ -10,7 +10,10 @@ export default class LocalStorageService {
 
   static append(key: string, value: any): void {
     const list = this.get(key) || [];
-    if (!Array.isArray(list)) throw new Error(`Unable to append value in local storage: "${key} is not an array"`);
+    if (!Array.isArray(list))
+      throw new Error(
+        `Unable to append value in local storage: "${key} is not an array"`
+      );
 
     list.push(value);
     this.set(key, list);
