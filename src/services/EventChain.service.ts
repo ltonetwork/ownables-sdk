@@ -66,10 +66,12 @@ export default class EventChainService {
           `ownable:${chain.id}`,
           "latestHash"
         );
+        console.log(previousHash);
         anchors.push(
           ...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
         );
       }
+
       data[`ownable:${chain.id}`] = {
         chain: chain.toJSON(),
         state: chain.state.hex,
