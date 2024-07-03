@@ -21,15 +21,17 @@ interface PackagesDialogProps {
   onClose: () => void;
   onSelect: (pkg: TypedPackage|TypedPackageStub) => void;
   onImport: () => void;
+  // onCreate: () => void;
 }
 
 function PackagesDialog(props: PackagesDialogProps) {
   const {onClose, onSelect, onImport, open, packages} = props;
-
+  const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
   return (
     <Dialog onClose={onClose} open={open}>
       <List sx={{pt: 0, minWidth: 250}} disablePadding>
-        {packages.map((pkg) => (
+        {/* {packages.map((pkg) => ( */}
+        {filteredPackages.map((pkg) => (
           <ListItem disablePadding disableGutters key={pkg.title}>
             <Tooltip condition={"stub" in pkg} title={`Import ${pkg.title} example`} placement="right" arrow>
               <ListItemButton onClick={() => onSelect(pkg)} style={{textAlign: "center", color: "stub" in pkg ? "#666" : undefined }}>
@@ -48,6 +50,24 @@ function PackagesDialog(props: PackagesDialogProps) {
           <ListItemButton autoFocus onClick={() => onImport()} style={{textAlign: "center"}}>
             <ListItemIcon><AddIcon/></ListItemIcon>
             <ListItemText primary="Import package"/>
+          </ListItemButton>
+        </ListItem>
+      </List>
+      <If condition={packages.length > 0}><Divider /></If>
+      <List sx={{pt: 0}} disablePadding>
+        <ListItem disablePadding disableGutters key="add">
+          <ListItemButton autoFocus style={{textAlign: "center"}}>
+            <ListItemIcon><AddIcon/></ListItemIcon>
+            <ListItemText primary="Retrieve builds"/>
+          </ListItemButton>
+        </ListItem>
+      </List>
+      <If condition={packages.length > 0}><Divider /></If>
+      <List sx={{pt: 0}} disablePadding>
+        <ListItem disablePadding disableGutters key="add">
+          <ListItemButton autoFocus  style={{textAlign: "center"}}>
+            <ListItemIcon><AddIcon/></ListItemIcon>
+            <ListItemText primary="Create ownable"/>
           </ListItemButton>
         </ListItem>
       </List>

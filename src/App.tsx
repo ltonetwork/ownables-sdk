@@ -27,6 +27,7 @@ import { SnackbarProvider, enqueueSnackbar } from 'notistack';
 import {TypedOwnableInfo} from "./interfaces/TypedOwnableInfo";
 import CreateOwnable from './components/CreateOwnable';
 
+
 export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [showLogin, setShowLogin] = useState(!LTOService.isUnlocked());
@@ -153,6 +154,13 @@ export default function App() {
     });
   }
 
+  const importOwnable = async (pkg: TypedPackage) => {
+    console.log("chain: ", pkg.chain, " events: ",pkg.chain.events);
+    setOwnables([...ownables, {chain: pkg.chain, package: pkg.cid, keywords: pkg.keywords || []}]);
+    setShowPackages(false);
+    enqueueSnackbar(`${pkg.title} forged`, {variant: "success"});
+  }
+
   return <>
     <AppToolbar onMenuClick={() => setShowSidebar(true)} />
     <If condition={ownables.length === 0}>
@@ -219,6 +227,7 @@ export default function App() {
     <CreateOwnable 
       open={showCreate} 
       onClose={() => setShowCreate(false)} 
+      onSelect={importOwnable} 
     />
 
     <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />

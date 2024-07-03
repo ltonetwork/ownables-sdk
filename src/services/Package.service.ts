@@ -6,6 +6,8 @@ import IDBService from "./IDB.service";
 import calculateCid from "../utils/calculateCid";
 import {TypedCosmWasmMsg} from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
+import { EventChain } from "@ltonetwork/lto";
+import axios from "axios";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl ? [
@@ -55,13 +57,14 @@ export default class PackageService {
     description: string|undefined,
     cid: string,
     keywords: string[],
-    capabilities: TypedPackageCapabilities
+    capabilities: TypedPackageCapabilities,
+    isNotLocal?: boolean
   ): TypedPackage {
     const packages = (LocalStorageService.get('packages') || []) as TypedPackage[];
     let pkg = packages.find(pkg => pkg.name === name);
 
     if (!pkg) {
-      pkg = {title, name, description, cid, keywords, ...capabilities, versions: []};
+      pkg = {title, name, description, cid, keywords, isNotLocal, ...capabilities, versions: []};
       packages.push(pkg);
     } else {
       Object.assign(pkg, {cid, description, keywords, ...capabilities});
@@ -181,28 +184,6 @@ export default class PackageService {
     return this.import(zipFile);
   }
 
-//   static async downloadOwnable(ownable: { link: string, name: string }): Promise<void> {
-//   const { link, name } = ownable;
-
-//   try {
-//     const response = await fetch(link);
-//     if (!response.ok) throw new Error(`Failed to download ownable: ${response.statusText}`);
-
-//     const blob = await response.blob();
-//     const url = window.URL.createObjectURL(blob);
-
-//     const link = document.createElement('a');
-//     link.href = url;
-//     link.setAttribute('download', `${name}.zip`);
-//     document.body.appendChild(link);
-//     link.click();
-//     link.remove();
-//   } catch (error) {
-//     console.error(`Failed to download ownable: ${error.message}`);
-//     throw error;
-//   }
-// }
-
   static async getAsset(
     cid: string,
     name: string,
@@ -244,4 +225,132 @@ export default class PackageService {
 
     return zip;
   }
+
+  static async importFromGenerator(RID:string, CID:string) {
+    try {
+      const response = await axios.get("http://localhost:3000/api/v1/claim?requestId="+RID, { responseType: 'arraybuffer' });
+      const assets = await this.extractAssets(response.data);
+      console.log("assets ", assets);
+        const zip = new JSZip();
+        const zipData = await zip.loadAsync(response.data);
+        console.log("zipData", zipData);
+
+      //   async function extractFilesFromZip(zip: JSZip): Promise<File[]> {
+      //     const filePromises = Object.values(zip.files)
+      //         .filter(file => !file.dir)
+      //         .map(async file => {
+      //             const blob = await file.async('blob');
+      //             return new File([blob], file.name);
+      //         });
+      
+      //     return Promise.all(filePromises);
+      // }
+      // const files = await extractFilesFromZip(zipData);
+      // console.log("files:", files);
+
+        const chainFile = zipData.file("chain.json");
+        if (!chainFile) {
+            throw new Error("chain.json not found in zip file");
+        }
+
+        const chainJson = await chainFile.async("string");
+        const chain = JSON.parse(chainJson);
+        console.log("chain", chain);
+        
+        // Validate the event chain
+        if (!this.validateEventChain(chain)) {
+          throw new Error("Invalid event chain.");
+            }
+
+            if (await IDBService.hasStore(`package:${CID}`)) {
+              console.log("already in IDB");
+              return null;
+            }
+
+            // const packageFile = zipData.file("package.json")
+            // if (!packageFile) {
+            //   throw new Error("package.json not found in zip file");
+            // }
+            // const jsonPackage =  await packageFile.async("string");
+            // const packageJson = JSON.parse(jsonPackage);
+            // console.log("package.json", packageJson);
+            const packageJson: TypedDict = await this.getPackageJson(
+              "package.json",
+              assets
+            );
+            const name = packageJson.name;
+            const description: string = packageJson.description ?? '';
+            const title = name
+              .replace(/^ownable_|-ownable$/, "")
+              .replace(/[-_]+/, " ")
+              .replace(/\b\w/, (c: any) => c.toUpperCase());
+            // const capabilities = await this.getCapabilities(assets);
+            // const capabilitiesArray = Object.keys(capabilities);
+            const capabilitiesArray = await this.getCapabilities(assets)
+            const keywords = packageJson.keywords || [];
+            const isNotLocal = true;
+            console.log("title: " + title, ", description:", + description, " capa: ", capabilitiesArray, keywords );
+
+            await this.storeAssets(CID, assets);
+            const pkg = this.storePackageInfo(
+              title,
+              name,
+              description,
+              CID,
+              keywords,
+              capabilitiesArray,
+              isNotLocal
+            );
+            const eventchain = EventChain.from(chain);
+            console.log("chain: ", chain);
+            pkg.chain = eventchain;
+            console.log("pkg in package.service: ", pkg);
+            return pkg;
+    } catch (error) {
+      console.error("Error:", error);
+      return null;
+    }
+  }
+
+  // // Function to validate the event chain
+  // private static async validateEventChain(chain: { events: { previous: string; hash: string; }[] }, assets: any): Promise<boolean> {
+  //   if (!Array.isArray(chain.events) || chain.events.length === 0) {
+  //     return false;
+  //   }
+
+  //   let previousHash = chain.events[0].previous;
+  //   for (let event of chain.events) {
+  //     if (event.previous !== previousHash) {
+  //       return false;
+  //     }
+  //     previousHash = event.hash;
+  //   }
+
+  //   // Check if the last event in the chain has been transferred already
+  //   const lastEvent = chain.events[chain.events.length - 1];
+  //   const matchingAsset = assets.find((asset: any) => asset.hash === lastEvent.hash);
+  //   if (!matchingAsset || matchingAsset.status !== 'available') {
+  //     throw new Error('The last event in the chain has already been transferred.');
+  //   }
+
+  //   // Add additional checks as needed
+
+  //   return true;
+  // }
+
+  // Function to validate the event chain
+  private static validateEventChain = (chain: { events: { previous: string; hash: string; }[] }) => {
+    if (!Array.isArray(chain.events) || chain.events.length === 0) {
+      return false;
+    }
+
+    let previousHash = chain.events[0].previous;
+    for (let event of chain.events) {
+      if (event.previous !== previousHash) {
+        return false;
+      }
+      previousHash = event.hash;
+    }
+    return true;
+  };
 }

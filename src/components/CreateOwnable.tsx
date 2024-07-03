@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState} from "react";
 import {
   Alert,
   AlertTitle,
@@ -16,6 +16,7 @@ import {
   RadioGroup,
   Tab,
   Tabs,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -29,20 +30,28 @@ import heic2any from "heic2any";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import DownloadIcon from "@mui/icons-material/Download";
 import { Transfer as TransferTx } from "@ltonetwork/lto";
-import {
-  TypedOwnable,
-  TypedReadyOwnable,
-} from "../interfaces/TypedOwnableInfo";
+import { TypedOwnable, TypedReadyOwnable } from "../interfaces/TypedOwnableInfo";
 import { useSnackbar } from "notistack";
 import PackageService from "../services/Package.service";
+// import {connect as rpcConnect} from "simple-iframe-rpc";
+// import OwnableService, {OwnableRPC} from "../services/Ownable.service";
+// import {EventChain} from "@ltonetwork/lto";
+// import IDBService from "../services/IDB.service";
+import { TypedPackage } from "../interfaces/TypedPackage";
+import IDBService from "../services/IDB.service";
+import OwnableService from "../services/Ownable.service";
+// import OwnableService from "../services/Ownable.service";
+
+// export let newMessage: number | null;
 
 interface CreateOwnableProps {
   open: boolean;
   onClose: () => void;
+  onSelect: (pkg: TypedPackage) => void;
 }
 
 export default function CreateOwnable(props: CreateOwnableProps) {
-  const { open, onClose } = props;
+  const { open, onClose, onSelect } = props;
   const [activeTab, setActiveTab] = useState("build");
   const ltoWalletAddress = LTOService.address;
   const [showNoBalance, setShowNoBalance] = useState(false);
@@ -68,7 +77,9 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [noConnection, setNoConnection] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState('ethereum');
-
+  const [message, setMessages] = useState(0);
+  // const [importOwnable, setImportOwnable] = useState<Array<{chain: EventChain, package: string, keywords:string[]}>>([]);
+  // const iframeRef = RefObject<HTMLIFrameElement>;
   // const recipient = "3NBq1gTwDg2SfQvArc3C7E9PCFnS7hqqdzo";
   // // const recipient = "3N5vwNey9aFkyrQ5KUzMt3qfuwg5jKKzrLB";
   // // const value = "1";
@@ -76,10 +87,29 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   // const LTO_REPRESENTATION = 100000000;
   // const amount = (Math.floor(parseFloat(value.toString()) / LTO_REPRESENTATION)+1)
 
+  useEffect(() => {
+    if (!open) {
+      setActiveTab("build");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      try {
+        const count = await OwnableService.checkReadyOwnables(ltoWalletAddress);
+        // newMessage = count;
+        setMessages(count || 0);
+      } catch (error) {
+        console.error("Error occurred while checking messages:", error);
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [ltoWalletAddress]);
+
   const fetchBuildAmount = useCallback(async () => {
     try {
       const response = await axios.get(
-        // "http://localhost:3000/api/v1/templateCost?template=1",
         'http://localhost:3000/api/v1/templateCost?templateId=1&chain='+selectedNetwork,
         {
           headers: {
@@ -393,20 +423,121 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       setLowBalance(true);
     }
   };
+      const downloadOwnable= async(ownable: {RID: string, CID: string}) => {
+        console.log("RID: " + ownable.RID);
+        console.log("CID: " + ownable.CID);
+        try {
+          const pkg = await PackageService.importFromGenerator(ownable.RID, ownable.CID);
+          console.log("pkg", pkg);
+          if (!pkg) {
+            throw new Error("pkg not found");
+          }
+          console.log("chain: ", pkg.chain);
+          onSelect(pkg);
+          onClose();
+          setActiveTab("build");
+        } catch (error) {
+          console.error("Failed to download ownable:", error);
+        }
 
-  // const getOwnables = async () => {
-  //   try {
-  //     // const response = await axios.get("http://localhost:3000/Ownables");
-  //     const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
-  //     // http://localhost:3000/api/v1/requestIDs?ltoUserAddress=3NCfghPcoym62MrXj6To5uRkiFp4xNDi5LK
-  //     console.log("response", response);
-  //     console.log("response data", response.data);
-  //     // const data = await response.json();
-  //     setOwnables(response.data);
-  //   } catch (error) {
-  //     console.error("Error fetching ownables:", error);
-  //   }
-  // };
+      }
+      // const getOwnable = async (ownable: {NAME: string, RID: string, CID: string }) => {
+      //   try {
+      //     console.log("ownable", ownable);
+      //     const response = await axios.get("http://localhost:3000/api/v1/claim?requestId="+ownable.RID, { responseType: 'arraybuffer' });
+      //     const zip = new JSZip();
+      //     const zipData = await zip.loadAsync(response.data);
+
+      //     const chainFile = zipData.file("chain.json");
+      //     if (!chainFile) {
+      //         throw new Error("chain.json not found in zip file");
+      //     }
+
+      //     const chainJson = await chainFile.async("string");
+      //     const chain = JSON.parse(chainJson);
+      //     console.log("chain", chain);
+          
+      //     // Validate the event chain
+      //     if (!validateEventChain(chain)) {
+      //       throw new Error("Invalid event chain.");
+      //     }
+
+      //     if (await IDBService.hasStore(`package:${ownable.CID}`)) {
+      //       return null;
+      //     }
+
+      //     const packageFile = zipData.file("package.json")
+      //     if (!packageFile) {
+      //       throw new Error("package.json not found in zip file");
+      //     }
+      //     const jsonPackage =  await packageFile.async("string");
+      //     const packageJson = JSON.parse(jsonPackage);
+      //     console.log("package.json", packageJson);
+
+      //     const name = packageJson.name;
+      //     const title = name
+      //       .replace(/^ownable-|-ownable$/, "")
+      //       .replace(/[-_]+/, " ")
+      //       .replace(/\b\w/, (c: any) => c.toUpperCase());
+      //     const description = packageJson.description;
+      //     // const capabilities = await this.getCapabilities(zipData);
+      //     console.log("name: ", title," desc: ", description," capa: " );
+
+      //     // await this.storeAssets(ownable.CID, zipData);
+      //     // const pkg = this.storePackageInfo(
+      //     //   title,
+      //     //   name,
+      //     //   description,
+      //     //   ownable.CID,
+      //     //   capabilities
+      //     // );
+
+      //     // // const chain = EventChain.from(chainJson);
+      //     // pkg.chain = chain;
+
+      //     // For testing: download the zip file
+      //     await downloadZip(ownable, response.data);
+
+      //     console.log("getZip", response);
+
+      //     // return pkg;
+
+      //   } catch (error) {
+      //     console.error("Error:", error);
+      //   }
+
+        
+      // };
+
+  // Function to validate the event chain
+      // const validateEventChain = (chain: { events: { previous: string; hash: string; }[] }) => {
+      //   if (!Array.isArray(chain.events) || chain.events.length === 0) {
+      //     return false;
+      //   }
+
+      //   let previousHash = chain.events[0].previous;
+      //   for (let event of chain.events) {
+      //     if (event.previous !== previousHash) {
+      //       return false;
+      //     }
+      //     previousHash = event.hash;
+      //   }
+      //   return true;
+      // };
+
+    // // Function to download the zip file
+    // const downloadZip = async (ownable: {NAME: string, RID: string }, data: ArrayBuffer) => {
+    //   const blob = new Blob([data]);
+    //   const url = window.URL.createObjectURL(blob);
+    //   const link = document.createElement('a');
+    //   link.href = url;
+    //   const downloadName = ownable.NAME.replace('ownable_', '').split('_').join(' ');
+    //   link.setAttribute('download', `${downloadName}.zip`);
+    //   document.body.appendChild(link);
+    //   link.click();
+    //   document.body.removeChild(link);
+    //   window.URL.revokeObjectURL(url);
+    // };
 
   useEffect(() => {
     const getOwnables = async () => {
@@ -414,27 +545,61 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         // const response = await axios.get("http://localhost:3000/Ownables");
         const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
         // http://localhost:3000/api/v1/requestIDs?ltoUserAddress=3NCfghPcoym62MrXj6To5uRkiFp4xNDi5LK
-        console.log("response", response);
+        // console.log("response", response);
         console.log("response data", response.data);
+
+        // Create an array of promises
+        const promises = response.data.map(async (ownable: { CID: string }) => {
+          const hasStore = await IDBService.hasStore(`package:${ownable.CID}`);
+          console.log("hasStore", hasStore);
+          return hasStore ? null : ownable;
+        });
+
+        // // Create an array of promises
+        // const promises = response.data.map(async (ownable: { CID: string }) => {
+        //   // Perform both checks in parallel
+        //   const [hasPackageStore, hasOwnableStore] = await Promise.all([
+        //     IDBService.hasStore(`package:${ownable.CID}`),
+        //     IDBService.hasStore(`ownable:${ownable.CID}`)
+        //   ]);
+        //   console.log("hasPackageStore", hasPackageStore, "hasOwnableStore", hasOwnableStore);
+          
+        //   // // Return ownable only if neither store exists
+        //   // return (hasPackageStore || hasOwnableStore) ? null : ownable;
+
+        //   // Determine if the store exists based on the conditions provided
+        //   let shouldReturnOwnable;
+        //   if (hasPackageStore && !hasOwnableStore) {
+        //     // Package is true but ownable is false, should return this ownable
+        //     shouldReturnOwnable = true;
+        //   } else if (!hasPackageStore && !hasOwnableStore) {
+        //     // Both are false, should return this ownable
+        //     shouldReturnOwnable = true;
+        //   } else {
+        //     // In all other cases, do not return the ownable
+        //     shouldReturnOwnable = false;
+        //   }
+
+        //   // Return ownable only if it should be returned
+        //   return shouldReturnOwnable ? ownable : null;
+        // });
+
+        // Wait for all promises to resolve
+        const results = await Promise.all(promises);
+
+        // Filter out null values
+        const ownables = results.filter(ownable => ownable !== null);
+
         // const data = await response.json();
-        setOwnables(response.data);
+        setOwnables(ownables);
       } catch (error) {
         console.error("Error fetching ownables:", error);
       }
     };
-    if (activeTab === "import") {
+    if (activeTab === "import" || activeTab === "build") {
       getOwnables();
     }
   }, [activeTab, ltoWalletAddress]);
-
-  // const getOwnable = async (ownable: { link: string; name: string }) => {
-  //   const response = await axios.get("http://localhost:3000/api/v1/claim?requestId="+"bafybeib4uezr6yj2o2ea52iy7xfa5nbeuwsxo2rfjmiflciae7xmtwdgei");
-  //   // try {
-  //   //   await PackageService.downloadOwnable(ownable);
-  //   // } catch (error) {
-  //   //   console.error("Failed to download ownable:", error);
-  //   // }
-  // };
 
   return (
     <>
@@ -484,7 +649,10 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               <Tab
                 label="Import"
                 value="import"
-                sx={{ ml: { xs: 1, sm: 2 } }}
+                sx={{ ml: { xs: 1, sm: 2 },
+                  color: message > 0 ? 'error.main' : 'inherit',
+                  fontWeight: message > 0 ? 'bold' : 'normal',
+                }}
               />
             </Tabs>
           </Box>
@@ -499,7 +667,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                     row
                     name="network"
                     value={ownable.network}
-                    // onChange={handleNetworkChange}
                     onChange={(event) => {
                       handleNetworkChange(event);
                       setSelectedNetwork(event.target.value);
@@ -508,7 +675,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                   >
                     <FormControlLabel
                       value="ethereum"
-                      // control={<Radio />}
                       control={
                         <Radio
                           sx={{
@@ -535,7 +701,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                     />
                     <FormControlLabel
                       value="arbitrum"
-                      // control={<Radio />}
                       control={
                         <Radio
                           sx={{
@@ -560,79 +725,8 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                         </Typography>
                       }
                     />
-                    {/* <FormControlLabel
-                      value="polygon"
-                      // control={<Radio />}
-                      control={
-                        <Radio
-                          sx={{
-                            width: { xs: "12px", sm: "16px" },
-                            height: { xs: "12px", sm: "16px" },
-                          }}
-                        />
-                      }
-                      label={
-                        <Typography
-                          sx={{
-                            fontSize: {
-                              xs: "0.7rem",
-                              sm: "0.9rem",
-                              md: "1.1rem",
-                            },
-                            ml: 1,
-                          }}
-                          color="text.secondary"
-                        >
-                          Polygon
-                        </Typography>
-                      }
-                    /> */}
                   </RadioGroup>
                 </Box>
-                {/* <div className={missingFields.includes("network") ? "error" : ""}>
-                  <label>
-                    <input
-                      type="radio"
-                      name="network"
-                      value="ethereum"
-                      checked={ownable.network === 'ethereum'}
-                      onChange={handleNetworkChange}
-                    />
-                    Ethereum
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="network"
-                      value="arbitrumSepolia"
-                      checked={ownable.network === 'arbitrumSepolia'}
-                      onChange={handleNetworkChange}
-                    />
-                    Arbitrum
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="network"
-                      value="polygon"
-                      checked={ownable.network === 'polygon'}
-                      onChange={handleNetworkChange}
-                    />
-                    Polygon
-                  </label>
-                </div> */}
-                {/* <select
-                    className={missingFields.includes("network") ? "error" : ""}
-                    name="network"
-                    value={ownable.network}
-                    onChange={handleNetworkChange}
-                  >
-                    <option value="">Select Network</option>
-                    <option value="arbitrumSepolia">Arbitrum</option>
-                    <option value="polygon">Polygon</option>
-                    <option value="ethereum">Ethereum</option>
-                  </select>
-                  <br></br> */}
                 <br></br>
                 <Input
                   error={missingFields.includes("owner")}
@@ -709,19 +803,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                     }}
                   />
                   <br></br>
-                  {/* <br></br>
-                  <select
-                    className={missingFields.includes("network") ? "error" : ""}
-                    name="network"
-                    value={ownable.network}
-                    onChange={handleNetworkChange}
-                  >
-                    <option value="">Select Network</option>
-                    <option value="arbitrumSepolia">Arbitrum</option>
-                    <option value="polygon">Polygon</option>
-                    <option value="ethereum">Ethereum</option>
-                  </select>
-                  <br></br> */}
                   <br></br>
                   <label 
                     htmlFor="fileUpload" 
@@ -751,13 +832,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                     onChange={handleImageUpload}
                     style={{ marginBottom: "10px", display: "none"}}
                   />
-                  {/* <input
-                    className={missingFields.includes("image") ? "error" : ""}
-                    type="file"
-                    accept="image/*,.heic"
-                    onChange={handleImageUpload}
-                    style={{ marginBottom: "10px" }}
-                  /> */}
                   {ownable.image && (
                     <img
                       src={URL.createObjectURL(ownable.image)}
@@ -792,66 +866,82 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                   {/* <GridItem item xs={3}>
                     <strong>Status</strong>
                   </GridItem> */}
-                  <GridItem item xs={2}>
+                  {/* <GridItem item xs={2}>
                     <strong>Action</strong>
-                  </GridItem>
+                  </GridItem> */}
                 </Grid>
-                {/* </div> */}
-                {/* {ownables.length === 0 && (
-                  <div>
-                    <br></br>No ownables for import yet<br></br>
-                    Build your first one
-                  </div>
-                )} */}
-                {/* {ownables.map((readyOwnable) => (
-                  <Grid
-                    container
-                    justifyContent="space-between"
-                    key={readyOwnable.id}
-                  >
-                    <GridItem item xs={6} key={readyOwnable.name}>
-                      <span>{readyOwnable.name}</span>
-                    </GridItem> */}
-                    {/* <GridItem item xs={3}>
-                      <span>{readyOwnable.status}</span>
-                    </GridItem> */}
-                    {/* <GridItem item xs={6} key={readyOwnable.status}>
-                      <Button
-                        disabled={readyOwnable.status !== "ready"}
-                        onClick={() => getOwnable(readyOwnable)}
-                      >
-                        <DownloadIcon />
-                      </Button>
-                    </GridItem>
-                  </Grid>
-                ))} */}
                 {ownables.hasOwnProperty('error') || ownables.length === 0 ? (
                   <div>
-                    <br></br>No ownables for import yet<br></br>
-                    Build your first one
+                    <br></br>No ownables ready for import<br></br>
                   </div>
                 ):(
-                  ownables.map((readyOwnable) => (
-                  <Grid
+                  ownables.sort((a, b) => (a.CLAIMED === b.CLAIMED ? 0 : a.CLAIMED ? 1 : -1)).map((readyOwnable) => (
+                    <Grid
                     container
                     justifyContent="space-between"
-                    key={readyOwnable.RID} // Assuming RID is unique for each readyOwnable
+                    alignItems="center"
+                    key={readyOwnable.RID}
                   >
-                    <GridItem item xs={6}>
-                      <span>{readyOwnable.NAME}</span>
+                    <GridItem item xs={8}>
+                      <Tooltip title={readyOwnable.NAME.replace('ownable_', '').split('_').join(' ')}>
+                        <Typography noWrap>{readyOwnable.NAME.replace('ownable_', '').split('_').join(' ')}</Typography>
+                      </Tooltip>
                     </GridItem>
-                    {/* <GridItem item xs={4}>
-                      <span>{readyOwnable.CLAIMED ? "Claimed" : "Not Claimed"}</span>
-                    </GridItem> */}
+                    <GridItem item xs={2}>
+                      {readyOwnable.NFT_BLOCKCHAIN === 'ethereum' && <img src="/ethereum-logo-grey.svg" alt="Ethereum logo" width="20" height="20"/>}
+                      {readyOwnable.NFT_BLOCKCHAIN === 'arbitrum' && <img src="/arbitrum-logo.svg" alt="Arbitrum logo" width="20" height="20"/>}
+                      {/* {readyOwnable.NFT_BLOCKCHAIN === 'polygon' && <img src="/polygon-logo.svg" alt="Polygon logo" />} */}
+                    </GridItem>
                     <GridItem item xs={2}>
                       <Button
-                        disabled={!readyOwnable.CLAIMED}
-                        // onClick={() => getOwnable(readyOwnable.CID)} // Assuming you want to pass the CID to getOwnable
+                        onClick={() => downloadOwnable(readyOwnable)}
+                        style={{ color: readyOwnable.CLAIMED ? "grey" : "black" }}
                       >
                         <DownloadIcon />
+                        {!readyOwnable.CLAIMED && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: "5px",
+                              right: "25px",
+                              width: 5,
+                              height: 5,
+                              borderRadius: "50%",
+                              backgroundColor: "red",
+                            }}
+                          />
+                        )}
+                        {/* onClick={() => getOwnable(readyOwnable)}
+                        style={{ color: readyOwnable.CLAIMED ? "green" : "black" }}
+                      >
+                        <DownloadIcon /> */}
+                      {/* </Button>
+                        onClick={() => getOwnable(readyOwnable)}
+                      >
+                        <DownloadIcon /> */}
                       </Button>
                     </GridItem>
                   </Grid>
+                  // <Grid
+                  //   container
+                  //   justifyContent="space-between"
+                  //   key={readyOwnable.RID} // Assuming RID is unique for each readyOwnable
+                  // >
+                  //   <GridItem item xs={6}>
+                  //     <span>{readyOwnable.NAME ?? ''}</span>
+                  //   </GridItem>
+                  //   {/* <GridItem item xs={4}>
+                  //     <span>{readyOwnable.CLAIMED ? "Claimed" : "Not Claimed"}</span>
+                  //   </GridItem> */}
+                  //   <GridItem item xs={2}>
+                  //     <Button
+                  //       // disabled={!readyOwnable.CLAIMED}
+                  //       onClick={() => getOwnable(readyOwnable)} // Assuming you want to pass the CID to getOwnable
+                  //     >
+                  //       <DownloadIcon />
+                  //     </Button>
+                  //   </GridItem>
+                  // </Grid>
                 ))
                 )}
               </div>

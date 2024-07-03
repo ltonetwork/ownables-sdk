@@ -11,6 +11,7 @@ import JSZip from "jszip";
 import {TypedPackage} from "../interfaces/TypedPackage";
 import {TypedOwnableInfo} from "../interfaces/TypedOwnableInfo";
 import EventChainService from "./EventChain.service";
+import axios from "axios";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -260,5 +261,20 @@ export default class OwnableService {
     zip.file('chain.json', JSON.stringify(chain.toJSON()));
 
     return zip;
+  }
+
+  static async checkReadyOwnables(ltoWalletAddress: string){
+    try {
+      const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
+      if (response == null) return null;
+
+      const claimedCount = response.data.filter((ownable: any) => ownable.claimed).length;
+      console.log("claimedCount: ", claimedCount);
+      return claimedCount;
+
+    } catch (error) {
+      console.log("Failed to get claimable ownables");
+      return [];
+    }
   }
 }

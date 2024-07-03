@@ -27,14 +27,15 @@ export interface TypedOwnable {
 }
 
 export interface TypedReadyOwnable {
-  RID?: string;
-  NAME?: string;
+  RID: string;
+  NAME: string;
   CLAIMED?: boolean;
-  CID?: string;
+  CID: string;
   id?: string;
   name: string;
   status: string;
   link: string;
+  NFT_BLOCKCHAIN: string;
 }
 
 export interface TypedTxInfo {
