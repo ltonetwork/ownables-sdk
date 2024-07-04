@@ -2,6 +2,9 @@ import { LTO, Message, Relay } from "@ltonetwork/lto";
 import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
+import PackageService from "./Package.service";
+import JSZip from "jszip";
+import mime from "mime/lite";
 
 const initializer = () => {
   const seed = SessionStorageService.get("@seed");
@@ -11,7 +14,6 @@ const initializer = () => {
   lto.relay = new Relay(`${relayURL}/`);
   const relay = lto.relay;
   const sender = lto.account({ seed });
-
   return { relay, lto, relayURL, sender };
 };
 
@@ -71,5 +73,54 @@ export class RelayService {
     }
     const value = await sendFile(content, sender, receiver);
     return value;
+  }
+
+  static async extractAssets(zipFile: File): Promise<File[]> {
+    const zip = await JSZip.loadAsync(zipFile);
+
+    const assetFiles = await Promise.all(
+      Array.from(Object.entries(zip.files))
+        .filter(([filename]) => !filename.startsWith("."))
+        .map(async ([filename, file]) => {
+          const blob = await file.async("blob");
+          const type = mime.getType(filename) || "application/octet-stream";
+          return new File([blob], filename, { type });
+        })
+    );
+
+    return assetFiles;
+  }
+
+  private static async getChainJson(
+    filename: string,
+    files: File[]
+  ): Promise<any> {
+    const file = files.find((file) => file.name === filename);
+    if (!file) throw new Error(`Invalid package: missing ${filename}`);
+    return JSON.parse(await file.text());
+  }
+
+  static async checkDuplicateMessage(messages: any[]) {
+    const uniqueItems = new Map();
+
+    for (const message of messages) {
+      const assets = await this.extractAssets(message.data.buffer);
+      const chain = await this.getChainJson("chain.json", assets);
+      const id = chain.id;
+      const eventsLength = chain.events.length;
+
+      if (
+        !uniqueItems.has(id) ||
+        eventsLength > uniqueItems.get(id).eventsLength
+      ) {
+        uniqueItems.set(id, { message, eventsLength });
+      }
+    }
+
+    const uniqueMessages = Array.from(uniqueItems.values()).map(
+      (item) => item.message
+    );
+
+    return uniqueMessages;
   }
 }
