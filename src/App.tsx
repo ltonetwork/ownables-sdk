@@ -111,8 +111,10 @@ export default function App() {
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
-    }
-    if (pkg == null) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",
       });
