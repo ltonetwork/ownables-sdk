@@ -13,7 +13,6 @@ import TypedDict from "../interfaces/TypedDict";
 import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
 import { EventChain } from "@ltonetwork/lto";
-import Ownable from "../components/Ownable";
 import OwnableService from "./Ownable.service";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;

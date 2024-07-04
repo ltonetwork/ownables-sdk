@@ -2,7 +2,6 @@ import { LTO, Message, Relay } from "@ltonetwork/lto";
 import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
-import PackageService from "./Package.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 
