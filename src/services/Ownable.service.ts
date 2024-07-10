@@ -57,7 +57,9 @@ export interface OwnableRPC {
 export default class OwnableService {
   private static readonly _rpc = new Map<string, OwnableRPC>();
 
-  static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date, keywords: string[]}>> {
+  static async loadAll(): Promise<
+    Array<{ chain: EventChain; package: string; created: Date }>
+  > {
     return EventChainService.loadAll();
   }
 
@@ -90,7 +92,6 @@ export default class OwnableService {
         ownable_id: chain.id,
         package: pkg.cid,
         network_id: LTOService.networkId,
-        keywords: pkg.keywords,
       };
       new Event(msg).addTo(chain).signWith(account);
     }
@@ -115,7 +116,7 @@ export default class OwnableService {
     )) as ArrayBuffer;
     await rpc.init(chain.id, js, new Uint8Array(wasm));
     const stateDump = await this.apply(chain, []);
-    await EventChainService.initStore(chain, cid, stateDump);
+    await this.initStore(chain, cid, stateDump);
   }
 
   static async apply(
@@ -217,7 +218,6 @@ export default class OwnableService {
       consumable.id,
       consumable.state
     );
-    console.log(consumerState, consumableState);
     if (!consumerState || !consumableState)
       throw Error("State mismatch for consume");
 
@@ -268,11 +268,10 @@ export default class OwnableService {
     if (stateDump) dbs.push(`ownable:${chain.id}.state`);
 
     const chainData = {
-      chain: chain,
+      chain: chain.toJSON(),
       state: chain.state.hex,
       package: pkg,
       created: new Date(),
-      keywords: PackageService.info(pkg).keywords,
     };
 
     const data: TypedDict = {};

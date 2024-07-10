@@ -11,7 +11,6 @@ interface StoredChainInfo {
   state: string;
   package: string;
   created: Date;
-  keywords: string[];
 }
 
 export default class EventChainService {
@@ -25,28 +24,37 @@ export default class EventChainService {
     this._anchoring = enabled;
   }
 
-  static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date, keywords: string[]}>> {
+  static async loadAll(): Promise<
+    Array<{ chain: EventChain; package: string; created: Date }>
+  > {
     const ids = (await IDBService.listStores())
       .filter((name) => name.match(/^ownable:\w+$/))
       .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
 
-      return (await Promise.all(ids.map(async id => {
-        const { chain, package: packageCid, created, keywords} = await this.load(id);
-        return { chain, package: packageCid, created, keywords };
-      }))).sort(({created: a}, {created: b}) => a.getTime() - b.getTime());
-  }
-  
-  static async load(id: string): Promise<{chain: EventChain, package: string, created: Date, keywords: string[]}> {
-    const chainInfo = await IDBService.getMap(`ownable:${id}`)
-      .then(map => Object.fromEntries(map.entries())) as StoredChainInfo;
-
-    const {chain: chainJson, package: packageCid, created, keywords} = chainInfo;
-
-    return { chain: EventChain.from(chainJson), package: packageCid, created, keywords };
+    return (await Promise.all(ids.map((id) => this.load(id)))).sort(
+      ({ created: a }, { created: b }) => a.getTime() - b.getTime()
+    );
   }
 
-  static async store(...chains: Array<{ chain: EventChain, stateDump: StateDump,keywords?: string[] }>): Promise<void> {
-    const anchors: Array<{ key: Binary, value: Binary }> = [];
+  static async load(
+    id: string
+  ): Promise<{ chain: EventChain; package: string; created: Date }> {
+    const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
+      Object.fromEntries(map.entries())
+    )) as StoredChainInfo;
+    const { chain: chainJson, package: packageCid, created } = chainInfo;
+
+    return {
+      chain: EventChain.from(chainJson),
+      package: packageCid,
+      created,
+    };
+  }
+
+  static async store(
+    ...chains: Array<{ chain: EventChain; stateDump: StateDump }>
+  ): Promise<void> {
+    const anchors: Array<{ key: Binary; value: Binary }> = [];
     const data: TypedDict<TypedDict | Map<any, any>> = {};
 
     for (const { chain, stateDump } of chains) {
@@ -77,36 +85,6 @@ export default class EventChainService {
     await IDBService.setAll(data);
   }
 
-  static async initStore(chain: EventChain, pkg: string, stateDump?: StateDump, keywords?: string[]): Promise<void> {
-    if (await IDBService.hasStore(`ownable:${chain.id}`)) {
-      return;
-    }
-
-    const dbs = [`ownable:${chain.id}`];
-    if (stateDump) dbs.push(`ownable:${chain.id}.state`);
-
-    const chainData = {
-      chain: chain,
-      state: chain.state?.hex,
-      latestHash: chain.latestHash?.hex,
-      package: pkg,
-      created: new Date(),
-      keywords: keywords,
-    };
-
-    const data: TypedDict = {};
-    data[`ownable:${chain.id}`] = chainData;
-    if (stateDump) data[`ownable:${chain.id}.state`] = new Map(stateDump);
-
-    if (this.anchoring) {
-      await LTOService.anchor(...chain.anchorMap);
-    }
-
-    await IDBService.createStore(...dbs);
-    await IDBService.setAll(data);
-  }
-
-  // Return `null` if the stored state dump doesn't match the requested event chain state
   static async getStateDump(
     id: string,
     state: string | Binary
@@ -114,7 +92,6 @@ export default class EventChainService {
     const storedState = (await IDBService.hasStore(`ownable:${id}`))
       ? await IDBService.get(`ownable:${id}`, "state")
       : undefined;
-    // const instance = state instanceof Binary ? state.hex : state;
     if (storedState !== (state instanceof Binary ? state.hex : state))
       return null;
 

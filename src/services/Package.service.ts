@@ -10,8 +10,9 @@ import IDBService from "./IDB.service";
 import calculateCid from "../utils/calculateCid";
 import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
-import { readRelayData } from "./Relay.service";
+import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
+import { EventChain } from "@ltonetwork/lto";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -75,6 +76,7 @@ export default class PackageService {
   static list(): Array<TypedPackage | TypedPackageStub> {
     const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
     for (const pkg of local) {
+      //console.log(pkg);
       pkg.versions = pkg.versions.map(({ date, cid }) => ({
         date: new Date(date),
         cid,
@@ -107,17 +109,25 @@ export default class PackageService {
     description: string | undefined,
     cid: string,
     capabilities: TypedPackageCapabilities,
-    keywords: string[],
+    isNotLocal?: boolean
   ): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
     let pkg = packages.find((pkg) => pkg.name === name);
 
     if (!pkg) {
-      pkg = {title, name, description, cid, ...capabilities,keywords, versions: []};
+      pkg = {
+        title,
+        name,
+        description,
+        cid,
+        isNotLocal,
+        ...capabilities,
+        versions: [],
+      };
       packages.push(pkg);
     } else {
-      Object.assign(pkg, {cid, description, ...capabilities, keywords});
+      Object.assign(pkg, { cid, description, ...capabilities });
     }
 
     pkg.versions.push({ date: new Date(), cid });
@@ -159,6 +169,7 @@ export default class PackageService {
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (await IDBService.hasStore(`package:${cid}`)) return;
+
     await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
       `package:${cid}`,
@@ -259,21 +270,18 @@ export default class PackageService {
       .replace(/[-_]+/, " ")
       .replace(/\b\w/, (c) => c.toUpperCase());
     const description: string | undefined = packageJson.description;
-    
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
-    const keywords: string[] = packageJson.keywords || '';
-    
+
     await this.storeAssets(cid, files);
-    return this.storePackageInfo(title, name, description, cid, capabilities, keywords);
+    return this.storePackageInfo(title, name, description, cid, capabilities);
   }
 
   static async importFromRelay() {
     try {
-      const relayData = await readRelayData();
+      const relayData = await RelayService.readRelayData();
 
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
-        //   console.error("No relay data received or invalid data format");
         return null;
       }
 
@@ -299,6 +307,7 @@ export default class PackageService {
             .replace(/\b\w/, (c: any) => c.toUpperCase());
           const description = packageJson.description;
           const capabilities = await this.getCapabilities(asset);
+          const isNotLocal = true;
 
           await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
@@ -307,10 +316,10 @@ export default class PackageService {
             description,
             cid,
             capabilities,
-            packageJson.keywords
+            isNotLocal
           );
 
-          const chain = chainJson;
+          const chain = EventChain.from(chainJson);
           pkg.chain = chain;
 
           return pkg;
