@@ -30,15 +30,12 @@ interface PackagesDialogProps {
 function PackagesDialog(props: PackagesDialogProps) {
   const { onClose, onSelect, onImport, fetchPkgFromRelay, open, packages } =
     props;
-
-  // useEffect(() => {
-  //   fetchPkgFromRelay();
-  // }, [fetchPkgFromRelay]);
+  const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
 
   return (
     <Dialog onClose={onClose} open={open}>
       <List sx={{ pt: 0, minWidth: 250 }} disablePadding>
-        {packages.map((pkg) => (
+        {filteredPackages.map((pkg) => (
           <ListItem disablePadding disableGutters key={pkg.title}>
             <Tooltip
               condition={"stub" in pkg}
@@ -73,7 +70,7 @@ function PackagesDialog(props: PackagesDialogProps) {
         <Divider />
       </If>
       <List sx={{ pt: 0 }} disablePadding>
-        <ListItem disablePadding disableGutters key="add">
+        <ListItem disablePadding disableGutters key="add-local">
           <ListItemButton
             autoFocus
             onClick={() => onImport()}
@@ -85,7 +82,7 @@ function PackagesDialog(props: PackagesDialogProps) {
             <ListItemText primary="Import from local" />
           </ListItemButton>
         </ListItem>
-        <ListItem disablePadding disableGutters key="add">
+        <ListItem disablePadding disableGutters key="add-relay">
           <ListItemButton
             autoFocus
             onClick={() => fetchPkgFromRelay()}
@@ -203,13 +200,13 @@ export default function PackagesFab(props: PackagesFabProps) {
         return;
       }
     }
-
     onSelect(pkg);
   };
 
   return (
     <>
       <Fab sx={fabStyle} aria-label="add" size="large" onClick={onOpen}>
+        {/* The notification message */}
         <Badge badgeContent={message} color="error">
           <AddIcon fontSize="large" />
         </Badge>

@@ -2,19 +2,18 @@
 import PackageService from "./Package.service";
 import calculateCid from "../utils/calculateCid";
 import IDBService from "./IDB.service";
-import { readRelayData } from "./Relay.service";
+import { RelayService } from "./Relay.service";
 
 export class checkForMessages {
   static async getValidCids() {
     try {
-      const ownables = await readRelayData();
+      const ownables = await RelayService.readRelayData();
       if (ownables == null) return [];
 
       const cids = await Promise.all(
         ownables.map(async (data: any) => {
           const asset = await PackageService.extractAssets(data.data.buffer);
           const thisCid = await calculateCid(asset);
-
           if (await IDBService.hasStore(`package:${thisCid}`)) {
             return null;
           } else {
