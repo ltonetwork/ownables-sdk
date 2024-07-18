@@ -86,6 +86,9 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   // const value = 100000000;
   // const LTO_REPRESENTATION = 100000000;
   // const amount = (Math.floor(parseFloat(value.toString()) / LTO_REPRESENTATION)+1)
+  // Add a state to manage the thumbnail
+const [thumbnail, setThumbnail] = useState<Blob | null>(null);
+const [blurThumbnail, setBlurThumbnail] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -170,6 +173,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const handleClose = () => {
     handleCloseDialog();
     clearFields();
+    clearImageAndThumbnail(); 
     onClose();
   };
 
@@ -189,7 +193,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       keywords: [],
       ethereumAddress: "",
       network: "ethereum",
-      image: null,
+      image: null, 
     });
     setSelectedNetwork('ethereum');
   };
@@ -243,6 +247,22 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     fetchBuildAmount();
   };
 
+  const clearImageAndThumbnail = () => {
+    // Set the thumbnail state to null or an initial state
+    setThumbnail(null);
+  
+    // Set the image part of the ownable state to null or an initial state
+    setOwnable((prevOwnable) => ({
+      ...prevOwnable,
+      image: null,
+    }));
+    // Reset file input
+  const fileInput = document.getElementById('fileUpload') as HTMLInputElement;
+  if (fileInput) {
+    fileInput.value = '';
+  }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let file = e.target.files?.[0] || null;
 
@@ -260,12 +280,48 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     if (file) {
       const resizedImage = await resizeImage(file);
       file = new File([resizedImage], file.name, { type: "image/webp" });
+      // Create a thumbnail from the resized image
+      const thumbnailImage = await createThumbnail(resizedImage);
+      setThumbnail(thumbnailImage);
     }
 
     setOwnable((prevOwnable) => ({
       ...prevOwnable,
       image: file,
     }));
+  };
+
+  async function createThumbnail(blob: Blob): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        // Set thumbnail size
+        canvas.width = 50; // Example thumbnail width
+        canvas.height = 50; // Example thumbnail height
+        ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Could not create thumbnail blob'));
+          }
+        }, 'image/webp');
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  // Handler for uploading a different thumbnail
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file) {
+      // Assuming createThumbnail function exists and works for any image file
+      const newThumbnail = await createThumbnail(file);
+      setThumbnail(newThumbnail);
+    }
   };
 
   async function resizeImage(file: File): Promise<Blob> {
@@ -321,6 +377,36 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     });
   }
   
+  async function getThumbnailBlob(thumbnail: File | Blob, blur: boolean): Promise<Blob> {
+    if (!blur) {
+      return thumbnail; // No blur needed, return original
+    }
+  
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('2D context could not be created'));
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.filter = 'blur(5px)'; // Apply blur effect
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(blob => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Blob conversion failed'));
+          }
+        }, 'image/webp');
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(thumbnail);
+    });
+  }
   const handleCreateOwnable = async () => {
     const requiredFields = [
       "name",
@@ -368,7 +454,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               NFT_BLOCKCHAIN: ownable.network,
               NFT_TOKEN_URI: "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
               NFT_PUBLIC_USER_WALLET_ADDRESS: ownable.ethereumAddress,
-              OWNABLE_THUMBNAIL: imageName + "." + imageType,
+              OWNABLE_THUMBNAIL:"thumbnail.webp",
               OWNABLE_LTO_TRANSACTION_ID: info.id,
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
               PLACEHOLDER1_DESCRIPTION: ownable.description,
@@ -387,6 +473,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           zip.file("ownableData.json", JSON.stringify(ownableData, null, 2));
           if (ownable.image) {
             zip.file(`${imageName}.${imageType}`, ownable.image);
+          }
+
+          if (thumbnail) {
+            const thumbnailBlob = getThumbnailBlob(thumbnail, blurThumbnail);
+            zip.file(`thumbnail.webp`, thumbnailBlob);
           }
           console.log("zip", zip);
           zip.generateAsync({ type: "blob" }).then((zipFile: Blob) => {
@@ -603,7 +694,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 
   return (
     <>
-      <Dialog onClose={onClose} open={open}>
+      <Dialog onClose={handleClose} open={open}>
         <Box sx={{ maxWidth: "90%", p: 2 }}>
           <Box
             display="flex"
@@ -839,6 +930,28 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                       style={{ width: "100px", height: "auto" }}
                     />
                   )}
+                  <br></br>
+                  <br></br>
+                  {thumbnail && (
+                    <img
+                      src={URL.createObjectURL(thumbnail)}
+                      alt="Thumbnail"
+                      style={{ width: "50px", height: "auto", filter: blurThumbnail ? "blur(5px)" : "none" }}
+                    />
+                  )}
+                  <Button onClick={() => setBlurThumbnail(!blurThumbnail)}>
+                    {blurThumbnail ? "Unblur Thumbnail" : "Blur Thumbnail"}
+                  </Button>
+                  {/* <Button onClick={() => document.getElementById('thumbnailUpload').click()}>
+                    Choose Different Thumbnail
+                  </Button> */}
+                  <input
+                    id="thumbnailUpload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailUpload}
+                    style={{ display: "none" }}
+                  />
                   <Box
                     component="div"
                     sx={{ mt: 1, display: "flex", justifyContent: "center" }}

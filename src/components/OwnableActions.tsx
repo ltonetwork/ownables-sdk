@@ -64,7 +64,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
     >
       <MenuItem onClick={() => {close(); setShowLockDialog(true);}}>
         <ListItemIcon><Lock fontSize="small"/></ListItemIcon>
-        Lock
+        Bridge for NFT
       </MenuItem>
       <MenuItem disabled={!isConsumable} onClick={() => {close(); onConsume();}}>
         <ListItemIcon><PrecisionManufacturing fontSize="small"/></ListItemIcon>
