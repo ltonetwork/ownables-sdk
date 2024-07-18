@@ -33,14 +33,9 @@ import { Transfer as TransferTx } from "@ltonetwork/lto";
 import { TypedOwnable, TypedReadyOwnable } from "../interfaces/TypedOwnableInfo";
 import { useSnackbar } from "notistack";
 import PackageService from "../services/Package.service";
-// import {connect as rpcConnect} from "simple-iframe-rpc";
-// import OwnableService, {OwnableRPC} from "../services/Ownable.service";
-// import {EventChain} from "@ltonetwork/lto";
-// import IDBService from "../services/IDB.service";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import IDBService from "../services/IDB.service";
 import OwnableService from "../services/Ownable.service";
-// import OwnableService from "../services/Ownable.service";
 
 // export let newMessage: number | null;
 
@@ -159,12 +154,6 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
   useEffect(() => {
     fetchBuildAmount();
   }, [fetchBuildAmount]);
-
-  // useEffect(() => {
-  //   if (recipient) {
-  //     setTx(new TransferTx(recipient, amount));
-  //   }
-  // }, [recipient, amount]);
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
@@ -531,104 +520,7 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
           console.error("Failed to download ownable:", error);
         }
 
-      }
-      // const getOwnable = async (ownable: {NAME: string, RID: string, CID: string }) => {
-      //   try {
-      //     console.log("ownable", ownable);
-      //     const response = await axios.get("http://localhost:3000/api/v1/claim?requestId="+ownable.RID, { responseType: 'arraybuffer' });
-      //     const zip = new JSZip();
-      //     const zipData = await zip.loadAsync(response.data);
-
-      //     const chainFile = zipData.file("chain.json");
-      //     if (!chainFile) {
-      //         throw new Error("chain.json not found in zip file");
-      //     }
-
-      //     const chainJson = await chainFile.async("string");
-      //     const chain = JSON.parse(chainJson);
-      //     console.log("chain", chain);
-          
-      //     // Validate the event chain
-      //     if (!validateEventChain(chain)) {
-      //       throw new Error("Invalid event chain.");
-      //     }
-
-      //     if (await IDBService.hasStore(`package:${ownable.CID}`)) {
-      //       return null;
-      //     }
-
-      //     const packageFile = zipData.file("package.json")
-      //     if (!packageFile) {
-      //       throw new Error("package.json not found in zip file");
-      //     }
-      //     const jsonPackage =  await packageFile.async("string");
-      //     const packageJson = JSON.parse(jsonPackage);
-      //     console.log("package.json", packageJson);
-
-      //     const name = packageJson.name;
-      //     const title = name
-      //       .replace(/^ownable-|-ownable$/, "")
-      //       .replace(/[-_]+/, " ")
-      //       .replace(/\b\w/, (c: any) => c.toUpperCase());
-      //     const description = packageJson.description;
-      //     // const capabilities = await this.getCapabilities(zipData);
-      //     console.log("name: ", title," desc: ", description," capa: " );
-
-      //     // await this.storeAssets(ownable.CID, zipData);
-      //     // const pkg = this.storePackageInfo(
-      //     //   title,
-      //     //   name,
-      //     //   description,
-      //     //   ownable.CID,
-      //     //   capabilities
-      //     // );
-
-      //     // // const chain = EventChain.from(chainJson);
-      //     // pkg.chain = chain;
-
-      //     // For testing: download the zip file
-      //     await downloadZip(ownable, response.data);
-
-      //     console.log("getZip", response);
-
-      //     // return pkg;
-
-      //   } catch (error) {
-      //     console.error("Error:", error);
-      //   }
-
-        
-      // };
-
-  // Function to validate the event chain
-      // const validateEventChain = (chain: { events: { previous: string; hash: string; }[] }) => {
-      //   if (!Array.isArray(chain.events) || chain.events.length === 0) {
-      //     return false;
-      //   }
-
-      //   let previousHash = chain.events[0].previous;
-      //   for (let event of chain.events) {
-      //     if (event.previous !== previousHash) {
-      //       return false;
-      //     }
-      //     previousHash = event.hash;
-      //   }
-      //   return true;
-      // };
-
-    // // Function to download the zip file
-    // const downloadZip = async (ownable: {NAME: string, RID: string }, data: ArrayBuffer) => {
-    //   const blob = new Blob([data]);
-    //   const url = window.URL.createObjectURL(blob);
-    //   const link = document.createElement('a');
-    //   link.href = url;
-    //   const downloadName = ownable.NAME.replace('ownable_', '').split('_').join(' ');
-    //   link.setAttribute('download', `${downloadName}.zip`);
-    //   document.body.appendChild(link);
-    //   link.click();
-    //   document.body.removeChild(link);
-    //   window.URL.revokeObjectURL(url);
-    // };
+      };
 
   useEffect(() => {
     const getOwnables = async () => {
@@ -645,35 +537,6 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
           console.log("hasStore", hasStore);
           return hasStore ? null : ownable;
         });
-
-        // // Create an array of promises
-        // const promises = response.data.map(async (ownable: { CID: string }) => {
-        //   // Perform both checks in parallel
-        //   const [hasPackageStore, hasOwnableStore] = await Promise.all([
-        //     IDBService.hasStore(`package:${ownable.CID}`),
-        //     IDBService.hasStore(`ownable:${ownable.CID}`)
-        //   ]);
-        //   console.log("hasPackageStore", hasPackageStore, "hasOwnableStore", hasOwnableStore);
-          
-        //   // // Return ownable only if neither store exists
-        //   // return (hasPackageStore || hasOwnableStore) ? null : ownable;
-
-        //   // Determine if the store exists based on the conditions provided
-        //   let shouldReturnOwnable;
-        //   if (hasPackageStore && !hasOwnableStore) {
-        //     // Package is true but ownable is false, should return this ownable
-        //     shouldReturnOwnable = true;
-        //   } else if (!hasPackageStore && !hasOwnableStore) {
-        //     // Both are false, should return this ownable
-        //     shouldReturnOwnable = true;
-        //   } else {
-        //     // In all other cases, do not return the ownable
-        //     shouldReturnOwnable = false;
-        //   }
-
-        //   // Return ownable only if it should be returned
-        //   return shouldReturnOwnable ? ownable : null;
-        // });
 
         // Wait for all promises to resolve
         const results = await Promise.all(promises);
@@ -1024,37 +887,9 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
                             }}
                           />
                         )}
-                        {/* onClick={() => getOwnable(readyOwnable)}
-                        style={{ color: readyOwnable.CLAIMED ? "green" : "black" }}
-                      >
-                        <DownloadIcon /> */}
-                      {/* </Button>
-                        onClick={() => getOwnable(readyOwnable)}
-                      >
-                        <DownloadIcon /> */}
                       </Button>
                     </GridItem>
                   </Grid>
-                  // <Grid
-                  //   container
-                  //   justifyContent="space-between"
-                  //   key={readyOwnable.RID} // Assuming RID is unique for each readyOwnable
-                  // >
-                  //   <GridItem item xs={6}>
-                  //     <span>{readyOwnable.NAME ?? ''}</span>
-                  //   </GridItem>
-                  //   {/* <GridItem item xs={4}>
-                  //     <span>{readyOwnable.CLAIMED ? "Claimed" : "Not Claimed"}</span>
-                  //   </GridItem> */}
-                  //   <GridItem item xs={2}>
-                  //     <Button
-                  //       // disabled={!readyOwnable.CLAIMED}
-                  //       onClick={() => getOwnable(readyOwnable)} // Assuming you want to pass the CID to getOwnable
-                  //     >
-                  //       <DownloadIcon />
-                  //     </Button>
-                  //   </GridItem>
-                  // </Grid>
                 ))
                 )}
               </div>
