@@ -81,9 +81,9 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   // const value = 100000000;
   // const LTO_REPRESENTATION = 100000000;
   // const amount = (Math.floor(parseFloat(value.toString()) / LTO_REPRESENTATION)+1)
-  // Add a state to manage the thumbnail
 const [thumbnail, setThumbnail] = useState<Blob | null>(null);
 const [blurThumbnail, setBlurThumbnail] = useState(false);
+
 
   useEffect(() => {
     if (!open) {
@@ -250,6 +250,7 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
   if (fileInput) {
     fileInput.value = '';
   }
+  
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -305,11 +306,25 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
 
   // Handler for uploading a different thumbnail
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
+    let file = e.target.files?.[0] || null;
+    if (file && file.type === "image/heic") {
+      const blob = await heic2any({
+        blob: file,
+        toType: "image/webp",
+        quality: 0.7,
+      });
+      if (blob instanceof Blob) {
+        file = new File([blob], file.name, { type: "image/webp" });
+      }
+    }
+
     if (file) {
-      // Assuming createThumbnail function exists and works for any image file
-      const newThumbnail = await createThumbnail(file);
-      setThumbnail(newThumbnail);
+      const resizedImage = await resizeImage(file);
+      console.log(resizedImage);
+      file = new File([resizedImage], file.name, { type: "image/webp" });
+      // Create a thumbnail from the resized image
+      const thumbnailImage = await createThumbnail(resizedImage);
+      setThumbnail(thumbnailImage);
     }
   };
 
@@ -358,7 +373,6 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
               reject(new Error('Could not create blob'));
             }
           },'image/webp');
-          // }, file.type);
         }
       };
       img.onerror = reject;
@@ -430,9 +444,6 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
       setTimeout(() => {
         if (info.id) {
           console.log("Transaction id", info.id, "ready");
-          // const imageType = ownable.image
-          //   ? ownable.image.type.split("/")[1]
-          //   : "";
           const imageType = "webp";
           const imageName = ownable.name.replace(/\s+/g, "-");
           const formattedName = ownable.name.toLowerCase().replace(/\s+/g, "_");
@@ -497,7 +508,7 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
           });
           handleCloseDialog();
         }
-      }, 8000);
+      }, 3000);
     } catch (error) {
       console.error("Error sending transaction:", error);
       setLowBalance(true);
@@ -786,35 +797,63 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
                     onChange={handleImageUpload}
                     style={{ marginBottom: "10px", display: "none"}}
                   />
-                  {ownable.image && (
-                    <img
-                      src={URL.createObjectURL(ownable.image)}
-                      alt="Selected"
-                      style={{ width: "100px", height: "auto" }}
-                    />
-                  )}
-                  <br></br>
-                  <br></br>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
+                    {ownable.image && (
+                      <div>
+                        <img
+                          src={URL.createObjectURL(ownable.image)}
+                          alt="Selected"
+                          style={{ width: "100px", height: "auto" }}
+                        />
+                      </div>
+                    )}
+                    {thumbnail && (
+                      <>
+                      <div style={{ textAlign: 'center' }}>
+                        <div>Thumbnail</div> 
+                        <img
+                          src={URL.createObjectURL(thumbnail)}
+                          alt="Thumbnail"
+                          style={{ width: "50px", height: "auto", filter: blurThumbnail ? "blur(5px)" : "none" }}
+                        />
+                      </div>
+                     </>
+                    )}
+                  </div>
                   {thumbnail && (
-                    <img
-                      src={URL.createObjectURL(thumbnail)}
-                      alt="Thumbnail"
-                      style={{ width: "50px", height: "auto", filter: blurThumbnail ? "blur(5px)" : "none" }}
-                    />
-                  )}
-                  <Button onClick={() => setBlurThumbnail(!blurThumbnail)}>
-                    {blurThumbnail ? "Unblur Thumbnail" : "Blur Thumbnail"}
-                  </Button>
-                  {/* <Button onClick={() => document.getElementById('thumbnailUpload').click()}>
-                    Choose Different Thumbnail
-                  </Button> */}
-                  <input
-                    id="thumbnailUpload"
+                    <>
+                      <Button onClick={() => setBlurThumbnail(!blurThumbnail)}>
+                      {blurThumbnail ? "Unblur Thumbnail" : "Blur Thumbnail"}
+                    </Button>
+                    <br></br>
+                    <label 
+                    htmlFor="thumbUpload" 
+                    className="custom-file-upload"
+                    style={{
+                      display: "inline-block",
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                      backgroundColor: "#1cb7ff",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "4px",
+                      textAlign: "center",
+                      textDecoration: "none",
+                      transitionDuration: "0.4s",
+                      margin: "10px 0",
+                    }}
+                    >
+                    Change Thumbnail
+                  </label>
+                    <input
+                    id="thumbUpload"
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.heic"
                     onChange={handleThumbnailUpload}
-                    style={{ display: "none" }}
+                    style={{ marginBottom: "10px", display: "none"}}
                   />
+                    </>
+                    )}
                   <Box
                     component="div"
                     sx={{ mt: 1, display: "flex", justifyContent: "center" }}
