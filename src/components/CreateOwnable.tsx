@@ -36,6 +36,7 @@ import PackageService from "../services/Package.service";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import IDBService from "../services/IDB.service";
 import OwnableService from "../services/Ownable.service";
+import TagInputField from "./TagInputField";
 
 // export let newMessage: number | null;
 
@@ -83,7 +84,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   // const amount = (Math.floor(parseFloat(value.toString()) / LTO_REPRESENTATION)+1)
 const [thumbnail, setThumbnail] = useState<Blob | null>(null);
 const [blurThumbnail, setBlurThumbnail] = useState(false);
-
+const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) {
@@ -163,6 +164,7 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
     handleCloseDialog();
     clearFields();
     clearImageAndThumbnail(); 
+    setBlurThumbnail(false);
     onClose();
   };
 
@@ -218,14 +220,14 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
     }));
   };
 
-  const handleKeywordsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    const keywords = value.split(" ");
-    setOwnable((prevOwnable) => ({
-      ...prevOwnable,
-      keywords,
-    }));
-  };
+  // const handleKeywordsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const { value } = e.target;
+  //   const keywords = value.split(" ");
+  //   setOwnable((prevOwnable) => ({
+  //     ...prevOwnable,
+  //     keywords,
+  //   }));
+  // };
 
   const handleNetworkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
@@ -454,13 +456,14 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
               NFT_BLOCKCHAIN: ownable.network,
               NFT_TOKEN_URI: "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
               NFT_PUBLIC_USER_WALLET_ADDRESS: ownable.ethereumAddress,
-              OWNABLE_THUMBNAIL:"thumbnail.webp",
+              OWNABLE_THUMBNAIL:"thumbnail.webp", 
               OWNABLE_LTO_TRANSACTION_ID: info.id,
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
               PLACEHOLDER1_DESCRIPTION: ownable.description,
               PLACEHOLDER1_VERSION: "0.1.0",
               PLACEHOLDER1_AUTHORS: ownable.owner + " <" + ownable.email + ">",
-              PLACEHOLDER1_KEYWORDS: ownable.keywords,
+              // PLACEHOLDER1_KEYWORDS: ownable.keywords,
+              PLACEHOLDER1_KEYWORDS: tags,
               PLACEHOLDER2_TITLE: ownable.name,
               PLACEHOLDER2_IMG: imageName + "." + imageType,
               PLACEHOLDER4_TYPE: ownable.name,
@@ -545,7 +548,6 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
         // Create an array of promises
         const promises = response.data.map(async (ownable: { CID: string }) => {
           const hasStore = await IDBService.hasStore(`package:${ownable.CID}`);
-          console.log("hasStore", hasStore);
           return hasStore ? null : ownable;
         });
 
@@ -597,7 +599,7 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
               </Typography>
             </Box>
             <Hidden smUp>
-              <IconButton onClick={onClose} size="small" sx={{ mr: 2, mt: -1 }}>
+              <IconButton onClick={handleClose} size="small" sx={{ mr: 2, mt: -1 }}>
                 <HighlightOffIcon />
               </IconButton>
             </Hidden>
@@ -742,7 +744,7 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
                     required
                   />
                   <br></br>
-                  <Input
+                  {/* <Input
                     fullWidth
                     type="text"
                     name="keywords"
@@ -753,6 +755,10 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
                       fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" },
                     }}
                     required
+                  /> */}
+                  <br></br>
+                  <TagInputField 
+                  onTagsChange={setTags}
                   />
                   <br></br>
                   <Input
@@ -810,7 +816,11 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
                     {thumbnail && (
                       <>
                       <div style={{ textAlign: 'center' }}>
-                        <div>Thumbnail</div> 
+                        {/* <div>Wallet thumbnail</div>  */}
+                        <div style={{fontSize: "smaller", lineHeight: "1"}}>
+                          Wallet<br />
+                          thumbnail
+                        </div>
                         <img
                           src={URL.createObjectURL(thumbnail)}
                           alt="Thumbnail"
@@ -820,31 +830,56 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
                      </>
                     )}
                   </div>
+                  <br></br>
+                  {/* <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}> */}
                   {thumbnail && (
                     <>
-                      <Button onClick={() => setBlurThumbnail(!blurThumbnail)}>
+                    <Button onClick={() => setBlurThumbnail(!blurThumbnail)}>
+                      {/* <Button onClick={() => setBlurThumbnail(!blurThumbnail)}
+                        style={{
+                          display: "inline-block",
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          backgroundColor: "#1cb7ff",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "4px",
+                          textAlign: "center",
+                          textDecoration: "none",
+                          transitionDuration: "0.4s",
+                          margin: "10px 0",
+                        }}
+                        > */}
                       {blurThumbnail ? "Unblur Thumbnail" : "Blur Thumbnail"}
                     </Button>
                     <br></br>
+                    {/* <Button style={{
+                      padding: "0", // Reset padding to avoid affecting the label's styling
+                      backgroundColor: "transparent", // Make the button background transparent
+                      border: "none", // Remove border to make it invisible
+                      cursor: "pointer", // Optional: ensure it's clear it's clickable
+                    }}> */}
+                    <Button>
                     <label 
                     htmlFor="thumbUpload" 
                     className="custom-file-upload"
-                    style={{
-                      display: "inline-block",
-                      padding: "6px 12px",
-                      cursor: "pointer",
-                      backgroundColor: "#1cb7ff",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "4px",
-                      textAlign: "center",
-                      textDecoration: "none",
-                      transitionDuration: "0.4s",
-                      margin: "10px 0",
-                    }}
+                    // style={{
+                    //   display: "inline-block",
+                    //   padding: "6px 12px",
+                    //   cursor: "pointer",
+                    //   backgroundColor: "#1cb7ff",
+                    //   color: "#fff",
+                    //   border: "none",
+                    //   borderRadius: "4px",
+                    //   textAlign: "center",
+                    //   textDecoration: "none",
+                    //   transitionDuration: "0.4s",
+                    //   margin: "10px 0",
+                    // }}
                     >
                     Change Thumbnail
                   </label>
+                  </Button>
                     <input
                     id="thumbUpload"
                     type="file"
@@ -854,6 +889,7 @@ const [blurThumbnail, setBlurThumbnail] = useState(false);
                   />
                     </>
                     )}
+                    {/* </div> */}
                   <Box
                     component="div"
                     sx={{ mt: 1, display: "flex", justifyContent: "center" }}
