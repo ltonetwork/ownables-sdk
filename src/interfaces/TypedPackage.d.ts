@@ -9,11 +9,13 @@ export interface TypedPackageCapabilities {
 
 export interface TypedPackage extends TypedPackageCapabilities {
   title: string;
+  detail?;
   name: string;
   description?: string;
   cid: string;
-  versions: Array<{date: Date, cid: string}>;
-  keywords: string[];
+  chain?;
+  isNotLocal?: boolean;
+  versions: Array<{ date: Date; cid: string }>;
 }
 
 export interface TypedPackageStub {
@@ -21,4 +23,5 @@ export interface TypedPackageStub {
   name: string;
   description?: string;
   stub: true;
+  isNotLocal?: boolean;
 }
