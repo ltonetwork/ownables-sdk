@@ -19,7 +19,7 @@ export class checkForMessages {
               "chain.json",
               data.data.buffer
             );
-            if (await PackageService.compareEvent(chainJson)) {
+            if (await PackageService.checkCurrentEvent(chainJson)) {
               return thisCid;
             } else {
               return null;
@@ -31,7 +31,7 @@ export class checkForMessages {
       );
       return cids.filter((cid) => cid !== null);
     } catch (error) {
-      console.log("Failed to get valid ids");
+      //console.log("Failed to get valid ids");
       return [];
     }
   }

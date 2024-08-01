@@ -77,7 +77,6 @@ export default class PackageService {
   static list(): Array<TypedPackage | TypedPackageStub> {
     const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
     for (const pkg of local) {
-      //console.log(pkg);
       pkg.versions = pkg.versions.map(({ date, cid }) => ({
         date: new Date(date),
         cid,
@@ -281,7 +280,6 @@ export default class PackageService {
   static async importFromRelay() {
     try {
       const relayData = await RelayService.readRelayData();
-
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         return null;
       }
@@ -300,7 +298,7 @@ export default class PackageService {
           );
 
           if (await IDBService.hasStore(`package:${cid}`)) {
-            if (await this.compareEvent(chainJson)) {
+            if (await this.checkCurrentEvent(chainJson)) {
               this.removeOlderPackage(chainJson.id);
             } else {
               return null;
@@ -334,8 +332,6 @@ export default class PackageService {
         })
       );
 
-      console.log(results);
-
       return results.filter((pkg) => pkg !== null);
     } catch (error) {
       console.error("Error:", error);
@@ -343,10 +339,14 @@ export default class PackageService {
     }
   }
 
-  static async compareEvent(chainJson: any) {
+  static async checkCurrentEvent(chainJson: any) {
     let existingChain;
     if (await IDBService.hasStore(`ownable:${chainJson.id}`)) {
       existingChain = await IDBService.get(`ownable:${chainJson.id}`, "chain");
+    }
+
+    if (existingChain == undefined || existingChain.events == undefined) {
+      return true;
     }
     if (existingChain.events?.length) {
       if (chainJson.events.length > existingChain.events.length) {

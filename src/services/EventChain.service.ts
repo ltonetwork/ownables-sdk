@@ -72,6 +72,8 @@ export default class EventChainService {
         );
       }
 
+      console.log(chain.state);
+
       data[`ownable:${chain.id}`] = {
         chain: chain.toJSON(),
         state: chain.state.hex,
