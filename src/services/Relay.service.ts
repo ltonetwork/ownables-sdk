@@ -10,7 +10,7 @@ const initializer = () => {
   const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
   const relayURL =
     process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
-  lto.relay = new Relay(`${relayURL}/`);
+  lto.relay = new Relay(`${relayURL}`);
   const relay = lto.relay;
   const sender = lto.account({ seed });
   return { relay, lto, relayURL, sender };
@@ -61,17 +61,21 @@ export class RelayService {
 
   //Check whether relay is up before attempting to send a message
   static async checkTransferError(content: Uint8Array) {
-    let receiver;
-    //These addresses are catcher addresses that helps us to
-    //know if a transfer will fail via the relay before initiating a transfer.
-    //ownables sent here are lost
-    if (process.env.REACT_APP_LTO_NETWORK_ID === "T") {
-      receiver = "3N2mAxjMqmXTHmL2XQ77svRKwqWSBCw7RF7";
-    } else {
-      receiver = "3JdXMYkcaySbAa2UUXZfKWJf8dSAyZV9Ca4";
+    try {
+      let receiver;
+      //These addresses are catcher addresses that helps us to
+      //know if a transfer will fail via the relay before initiating a transfer.
+      //ownables sent here are lost
+      if (process.env.REACT_APP_LTO_NETWORK_ID === "T") {
+        receiver = "3N2mAxjMqmXTHmL2XQ77svRKwqWSBCw7RF7";
+      } else {
+        receiver = "3JdXMYkcaySbAa2UUXZfKWJf8dSAyZV9Ca4";
+      }
+      const value = await sendFile(content, sender, receiver);
+      return value;
+    } catch (error) {
+      console.error(error);
     }
-    const value = await sendFile(content, sender, receiver);
-    return value;
   }
 
   static async extractAssets(zipFile: File): Promise<File[]> {
