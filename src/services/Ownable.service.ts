@@ -305,11 +305,11 @@ export default class OwnableService {
     await EventChainService.deleteAll();
   }
 
-  static async zip(chain: EventChain, files?: File[]): Promise<JSZip> {
+  static async zip(chain: EventChain): Promise<JSZip> {
     const packageCid: string = chain.events[0].parsedData.package;
 
     const zip = await PackageService.zip(packageCid);
-    zip.file("chain.json", JSON.stringify(chain));
+    zip.file("chain.json", JSON.stringify(chain.toJSON()));
 
     return zip;
   }
