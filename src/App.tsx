@@ -82,7 +82,6 @@ export default function App() {
   const forge = async (pkg: TypedPackage) => {
     const chain = OwnableService.create(pkg);
     setOwnables([...ownables, { chain, package: pkg.cid }]);
-
     setShowPackages(false);
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };

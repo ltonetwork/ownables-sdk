@@ -34,6 +34,8 @@ export class RelayService {
   static async readRelayData() {
     try {
       const Address = sender.address;
+      const value = await this.isRelayUp();
+      if (value === false) return null;
 
       const responses = relayURL
         ? await axios.get(`${relayURL}/inboxes/${Address}/`)
@@ -59,22 +61,22 @@ export class RelayService {
     }
   }
 
-  //Check whether relay is up before attempting to send a message
-  static async checkTransferError(content: Uint8Array) {
+  static async isRelayUp() {
     try {
-      let receiver;
-      //These addresses are catcher addresses that helps us to
-      //know if a transfer will fail via the relay before initiating a transfer.
-      //ownables sent here are lost
-      if (process.env.REACT_APP_LTO_NETWORK_ID === "T") {
-        receiver = "3N2mAxjMqmXTHmL2XQ77svRKwqWSBCw7RF7";
+      const url: string | undefined = process.env.REACT_APP_RELAY;
+      if (url === undefined) return;
+      const response = await fetch(url, {
+        method: "HEAD",
+        //mode: "no-cors",
+      });
+      if (response.ok) {
+        return true;
       } else {
-        receiver = "3JdXMYkcaySbAa2UUXZfKWJf8dSAyZV9Ca4";
+        return false;
       }
-      const value = await sendFile(content, sender, receiver);
-      return value;
     } catch (error) {
-      console.error(error);
+      console.log(`Server is down`);
+      return false;
     }
   }
 
