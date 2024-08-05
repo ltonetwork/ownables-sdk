@@ -422,10 +422,7 @@ export default class PackageService {
   static async zip(cid: string): Promise<JSZip> {
     const zip = new JSZip();
     const files = await IDBService.getAll(`package:${cid}`);
-    // await IDBService.setAll(
-    //   `package:${cid}`,
-    //   Object.fromEntries(files.map((file) => [file.name, file]))
-    // );
+
     for (const file of files) {
       zip.file(file.name, file);
     }

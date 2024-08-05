@@ -73,7 +73,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   private async transfer(to: string): Promise<void> {
     try {
       const value = await RelayService.isRelayUp();
-      console.log(value);
 
       if (value) {
         await this.execute({ transfer: { to: to } });
@@ -157,7 +156,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async execute(msg: TypedDict): Promise<void> {
     let stateDump: StateDump;
-    console.log(msg, this.chain);
 
     try {
       stateDump = await OwnableService.execute(
