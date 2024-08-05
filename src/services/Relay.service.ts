@@ -63,7 +63,9 @@ export class RelayService {
 
   static async isRelayUp() {
     try {
-      const url: string | undefined = process.env.REACT_APP_RELAY;
+      const url: string | undefined = process.env.REACT_APP_RELAY
+        ? process.env.REACT_APP_RELAY
+        : process.env.REACT_APP_LOCAL_RELAY;
       if (url === undefined) return;
       const response = await fetch(url, {
         method: "HEAD",
