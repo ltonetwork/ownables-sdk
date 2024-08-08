@@ -5,24 +5,19 @@ import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 
-const initializer = () => {
-  const seed = SessionStorageService.get("@seed");
-  const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
-  const relayURL =
-    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
-  lto.relay = new Relay(`${relayURL}`);
-  const relay = lto.relay;
-  const sender = lto.account({ seed });
-  return { relay, lto, relayURL, sender };
-};
-
-export const { relay, lto, relayURL, sender } = initializer();
-
+export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 export class RelayService {
+  private static seed = SessionStorageService.get("@seed");
+
+  private static relayURL =
+    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
+  private static relay = new Relay(`${RelayService.relayURL}`);
+  private static sender = lto.account({ seed: RelayService.seed });
+
   static async sendOwnable(recipient: string, content?: Uint8Array) {
     try {
-      if (sender && recipient) {
-        await sendFile(content, sender, recipient);
+      if (RelayService.sender && recipient) {
+        await sendFile(content, RelayService.sender, recipient);
       } else {
         console.error("No recipient provided");
       }
@@ -33,51 +28,41 @@ export class RelayService {
 
   static async readRelayData() {
     try {
-      const Address = sender.address;
-      const value = await this.isRelayUp();
-      if (value === false) return null;
+      const Address = RelayService.sender.address;
+      const isRelayAvailable = await RelayService.isRelayUp();
+      if (!isRelayAvailable) return null;
 
-      const responses = relayURL
-        ? await axios.get(`${relayURL}/inboxes/${Address}/`)
-        : null;
+      const responses = await axios.get(
+        `${RelayService.relayURL}/inboxes/${Address}/`
+      );
 
-      if (responses !== null) {
-        const ownableData = await Promise.all(
-          responses.data.map(async (response: any) => {
-            const infoResponse = await axios.get(
-              `${relayURL}/inboxes/${Address}/${response.hash}`
-            );
-            return Message.from(infoResponse.data);
-          })
-        );
-        const validData = ownableData;
-        if (validData.length < 1) return null;
-        return ownableData;
-      } else {
-        return;
-      }
-    } catch {
-      console.error("can't connect");
+      const ownableData = await Promise.all(
+        responses.data.map(async (response: any) => {
+          const infoResponse = await axios.get(
+            `${RelayService.relayURL}/inboxes/${Address}/${response.hash}`
+          );
+          return Message.from(infoResponse.data);
+        })
+      );
+
+      if (ownableData.length < 1) return null;
+      return ownableData;
+    } catch (error) {
+      console.error("Error reading relay data:", error);
+      return null;
     }
   }
 
-  static async isRelayUp() {
+  static async isRelayUp(): Promise<boolean> {
     try {
-      const url: string | undefined = process.env.REACT_APP_RELAY
-        ? process.env.REACT_APP_RELAY
-        : process.env.REACT_APP_LOCAL_RELAY;
-      if (url === undefined) return;
+      const url: string | undefined = RelayService.relayURL;
+      if (!url) return false;
       const response = await fetch(url, {
         method: "HEAD",
-        //mode: "no-cors",
       });
-      if (response.ok) {
-        return true;
-      } else {
-        return false;
-      }
+      return response.ok;
     } catch (error) {
-      console.log(`Server is down`);
+      console.error("Server is down:", error);
       return false;
     }
   }
@@ -124,10 +109,6 @@ export class RelayService {
       }
     }
 
-    const uniqueMessages = Array.from(uniqueItems.values()).map(
-      (item) => item.message
-    );
-
-    return uniqueMessages;
+    return Array.from(uniqueItems.values()).map((item) => item.message);
   }
 }

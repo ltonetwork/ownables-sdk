@@ -19,7 +19,7 @@ export class checkForMessages {
               "chain.json",
               data.data.buffer
             );
-            if (await PackageService.checkCurrentEvent(chainJson)) {
+            if (await PackageService.isCurrentEvent(chainJson)) {
               return thisCid;
             } else {
               return null;
