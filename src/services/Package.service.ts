@@ -298,7 +298,7 @@ export default class PackageService {
           );
 
           if (await IDBService.hasStore(`package:${cid}`)) {
-            if (await this.checkCurrentEvent(chainJson)) {
+            if (await this.isCurrentEvent(chainJson)) {
               this.removeOlderPackage(chainJson.id);
             } else {
               return null;
@@ -339,7 +339,7 @@ export default class PackageService {
     }
   }
 
-  static async checkCurrentEvent(chainJson: any) {
+  static async isCurrentEvent(chainJson: any) {
     let existingChain;
     if (await IDBService.hasStore(`ownable:${chainJson.id}`)) {
       existingChain = await IDBService.get(`ownable:${chainJson.id}`, "chain");
@@ -360,6 +360,7 @@ export default class PackageService {
   static async removeOlderPackage(id: string) {
     await OwnableService.delete(id);
   }
+
   static async downloadExample(key: string): Promise<TypedPackage> {
     if (!exampleUrl)
       throw new Error("Unable to download example ownable: URL not configured");
