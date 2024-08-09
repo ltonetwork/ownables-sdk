@@ -72,13 +72,9 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   private async transfer(to: string): Promise<void> {
     try {
-      const zip = await OwnableService.zip(this.chain);
-      const content = await zip.generateAsync({
-        type: "uint8array",
-      });
-      const value = await RelayService.checkTransferError(content);
+      const value = await RelayService.isRelayUp();
 
-      if (!value) {
+      if (value) {
         await this.execute({ transfer: { to: to } });
         const zip = await OwnableService.zip(this.chain);
         const content = await zip.generateAsync({
