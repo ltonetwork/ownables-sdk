@@ -1,4 +1,4 @@
-import { EventChain, Event } from "@ltonetwork/lto";
+import { EventChain, Event, Binary } from "@ltonetwork/lto";
 import LTOService from "./LTO.service";
 import IDBService from "./IDB.service";
 import TypedDict from "../interfaces/TypedDict";
@@ -11,6 +11,7 @@ import JSZip from "jszip";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import { TypedOwnableInfo } from "../interfaces/TypedOwnableInfo";
 import EventChainService from "./EventChain.service";
+import LocalStorageService from "./LocalStorage.service";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -55,6 +56,16 @@ export interface OwnableRPC {
 }
 
 export default class OwnableService {
+  private static _anchoring = !!LocalStorageService.get("anchoring");
+
+  static get anchoring(): boolean {
+    return this._anchoring;
+  }
+  static set anchoring(enabled: boolean) {
+    LocalStorageService.set("anchoring", enabled);
+    this._anchoring = enabled;
+  }
+
   private static readonly _rpc = new Map<string, OwnableRPC>();
 
   static async loadAll(): Promise<
@@ -82,9 +93,10 @@ export default class OwnableService {
     this._rpc.delete(id);
   }
 
-  static create(pkg: TypedPackage): EventChain {
+  static async create(pkg: TypedPackage): Promise<EventChain> {
     const account = LTOService.account;
     const chain = EventChain.create(account);
+    const anchors: Array<{ key: Binary; value: Binary }> = [];
 
     if (pkg.isDynamic) {
       const msg = {
@@ -95,6 +107,16 @@ export default class OwnableService {
       };
       new Event(msg).addTo(chain).signWith(account);
     }
+
+    if (this.anchoring) {
+      const hash = chain.latestHash.hex;
+      anchors.push(...chain.startingWith(Binary.fromHex(hash)).anchorMap);
+    }
+
+    if (anchors.length > 0) {
+      await LTOService.anchor(...anchors);
+    }
+
     return chain;
   }
 
