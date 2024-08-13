@@ -21,7 +21,7 @@ export interface TypedOwnable {
   name: string;
   description?: string;
   keywords?: string[];
-  ethereumAddress: string;
+  evmAddress: string;
   network: string;
   image: File | null;
 }

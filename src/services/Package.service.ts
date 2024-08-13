@@ -228,7 +228,8 @@ export default class PackageService {
 
   static async importFromGenerator(RID:string, CID:string) {
     try {
-      const response = await axios.get("http://localhost:3000/api/v1/claim?requestId="+RID, { responseType: 'arraybuffer' });
+      const response = await axios.get( `${process.env.REACT_APP_OBUILDER}/v1/claim?requestId=${RID}`, { responseType: 'arraybuffer' });
+      // const response = await axios.get("http://localhost:3000/api/v1/claim?requestId="+RID, { responseType: 'arraybuffer' });
       const assets = await this.extractAssets(response.data);
       console.log("assets ", assets);
         const zip = new JSZip();

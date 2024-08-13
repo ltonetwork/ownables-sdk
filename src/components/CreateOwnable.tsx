@@ -37,6 +37,8 @@ import { TypedPackage } from "../interfaces/TypedPackage";
 import IDBService from "../services/IDB.service";
 // import OwnableService from "../services/Ownable.service";
 import TagInputField from "./TagInputField";
+// import { sign } from '@ltonetwork/http-message-signatures';
+
 
 // export let newMessage: number | null;
 
@@ -58,7 +60,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     name: "",
     description: "",
     keywords: [],
-    ethereumAddress: "",
+    evmAddress: "",
     network: "ethereum",
     image: null,
   });
@@ -85,6 +87,18 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 const [thumbnail, setThumbnail] = useState<Blob | null>(null);
 const [blurThumbnail, setBlurThumbnail] = useState(false);
 const [tags, setTags] = useState<string[]>([]);
+
+const getPlaceholderText = (network: string) => {
+  switch (network) {
+    case 'ethereum':
+      return 'Ethereum Address';
+    case 'arbitrum':
+      return 'Arbitrum Address';
+    // Add more cases as needed
+    default:
+      return 'Address';
+  }
+};
 
   useEffect(() => {
     if (!open) {
@@ -187,7 +201,7 @@ const [tags, setTags] = useState<string[]>([]);
       name: "",
       description: "",
       keywords: [],
-      ethereumAddress: "",
+      evmAddress: "",
       network: "ethereum",
       image: null, 
     });
@@ -417,11 +431,12 @@ const [tags, setTags] = useState<string[]>([]);
       img.src = URL.createObjectURL(thumbnail);
     });
   }
+
   const handleCreateOwnable = async () => {
     const requiredFields = [
       "name",
       "network",
-      "ethereumAddress",
+      "evmAddress",
       "owner",
       "email",
       "image",
@@ -458,9 +473,10 @@ const [tags, setTags] = useState<string[]>([]);
           const ownableData = [
             {
               template: "template1",
+              LTO_ADDRESS: ltoWalletAddress,
               NFT_BLOCKCHAIN: ownable.network,
               NFT_TOKEN_URI: "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
-              NFT_PUBLIC_USER_WALLET_ADDRESS: ownable.ethereumAddress,
+              NFT_PUBLIC_USER_WALLET_ADDRESS: ownable.evmAddress,
               OWNABLE_THUMBNAIL:"thumbnail.webp", 
               OWNABLE_LTO_TRANSACTION_ID: info.id,
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
@@ -503,6 +519,7 @@ const [tags, setTags] = useState<string[]>([]);
             // const url = 'http://localhost:3000/api/v1/upload';
             const formData = new FormData();
             formData.append('file', zipFile, formattedName + ".zip");
+            // const request = 
             axios.post(url, formData, {
               headers: {
                 'Content-Type': 'multipart/form-data',
@@ -515,9 +532,10 @@ const [tags, setTags] = useState<string[]>([]);
                 console.log(err)});
             setOpenDialog(true);
           });
+          // const signedRequest = await sign(request, {signer: account});
           handleCloseDialog();
         }
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Error sending transaction:", error);
       setLowBalance(true);
@@ -634,14 +652,14 @@ const [tags, setTags] = useState<string[]>([]);
               onChange={(event, value) => handleTabChange(value)}
             >
               <Tab label="Build" value="build" sx={{ mr: { xs: 1, sm: 2 } }} />
-              {/* <Tab
+              <Tab
                 label="Import"
                 value="import"
                 sx={{ ml: { xs: 1, sm: 2 },
-                  color: message > 0 ? 'error.main' : 'inherit',
-                  fontWeight: message > 0 ? 'bold' : 'normal',
+                  // color: message > 0 ? 'error.main' : 'inherit',
+                  // fontWeight: message > 0 ? 'bold' : 'normal',
                 }}
-              /> */}
+              />
             </Tabs>
           </Box>
           <Box>
@@ -783,12 +801,12 @@ const [tags, setTags] = useState<string[]>([]);
                   />
                   <br></br>
                   <Input
-                    error={missingFields.includes("ethereumAddress")}
+                    error={missingFields.includes("evmAddress")}
                     fullWidth
                     type="text"
-                    name="ethereumAddress"
-                    placeholder="Ethereum Address"
-                    value={ownable.ethereumAddress}
+                    name="evmAddress"
+                    placeholder={getPlaceholderText(selectedNetwork)}
+                    value={ownable.evmAddress}
                     onChange={handleInputChange}
                     sx={{
                       fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" },
