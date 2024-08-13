@@ -2,26 +2,22 @@ import { LTO, Message, Relay } from "@ltonetwork/lto";
 import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
+import JSZip from "jszip";
+import mime from "mime/lite";
 
-const initializer = () => {
-  const seed = SessionStorageService.get("@seed");
-  const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
-  const relayURL =
-    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
-  lto.relay = new Relay(`${relayURL}/`);
-  const relay = lto.relay;
-  const sender = lto.account({ seed });
-
-  return { relay, lto, relayURL, sender };
-};
-
-export const { relay, lto, relayURL, sender } = initializer();
-
+export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 export class RelayService {
+  private static seed = SessionStorageService.get("@seed");
+
+  private static relayURL =
+    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
+  private static relay = new Relay(`${RelayService.relayURL}`);
+  private static sender = lto.account({ seed: RelayService.seed });
+
   static async sendOwnable(recipient: string, content?: Uint8Array) {
     try {
-      if (sender && recipient) {
-        await sendFile(content, sender, recipient);
+      if (RelayService.sender && recipient) {
+        await sendFile(content, RelayService.sender, recipient);
       } else {
         console.error("No recipient provided");
       }
@@ -32,44 +28,87 @@ export class RelayService {
 
   static async readRelayData() {
     try {
-      const Address = sender.address;
+      const Address = RelayService.sender.address;
+      const isRelayAvailable = await RelayService.isRelayUp();
+      if (!isRelayAvailable) return null;
 
-      const responses = relayURL
-        ? await axios.get(`${relayURL}/inboxes/${Address}/`)
-        : null;
+      const responses = await axios.get(
+        `${RelayService.relayURL}/inboxes/${Address}/`
+      );
 
-      if (responses !== null) {
-        const ownableData = await Promise.all(
-          responses.data.map(async (response: any) => {
-            const infoResponse = await axios.get(
-              `${relayURL}/inboxes/${Address}/${response.hash}`
-            );
-            return Message.from(infoResponse.data);
-          })
-        );
-        const validData = ownableData;
-        if (validData.length < 1) return null;
-        return ownableData;
-      } else {
-        return;
-      }
-    } catch {
-      console.error("can't connect");
+      const ownableData = await Promise.all(
+        responses.data.map(async (response: any) => {
+          const infoResponse = await axios.get(
+            `${RelayService.relayURL}/inboxes/${Address}/${response.hash}`
+          );
+          return Message.from(infoResponse.data);
+        })
+      );
+
+      if (ownableData.length < 1) return null;
+      return ownableData;
+    } catch (error) {
+      console.error("Error reading relay data:", error);
+      return null;
     }
   }
 
-  //Check whether relay is up before attempting to send a message
-  static async checkTransferError(content: Uint8Array) {
-    let receiver;
-    //These addresses are catcher addresses that helps us to
-    //know if a transfer will fail via the relay before initiating a transfer.
-    //ownables sent here are lost
-    if (process.env.REACT_APP_LTO_NETWORK_ID === "T") {
-      receiver = "3N5iXP4b18uEW6M4pctyaAQw2yqfTk3M3iD";
-    } else {
-      receiver = "3JdXMYkcaySbAa2UUXZfKWJf8dSAyZV9Ca4";
+  static async isRelayUp(): Promise<boolean> {
+    try {
+      const url: string | undefined = RelayService.relayURL;
+      if (!url) return false;
+      const response = await fetch(url, {
+        method: "HEAD",
+      });
+      return response.ok;
+    } catch (error) {
+      console.error("Server is down:", error);
+      return false;
     }
-    const value = await sendFile(content, sender, receiver);
-    return value;
+  }
+
+  static async extractAssets(zipFile: File): Promise<File[]> {
+    const zip = await JSZip.loadAsync(zipFile);
+
+    const assetFiles = await Promise.all(
+      Array.from(Object.entries(zip.files))
+        .filter(([filename]) => !filename.startsWith("."))
+        .map(async ([filename, file]) => {
+          const blob = await file.async("blob");
+          const type = mime.getType(filename) || "application/octet-stream";
+          return new File([blob], filename, { type });
+        })
+    );
+
+    return assetFiles;
+  }
+
+  private static async getChainJson(
+    filename: string,
+    files: File[]
+  ): Promise<any> {
+    const file = files.find((file) => file.name === filename);
+    if (!file) throw new Error(`Invalid package: missing ${filename}`);
+    return JSON.parse(await file.text());
+  }
+
+  static async checkDuplicateMessage(messages: any[]) {
+    const uniqueItems = new Map();
+
+    for (const message of messages) {
+      const assets = await this.extractAssets(message.data.buffer);
+      const chain = await this.getChainJson("chain.json", assets);
+      const id = chain.id;
+      const eventsLength = chain.events.length;
+
+      if (
+        !uniqueItems.has(id) ||
+        eventsLength > uniqueItems.get(id).eventsLength
+      ) {
+        uniqueItems.set(id, { message, eventsLength });
+      }
+    }
+
+    return Array.from(uniqueItems.values()).map((item) => item.message);
   }
 }
