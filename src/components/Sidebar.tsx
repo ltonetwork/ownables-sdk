@@ -12,7 +12,6 @@ import {
   Link,
   Switch,
   Typography,
-  Badge
 } from "@mui/material";
 import LTOService from "../services/LTO.service";
 import {useEffect, useState} from "react";
@@ -23,7 +22,7 @@ import ltoExplorerIcon from "../assets/explorer-icon.png";
 import ltoWalletIcon from "../assets/wallet-icon.png";
 import Dialog from "@mui/material/Dialog";
 import EventChainService from "../services/EventChain.service";
-import OwnableService from "../services/Ownable.service";
+// import OwnableService from "../services/Ownable.service";
 
 export let newMessage: number | null;
 
@@ -42,7 +41,7 @@ export default function Sidebar(props: SidebarProps) {
   const [showNoBalance, setShowNoBalance] = useState(false);
   const address = LTOService.address;
   const [balance, setBalance] = useState<number>();
-  const [message, setMessages] = useState(0);
+  // const [message, setMessages] = useState(0);
 
   const loadBalance = () => {
     if (!LTOService.isUnlocked()) return;
@@ -66,19 +65,19 @@ export default function Sidebar(props: SidebarProps) {
   }, [anchoring, balance]);
 
 
-  useEffect(() => {
-    const intervalId = setInterval(async () => {
-      try {
-        const count = await OwnableService.checkReadyOwnables(address);
-        newMessage = count;
-        setMessages(count || 0);
-      } catch (error) {
-        console.error("Error occurred while checking messages:", error);
-      }
-    }, 10000);
+  // useEffect(() => {
+  //   const intervalId = setInterval(async () => {
+  //     try {
+  //       const count = await OwnableService.checkReadyOwnables(address);
+  //       newMessage = count;
+  //       setMessages(count || 0);
+  //     } catch (error) {
+  //       console.error("Error occurred while checking messages:", error);
+  //     }
+  //   }, 10000);
 
-    return () => clearInterval(intervalId);
-  }, [address]);
+  //   return () => clearInterval(intervalId);
+  // }, [address]);
 
   return <>
     <Drawer anchor="right" open={open} onClose={onClose}>
@@ -120,7 +119,7 @@ export default function Sidebar(props: SidebarProps) {
         <Box component="div" sx={{mt: 2}}>
         <Box sx={{ position: 'relative' }}>
           <Button  variant="contained" fullWidth sx={{mt: 2}} color="secondary" onClick={onCreate}>Create Ownable</Button>
-          <Badge 
+          {/* <Badge 
             badgeContent={message} 
             color="error" 
             sx={{ 
@@ -128,7 +127,7 @@ export default function Sidebar(props: SidebarProps) {
               top: 20, 
               right: 5 
             }}
-          />
+          /> */}
           </Box>
         </Box>
       </Box>

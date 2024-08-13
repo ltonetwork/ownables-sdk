@@ -11,7 +11,7 @@ import JSZip from "jszip";
 import {TypedPackage} from "../interfaces/TypedPackage";
 import {TypedOwnableInfo} from "../interfaces/TypedOwnableInfo";
 import EventChainService from "./EventChain.service";
-import axios from "axios";
+// import axios from "axios";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -38,6 +38,9 @@ export interface OwnableRPC {
 
 export default class OwnableService {
   private static readonly _rpc = new Map<string,OwnableRPC>();
+
+  private static obuilderURL =
+    process.env.REACT_APP_OBUILDER;
 
   static async loadAll(): Promise<Array<{chain: EventChain, package: string, created: Date, keywords: string[]}>> {
     return EventChainService.loadAll();
@@ -263,18 +266,19 @@ export default class OwnableService {
     return zip;
   }
 
-  static async checkReadyOwnables(ltoWalletAddress: string){
-    try {
-      const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
-      if (response == null) return null;
+  // static async checkReadyOwnables(ltoWalletAddress: string){
+  //   try {
+  //     const response = await axios.get(`${OwnableService.obuilderURL}/v1/requestIDs?ltoUserAddress=${ltoWalletAddress}`);
+  //     // const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
+  //     if (response == null) return null;
 
-      const claimedCount = response.data.filter((ownable: any) => ownable.claimed).length;
-      console.log("claimedCount: ", claimedCount);
-      return claimedCount;
+  //     const claimedCount = response.data.filter((ownable: any) => ownable.claimed).length;
+  //     console.log("claimedCount: ", claimedCount);
+  //     return claimedCount;
 
-    } catch (error) {
-      console.log("Failed to get claimable ownables");
-      return [];
-    }
-  }
+  //   } catch (error) {
+  //     console.log("Failed to get claimable ownables");
+  //     return [];
+  //   }
+  // }
 }

@@ -35,7 +35,7 @@ import { useSnackbar } from "notistack";
 import PackageService from "../services/Package.service";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import IDBService from "../services/IDB.service";
-import OwnableService from "../services/Ownable.service";
+// import OwnableService from "../services/Ownable.service";
 import TagInputField from "./TagInputField";
 
 // export let newMessage: number | null;
@@ -73,7 +73,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [noConnection, setNoConnection] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState('ethereum');
-  const [message, setMessages] = useState(0);
+  // const [message, setMessages] = useState(0);
   // const [importOwnable, setImportOwnable] = useState<Array<{chain: EventChain, package: string, keywords:string[]}>>([]);
   // const iframeRef = RefObject<HTMLIFrameElement>;
   // const recipient = "3NBq1gTwDg2SfQvArc3C7E9PCFnS7hqqdzo";
@@ -92,24 +92,27 @@ const [tags, setTags] = useState<string[]>([]);
     }
   }, [open]);
 
-  useEffect(() => {
-    const intervalId = setInterval(async () => {
-      try {
-        const count = await OwnableService.checkReadyOwnables(ltoWalletAddress);
-        // newMessage = count;
-        setMessages(count || 0);
-      } catch (error) {
-        console.error("Error occurred while checking messages:", error);
-      }
-    }, 5000);
+  // useEffect(() => {
+  //   const intervalId = setInterval(async () => {
+  //     try {
+  //       const count = await OwnableService.checkReadyOwnables(ltoWalletAddress);
+  //       // newMessage = count;
+  //       setMessages(count || 0);
+  //     } catch (error) {
+  //       console.error("Error occurred while checking messages:", error);
+  //     }
+  //   }, 5000);
 
-    return () => clearInterval(intervalId);
-  }, [ltoWalletAddress]);
+  //   return () => clearInterval(intervalId);
+  // }, [ltoWalletAddress]);
 
   const fetchBuildAmount = useCallback(async () => {
     try {
       const response = await axios.get(
-        'http://localhost:3000/api/v1/templateCost?templateId=1&chain='+selectedNetwork,
+        `${process.env.REACT_APP_OBUILDER}/v1/templateCost?templateId=1`,
+        // 'http://obuilder-env.eba-ftdayif2.eu-west-1.elasticbeanstalk.com/api/v1/templateCost?templateId=1',
+        // 'http://obuilder-env.eba-ftdayif2.eu-west-1.elasticbeanstalk.com/api/v1/templateCost?templateId=1&chain='+selectedNetwork,
+        // 'http://localhost:3000/api/v1/templateCost?templateId=1&chain='+selectedNetwork,
         {
           headers: {
             Accept: "*/*",
@@ -121,7 +124,9 @@ const [tags, setTags] = useState<string[]>([]);
       const value = +response.data[selectedNetwork];
       console.log("BuildAmount", value);
       const address = await axios.get(
-        "http://localhost:3000/api/v1/ServerWalletAddressLTO",
+        `${process.env.REACT_APP_OBUILDER}/v1/ServerWalletAddressLTO`,
+        // 'http://obuilder-env.eba-ftdayif2.eu-west-1.elasticbeanstalk.com/api/v1/ServerWalletAddressLTO',
+        // "http://localhost:3000/api/v1/ServerWalletAddressLTO",
         {
           headers: {
             Accept: "*/*",
@@ -494,7 +499,8 @@ const [tags, setTags] = useState<string[]>([]);
 
             // Send the zip file to the REST API
             // const url = 'http://httpbin.org/post';
-            const url = 'http://localhost:3000/api/v1/upload';
+            const url = `${process.env.REACT_APP_OBUILDER}/v1/upload`;
+            // const url = 'http://localhost:3000/api/v1/upload';
             const formData = new FormData();
             formData.append('file', zipFile, formattedName + ".zip");
             axios.post(url, formData, {
@@ -539,10 +545,25 @@ const [tags, setTags] = useState<string[]>([]);
   useEffect(() => {
     const getOwnables = async () => {
       try {
-        // const response = await axios.get("http://localhost:3000/Ownables");
-        const response = await axios.get("http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
+        // const response = await axios.get("");
+        const response = await axios.get(
+          `${process.env.REACT_APP_OBUILDER}/v1/requestIDs?ltoUserAddress=${ltoWalletAddress}`,
+        );
+          // "http://[::1]:3000/api/v1/requestIDs?ltoUserAddress="+ltoWalletAddress);
         // http://localhost:3000/api/v1/requestIDs?ltoUserAddress=3NCfghPcoym62MrXj6To5uRkiFp4xNDi5LK
         // console.log("response", response);
+
+        // Check if the response contains an error
+        if (response.data.error) {
+          console.error("Error fetching ownables:", response.data.error);
+          return;
+        }
+
+        if (response.data.error) {
+          console.error("No entries for LTO user address: ", response.data.error);
+          return;
+        }
+
         console.log("response data", response.data);
 
         // Create an array of promises
@@ -613,14 +634,14 @@ const [tags, setTags] = useState<string[]>([]);
               onChange={(event, value) => handleTabChange(value)}
             >
               <Tab label="Build" value="build" sx={{ mr: { xs: 1, sm: 2 } }} />
-              <Tab
+              {/* <Tab
                 label="Import"
                 value="import"
                 sx={{ ml: { xs: 1, sm: 2 },
                   color: message > 0 ? 'error.main' : 'inherit',
                   fontWeight: message > 0 ? 'bold' : 'normal',
                 }}
-              />
+              /> */}
             </Tabs>
           </Box>
           <Box>
