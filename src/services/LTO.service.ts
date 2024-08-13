@@ -1,4 +1,10 @@
-import { Account, Binary, LTO, Transaction } from "@ltonetwork/lto";
+import {
+  Account,
+  Binary,
+  LTO,
+  Transaction,
+  MappedAnchor,
+} from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
 
@@ -122,13 +128,12 @@ export default class LTOService {
   ): Promise<void> {
     if (anchors[0] instanceof Uint8Array) {
       await lto.anchor(this.account, ...(anchors as Array<Binary>));
+    } else {
+      await lto.anchor(
+        this.account,
+        ...(anchors as Array<{ key: Binary; value: Binary }>)
+      );
     }
-    // else {
-    //   await lto.mappedAnchor(
-    //     this.account,
-    //     ...(anchors as Array<{ key: Binary; value: Binary }>)
-    //   );
-    // }
   }
 
   public static async verifyAnchors(

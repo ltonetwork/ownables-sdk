@@ -1,4 +1,4 @@
-import { EventChain, Event } from "@ltonetwork/lto";
+import { EventChain, Event, Binary } from "@ltonetwork/lto";
 import LTOService from "./LTO.service";
 import IDBService from "./IDB.service";
 import TypedDict from "../interfaces/TypedDict";
@@ -11,6 +11,7 @@ import JSZip from "jszip";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import { TypedOwnableInfo } from "../interfaces/TypedOwnableInfo";
 import EventChainService from "./EventChain.service";
+import LocalStorageService from "./LocalStorage.service";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -55,6 +56,16 @@ export interface OwnableRPC {
 }
 
 export default class OwnableService {
+  private static _anchoring = !!LocalStorageService.get("anchoring");
+
+  static get anchoring(): boolean {
+    return this._anchoring;
+  }
+  static set anchoring(enabled: boolean) {
+    LocalStorageService.set("anchoring", enabled);
+    this._anchoring = enabled;
+  }
+
   private static readonly _rpc = new Map<string, OwnableRPC>();
 
   static async loadAll(): Promise<
@@ -82,9 +93,10 @@ export default class OwnableService {
     this._rpc.delete(id);
   }
 
-  static create(pkg: TypedPackage): EventChain {
+  static async create(pkg: TypedPackage): Promise<EventChain> {
     const account = LTOService.account;
     const chain = EventChain.create(account);
+    const anchors: Array<{ key: Binary; value: Binary }> = [];
 
     if (pkg.isDynamic) {
       const msg = {
@@ -95,6 +107,16 @@ export default class OwnableService {
       };
       new Event(msg).addTo(chain).signWith(account);
     }
+
+    if (this.anchoring) {
+      const hash = chain.latestHash.hex;
+      anchors.push(...chain.startingWith(Binary.fromHex(hash)).anchorMap);
+    }
+
+    if (anchors.length > 0) {
+      await LTOService.anchor(...anchors);
+    }
+
     return chain;
   }
 
@@ -272,6 +294,7 @@ export default class OwnableService {
       state: chain.state.hex,
       package: pkg,
       created: new Date(),
+      latestHash: chain.latestHash.hex,
     };
 
     const data: TypedDict = {};
@@ -284,7 +307,6 @@ export default class OwnableService {
 
   static async store(chain: EventChain, stateDump: StateDump): Promise<void> {
     const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
-
     if (storedState === chain.state) return;
     await IDBService.setAll(
       Object.fromEntries([
@@ -305,11 +327,11 @@ export default class OwnableService {
     await EventChainService.deleteAll();
   }
 
-  static async zip(chain: EventChain, files?: File[]): Promise<JSZip> {
+  static async zip(chain: EventChain): Promise<JSZip> {
     const packageCid: string = chain.events[0].parsedData.package;
 
     const zip = await PackageService.zip(packageCid);
-    zip.file("chain.json", JSON.stringify(chain));
+    zip.file("chain.json", JSON.stringify(chain.toJSON()));
 
     return zip;
   }
