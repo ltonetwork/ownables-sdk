@@ -86,7 +86,7 @@ export default function App() {
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
-  const isEmpty = (obj: any) => {
+  const isEmpty = (obj: TypedPackage[]) => {
     if (Array.isArray(obj)) {
       return obj.length === 0;
     } else if (obj && typeof obj === "object") {
@@ -95,7 +95,7 @@ export default function App() {
     return true;
   };
 
-  const relayImport = async (pkg: any | null) => {
+  const relayImport = async (pkg: TypedPackage[] | null) => {
     if (pkg != null && !isEmpty(pkg)) {
       setOwnables((prevOwnables) => [
         ...prevOwnables,

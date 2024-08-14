@@ -1,9 +1,10 @@
-import { LTO, Message, Relay } from "@ltonetwork/lto";
+import { EventChain, LTO, Message, Relay } from "@ltonetwork/lto";
 import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
+import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 export class RelayService {
@@ -17,7 +18,12 @@ export class RelayService {
   static async sendOwnable(recipient: string, content?: Uint8Array) {
     try {
       if (RelayService.sender && recipient) {
-        await sendFile(content, RelayService.sender, recipient);
+        await sendFile(
+          RelayService.relay,
+          content,
+          RelayService.sender,
+          recipient
+        );
       } else {
         console.error("No recipient provided");
       }
@@ -37,7 +43,7 @@ export class RelayService {
       );
 
       const ownableData = await Promise.all(
-        responses.data.map(async (response: any) => {
+        responses.data.map(async (response: MessageInfo) => {
           const infoResponse = await axios.get(
             `${RelayService.relayURL}/inboxes/${Address}/${response.hash}`
           );
@@ -86,13 +92,14 @@ export class RelayService {
   private static async getChainJson(
     filename: string,
     files: File[]
-  ): Promise<any> {
+  ): Promise<EventChain> {
     const file = files.find((file) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
     return JSON.parse(await file.text());
   }
 
-  static async checkDuplicateMessage(messages: any[]) {
+  static async checkDuplicateMessage(messages: MessageExt[]) {
+    console.log(messages);
     const uniqueItems = new Map();
 
     for (const message of messages) {

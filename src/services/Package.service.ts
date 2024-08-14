@@ -339,7 +339,7 @@ export default class PackageService {
     }
   }
 
-  static async isCurrentEvent(chainJson: any) {
+  static async isCurrentEvent(chainJson: EventChain) {
     let existingChain;
     if (await IDBService.hasStore(`ownable:${chainJson.id}`)) {
       existingChain = await IDBService.get(`ownable:${chainJson.id}`, "chain");
