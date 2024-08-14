@@ -473,7 +473,7 @@ const getPlaceholderText = (network: string) => {
           const ownableData = [
             {
               template: "template1",
-              LTO_ADDRESS: ltoWalletAddress,
+              CREATE_NFT: "true",
               NFT_BLOCKCHAIN: ownable.network,
               NFT_TOKEN_URI: "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
               NFT_PUBLIC_USER_WALLET_ADDRESS: ownable.evmAddress,
