@@ -147,7 +147,6 @@ export default class LTOService {
               ({ key, value }) => [key.hex, value.hex]
             )
           );
-
     const url = this.apiUrl("/index/hash/verify?encoding=hex");
     const response = await fetch(url, {
       method: "POST",
