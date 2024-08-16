@@ -14,6 +14,7 @@ import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
 import { EventChain } from "@ltonetwork/lto";
 import OwnableService from "./Ownable.service";
+import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -197,7 +198,7 @@ export default class PackageService {
     const fileContent = await file.text();
     const json = JSON.parse(fileContent);
 
-    json.events = json.events.map((event: any) => {
+    json.events = json.events.map((event: MessageExt) => {
       //event.previous = this.stringToBuffer(event.previous);
       //event.signature = this.stringToBuffer(event.signature);
       //event.hash = this.stringToBuffer(event.hash);
