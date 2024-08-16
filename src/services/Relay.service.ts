@@ -99,7 +99,6 @@ export class RelayService {
   }
 
   static async checkDuplicateMessage(messages: MessageExt[]) {
-    console.log(messages);
     const uniqueItems = new Map();
 
     for (const message of messages) {

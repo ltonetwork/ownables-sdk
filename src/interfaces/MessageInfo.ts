@@ -14,4 +14,5 @@ export interface MessageExt extends MessageInfo {
   sender: Object;
   signature: Binary;
   _hash: Binary;
+  parsedData: string;
 }
