@@ -155,7 +155,6 @@ export default class LTOService {
       },
       body: JSON.stringify(data),
     });
-
     return await response.json();
   }
 

@@ -15,6 +15,7 @@ export interface TypedPackage extends TypedPackageCapabilities {
   cid: string;
   chain?;
   isNotLocal?: boolean;
+  uniqueMessageHash?: string;
   versions: Array<{ date: Date; cid: string }>;
 }
 

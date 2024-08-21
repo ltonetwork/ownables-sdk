@@ -12,12 +12,14 @@ export class checkForMessages {
 
       const cids = await Promise.all(
         ownables.map(async (data: any) => {
-          const asset = await PackageService.extractAssets(data.data.buffer);
+          const { message, ...other } = data;
+          const value = message?.data;
+          const asset = await PackageService.extractAssets(value.buffer);
           const thisCid = await calculateCid(asset);
           if (await IDBService.hasStore(`package:${thisCid}`)) {
             const chainJson = await PackageService.getChainJson(
               "chain.json",
-              data.data.buffer
+              value.buffer
             );
             if (await PackageService.isCurrentEvent(chainJson)) {
               return thisCid;
