@@ -34,20 +34,20 @@ export class RelayService {
 
   static async readRelayData() {
     try {
-      const Address = RelayService.sender.address;
+      const Address = this.sender.address;
       const isRelayAvailable = await RelayService.isRelayUp();
       if (!isRelayAvailable) return null;
 
-      const responses = await axios.get(
-        `${RelayService.relayURL}/inboxes/${Address}/`
-      );
+      const responses = await axios.get(`${this.relayURL}/inboxes/${Address}/`);
 
       const ownableData = await Promise.all(
         responses.data.map(async (response: MessageInfo) => {
           const infoResponse = await axios.get(
-            `${RelayService.relayURL}/inboxes/${Address}/${response.hash}`
+            `${this.relayURL}/inboxes/${Address}/${response.hash}`
           );
-          return Message.from(infoResponse.data);
+          const messageHash = infoResponse.data.hash;
+          const message = Message.from(infoResponse.data);
+          return { message, messageHash };
         })
       );
 
@@ -57,6 +57,14 @@ export class RelayService {
       console.error("Error reading relay data:", error);
       return null;
     }
+  }
+
+  static async removeOwnable(hash: string) {
+    const address = this.sender.address;
+    const signerPublicKey = this.sender.publicKey;
+    const url = `${this.relayURL}/${address}/${hash}?signer=${signerPublicKey}`;
+
+    await axios.delete(url);
   }
 
   static async isRelayUp(): Promise<boolean> {
@@ -73,8 +81,13 @@ export class RelayService {
     }
   }
 
-  static async extractAssets(zipFile: File): Promise<File[]> {
-    const zip = await JSZip.loadAsync(zipFile);
+  static async extractAssets(zipFile: File | JSZip): Promise<File[]> {
+    let zip;
+    if (!(zipFile instanceof JSZip)) {
+      zip = await JSZip.loadAsync(zipFile);
+    } else {
+      zip = zipFile;
+    }
 
     const assetFiles = await Promise.all(
       Array.from(Object.entries(zip.files))
@@ -101,8 +114,10 @@ export class RelayService {
   static async checkDuplicateMessage(messages: MessageExt[]) {
     const uniqueItems = new Map();
 
-    for (const message of messages) {
-      const assets = await this.extractAssets(message.data.buffer);
+    for (const theMessage of messages) {
+      const { message, ...theHash } = theMessage;
+      const data = message?.data;
+      const assets = await this.extractAssets(data.buffer);
       const chain = await this.getChainJson("chain.json", assets);
       const id = chain.id;
       const eventsLength = chain.events.length;
@@ -111,10 +126,14 @@ export class RelayService {
         !uniqueItems.has(id) ||
         eventsLength > uniqueItems.get(id).eventsLength
       ) {
-        uniqueItems.set(id, { message, eventsLength });
+        const { messageHash } = theHash;
+        uniqueItems.set(id, { message, eventsLength, messageHash });
       }
     }
 
-    return Array.from(uniqueItems.values()).map((item) => item.message);
+    return Array.from(uniqueItems.values()).map((item) => ({
+      message: item.message,
+      messageHash: item.messageHash,
+    }));
   }
 }
