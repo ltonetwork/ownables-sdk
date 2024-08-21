@@ -3,7 +3,6 @@ import {
   Binary,
   LTO,
   Transaction,
-  MappedAnchor,
 } from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
