@@ -11,6 +11,7 @@ interface StoredChainInfo {
   state: string;
   package: string;
   created: Date;
+  latestHash: string;
 }
 
 export default class EventChainService {
@@ -42,6 +43,7 @@ export default class EventChainService {
     const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
+
     const { chain: chainJson, package: packageCid, created } = chainInfo;
 
     return {
@@ -70,6 +72,7 @@ export default class EventChainService {
           ...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
         );
       }
+
       data[`ownable:${chain.id}`] = {
         chain: chain.toJSON(),
         state: chain.state.hex,
@@ -111,21 +114,21 @@ export default class EventChainService {
     await IDBService.deleteStore(/^ownable:.+/);
   }
 
-  // public static async verify(chain: EventChain) {
-  //   return await LTOService.verifyAnchors(...chain.anchorMap);
-  // }
-
   public static async verify(chain: EventChain) {
-    let anchors: any[];
-
-    if (Array.isArray(chain.anchorMap)) {
-      anchors = chain.anchorMap;
-    } else if (chain.anchorMap && typeof chain.anchorMap === "object") {
-      anchors = Object.values(chain.anchorMap);
-    } else {
-      throw new Error("chain.anchorMap is not an iterable or a valid object");
-    }
-
-    return await LTOService.verifyAnchors(...anchors);
+    return await LTOService.verifyAnchors(...chain.anchorMap);
   }
+
+  // public static async verify(chain: EventChain) {
+  //   let anchors: any[];
+
+  //   if (Array.isArray(chain.anchorMap)) {
+  //     anchors = chain.anchorMap;
+  //   } else if (chain.anchorMap && typeof chain.anchorMap === "object") {
+  //     anchors = Object.values(chain.anchorMap);
+  //   } else {
+  //     throw new Error("chain.anchorMap is not an iterable or a valid object");
+  //   }
+
+  //   return await LTOService.verifyAnchors(...anchors);
+  // }
 }
