@@ -12,20 +12,28 @@ export class checkForMessages {
 
       const cids = await Promise.all(
         ownables.map(async (data: any) => {
-          const asset = await PackageService.extractAssets(data.data.buffer);
+          const { message, ...other } = data;
+          const value = message?.data;
+          const asset = await PackageService.extractAssets(value.buffer);
           const thisCid = await calculateCid(asset);
           if (await IDBService.hasStore(`package:${thisCid}`)) {
-            return null;
+            const chainJson = await PackageService.getChainJson(
+              "chain.json",
+              value.buffer
+            );
+            if (await PackageService.isCurrentEvent(chainJson)) {
+              return thisCid;
+            } else {
+              return null;
+            }
           } else {
             return thisCid;
           }
         })
-      ).then((r) => {
-        return r;
-      });
+      );
       return cids.filter((cid) => cid !== null);
     } catch (error) {
-      console.log("Failed to get valid ids");
+      //console.log("Failed to get valid ids");
       return [];
     }
   }

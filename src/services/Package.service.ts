@@ -12,7 +12,9 @@ import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
-import { EventChain } from "@ltonetwork/lto";
+import { Binary, EventChain, Message } from "@ltonetwork/lto";
+import OwnableService from "./Ownable.service";
+import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -76,7 +78,6 @@ export default class PackageService {
   static list(): Array<TypedPackage | TypedPackageStub> {
     const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
     for (const pkg of local) {
-      //console.log(pkg);
       pkg.versions = pkg.versions.map(({ date, cid }) => ({
         date: new Date(date),
         cid,
@@ -109,7 +110,8 @@ export default class PackageService {
     description: string | undefined,
     cid: string,
     capabilities: TypedPackageCapabilities,
-    isNotLocal?: boolean
+    isNotLocal?: boolean,
+    uniqueMessageHash?: string
   ): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
@@ -123,11 +125,18 @@ export default class PackageService {
         cid,
         isNotLocal,
         ...capabilities,
+        uniqueMessageHash,
         versions: [],
       };
       packages.push(pkg);
     } else {
-      Object.assign(pkg, { cid, description, ...capabilities });
+      console.log(pkg);
+      Object.assign(pkg, {
+        cid,
+        description,
+        uniqueMessageHash,
+        ...capabilities,
+      });
     }
 
     pkg.versions.push({ date: new Date(), cid });
@@ -197,12 +206,11 @@ export default class PackageService {
     const fileContent = await file.text();
     const json = JSON.parse(fileContent);
 
-    json.events = json.events.map((event: any) => {
+    json.events = json.events.map((event: MessageExt) => {
       //event.previous = this.stringToBuffer(event.previous);
       //event.signature = this.stringToBuffer(event.signature);
       //event.hash = this.stringToBuffer(event.hash);
       //event.signKey.publicKey = this.stringToBuffer(event.signKey.publicKey);
-
       if (event.data.startsWith("base64:")) {
         const base64Data = event.data.slice(7);
         const bufferData = this.base64ToBuffer(base64Data);
@@ -280,25 +288,33 @@ export default class PackageService {
   static async importFromRelay() {
     try {
       const relayData = await RelayService.readRelayData();
-
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         return null;
       }
 
+      const filteredMessages = await RelayService.checkDuplicateMessage(
+        relayData
+      );
+
       const results = await Promise.all(
-        relayData.map(async (data) => {
-          const asset = await this.extractAssets(data.data.buffer);
-
+        filteredMessages.map(async (data: any) => {
+          const { message, ...messageHash } = data;
+          const mainMessage = message;
+          const asset = await this.extractAssets(mainMessage.data.buffer);
           const cid = await calculateCid(asset);
-
-          if (await IDBService.hasStore(`package:${cid}`)) {
-            return null;
-          }
-
           const chainJson = await this.getChainJson(
             "chain.json",
-            data.data.buffer
+            mainMessage.data.buffer
           );
+
+          if (await IDBService.hasStore(`package:${cid}`)) {
+            if (await this.isCurrentEvent(chainJson)) {
+              this.removeOlderPackage(chainJson.id);
+            } else {
+              return null;
+            }
+          }
+
           const packageJson = await this.getPackageJson("package.json", asset);
           const name = packageJson.name;
           const title = name
@@ -308,6 +324,8 @@ export default class PackageService {
           const description = packageJson.description;
           const capabilities = await this.getCapabilities(asset);
           const isNotLocal = true;
+          const { ...values } = messageHash;
+          const uniqueMessageHash = values.messageHash;
 
           await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
@@ -316,11 +334,12 @@ export default class PackageService {
             description,
             cid,
             capabilities,
-            isNotLocal
+            isNotLocal,
+            uniqueMessageHash
           );
-
           const chain = EventChain.from(chainJson);
           pkg.chain = chain;
+          pkg.uniqueMessageHash = uniqueMessageHash;
 
           return pkg;
         })
@@ -331,6 +350,28 @@ export default class PackageService {
       console.error("Error:", error);
       return null;
     }
+  }
+
+  static async isCurrentEvent(chainJson: EventChain) {
+    let existingChain;
+    if (await IDBService.hasStore(`ownable:${chainJson.id}`)) {
+      existingChain = await IDBService.get(`ownable:${chainJson.id}`, "chain");
+    }
+
+    if (existingChain === undefined || existingChain.events === undefined) {
+      return true;
+    }
+    if (existingChain.events?.length) {
+      if (chainJson.events.length > existingChain.events.length) {
+        return true;
+      }
+    } else {
+      return false;
+    }
+  }
+
+  static async removeOlderPackage(id: string) {
+    await OwnableService.delete(id);
   }
 
   static async downloadExample(key: string): Promise<TypedPackage> {
@@ -395,10 +436,7 @@ export default class PackageService {
   static async zip(cid: string): Promise<JSZip> {
     const zip = new JSZip();
     const files = await IDBService.getAll(`package:${cid}`);
-    await IDBService.setAll(
-      `package:${cid}`,
-      Object.fromEntries(files.map((file) => [file.name, file]))
-    );
+
     for (const file of files) {
       zip.file(file.name, file);
     }
