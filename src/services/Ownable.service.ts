@@ -69,7 +69,12 @@ export default class OwnableService {
   private static readonly _rpc = new Map<string, OwnableRPC>();
 
   static async loadAll(): Promise<
-    Array<{ chain: EventChain; package: string; created: Date }>
+    Array<{
+      chain: EventChain;
+      package: string;
+      created: Date;
+      keywords: string[];
+    }>
   > {
     return EventChainService.loadAll();
   }
@@ -104,6 +109,7 @@ export default class OwnableService {
         ownable_id: chain.id,
         package: pkg.cid,
         network_id: LTOService.networkId,
+        keywords: pkg.keywords,
       };
       new Event(msg).addTo(chain).signWith(account);
     }
@@ -295,6 +301,7 @@ export default class OwnableService {
       package: pkg,
       created: new Date(),
       latestHash: chain.latestHash.hex,
+      keywords: PackageService.info(pkg).keywords,
     };
 
     const data: TypedDict = {};
