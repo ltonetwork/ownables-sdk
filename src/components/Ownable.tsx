@@ -83,6 +83,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         console.log(this.pkg);
         await RelayService.sendOwnable(to, content);
         enqueueSnackbar("Ownable sent Successfully!!", { variant: "success" });
+        console.log(this.pkg.uniqueMessageHash);
         if (this.pkg.uniqueMessageHash) {
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
         }

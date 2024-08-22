@@ -17,6 +17,7 @@ export interface TypedPackage extends TypedPackageCapabilities {
   isNotLocal?: boolean;
   uniqueMessageHash?: string;
   versions: Array<{ date: Date; cid: string }>;
+  keywords?: string[];
 }
 
 export interface TypedPackageStub {

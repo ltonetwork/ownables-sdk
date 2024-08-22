@@ -12,9 +12,9 @@ import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
-import { Binary, EventChain, Message } from "@ltonetwork/lto";
+import { EventChain } from "@ltonetwork/lto";
 import OwnableService from "./Ownable.service";
-import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
+import { MessageExt } from "../interfaces/MessageInfo";
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -109,6 +109,7 @@ export default class PackageService {
     name: string,
     description: string | undefined,
     cid: string,
+    keywords: string[],
     capabilities: TypedPackageCapabilities,
     isNotLocal?: boolean,
     uniqueMessageHash?: string
@@ -123,6 +124,7 @@ export default class PackageService {
         name,
         description,
         cid,
+        keywords,
         isNotLocal,
         ...capabilities,
         uniqueMessageHash,
@@ -134,6 +136,7 @@ export default class PackageService {
       Object.assign(pkg, {
         cid,
         description,
+        keywords,
         uniqueMessageHash,
         ...capabilities,
       });
@@ -280,9 +283,17 @@ export default class PackageService {
     const description: string | undefined = packageJson.description;
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
+    const keywords: string[] = packageJson.keywords || "";
 
     await this.storeAssets(cid, files);
-    return this.storePackageInfo(title, name, description, cid, capabilities);
+    return this.storePackageInfo(
+      title,
+      name,
+      description,
+      cid,
+      keywords,
+      capabilities
+    );
   }
 
   static async importFromRelay() {
@@ -323,6 +334,7 @@ export default class PackageService {
             .replace(/\b\w/, (c: any) => c.toUpperCase());
           const description = packageJson.description;
           const capabilities = await this.getCapabilities(asset);
+          const keywords: string[] = packageJson.keywords || "";
           const isNotLocal = true;
           const { ...values } = messageHash;
           const uniqueMessageHash = values.messageHash;
@@ -333,6 +345,7 @@ export default class PackageService {
             name,
             description,
             cid,
+            keywords,
             capabilities,
             isNotLocal,
             uniqueMessageHash
@@ -340,7 +353,6 @@ export default class PackageService {
           const chain = EventChain.from(chainJson);
           pkg.chain = chain;
           pkg.uniqueMessageHash = uniqueMessageHash;
-
           return pkg;
         })
       );
