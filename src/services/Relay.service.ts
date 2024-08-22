@@ -5,6 +5,7 @@ import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
+import { sign } from "@ltonetwork/http-message-signatures";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 export class RelayService {
@@ -62,9 +63,25 @@ export class RelayService {
   static async removeOwnable(hash: string) {
     const address = this.sender.address;
     const signerPublicKey = this.sender.publicKey;
-    const url = `${this.relayURL}/${address}/${hash}?signer=${signerPublicKey}`;
 
-    await axios.delete(url);
+    const request = {
+      method: "DELETE",
+      url: `${this.relayURL}/${address}/${hash}/`,
+      headers: {},
+    };
+
+    const signedRequest = await sign(request, { signer: this.sender });
+
+    const response = await fetch(signedRequest.url, {
+      method: signedRequest.method,
+      headers: signedRequest.headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete: ${response.statusText}`);
+    }
+
+    console.log("Ownable deleted successfully");
   }
 
   static async isRelayUp(): Promise<boolean> {
