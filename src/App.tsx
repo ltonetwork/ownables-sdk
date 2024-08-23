@@ -332,6 +332,7 @@ export default function App() {
         onSelect={forge}
         onImportFR={relayImport}
         onError={showError}
+        onCreate={() => {setShowCreate(true)}}
       />
 
       <Sidebar
