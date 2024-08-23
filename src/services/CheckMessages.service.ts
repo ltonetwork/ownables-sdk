@@ -12,7 +12,7 @@ export class checkForMessages {
 
       const cids = await Promise.all(
         ownables.map(async (data: any) => {
-          const { message, ...other } = data;
+          const { message } = data;
           const value = message?.data;
           const asset = await PackageService.extractAssets(value.buffer);
           const thisCid = await calculateCid(asset);
