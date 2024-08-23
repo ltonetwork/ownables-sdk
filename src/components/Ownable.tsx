@@ -3,7 +3,7 @@ import { Paper, Tooltip } from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import { Cancelled, connect as rpcConnect } from "simple-iframe-rpc";
 import PackageService from "../services/Package.service";
-import { Binary, EventChain, Message } from "@ltonetwork/lto";
+import { Binary, EventChain } from "@ltonetwork/lto";
 import OwnableActions from "./OwnableActions";
 import OwnableInfo from "./OwnableInfo";
 import OwnableService, {
