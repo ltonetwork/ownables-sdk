@@ -25,10 +25,11 @@ interface PackagesDialogProps {
   onSelect: (pkg: TypedPackage | TypedPackageStub) => void;
   onImport: () => void;
   fetchPkgFromRelay: () => void;
+  onCreate: () => void;
 }
 
 function PackagesDialog(props: PackagesDialogProps) {
-  const { onClose, onSelect, onImport, fetchPkgFromRelay, open, packages } =
+  const { onClose, onSelect, onImport, fetchPkgFromRelay, onCreate, open, packages } =
     props;
   const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
 
@@ -82,6 +83,7 @@ function PackagesDialog(props: PackagesDialogProps) {
             <ListItemText primary="Import from local" />
           </ListItemButton>
         </ListItem>
+        <Divider />
         <ListItem disablePadding disableGutters key="add-relay">
           <ListItemButton
             autoFocus
@@ -109,6 +111,13 @@ function PackagesDialog(props: PackagesDialogProps) {
             </span>
           </ListItemButton>
         </ListItem>
+        <Divider />
+        <ListItem disablePadding disableGutters key="create-ownable">
+          <ListItemButton autoFocus onClick={onCreate} style={{textAlign: "center"}}>
+            <ListItemIcon><AddIcon/></ListItemIcon>
+            <ListItemText primary="Create ownable"/>
+          </ListItemButton>
+        </ListItem>
       </List>
     </Dialog>
   );
@@ -121,6 +130,7 @@ interface PackagesFabProps {
   onSelect: (pkg: TypedPackage) => void;
   onImportFR: (pkg: TypedPackage[]) => void;
   onError: (title: string, message: string) => void;
+  onCreate: () => void;
 }
 
 export default function PackagesFab(props: PackagesFabProps) {
@@ -219,6 +229,7 @@ export default function PackagesFab(props: PackagesFabProps) {
         onSelect={selectPackage}
         onImport={importPackages}
         fetchPkgFromRelay={importPackagesFromRelay}
+        onCreate={props.onCreate}
       />
       <Loading show={isBusy} />
     </>
