@@ -62,7 +62,7 @@ export class RelayService {
 
   static async removeOwnable(hash: string) {
     const address = this.sender.address;
-    const signerPublicKey = this.sender.publicKey;
+    //const signerPublicKey = this.sender.publicKey;
 
     const request = {
       method: "DELETE",

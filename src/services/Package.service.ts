@@ -132,7 +132,6 @@ export default class PackageService {
       };
       packages.push(pkg);
     } else {
-      console.log(pkg);
       Object.assign(pkg, {
         cid,
         description,

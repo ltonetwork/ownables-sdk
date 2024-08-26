@@ -11,7 +11,6 @@ export default async function sendFile(relay, content, sender, recipient) {
     if (sender && recipient) {
       message = new Message(content).to(recipient).signWith(sender);
     } else {
-      //console.log("provide the signer and recipient");
       return;
     }
     await relay.send(message);
