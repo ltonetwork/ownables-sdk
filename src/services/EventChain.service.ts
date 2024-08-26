@@ -146,18 +146,4 @@ export default class EventChainService {
   public static async verify(chain: EventChain) {
     return await LTOService.verifyAnchors(...chain.anchorMap);
   }
-
-  // public static async verify(chain: EventChain) {
-  //   let anchors: any[];
-
-  //   if (Array.isArray(chain.anchorMap)) {
-  //     anchors = chain.anchorMap;
-  //   } else if (chain.anchorMap && typeof chain.anchorMap === "object") {
-  //     anchors = Object.values(chain.anchorMap);
-  //   } else {
-  //     throw new Error("chain.anchorMap is not an iterable or a valid object");
-  //   }
-
-  //   return await LTOService.verifyAnchors(...anchors);
-  // }
 }
