@@ -51,7 +51,6 @@ export class RelayService {
           return { message, messageHash };
         })
       );
-
       if (ownableData.length < 1) return null;
       return ownableData;
     } catch (error) {
@@ -69,19 +68,23 @@ export class RelayService {
       url: `${this.relayURL}/${address}/${hash}/`,
       headers: {},
     };
-
     const signedRequest = await sign(request, { signer: this.sender });
+    // const response = await fetch(signedRequest.url, {
+    //   method: signedRequest.method,
+    //   headers: signedRequest.headers,
+    // });
 
-    const response = await fetch(signedRequest.url, {
-      method: signedRequest.method,
-      headers: signedRequest.headers,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete: ${response.statusText}`);
+    try {
+      const response = await axios.delete(signedRequest.url, {
+        headers: signedRequest.headers,
+      });
+      if (response.status !== 200) {
+        throw new Error(`Failed to delete: ${response.statusText}`);
+      }
+      console.log("Ownable deleted successfully");
+    } catch (error) {
+      throw error;
     }
-
-    console.log("Ownable deleted successfully");
   }
 
   static async isRelayUp(): Promise<boolean> {
