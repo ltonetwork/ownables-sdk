@@ -80,11 +80,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         });
         await RelayService.sendOwnable(to, content);
         enqueueSnackbar("Ownable sent Successfully!!", { variant: "success" });
-        console.log(this.pkg.uniqueMessageHash);
-        //This is used to delete invalid ownables from the relay - commented out pending fix
-        // if (this.pkg.uniqueMessageHash) {
-        //   await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
-        // }
+        //clear transfered ownable from the relay
+        if (this.pkg.uniqueMessageHash) {
+          await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
+        }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });
       }

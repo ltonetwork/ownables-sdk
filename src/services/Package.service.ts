@@ -174,13 +174,11 @@ export default class PackageService {
           return new File([blob], filename, { type });
         })
     );
-
     return assetFiles;
   }
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (await IDBService.hasStore(`package:${cid}`)) return;
-
     await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
       `package:${cid}`,
