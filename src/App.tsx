@@ -86,17 +86,8 @@ export default function App() {
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
-  const isEmpty = (obj: TypedPackage[]) => {
-    if (Array.isArray(obj)) {
-      return obj.length === 0;
-    } else if (obj && typeof obj === "object") {
-      return Object.keys(obj).length === 0;
-    }
-    return true;
-  };
-
   const relayImport = async (pkg: TypedPackage[] | null) => {
-    if (pkg != null && !isEmpty(pkg)) {
+    if (pkg != null && pkg.length > 0) {
       setOwnables((prevOwnables) => [
         ...prevOwnables,
         ...pkg.map((data: any) => {
@@ -106,7 +97,6 @@ export default function App() {
           };
         }),
       ]);
-      setShowPackages(false);
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
@@ -115,9 +105,9 @@ export default function App() {
         title: "New Ownables Detected",
         message: "New ownables have been detected. Refreshing...",
       });
-      setTimeout(() => {
-        window.location.reload();
-      }, 4000);
+      // setTimeout(() => {
+      //   window.location.reload();
+      // }, 7000);
     } else {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",

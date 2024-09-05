@@ -54,36 +54,33 @@ export class RelayService {
       if (ownableData.length < 1) return null;
       return ownableData;
     } catch (error) {
-      console.error("Error reading relay data:", error);
       return null;
     }
   }
 
-  static async removeOwnable(hash: string) {
+  static async removeOwnable(hash: string): Promise<string> {
     const address = this.sender.address;
-    //const signerPublicKey = this.sender.publicKey;
+    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
 
     const request = {
       method: "DELETE",
-      url: `${this.relayURL}/${address}/${hash}/`,
+      url,
       headers: {},
     };
-    const signedRequest = await sign(request, { signer: this.sender });
-    // const response = await fetch(signedRequest.url, {
-    //   method: signedRequest.method,
-    //   headers: signedRequest.headers,
-    // });
 
     try {
-      const response = await axios.delete(signedRequest.url, {
+      const signedRequest = await sign(request, { signer: this.sender });
+      const response = await fetch(signedRequest.url, {
+        method: signedRequest.method,
         headers: signedRequest.headers,
       });
-      if (response.status !== 200) {
-        throw new Error(`Failed to delete: ${response.statusText}`);
+      if (response.status === 204) {
+        return "Successfully cleared ownable";
+      } else {
+        throw new Error(`Failed to clear: ${response.statusText}`);
       }
-      console.log("Ownable deleted successfully");
     } catch (error) {
-      throw error;
+      throw "Failed to clear: " + error;
     }
   }
 
