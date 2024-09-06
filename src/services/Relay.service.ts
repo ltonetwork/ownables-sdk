@@ -80,7 +80,7 @@ export class RelayService {
         throw new Error(`Failed to clear: ${response.statusText}`);
       }
     } catch (error) {
-      throw "Failed to clear: " + error;
+      throw new Error("Failed to clear: " + error);
     }
   }
 
