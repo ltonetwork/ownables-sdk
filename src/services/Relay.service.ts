@@ -67,6 +67,7 @@ export class RelayService {
       url,
       headers: {},
     };
+    console.log(request);
 
     try {
       const signedRequest = await sign(request, { signer: this.sender });
@@ -74,10 +75,11 @@ export class RelayService {
         method: signedRequest.method,
         headers: signedRequest.headers,
       });
+      console.log(response);
       if (response.status === 204) {
         return "Successfully cleared ownable";
       } else {
-        throw new Error(`Failed to clear: ${response.statusText}`);
+        throw new Error(`${response.statusText}`);
       }
     } catch (error) {
       throw new Error("Failed to clear: " + error);
