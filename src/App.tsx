@@ -105,9 +105,9 @@ export default function App() {
         title: "New Ownables Detected",
         message: "New ownables have been detected. Refreshing...",
       });
-      // setTimeout(() => {
-      //   window.location.reload();
-      // }, 7000);
+      setTimeout(() => {
+        window.location.reload();
+      }, 4000);
     } else {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",
