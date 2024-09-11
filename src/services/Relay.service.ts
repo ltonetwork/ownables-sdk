@@ -8,108 +8,119 @@ import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 import { sign } from "@ltonetwork/http-message-signatures";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
+
 export class RelayService {
   private static seed = SessionStorageService.get("@seed");
-
   private static relayURL =
     process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
-  private static relay = new Relay(`${RelayService.relayURL}`);
-  private static sender = lto.account({ seed: RelayService.seed });
+  private static relay = new Relay(`${this.relayURL}`);
+  private static sender = lto.account({ seed: this.seed });
 
+  /**
+   * Send ownable to a recipient.
+   */
   static async sendOwnable(recipient: string, content?: Uint8Array) {
+    if (!recipient) {
+      console.error("Recipient not provided");
+      return;
+    }
+
     try {
-      if (RelayService.sender && recipient) {
-        await sendFile(
-          RelayService.relay,
-          content,
-          RelayService.sender,
-          recipient
-        );
-      } else {
-        console.error("No recipient provided");
+      if (this.sender) {
+        await sendFile(this.relay, content, this.sender, recipient);
       }
     } catch (error) {
       console.error("Error sending message:", error);
     }
   }
 
+  /**
+   * Read relay data for the current sender.
+   */
   static async readRelayData() {
-    try {
-      const Address = this.sender.address;
-      const isRelayAvailable = await RelayService.isRelayUp();
-      if (!isRelayAvailable) return null;
+    if (!this.sender) {
+      console.error("Sender not initialized");
+      return null;
+    }
 
-      const responses = await axios.get(`${this.relayURL}/inboxes/${Address}/`);
+    const address = this.sender.address;
+    const isRelayAvailable = await this.isRelayUp();
+    if (!isRelayAvailable) return null;
+
+    try {
+      const responses = await axios.get(`${this.relayURL}/inboxes/${address}/`);
+      if (!responses.data.length) return null;
 
       const ownableData = await Promise.all(
         responses.data.map(async (response: MessageInfo) => {
           const infoResponse = await axios.get(
-            `${this.relayURL}/inboxes/${Address}/${response.hash}`
+            `${this.relayURL}/inboxes/${address}/${response.hash}`
           );
-          const messageHash = infoResponse.data.hash;
           const message = Message.from(infoResponse.data);
-          return { message, messageHash };
+          return { message, messageHash: infoResponse.data.hash };
         })
       );
-      if (ownableData.length < 1) return null;
       return ownableData;
     } catch (error) {
+      console.error("Failed to read relay data:", error);
       return null;
     }
   }
 
+  /**
+   * Remove an ownable by its hash.
+   */
   static async removeOwnable(hash: string): Promise<string> {
+    if (!this.sender) {
+      throw new Error("Sender not initialized");
+    }
+
     const address = this.sender.address;
     const url = `${this.relayURL}/inboxes/${address}/${hash}`;
 
-    const request = {
-      method: "DELETE",
-      url,
-      headers: {},
-    };
-    console.log(request);
-
     try {
-      const signedRequest = await sign(request, { signer: this.sender });
+      const signedRequest = await sign(
+        { method: "DELETE", url, headers: {} },
+        { signer: this.sender }
+      );
       const response = await fetch(signedRequest.url, {
         method: signedRequest.method,
         headers: signedRequest.headers,
       });
-      console.log(response);
+
       if (response.status === 204) {
         return "Successfully cleared ownable";
       } else {
         throw new Error(`${response.statusText}`);
       }
     } catch (error) {
+      console.error("Failed to remove ownable:", error);
       throw new Error("Failed to clear: " + error);
     }
   }
 
+  /**
+   * Check if relay service is up.
+   */
   static async isRelayUp(): Promise<boolean> {
+    if (!this.relayURL) return false;
     try {
-      const url: string | undefined = RelayService.relayURL;
-      if (!url) return false;
-      const response = await fetch(url, {
-        method: "HEAD",
-      });
+      const response = await fetch(this.relayURL, { method: "HEAD" });
       return response.ok;
     } catch (error) {
-      console.error("Server is down:", error);
+      console.error("Relay service is down:", error);
       return false;
     }
   }
 
+  /**
+   * Extract assets from a zip file.
+   */
   static async extractAssets(zipFile: File | JSZip): Promise<File[]> {
-    let zip;
-    if (!(zipFile instanceof JSZip)) {
-      zip = await JSZip.loadAsync(zipFile);
-    } else {
-      zip = zipFile;
-    }
-
+    const zip =
+      zipFile instanceof JSZip ? zipFile : await JSZip.loadAsync(zipFile);
     const assetFiles = await Promise.all(
-      Array.from(Object.entries(zip.files))
+      Object.entries(zip.files)
         .filter(([filename]) => !filename.startsWith("."))
         .map(async ([filename, file]) => {
           const blob = await file.async("blob");
@@ -117,42 +128,60 @@ export class RelayService {
           return new File([blob], filename, { type });
         })
     );
-
     return assetFiles;
   }
 
+  /**
+   * Get chain.json from a list of files.
+   */
   private static async getChainJson(
     filename: string,
     files: File[]
   ): Promise<EventChain> {
-    const file = files.find((file) => file.name === filename);
+    const file = files.find((f) => f.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
     return JSON.parse(await file.text());
   }
 
+  /**
+   * Check and return unique messages, avoiding duplicates.
+   */
   static async checkDuplicateMessage(messages: MessageExt[]) {
-    const uniqueItems = new Map();
+    const uniqueItems = new Map<
+      string,
+      { message: Message; eventsLength: number; messageHash: string }
+    >();
 
-    for (const theMessage of messages) {
-      const { message, ...theHash } = theMessage;
-      const data = message?.data;
+    for (const messageExt of messages) {
+      const { message, messageHash } = messageExt;
+
+      if (!message || !messageHash) {
+        console.error("Message or messageHash is missing.");
+        continue;
+      }
+
+      const data = message.data;
+      if (!data) {
+        console.error("Message data is missing.");
+        continue;
+      }
+
       const assets = await this.extractAssets(data.buffer);
       const chain = await this.getChainJson("chain.json", assets);
-      const id = chain.id;
-      const eventsLength = chain.events.length;
 
-      if (
-        !uniqueItems.has(id) ||
-        eventsLength > uniqueItems.get(id).eventsLength
-      ) {
-        const { messageHash } = theHash;
-        uniqueItems.set(id, { message, eventsLength, messageHash });
+      const currentLength = uniqueItems.get(chain.id)?.eventsLength || 0;
+      if (chain.events.length > currentLength) {
+        uniqueItems.set(chain.id, {
+          message,
+          eventsLength: chain.events.length,
+          messageHash,
+        });
       }
     }
 
-    return Array.from(uniqueItems.values()).map((item) => ({
-      message: item.message,
-      messageHash: item.messageHash,
+    return Array.from(uniqueItems.values()).map(({ message, messageHash }) => ({
+      message,
+      messageHash,
     }));
   }
 }

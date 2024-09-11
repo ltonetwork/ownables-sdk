@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Divider, Fab, ListItemIcon, Badge } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import MailIcon from "@mui/icons-material/MailOutlined";
 import Dialog from "@mui/material/Dialog";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -89,7 +90,7 @@ function PackagesDialog(props: PackagesDialogProps) {
             style={{ textAlign: "center" }}
           >
             <ListItemIcon>
-              <AddIcon />
+              <MailIcon />
             </ListItemIcon>
 
             <ListItemText primary="Import from relay" />
