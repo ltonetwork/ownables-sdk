@@ -99,6 +99,20 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
+  private async bridge(evm_address: string): Promise<void> {
+    try {
+      await this.execute({ transfer: { to: evm_address } });
+      const zip = await OwnableService.zip(this.chain);
+      const content = await zip.generateAsync({
+        type: "uint8array",
+      });
+      await RelayService.sendOwnable(evm_address, content);
+      enqueueSnackbar("Ownable bridged!!", { variant: "success" });
+    } catch (error) {
+      console.error("Error while attempting to bridge:", error);
+    }
+  }
+
   private async refresh(stateDump?: StateDump): Promise<void> {
     if (!stateDump) stateDump = this.state.stateDump;
 
@@ -241,6 +255,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
             !!this.state.info && this.props.onConsume(this.state.info)
           }
           onTransfer={(address) => this.transfer(address)}
+          onBridge={(address) => this.bridge(address)}
         />
         <OwnableFrame
           id={this.chain.id}
