@@ -355,7 +355,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     const requiredFields = [
       "name",
       "network",
-      "evmAddress",
       "owner",
       "email",
       "image",
@@ -393,7 +392,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               CREATE_NFT: "true",
               NFT_BLOCKCHAIN: ownable.network,
               NFT_TOKEN_URI: "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
-              NFT_PUBLIC_USER_WALLET_ADDRESS: ownable.evmAddress,
               OWNABLE_THUMBNAIL:"thumbnail.webp", 
               OWNABLE_LTO_TRANSACTION_ID: transaction.id,
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
@@ -618,19 +616,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                   <br></br>
                   <TagInputField 
                   onTagsChange={setTags}
-                  />
-                  <br></br>
-                  <Input
-                    error={missingFields.includes("evmAddress")}
-                    fullWidth
-                    type="text"
-                    name="evmAddress"
-                    placeholder={getPlaceholderText(selectedNetwork)}
-                    value={ownable.evmAddress}
-                    onChange={handleInputChange}
-                    sx={{
-                      fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" },
-                    }}
                   />
                   <br></br>
                   <br></br>
