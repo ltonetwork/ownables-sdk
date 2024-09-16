@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Divider, Fab, ListItemIcon, Badge } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import MailIcon from "@mui/icons-material/MailOutlined";
+import MailIcon from "@mui/icons-material/CallReceivedOutlined";
 import Dialog from "@mui/material/Dialog";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -17,7 +17,7 @@ import useBusy from "../utils/useBusy";
 import { checkForMessages } from "../services/CheckMessages.service";
 
 //globally pass the messages in the relay
-export let newMessage: number | null;
+let newMessage: number | null;
 
 interface PackagesDialogProps {
   packages: Array<TypedPackage | TypedPackageStub>;

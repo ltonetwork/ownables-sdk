@@ -12,7 +12,7 @@ export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 export class RelayService {
   private static seed = SessionStorageService.get("@seed");
   private static relayURL =
-    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
+    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
   private static relay = new Relay(`${this.relayURL}`);
   private static sender = lto.account({ seed: this.seed });
 

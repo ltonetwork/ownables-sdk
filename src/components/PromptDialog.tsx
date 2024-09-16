@@ -9,10 +9,15 @@ import {
   IconButton,
   InputAdornment,
   Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { useState } from "react";
 import { AlertColor } from "@mui/material/Alert/Alert";
 import Paste from "@mui/icons-material/ContentPasteOutlined";
+import { chainList } from "../utils/data/chainList";
 
 interface PromptDialogProps {
   open: boolean;
@@ -24,13 +29,36 @@ interface PromptDialogProps {
   ok?: string;
   TextFieldProps?: TextFieldProps;
   validate?: (value: string) => string | undefined;
-  fee?: string;
+  fee?: number | null;
+  showChainDropdown?: boolean;
+  chain?: string;
+  onChainChange: (chain: string) => void;
 }
 
 export default function PromptDialog(props: PromptDialogProps) {
-  const { open, onClose, onSubmit, validate, fee } = props;
+  const {
+    open,
+    onClose,
+    onSubmit,
+    validate,
+    fee,
+    showChainDropdown,
+    chain,
+    onChainChange,
+  } = props;
   const [value, setValue] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+
+  const getChainLabel = () => {
+    switch (chain) {
+      case "ethereum":
+        return "Enter valid Ethereum address";
+      case "arbitrum":
+        return "Enter valid Arbitrum address";
+      default:
+        return "Enter valid wallet address";
+    }
+  };
 
   const close = () => {
     setError(null);
@@ -45,7 +73,6 @@ export default function PromptDialog(props: PromptDialogProps) {
       setError(validationError);
       return;
     }
-
     onSubmit(value);
     close();
   };
@@ -63,6 +90,25 @@ export default function PromptDialog(props: PromptDialogProps) {
   return (
     <Dialog open={open} onClose={close} transitionDuration={0}>
       <DialogTitle>{props.title}</DialogTitle>
+      {showChainDropdown && (
+        <DialogContent style={{ paddingTop: "5px" }}>
+          <FormControl fullWidth>
+            <InputLabel id="chain-select-label">Select Chain</InputLabel>
+            <Select
+              labelId="chain-select-label"
+              value={chain}
+              label="Select Chain"
+              onChange={(e) => onChainChange(e.target.value)}
+            >
+              {chainList.map((chainItem) => (
+                <MenuItem key={chainItem.value} value={chainItem.value}>
+                  {chainItem.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+      )}
       <DialogContent
         style={{
           paddingBottom: "0px",
@@ -70,6 +116,7 @@ export default function PromptDialog(props: PromptDialogProps) {
       >
         <TextField
           {...props.TextFieldProps}
+          label={getChainLabel()}
           variant="standard"
           autoFocus
           required
