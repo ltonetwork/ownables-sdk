@@ -24,6 +24,8 @@ import If from "./If";
 import EventChainService from "../services/EventChain.service";
 import { RelayService } from "../services/Relay.service";
 import { enqueueSnackbar } from "notistack";
+import { BridgeService } from "../services/Bridge.service";
+import shortId from "../utils/shortId";
 
 interface OwnableProps {
   chain: EventChain;
@@ -68,6 +70,23 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     return !!this.state.info && this.state.info.owner !== LTOService.address;
   }
 
+  get isBridged(): boolean {
+    if (!this.state.info?.owner) return false;
+    const owner = this.state.info?.owner;
+    const isValid = LTOService.isValidAddress(owner);
+    return this.state.info.owner !== LTOService.address && !isValid;
+  }
+
+  get hasNFT(): boolean {
+    return this.pkg.keywords?.includes("hasNFT") ?? false;
+  }
+
+  get nftNetwork(): string {
+    const info = this.state.info?.nft?.network;
+    const nftNetwork = info?.split(":")[1];
+    return nftNetwork || "";
+  }
+
   private async transfer(to: string): Promise<void> {
     try {
       const value = await RelayService.isRelayUp();
@@ -99,15 +118,41 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  private async bridge(evm_address: string): Promise<void> {
+  private async bridge(
+    address: string,
+    fee: number | null,
+    nftNetwork: string
+  ): Promise<void> {
     try {
-      await this.execute({ transfer: { to: evm_address } });
+      const ntwrk = this.nftNetwork;
+      console.log(ntwrk);
+      console.log("INFO", this.state.info);
+      console.log("META", this.state.metadata);
+      await this.execute({ transfer: { to: address } });
       const zip = await OwnableService.zip(this.chain);
+      console.log("INFO", this.state.info);
+      console.log("META", this.state.metadata);
       const content = await zip.generateAsync({
         type: "uint8array",
       });
-      await RelayService.sendOwnable(evm_address, content);
-      enqueueSnackbar("Ownable bridged!!", { variant: "success" });
+      const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
+        this.chain.state?.base58,
+        8,
+        ""
+      )}.zip`;
+      const transactionId = await BridgeService.payBridgingFee(fee);
+      const contentBlob = new Blob([content], {
+        type: "application/octet-stream",
+      });
+      if (transactionId) {
+        await BridgeService.bridgeOwnableToNft(
+          address,
+          transactionId,
+          filename,
+          contentBlob
+        );
+      }
+      enqueueSnackbar("Successfully bridged!!", { variant: "success" });
     } catch (error) {
       console.error("Error while attempting to bridge:", error);
     }
@@ -179,6 +224,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         msg,
         this.state.stateDump
       );
+
       await OwnableService.store(this.chain, stateDump);
       await this.refresh(stateDump);
       this.setState({ applied: this.chain.latestHash, stateDump });
@@ -250,13 +296,20 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           sx={{ position: "absolute", right: 5, top: 5, zIndex: 10 }}
           isConsumable={this.pkg.isConsumable && !this.isTransferred}
           isTransferable={this.pkg.isTransferable && !this.isTransferred}
+          isBridgeable={!this.isTransferred && this.hasNFT}
+          nftNetwork={this.nftNetwork}
           onDelete={this.props.onDelete}
           onConsume={() =>
             !!this.state.info && this.props.onConsume(this.state.info)
           }
           onTransfer={(address) => this.transfer(address)}
-          onBridge={(address) => this.bridge(address)}
+          onBridge={(address, fee) => {
+            if (!fee) return;
+            console.log(address, fee, this.nftNetwork);
+            this.bridge(address, fee, this.nftNetwork);
+          }}
         />
+
         <OwnableFrame
           id={this.chain.id}
           packageCid={this.pkg.cid}
@@ -272,6 +325,16 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           >
             <Overlay sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)" }}>
               <OverlayBanner>Transferred</OverlayBanner>
+            </Overlay>
+          </Tooltip>
+        </If>
+        <If condition={this.isBridged}>
+          <Tooltip
+            title="You're unable to interact with this Ownable, because it has been sent to the bridge."
+            followCursor
+          >
+            <Overlay sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)" }}>
+              <OverlayBanner>Bridged</OverlayBanner>
             </Overlay>
           </Tooltip>
         </If>

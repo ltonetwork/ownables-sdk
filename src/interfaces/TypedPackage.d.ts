@@ -5,6 +5,7 @@ export interface TypedPackageCapabilities {
   isConsumable: boolean;
   isConsumer: boolean;
   isTransferable: boolean;
+  isBridgeable?: boolean;
 }
 
 export interface TypedPackage extends TypedPackageCapabilities {
