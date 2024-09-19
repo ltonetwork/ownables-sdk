@@ -72,7 +72,10 @@ export class BridgeService {
       const url = `${this.obridgeUrl}/bridgeOwnable?nftReceiverAddress=${nftReceiverAddress}&ltoTransactionId=${txId}&signedLtoRequest=${signedRequest}`;
 
       const res = await axios.post(url, formData, {
-        headers: signedRequest.headers,
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Accept: "*/*",
+        },
       });
       console.log(res.data);
     } catch (err) {
