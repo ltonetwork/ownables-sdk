@@ -1,9 +1,4 @@
-import {
-  Account,
-  Binary,
-  LTO,
-  Transaction,
-} from "@ltonetwork/lto";
+import { Account, Binary, LTO, Transaction } from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
 
@@ -132,6 +127,18 @@ export default class LTOService {
         this.account,
         ...(anchors as Array<{ key: Binary; value: Binary }>)
       );
+    }
+  }
+
+  public static async transfer(recipient: string, amount: number | null) {
+    try {
+      if (!amount) {
+        return;
+      }
+      const tx = await lto.transfer(this.account, recipient, amount);
+      return tx.id;
+    } catch {
+      return "failed";
     }
   }
 

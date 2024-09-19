@@ -10,31 +10,32 @@ export class checkForMessages {
       const ownables = await RelayService.readRelayData();
       if (ownables == null) return [];
 
-      const cids = await Promise.all(
+      const uniqueCids = new Set<string>();
+
+      await Promise.all(
         ownables.map(async (data: any) => {
-          // const { message, ...other } = data;
           const { message } = data;
           const value = message?.data;
           const asset = await PackageService.extractAssets(value.buffer);
           const thisCid = await calculateCid(asset);
+
           if (await IDBService.hasStore(`package:${thisCid}`)) {
             const chainJson = await PackageService.getChainJson(
               "chain.json",
               value.buffer
             );
             if (await PackageService.isCurrentEvent(chainJson)) {
-              return thisCid;
-            } else {
-              return null;
+              uniqueCids.add(thisCid);
             }
           } else {
-            return thisCid;
+            uniqueCids.add(thisCid);
           }
         })
       );
-      return cids.filter((cid) => cid !== null);
+
+      return Array.from(uniqueCids);
     } catch (error) {
-      //console.log("Failed to get valid ids");
+      console.log("Failed to get valid CIDs");
       return [];
     }
   }

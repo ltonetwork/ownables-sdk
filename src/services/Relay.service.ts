@@ -1,33 +1,33 @@
 import { EventChain, LTO, Message, Relay } from "@ltonetwork/lto";
-import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 import { sign } from "@ltonetwork/http-message-signatures";
+import LTOService from "./LTO.service";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 
 export class RelayService {
-  private static seed = SessionStorageService.get("@seed");
   private static relayURL =
     process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
   private static relay = new Relay(`${this.relayURL}`);
-  private static sender = lto.account({ seed: this.seed });
 
   /**
    * Send ownable to a recipient.
    */
   static async sendOwnable(recipient: string, content?: Uint8Array) {
+    const sender = LTOService.account;
+
     if (!recipient) {
       console.error("Recipient not provided");
       return;
     }
 
     try {
-      if (this.sender) {
-        await sendFile(this.relay, content, this.sender, recipient);
+      if (sender) {
+        await sendFile(this.relay, content, sender, recipient);
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -38,12 +38,13 @@ export class RelayService {
    * Read relay data for the current sender.
    */
   static async readRelayData() {
-    if (!this.sender) {
+    const sender = LTOService.account;
+    if (!sender) {
       console.error("Sender not initialized");
       return null;
     }
 
-    const address = this.sender.address;
+    const address = sender.address;
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
 
@@ -71,18 +72,17 @@ export class RelayService {
    * Remove an ownable by its hash.
    */
   static async removeOwnable(hash: string): Promise<string> {
-    if (!this.sender) {
+    const sender = LTOService.account;
+    if (!sender) {
       throw new Error("Sender not initialized");
     }
 
-    const address = this.sender.address;
+    const address = sender.address;
     const url = `${this.relayURL}/inboxes/${address}/${hash}`;
 
     try {
-      const signedRequest = await sign(
-        { method: "DELETE", url, headers: {} },
-        { signer: this.sender }
-      );
+      const request = { headers: {}, method: "DELETE", url };
+      const signedRequest = await sign(request, { signer: sender });
       const response = await fetch(signedRequest.url, {
         method: signedRequest.method,
         headers: signedRequest.headers,

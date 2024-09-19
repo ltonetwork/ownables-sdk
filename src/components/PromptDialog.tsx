@@ -17,40 +17,35 @@ import {
 import { useState } from "react";
 import { AlertColor } from "@mui/material/Alert/Alert";
 import Paste from "@mui/icons-material/ContentPasteOutlined";
-import { chainList } from "../utils/data/chainList";
+import { networkList } from "../utils/data";
 
 interface PromptDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (input: string) => void;
+  onSubmit: (
+    address: string,
+    fee?: number | null,
+    network?: string | null
+  ) => void;
   title: string;
   severity?: AlertColor;
   cancel?: string;
   ok?: string;
   TextFieldProps?: TextFieldProps;
-  validate?: (value: string) => string | undefined;
+  validate?: (value: string) => string;
   fee?: number | null;
   showChainDropdown?: boolean;
-  chain?: string;
-  onChainChange: (chain: string) => void;
+  network?: string | null;
 }
 
 export default function PromptDialog(props: PromptDialogProps) {
-  const {
-    open,
-    onClose,
-    onSubmit,
-    validate,
-    fee,
-    showChainDropdown,
-    chain,
-    onChainChange,
-  } = props;
-  const [value, setValue] = useState<string>("");
+  const { open, onClose, onSubmit, validate, fee, showChainDropdown, network } =
+    props;
+  const [address, setAddress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
   const getChainLabel = () => {
-    switch (chain) {
+    switch (network) {
       case "ethereum":
         return "Enter valid Ethereum address";
       case "arbitrum":
@@ -62,25 +57,25 @@ export default function PromptDialog(props: PromptDialogProps) {
 
   const close = () => {
     setError(null);
-    setValue("");
-
+    setAddress("");
     onClose();
   };
 
   const submit = () => {
-    const validationError = validate && validate(value);
+    const validationError = validate && validate(address);
     if (validationError) {
       setError(validationError);
       return;
     }
-    onSubmit(value);
+
+    onSubmit(address, fee, network);
     close();
   };
 
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      setValue(text);
+      setAddress(text);
       setError(null);
     } catch (err) {
       console.error("Failed to read clipboard contents: ", err);
@@ -96,11 +91,10 @@ export default function PromptDialog(props: PromptDialogProps) {
             <InputLabel id="chain-select-label">Select Chain</InputLabel>
             <Select
               labelId="chain-select-label"
-              value={chain}
+              value={network}
               label="Select Chain"
-              onChange={(e) => onChainChange(e.target.value)}
             >
-              {chainList.map((chainItem) => (
+              {networkList.map((chainItem) => (
                 <MenuItem key={chainItem.value} value={chainItem.value}>
                   {chainItem.label}
                 </MenuItem>
@@ -122,10 +116,10 @@ export default function PromptDialog(props: PromptDialogProps) {
           required
           error={!!error}
           helperText={error}
-          value={value}
+          value={address}
           onChange={(e) => {
             setError(null);
-            setValue(e.target.value);
+            setAddress(e.target.value);
           }}
           InputProps={{
             endAdornment: (
@@ -138,7 +132,7 @@ export default function PromptDialog(props: PromptDialogProps) {
           }}
         />
       </DialogContent>
-      {fee && (
+      {network && (
         <DialogContent>
           <DialogContent
             style={{
@@ -148,7 +142,11 @@ export default function PromptDialog(props: PromptDialogProps) {
             }}
           >
             <Typography variant="body2" color="#000">
-              Bridge Fee: <span style={{ color: "red" }}>{fee} LTO</span>
+              NFT Nework:{" "}
+              <span style={{ color: "#007FFF" }}>{network.toUpperCase()}</span>
+            </Typography>
+            <Typography variant="body2" color="#000">
+              Bridge Fee: <span style={{ color: "red" }}>-{fee} LTO</span>
             </Typography>
           </DialogContent>
         </DialogContent>

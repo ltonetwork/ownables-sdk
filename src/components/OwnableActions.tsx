@@ -1,7 +1,7 @@
 import { Menu, MenuItem, IconButton, SxProps, Theme } from "@mui/material";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import MoreVert from "@mui/icons-material/MoreVert";
-import { useState, MouseEvent, useEffect } from "react";
+import { useState, MouseEvent } from "react";
 import { Delete, PrecisionManufacturing, SwapHoriz } from "@mui/icons-material";
 import BridgeIcon from "@mui/icons-material/LeakAdd";
 import PromptDialog from "./PromptDialog";
@@ -12,10 +12,16 @@ interface OwnableActionsProps {
   sx?: SxProps<Theme>;
   isConsumable: boolean;
   isTransferable: boolean;
+  isBridgeable: boolean;
+  nftNetwork: string;
   onDelete: () => void;
   onConsume: () => void;
   onTransfer: (address: string) => void;
-  onBridge: (address: string) => void;
+  onBridge: (
+    address: string,
+    fee: number | undefined,
+    network: string | null
+  ) => void;
 }
 
 export default function OwnableActions(props: OwnableActionsProps) {
@@ -26,12 +32,13 @@ export default function OwnableActions(props: OwnableActionsProps) {
     onBridge,
     isConsumable,
     isTransferable,
+    isBridgeable,
+    nftNetwork,
   } = props;
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showBridgeDialog, setShowBridgeDialog] = useState(false);
   const [bridgeFee, setBridgeFee] = useState<number | null>(null);
-  const [chain, setChain] = useState("ethereum");
 
   const open = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -40,23 +47,11 @@ export default function OwnableActions(props: OwnableActionsProps) {
     setAnchorEl(null);
   };
 
-  const toLto = (amount: number) => {
-    const lto_amount = amount / 100000000;
-    return lto_amount;
-  };
-
   const handleFee = async () => {
     try {
-      const fee = await BridgeService.getTemplateCost("1");
-
-      switch (chain) {
-        case "arbitrum":
-          setBridgeFee(toLto(fee.arbitrum));
-          break;
-        default:
-          setBridgeFee(toLto(fee.ethereum));
-          break;
-      }
+      const feeObject = await BridgeService.getBridgeCost(1);
+      const fee = feeObject[nftNetwork];
+      setBridgeFee(fee / 100000000);
     } catch (error) {
       console.error("Error fetching fee:", error);
       setBridgeFee(null);
@@ -67,10 +62,6 @@ export default function OwnableActions(props: OwnableActionsProps) {
     await handleFee();
     setShowBridgeDialog(true);
   };
-
-  useEffect(() => {
-    handleFee();
-  }, [chain]);
 
   return (
     <>
@@ -130,7 +121,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
           Transfer
         </MenuItem>
         <MenuItem
-          disabled={!isTransferable}
+          disabled={!isBridgeable}
           onClick={() => {
             close();
             openBridgeDialog();
@@ -163,32 +154,33 @@ export default function OwnableActions(props: OwnableActionsProps) {
           if (!LTOService.isValidAddress(address)) return "Invalid address";
           if (LTOService.address === address)
             return "Can't transfer to own account";
+          return "";
         }}
         TextFieldProps={{
           label: "Recipient address",
           sx: { width: "380px", maxWidth: "100%" },
         }}
-        onChainChange={setChain}
       />
 
       <PromptDialog
         title="Bridge Ownable"
         open={showBridgeDialog}
         onClose={() => setShowBridgeDialog(false)}
-        onSubmit={onBridge}
-        // validate={(address) => {
-        //   if (!LTOService.isValidAddress(address)) return "Invalid address";
-        //   if (LTOService.address === address)
-        //     return "Can't transfer to own account";
-        // }}
+        onSubmit={(
+          address: string,
+          fee?: number | null,
+          network?: string | null
+        ) => {
+          if (!fee) return;
+          if (!network) return;
+          onBridge(address, fee, network);
+        }}
         TextFieldProps={{
-          label: chain,
+          label: nftNetwork || "",
           sx: { width: "380px", maxWidth: "100%" },
         }}
         fee={bridgeFee}
-        showChainDropdown={true}
-        chain={chain}
-        onChainChange={setChain}
+        network={nftNetwork}
       />
     </>
   );

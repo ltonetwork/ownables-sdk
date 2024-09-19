@@ -23,6 +23,11 @@ export default class IDBService {
   }
 
   static async get(store: string, key: string): Promise<any> {
+    // Check if store exists, create it if not
+    if (!(await this.hasStore(store))) {
+      await this.createStore(store);
+    }
+
     return new Promise(async (resolve, reject) => {
       const tx = (await this.db)
         .transaction(store, "readonly")
@@ -81,6 +86,11 @@ export default class IDBService {
   }
 
   static async set(store: string, key: string, value: any): Promise<void> {
+    // Check if store exists, create it if not
+    if (!(await this.hasStore(store))) {
+      await this.createStore(store);
+    }
+
     return new Promise(async (resolve, reject) => {
       const tx = (await this.db)
         .transaction(store, "readwrite")
@@ -96,29 +106,59 @@ export default class IDBService {
     store: string,
     map: TypedDict | Map<any, any>
   ): Promise<void>;
+
   static async setAll(
     data: TypedDict<TypedDict | Map<any, any>>
   ): Promise<void>;
+
   static async setAll(a: any, b?: any): Promise<void> {
-    const storeNames: string | string[] = b ? a : Object.keys(a);
-    const data: { [_: string]: TypedDict | Map<any, any> } = b
-      ? Object.fromEntries([[a, b]])
-      : a;
-
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db).transaction(storeNames, "readwrite");
+      try {
+        const db = await this.db;
+        let tx: IDBTransaction;
 
-      for (const [store, map] of Object.entries(data)) {
-        const objectStore = tx.objectStore(store);
-        for (const [key, value] of map instanceof Map
-          ? map.entries()
-          : Object.entries(map)) {
-          objectStore.put(value, key);
+        // Case 1: if both `a` and `b` are defined, treat it as (store, map)
+        if (b !== undefined) {
+          const store = a as string;
+          const map = b as TypedDict | Map<any, any>;
+          tx = db.transaction([store], "readwrite");
+          const objectStore = tx.objectStore(store);
+
+          if (map instanceof Map) {
+            for (const [key, value] of map.entries()) {
+              objectStore.put(value, key);
+            }
+          } else {
+            for (const [key, value] of Object.entries(map)) {
+              objectStore.put(value, key);
+            }
+          }
+
+          // Case 2: if only `a` is defined, treat it as a `TypedDict` (batch operation)
+        } else {
+          const data = a as TypedDict<TypedDict | Map<any, any>>;
+          tx = db.transaction(Object.keys(data), "readwrite");
+
+          for (const [store, map] of Object.entries(data)) {
+            const objectStore = tx.objectStore(store);
+
+            if (map instanceof Map) {
+              for (const [key, value] of map.entries()) {
+                objectStore.put(value, key);
+              }
+            } else {
+              for (const [key, value] of Object.entries(map)) {
+                objectStore.put(value, key);
+              }
+            }
+          }
         }
-      }
 
-      tx.oncomplete = () => resolve();
-      tx.onerror = (event) => reject(this.error(event));
+        tx.oncomplete = () => resolve();
+        tx.onerror = (event) => reject(this.error(event));
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -143,7 +183,10 @@ export default class IDBService {
     this.db = new Promise(async (resolve, reject) => {
       const request = window.indexedDB.open(DB_NAME, version + 1);
 
-      request.onupgradeneeded = () => action(request.result);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        action(db); // Apply upgrade logic here, e.g., creating object stores
+      };
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     });
@@ -167,7 +210,9 @@ export default class IDBService {
   static async createStore(...stores: string[]): Promise<void> {
     await this.upgrade((db) => {
       for (const store of stores) {
-        db.createObjectStore(store);
+        if (!db.objectStoreNames.contains(store)) {
+          db.createObjectStore(store);
+        }
       }
     });
   }
