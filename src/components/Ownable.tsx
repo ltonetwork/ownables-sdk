@@ -82,8 +82,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   get nftNetwork(): string {
-    const info = this.state.info?.nft?.network;
-    const nftNetwork = info?.split(":")[1];
+    const nftNetwork = this.state.info?.nft?.network;
     return nftNetwork || "";
   }
 
@@ -121,17 +120,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   private async bridge(
     address: string,
     fee: number | null,
-    nftNetwork: string
+    nftNetwork?: string
   ): Promise<void> {
     try {
-      const ntwrk = this.nftNetwork;
-      console.log(ntwrk);
-      console.log("INFO", this.state.info);
-      console.log("META", this.state.metadata);
-      await this.execute({ transfer: { to: address } });
+      const bridgeAddress = await BridgeService.getBridgeAddress();
+      await this.execute({ transfer: { to: bridgeAddress } });
       const zip = await OwnableService.zip(this.chain);
-      console.log("INFO", this.state.info);
-      console.log("META", this.state.metadata);
       const content = await zip.generateAsync({
         type: "uint8array",
       });
@@ -140,7 +134,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         8,
         ""
       )}.zip`;
-      const transactionId = await BridgeService.payBridgingFee(fee);
+      const transactionId = await BridgeService.payBridgingFee(
+        fee,
+        bridgeAddress
+      );
       const contentBlob = new Blob([content], {
         type: "application/octet-stream",
       });
