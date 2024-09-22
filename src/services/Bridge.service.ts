@@ -1,6 +1,6 @@
 import axios from "axios";
 import LTOService from "./LTO.service";
-import { sign } from "@ltonetwork/http-message-signatures";
+import { sign, verify } from "@ltonetwork/http-message-signatures";
 
 export class BridgeService {
   private static obridgeUrl =
@@ -31,12 +31,11 @@ export class BridgeService {
   }
 
   //Pay bridging fee
-  static async payBridgingFee(fee: number | null) {
-    const bridgeAddr = await this.getBridgeAddress();
+  static async payBridgingFee(fee: number | null, bridgeAddress: string) {
     try {
       if (fee != null) {
         const amount = fee * Math.pow(10, 8);
-        const transactionId = await LTOService.transfer(bridgeAddr, amount);
+        const transactionId = await LTOService.transfer(bridgeAddress, amount);
         return transactionId;
       }
     } catch (err) {
@@ -52,9 +51,10 @@ export class BridgeService {
     ownable: Blob
   ) {
     const urlToSign = `${this.obridgeUrl}/bridgeOwnable?nftReceiverAddress=${nftReceiverAddress}`;
+
     try {
       const request = {
-        headers: { Accept: "multipart/form-data" },
+        headers: {},
         method: "POST",
         url: urlToSign,
       };
@@ -66,10 +66,13 @@ export class BridgeService {
       }
 
       const signedRequest = await sign(request, { signer: account });
+      const formattedReq = JSON.stringify(signedRequest);
+      const encodedSignedRequest = encodeURIComponent(formattedReq);
 
       const formData = new FormData();
       formData.append("file", ownable, filename);
-      const url = `${this.obridgeUrl}/bridgeOwnable?nftReceiverAddress=${nftReceiverAddress}&ltoTransactionId=${txId}&signedLtoRequest=${signedRequest}`;
+
+      const url = `${this.obridgeUrl}/bridgeOwnable?nftReceiverAddress=${nftReceiverAddress}&ltoTransactionId=${txId}&signedLtoRequest=${encodedSignedRequest}`;
 
       const res = await axios.post(url, formData, {
         headers: {
