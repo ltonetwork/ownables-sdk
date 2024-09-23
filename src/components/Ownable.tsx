@@ -73,8 +73,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   get isBridged(): boolean {
     if (!this.state.info?.owner) return false;
     const owner = this.state.info?.owner;
-    const isValid = LTOService.isValidAddress(owner);
-    return this.state.info.owner !== LTOService.address && !isValid;
+    return this.state.info.owner !== LTOService.address;
   }
 
   get hasNFT(): boolean {

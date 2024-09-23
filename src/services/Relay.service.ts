@@ -81,7 +81,12 @@ export class RelayService {
     const url = `${this.relayURL}/inboxes/${address}/${hash}`;
 
     try {
-      const request = { headers: {}, method: "DELETE", url };
+      const request = {
+        headers: {},
+        method: "DELETE",
+        url,
+      };
+
       const signedRequest = await sign(request, { signer: sender });
       const response = await fetch(signedRequest.url, {
         method: signedRequest.method,
