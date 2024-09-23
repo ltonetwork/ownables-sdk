@@ -4,7 +4,7 @@ import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
-import { sign } from "@ltonetwork/http-message-signatures";
+import { sign, Verify, verify } from "@ltonetwork/http-message-signatures";
 import LTOService from "./LTO.service";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
