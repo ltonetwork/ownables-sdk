@@ -54,7 +54,7 @@ export class BridgeService {
 
     try {
       const request = {
-        headers: {},
+        headers: { "Content-Type": "multipart/form-data", Accept: "*/*" },
         method: "POST",
         url: urlToSign,
       };
