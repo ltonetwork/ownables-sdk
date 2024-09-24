@@ -4,7 +4,7 @@ import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
-import { sign, Verify, verify } from "@ltonetwork/http-message-signatures";
+import { sign } from "@ltonetwork/http-message-signatures";
 import LTOService from "./LTO.service";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
@@ -88,6 +88,7 @@ export class RelayService {
       };
 
       const signedRequest = await sign(request, { signer: sender });
+      console.log(signedRequest);
       const response = await fetch(signedRequest.url, {
         method: signedRequest.method,
         headers: signedRequest.headers,
