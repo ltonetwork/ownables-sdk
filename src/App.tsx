@@ -25,6 +25,8 @@ import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
+import CreateOwnable from './components/CreateOwnable';
+
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -52,6 +54,7 @@ export default function App() {
     ok?: string;
     onConfirm: () => void;
   } | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     // IDBService.open();
@@ -261,6 +264,7 @@ export default function App() {
                 </Link>
               </If>
               .
+              <br />Or you can also <Link component="button" onClick={() => setShowCreate(true)} style={{fontSize: 'inherit'}}>create your own</Link>.
             </Typography>
           </Grid>
         </Grid>
@@ -318,6 +322,7 @@ export default function App() {
         onSelect={forge}
         onImportFR={relayImport}
         onError={showError}
+        onCreate={() => {setShowCreate(true)}}
       />
 
       <Sidebar
@@ -327,6 +332,12 @@ export default function App() {
         onReset={reset}
         onFactoryReset={factoryReset}
       />
+
+      <CreateOwnable 
+        open={showCreate} 
+        onClose={() => setShowCreate(false)} 
+      />
+
       <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
 
       <HelpDrawer open={consuming !== null}>
