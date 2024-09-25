@@ -101,7 +101,7 @@ export default class LTOService {
     }
   }
 
-  public static async broadcast(transaction: Transaction) {
+  public static async broadcast(transaction: Transaction): Promise<any> {
     const url = this.apiUrl("/transactions/broadcast");
     const response = await fetch(url, {
       method: "POST",
@@ -110,11 +110,13 @@ export default class LTOService {
       },
       body: JSON.stringify(transaction),
     });
-
-    if (response.status >= 400)
+  
+    if (response.status >= 400) {
       throw new Error(
         "Broadcast transaction failed: " + (await response.text())
       );
+    }
+    return await response.json();
   }
 
   public static async anchor(
@@ -176,5 +178,13 @@ export default class LTOService {
     return lto.account({
       publicKey: publicKey instanceof Binary ? publicKey.base58 : publicKey,
     }).address;
+  }
+
+  public static getAccount = async (): Promise<Account> => {
+    if (!this.account) {
+        throw new Error("Not logged in")
+    }
+
+    return this.account
   }
 }

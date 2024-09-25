@@ -25,6 +25,7 @@
     "buffer": "^6.0.3",
     "craco": "^0.0.3",
     "fs": "^0.0.1-security",
+    "heic2any": "^0.0.4",
     "ipfs-unixfs-importer": "^15.1.0",
     "jszip": "^3.10.0",
     "mime": "^3.0.0",
