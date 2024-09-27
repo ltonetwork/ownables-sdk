@@ -15,6 +15,33 @@ export class RelayService {
   private static relay = new Relay(`${this.relayURL}`);
 
   /**
+   * Handle All Signed Requests
+   */
+  private static async handleSignedRequest(method: string, url: string) {
+    try {
+      const sender = LTOService.account;
+      const request = {
+        headers: {},
+        method,
+        url,
+      };
+
+      const signedRequest = await sign(request, { signer: sender });
+
+      const response = await axios({
+        method: signedRequest.method,
+        url: signedRequest.url,
+        headers: signedRequest.headers,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error in handleSignedRequest:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Send ownable to a recipient.
    */
   static async sendOwnable(recipient: string, content?: Uint8Array) {
@@ -47,15 +74,18 @@ export class RelayService {
     const address = sender.address;
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
-
+    const url = `${this.relayURL}/inboxes/${address}/`;
     try {
-      const responses = await axios.get(`${this.relayURL}/inboxes/${address}/`);
+      const responses = await this.handleSignedRequest("GET", url);
+
       if (!responses.data.length) return null;
 
       const ownableData = await Promise.all(
         responses.data.map(async (response: MessageInfo) => {
-          const infoResponse = await axios.get(
-            `${this.relayURL}/inboxes/${address}/${response.hash}`
+          const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
+          const infoResponse = await this.handleSignedRequest(
+            "GET",
+            messageUrl
           );
           const message = Message.from(infoResponse.data);
           return { message, messageHash: infoResponse.data.hash };
@@ -81,17 +111,12 @@ export class RelayService {
     const url = `${this.relayURL}/inboxes/${address}/${hash}`;
 
     try {
-      const request = { headers: {}, method: "DELETE", url };
-      const signedRequest = await sign(request, { signer: sender });
-      const response = await fetch(signedRequest.url, {
-        method: signedRequest.method,
-        headers: signedRequest.headers,
-      });
+      const response = await this.handleSignedRequest("DELETE", url);
 
-      if (response.status === 204) {
+      if (response?.status === 204) {
         return "Successfully cleared ownable";
       } else {
-        throw new Error(`${response.statusText}`);
+        throw new Error(`${response}`);
       }
     } catch (error) {
       console.error("Failed to remove ownable:", error);
@@ -105,8 +130,12 @@ export class RelayService {
   static async isRelayUp(): Promise<boolean> {
     if (!this.relayURL) return false;
     try {
-      const response = await fetch(this.relayURL, { method: "HEAD" });
-      return response.ok;
+      const response = await this.handleSignedRequest("HEAD", this.relayURL);
+      if (response.status === 200) {
+        return true;
+      } else {
+        return false;
+      }
     } catch (error) {
       console.error("Relay service is down:", error);
       return false;

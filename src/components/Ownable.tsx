@@ -26,6 +26,7 @@ import { RelayService } from "../services/Relay.service";
 import { enqueueSnackbar } from "notistack";
 import { BridgeService } from "../services/Bridge.service";
 import shortId from "../utils/shortId";
+import SessionStorageService from "../services/SessionStorage.service";
 
 interface OwnableProps {
   chain: EventChain;
@@ -70,10 +71,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     return !!this.state.info && this.state.info.owner !== LTOService.address;
   }
 
-  get isBridged(): boolean {
-    if (!this.state.info?.owner) return false;
-    const owner = this.state.info?.owner;
-    return this.state.info.owner !== LTOService.address;
+  get isBridged() {
+    const bridgeAddress = SessionStorageService.get("bridgeAddress");
+    const currentOwner = this.state.info?.owner;
+    if (!bridgeAddress || !currentOwner) return false;
+    return currentOwner === bridgeAddress;
   }
 
   get hasNFT(): boolean {
@@ -97,7 +99,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         });
         await RelayService.sendOwnable(to, content);
         enqueueSnackbar("Ownable sent Successfully!!", { variant: "success" });
-        console.log(this.pkg.uniqueMessageHash);
+        //Remove ownable from relay's inbox
         if (this.pkg.uniqueMessageHash) {
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
         }
@@ -147,6 +149,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           filename,
           contentBlob
         );
+      }
+      //remove ownable from relay's inbox
+      if (this.pkg.uniqueMessageHash) {
+        await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
       }
       enqueueSnackbar("Successfully bridged!!", { variant: "success" });
     } catch (error) {
@@ -248,6 +254,16 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   async componentDidMount() {
     window.addEventListener("message", this.windowMessageHandler);
+
+    let bridgeAddress = SessionStorageService.get("bridgeAddress");
+
+    if (!bridgeAddress) {
+      bridgeAddress = await BridgeService.getBridgeAddress();
+      if (bridgeAddress) {
+        SessionStorageService.set("bridgeAddress", bridgeAddress); // Ensure it's stored in sessionStorage after fetching
+      }
+    }
+    //this.setState({ bridgeAddress });
   }
 
   shouldComponentUpdate(
@@ -314,7 +330,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onLoad={() => this.onLoad()}
         />
         {this.props.children}
-        <If condition={this.isTransferred}>
+        <If condition={this.isTransferred && !this.isBridged}>
           <Tooltip
             title="You're unable to interact with this Ownable, because it has been transferred to a different account."
             followCursor
@@ -324,7 +340,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
             </Overlay>
           </Tooltip>
         </If>
-        <If condition={this.isBridged}>
+        <If condition={this.isBridged && this.isTransferred}>
           <Tooltip
             title="You're unable to interact with this Ownable, because it has been sent to the bridge."
             followCursor

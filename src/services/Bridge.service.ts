@@ -1,6 +1,7 @@
 import axios from "axios";
 import LTOService from "./LTO.service";
-import { sign, verify } from "@ltonetwork/http-message-signatures";
+import { sign } from "@ltonetwork/http-message-signatures";
+import SessionStorageService from "./SessionStorage.service";
 
 export class BridgeService {
   private static obridgeUrl =
@@ -23,7 +24,9 @@ export class BridgeService {
     const url = `${this.obridgeUrl}/GetObridgeWallet`;
     try {
       const response = await axios.get(url);
-      return response.data.oBridgeWalletAddressLTO;
+      const bridgeAddress = response.data.oBridgeWalletAddressLTO;
+      SessionStorageService.set("bridgeWalletAddress", bridgeAddress);
+      return bridgeAddress;
     } catch (error) {
       console.error(`Error fetching bridge address: ${error}`);
       return null;
@@ -80,7 +83,7 @@ export class BridgeService {
           Accept: "*/*",
         },
       });
-      console.log(res.data);
+      console.log(res);
     } catch (err) {
       console.error("bridging failed", err);
     }
