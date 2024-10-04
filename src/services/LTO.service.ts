@@ -34,7 +34,6 @@ export default class LTOService {
     const [encryptedAccount] = LocalStorageService.get("@accountData") || [];
     const encryptedSeed = encryptedAccount.seed;
     const decryptedSeed = decryptData(encryptedSeed, password + SECURE_KEY);
-
     this._account = lto.account({ seed: decryptedSeed });
     SessionStorageService.set("@pass", password);
   }
@@ -55,7 +54,6 @@ export default class LTOService {
       const decryptedSeed = decryptData(encryptedSeed, password + SECURE_KEY);
       this._account = lto.account({ seed: decryptedSeed });
     }
-
     return this._account;
   }
 
