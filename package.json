@@ -24,6 +24,7 @@
     "blockstore-core": "^4.0.1",
     "buffer": "^6.0.3",
     "craco": "^0.0.3",
+    "crypto-js": "^4.2.0",
     "fs": "^0.0.1-security",
     "ipfs-unixfs-importer": "^15.1.0",
     "jszip": "^3.10.0",
@@ -85,5 +86,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2"
   }
 }
