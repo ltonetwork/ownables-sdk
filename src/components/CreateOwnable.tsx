@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState} from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   AlertTitle,
@@ -28,51 +28,49 @@ import { TypedOwnable } from "../interfaces/TypedOwnableInfo";
 import { useSnackbar } from "notistack";
 import TagInputField from "./TagInputField";
 
-
 interface CreateOwnableProps {
   open: boolean;
   onClose: () => void;
 }
 
 export default function CreateOwnable(props: CreateOwnableProps) {
+  const { open, onClose } = props;
+  const ltoWalletAddress = LTOService.address;
+  const [showNoBalance, setShowNoBalance] = useState(false);
+  const [balance, setBalance] = useState<number>();
+  const [ownable, setOwnable] = useState<TypedOwnable>({
+    owner: "",
+    //email: "",
+    name: "",
+    description: "",
+    keywords: [],
+    evmAddress: "",
+    network: "ethereum",
+    image: null,
+  });
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [available, setAvailable] = useState(0);
+  const [lowBalance, setLowBalance] = useState(false);
+  const [amount, setAmount] = useState(0);
+  const [showAmount, setShowAmount] = useState<number>(0);
+  const [recipient, setShowAddress] = useState<string | undefined>();
+  const [noConnection, setNoConnection] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedNetwork, setSelectedNetwork] = useState("ethereum");
+  const [thumbnail, setThumbnail] = useState<Blob | null>(null);
+  const [blurThumbnail, setBlurThumbnail] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
 
-    const { open, onClose } = props;
-    const ltoWalletAddress = LTOService.address;
-    const [showNoBalance, setShowNoBalance] = useState(false);
-    const [balance, setBalance] = useState<number>();
-    const [ownable, setOwnable] = useState<TypedOwnable>({
-        owner: "",
-        email: "",
-        name: "",
-        description: "",
-        keywords: [],
-        evmAddress: "",
-        network: "ethereum",
-        image: null,
-    });
-    const [missingFields, setMissingFields] = useState<string[]>([]);
-    const [available, setAvailable] = useState(0);
-    const [lowBalance, setLowBalance] = useState(false);
-    const [amount, setAmount] = useState(0);
-    const [showAmount, setShowAmount] = useState<number>(0);
-    const [recipient, setShowAddress] = useState<string | undefined>();
-    const [noConnection, setNoConnection] = useState(false);
-    const [openDialog, setOpenDialog] = useState(false);
-    const [selectedNetwork, setSelectedNetwork] = useState('ethereum');
-    const [thumbnail, setThumbnail] = useState<Blob | null>(null);
-    const [blurThumbnail, setBlurThumbnail] = useState(false);
-    const [tags, setTags] = useState<string[]>([]);
-
-    const getPlaceholderText = (network: string) => {
+  const getPlaceholderText = (network: string) => {
     switch (network) {
-        case 'ethereum':
-        return 'Ethereum Address';
-        case 'arbitrum':
-        return 'Arbitrum Address';
-        default:
-        return 'Address';
+      case "ethereum":
+        return "Ethereum Address";
+      case "arbitrum":
+        return "Arbitrum Address";
+      default:
+        return "Address";
     }
-    };
+  };
 
   const fetchBuildAmount = useCallback(async () => {
     try {
@@ -93,12 +91,12 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             Accept: "*/*",
           },
         }
-      )
+      );
       const serverAddress = address.data.serverWalletAddressLTO;
       console.log("serverAddress", serverAddress);
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
-        (parseFloat(value.toString()) / LTO_REPRESENTATION) + 1;
+        parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
       console.log("calculatesAmount", calculatesAmount);
       if (calculatesAmount < 1.1) {
         console.log("error server is not ready yet");
@@ -125,7 +123,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const handleClose = () => {
     handleCloseDialog();
     clearFields();
-    clearImageAndThumbnail(); 
+    clearImageAndThumbnail();
     setBlurThumbnail(false);
     onClose();
   };
@@ -140,15 +138,15 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const clearFields = () => {
     setOwnable({
       owner: "",
-      email: "",
+      //email: "",
       name: "",
       description: "",
       keywords: [],
       evmAddress: "",
       network: "ethereum",
-      image: null, 
+      image: null,
     });
-    setSelectedNetwork('ethereum');
+    setSelectedNetwork("ethereum");
   };
 
   const loadBalance = () => {
@@ -162,7 +160,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 
   useEffect(() => loadBalance(), []);
   useInterval(() => loadBalance(), 5 * 1000);
-
 
   useEffect(() => {
     if (balance !== undefined && balance < 0.1) {
@@ -194,11 +191,10 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       ...prevOwnable,
       image: null,
     }));
-  const fileInput = document.getElementById('fileUpload') as HTMLInputElement;
-  if (fileInput) {
-    fileInput.value = '';
-  }
-  
+    const fileInput = document.getElementById("fileUpload") as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,26 +228,28 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
         // Set thumbnail size
         canvas.width = 50;
         canvas.height = 50;
         ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(blob => {
+        canvas.toBlob((blob) => {
           if (blob) {
             resolve(blob);
           } else {
-            reject(new Error('Could not create thumbnail blob'));
+            reject(new Error("Could not create thumbnail blob"));
           }
-        }, 'image/webp');
+        }, "image/webp");
       };
       img.onerror = reject;
       img.src = URL.createObjectURL(blob);
     });
   }
 
-  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleThumbnailUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     let file = e.target.files?.[0] || null;
     if (file && file.type === "image/heic") {
       const blob = await heic2any({
@@ -280,71 +278,74 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         let { width, height } = img;
 
         if (width === height) {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           canvas.width = width;
           canvas.height = height;
           ctx!.drawImage(img, 0, 0, width, height);
-          canvas.toBlob(blob => {
+          canvas.toBlob((blob) => {
             if (blob) {
               resolve(blob);
             } else {
-              reject(new Error('Could not create blob'));
+              reject(new Error("Could not create blob"));
             }
-          },'image/webp');
+          }, "image/webp");
         } else {
           const maxSize = Math.max(width, height);
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           canvas.width = maxSize;
           canvas.height = maxSize;
-        
-          ctx!.fillStyle = 'rgba(0, 0, 0, 0)';
+
+          ctx!.fillStyle = "rgba(0, 0, 0, 0)";
           ctx!.fillRect(0, 0, maxSize, maxSize);
-        
+
           const x = maxSize / 2 - width / 2;
           const y = maxSize / 2 - height / 2;
           ctx!.drawImage(img, x, y, width, height);
-        
-          canvas.toBlob(blob => {
+
+          canvas.toBlob((blob) => {
             if (blob) {
               resolve(blob);
             } else {
-              reject(new Error('Could not create blob'));
+              reject(new Error("Could not create blob"));
             }
-          },'image/webp');
+          }, "image/webp");
         }
       };
       img.onerror = reject;
       img.src = URL.createObjectURL(file);
     });
   }
-  
-  async function getThumbnailBlob(thumbnail: File | Blob, blur: boolean): Promise<Blob> {
+
+  async function getThumbnailBlob(
+    thumbnail: File | Blob,
+    blur: boolean
+  ): Promise<Blob> {
     if (!blur) {
       return thumbnail;
     }
-  
+
     return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
       if (!ctx) {
-        reject(new Error('2D context could not be created'));
+        reject(new Error("2D context could not be created"));
         return;
       }
       const img = new Image();
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
-        ctx.filter = 'blur(5px)';
+        ctx.filter = "blur(5px)";
         ctx.drawImage(img, 0, 0);
-        canvas.toBlob(blob => {
+        canvas.toBlob((blob) => {
           if (blob) {
             resolve(blob);
           } else {
-            reject(new Error('Blob conversion failed'));
+            reject(new Error("Blob conversion failed"));
           }
-        }, 'image/webp');
+        }, "image/webp");
       };
       img.onerror = reject;
       img.src = URL.createObjectURL(thumbnail);
@@ -352,13 +353,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   }
 
   const handleCreateOwnable = async () => {
-    const requiredFields = [
-      "name",
-      "network",
-      "owner",
-      "email",
-      "image",
-    ];
+    const requiredFields = ["name", "network", "owner", "image"];
     let newMissingFields: string[] = [];
     for (let field of requiredFields) {
       if (!ownable[field as keyof TypedOwnable]) {
@@ -371,7 +366,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       return;
     }
     if (!recipient || !amount) {
-      console.error('Recipient or amount is not defined');
+      console.error("Recipient or amount is not defined");
       setNoConnection(true);
       return;
     }
@@ -391,13 +386,14 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               template: "template1",
               CREATE_NFT: "true",
               NFT_BLOCKCHAIN: ownable.network,
-              NFT_TOKEN_URI: "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
-              OWNABLE_THUMBNAIL:"thumbnail.webp", 
+              NFT_TOKEN_URI:
+                "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
+              OWNABLE_THUMBNAIL: "thumbnail.webp",
               OWNABLE_LTO_TRANSACTION_ID: transaction.id,
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
               PLACEHOLDER1_DESCRIPTION: ownable.description,
               PLACEHOLDER1_VERSION: "0.1.0",
-              PLACEHOLDER1_AUTHORS: ownable.owner + " <" + ownable.email + ">",
+              //PLACEHOLDER1_AUTHORS: ownable.owner + " <" + ownable.email + ">",
               PLACEHOLDER1_KEYWORDS: tags,
               PLACEHOLDER2_TITLE: ownable.name,
               PLACEHOLDER2_IMG: imageName + "." + imageType,
@@ -430,17 +426,20 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             // Send the zip file to oBuilder
             const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
             const formData = new FormData();
-            formData.append('file', zipFile, formattedName + ".zip");
-            axios.post(url, formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-                'Accept': '*/*'
-              }
-            })
-            .then(res => {
-                console.log(res.data)})
-            .catch(err => {
-                console.log(err)});
+            formData.append("file", zipFile, formattedName + ".zip");
+            axios
+              .post(url, formData, {
+                headers: {
+                  "Content-Type": "multipart/form-data",
+                  Accept: "*/*",
+                },
+              })
+              .then((res) => {
+                console.log(res.data);
+              })
+              .catch((err) => {
+                console.log(err);
+              });
             setOpenDialog(true);
           });
           handleCloseDialog();
@@ -483,7 +482,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               </Typography>
             </Box>
             <Hidden smUp>
-              <IconButton onClick={handleClose} size="small" sx={{ mr: 2, mt: -1 }}>
+              <IconButton
+                onClick={handleClose}
+                size="small"
+                sx={{ mr: 2, mt: -1 }}
+              >
                 <HighlightOffIcon />
               </IconButton>
             </Hidden>
@@ -491,229 +494,237 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           <Box
             component="div"
             sx={{ mt: 1, display: "flex", justifyContent: "center" }}
-          >
-          </Box>
+          ></Box>
           <Box>
+            <Box component="div" sx={{ mt: 2 }}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                <Typography sx={{ fontSize: 12 }} color="text.secondary">
+                  Choose your network
+                </Typography>
+                <RadioGroup
+                  row
+                  name="network"
+                  value={ownable.network}
+                  onChange={(event) => {
+                    handleNetworkChange(event);
+                    setSelectedNetwork(event.target.value);
+                  }}
+                  sx={{ justifyContent: "center" }}
+                >
+                  <FormControlLabel
+                    value="ethereum"
+                    control={
+                      <Radio
+                        sx={{
+                          width: { xs: "12px", sm: "16px" },
+                          height: { xs: "12px", sm: "16px" },
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography
+                        sx={{
+                          fontSize: {
+                            xs: "0.7rem",
+                            sm: "0.9rem",
+                            md: "1.1rem",
+                          },
+                          ml: 1,
+                        }}
+                        color="text.secondary"
+                      >
+                        Ethereum
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    value="arbitrum"
+                    control={
+                      <Radio
+                        sx={{
+                          width: { xs: "12px", sm: "16px" },
+                          height: { xs: "12px", sm: "16px" },
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography
+                        sx={{
+                          fontSize: {
+                            xs: "0.7rem",
+                            sm: "0.9rem",
+                            md: "1.1rem",
+                          },
+                          ml: 1,
+                        }}
+                        color="text.secondary"
+                      >
+                        Arbitrum
+                      </Typography>
+                    }
+                  />
+                </RadioGroup>
+              </Box>
+              <br></br>
+              <Input
+                error={missingFields.includes("owner")}
+                fullWidth
+                type="text"
+                name="owner"
+                placeholder="Owner name"
+                value={ownable.owner}
+                onChange={handleInputChange}
+                sx={{ fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" } }}
+                required
+              />
+              {/* <Input
+                error={missingFields.includes("email")}
+                fullWidth
+                type="email"
+                name="email"
+                placeholder="Owner email"
+                value={ownable.email}
+                onChange={handleInputChange}
+                sx={{ fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" } }}
+                required
+              /> */}
               <Box component="div" sx={{ mt: 2 }}>
-                <Box display="flex" flexDirection="column" alignItems="center">
-                  <Typography sx={{ fontSize: 12 }} color="text.secondary">
-                    Choose your network
-                  </Typography>
-                  <RadioGroup
-                    row
-                    name="network"
-                    value={ownable.network}
-                    onChange={(event) => {
-                      handleNetworkChange(event);
-                      setSelectedNetwork(event.target.value);
-                    }}
-                    sx={{ justifyContent: "center" }}
-                  >
-                    <FormControlLabel
-                      value="ethereum"
-                      control={
-                        <Radio
-                          sx={{
-                            width: { xs: "12px", sm: "16px" },
-                            height: { xs: "12px", sm: "16px" },
-                          }}
-                        />
-                      }
-                      label={
-                        <Typography
-                          sx={{
-                            fontSize: {
-                              xs: "0.7rem",
-                              sm: "0.9rem",
-                              md: "1.1rem",
-                            },
-                            ml: 1,
-                          }}
-                          color="text.secondary"
-                        >
-                          Ethereum
-                        </Typography>
-                      }
-                    />
-                    <FormControlLabel
-                      value="arbitrum"
-                      control={
-                        <Radio
-                          sx={{
-                            width: { xs: "12px", sm: "16px" },
-                            height: { xs: "12px", sm: "16px" },
-                          }}
-                        />
-                      }
-                      label={
-                        <Typography
-                          sx={{
-                            fontSize: {
-                              xs: "0.7rem",
-                              sm: "0.9rem",
-                              md: "1.1rem",
-                            },
-                            ml: 1,
-                          }}
-                          color="text.secondary"
-                        >
-                          Arbitrum
-                        </Typography>
-                      }
-                    />
-                  </RadioGroup>
-                </Box>
-                <br></br>
                 <Input
-                  error={missingFields.includes("owner")}
+                  error={missingFields.includes("name")}
                   fullWidth
                   type="text"
-                  name="owner"
-                  placeholder="Owner name"
-                  value={ownable.owner}
+                  name="name"
+                  placeholder="Ownable name"
+                  value={ownable.name}
                   onChange={handleInputChange}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" } }}
+                  sx={{
+                    fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" },
+                  }}
                   required
                 />
                 <Input
-                  error={missingFields.includes("email")}
                   fullWidth
-                  type="email"
-                  name="email"
-                  placeholder="Owner email"
-                  value={ownable.email}
+                  type="text"
+                  name="description"
+                  placeholder="Description"
+                  value={ownable.description}
                   onChange={handleInputChange}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" } }}
+                  sx={{
+                    fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" },
+                  }}
                   required
                 />
-                <Box component="div" sx={{ mt: 2 }}>
-                  <Input
-                    error={missingFields.includes("name")}
-                    fullWidth
-                    type="text"
-                    name="name"
-                    placeholder="Ownable name"
-                    value={ownable.name}
-                    onChange={handleInputChange}
-                    sx={{
-                      fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" },
-                    }}
-                    required
-                  />
-                  <Input
-                    fullWidth
-                    type="text"
-                    name="description"
-                    placeholder="Description"
-                    value={ownable.description}
-                    onChange={handleInputChange}
-                    sx={{
-                      fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" },
-                    }}
-                    required
-                  />
-                  <br></br>
-                  <br></br>
-                  <TagInputField 
-                  onTagsChange={setTags}
-                  />
-                  <br></br>
-                  <br></br>
-                  <label 
-                    htmlFor="fileUpload" 
-                    className="custom-file-upload"
-                    style={{
-                      display: "inline-block",
-                      padding: "6px 12px",
-                      cursor: "pointer",
-                      backgroundColor: "#1cb7ff",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "4px",
-                      textAlign: "center",
-                      textDecoration: "none",
-                      transitionDuration: "0.4s",
-                      margin: "10px 0",
-                    }}
-                    >
-                    Choose File
-                  </label>
-                  <br></br>
-                  <input
-                    id="fileUpload"
-                    className={missingFields.includes("image") ? "error" : ""}
-                    type="file"
-                    accept="image/*,.heic"
-                    onChange={handleImageUpload}
-                    style={{ marginBottom: "10px", display: "none"}}
-                  />
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
-                    {ownable.image && (
-                      <div>
-                        <img
-                          src={URL.createObjectURL(ownable.image)}
-                          alt="Selected"
-                          style={{ width: "100px", height: "auto" }}
-                        />
-                      </div>
-                    )}
-                    {thumbnail && (
-                      <>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{fontSize: "smaller", lineHeight: "1"}}>
-                          Wallet<br />
+                <br></br>
+                <br></br>
+                <TagInputField onTagsChange={setTags} />
+                <br></br>
+                <br></br>
+                <label
+                  htmlFor="fileUpload"
+                  className="custom-file-upload"
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 12px",
+                    cursor: "pointer",
+                    backgroundColor: "#1cb7ff",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                    textAlign: "center",
+                    textDecoration: "none",
+                    transitionDuration: "0.4s",
+                    margin: "10px 0",
+                  }}
+                >
+                  Choose File
+                </label>
+                <br></br>
+                <input
+                  id="fileUpload"
+                  className={missingFields.includes("image") ? "error" : ""}
+                  type="file"
+                  accept="image/*,.heic"
+                  onChange={handleImageUpload}
+                  style={{ marginBottom: "10px", display: "none" }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-around",
+                  }}
+                >
+                  {ownable.image && (
+                    <div>
+                      <img
+                        src={URL.createObjectURL(ownable.image)}
+                        alt="Selected"
+                        style={{ width: "100px", height: "auto" }}
+                      />
+                    </div>
+                  )}
+                  {thumbnail && (
+                    <>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "smaller", lineHeight: "1" }}>
+                          Wallet
+                          <br />
                           thumbnail
                         </div>
                         <img
                           src={URL.createObjectURL(thumbnail)}
                           alt="Thumbnail"
-                          style={{ width: "50px", height: "auto", filter: blurThumbnail ? "blur(5px)" : "none" }}
+                          style={{
+                            width: "50px",
+                            height: "auto",
+                            filter: blurThumbnail ? "blur(5px)" : "none",
+                          }}
                         />
                       </div>
-                     </>
-                    )}
-                  </div>
-                  <br></br>
-                  {thumbnail && (
-                    <>
+                    </>
+                  )}
+                </div>
+                <br></br>
+                {thumbnail && (
+                  <>
                     <Button onClick={() => setBlurThumbnail(!blurThumbnail)}>
                       {blurThumbnail ? "Unblur Thumbnail" : "Blur Thumbnail"}
                     </Button>
                     <br></br>
                     <Button>
-                    <label 
-                    htmlFor="thumbUpload" 
-                    className="custom-file-upload"
-                    >
-                    Change Thumbnail
-                  </label>
-                  </Button>
-                    <input
-                    id="thumbUpload"
-                    type="file"
-                    accept="image/*,.heic"
-                    onChange={handleThumbnailUpload}
-                    style={{ marginBottom: "10px", display: "none"}}
-                  />
-                    </>
-                    )}
-                  <Box
-                    component="div"
-                    sx={{ mt: 1, display: "flex", justifyContent: "center" }}
-                  >
-                    <Button
-                      variant="contained"
-                      sx={{ mt: 2 }}
-                      onClick={handleCreateOwnable}
-                      disabled={
-                        isNaN(amount) || amount <= 0 || amount > available
-                      }
-                    >
-                      Create Ownable
+                      <label
+                        htmlFor="thumbUpload"
+                        className="custom-file-upload"
+                      >
+                        Change Thumbnail
+                      </label>
                     </Button>
-                  </Box>
+                    <input
+                      id="thumbUpload"
+                      type="file"
+                      accept="image/*,.heic"
+                      onChange={handleThumbnailUpload}
+                      style={{ marginBottom: "10px", display: "none" }}
+                    />
+                  </>
+                )}
+                <Box
+                  component="div"
+                  sx={{ mt: 1, display: "flex", justifyContent: "center" }}
+                >
+                  <Button
+                    variant="contained"
+                    sx={{ mt: 2 }}
+                    onClick={handleCreateOwnable}
+                    disabled={
+                      isNaN(amount) || amount <= 0 || amount > available
+                    }
+                  >
+                    Create Ownable
+                  </Button>
                 </Box>
               </Box>
+            </Box>
           </Box>
         </Box>
         <Dialog
