@@ -1,51 +1,64 @@
 import { Account, Binary, LTO, Transaction } from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
+import CryptoJS from "crypto-js";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 if (process.env.REACT_APP_LTO_API_URL)
   lto.nodeAddress = process.env.REACT_APP_LTO_API_URL;
 
-const sessionSeed = SessionStorageService.get("@seed");
+const SECURE_KEY = process.env.REACT_APP_SECURE_KEY;
+
+const encryptData = (data: string, key: string): string => {
+  return CryptoJS.AES.encrypt(data, key).toString();
+};
+
+const decryptData = (encryptedData: string, key: string): string => {
+  const bytes = CryptoJS.AES.decrypt(encryptedData, key);
+  return bytes.toString(CryptoJS.enc.Utf8);
+};
 
 export default class LTOService {
   public static readonly networkId = lto.networkId;
-  private static _account?: Account = sessionSeed
-    ? lto.account({ seed: sessionSeed })
-    : undefined;
+  private static _account?: Account;
 
   public static accountExists(): boolean {
     return !!LocalStorageService.get("@accountData");
   }
 
   public static isUnlocked(): boolean {
-    return !!this._account;
+    return !!SessionStorageService.get("@pass");
   }
 
   public static unlock(password: string): void {
     const [encryptedAccount] = LocalStorageService.get("@accountData") || [];
-    this._account = lto.account({
-      seedPassword: password,
-      ...encryptedAccount,
-    });
-    SessionStorageService.set("@seed", this._account.seed);
+    const encryptedSeed = encryptedAccount.seed;
+    const decryptedSeed = decryptData(encryptedSeed, password + SECURE_KEY);
+    this._account = lto.account({ seed: decryptedSeed });
+    SessionStorageService.set("@pass", password);
   }
 
   public static lock(): void {
     delete this._account;
-    SessionStorageService.remove("@seed");
+    SessionStorageService.remove("@pass");
   }
 
   public static get account(): Account {
     if (!this._account) {
-      throw new Error("Not logged in");
+      const password = SessionStorageService.get("@pass");
+      if (!password) {
+        throw new Error("Not logged in");
+      }
+      const [encryptedAccount] = LocalStorageService.get("@accountData") || [];
+      const encryptedSeed = encryptedAccount.seed;
+      const decryptedSeed = decryptData(encryptedSeed, password + SECURE_KEY);
+      this._account = lto.account({ seed: decryptedSeed });
     }
-
     return this._account;
   }
 
   public static get address(): string {
-    if (!!this._account) return this._account!.address;
+    if (this._account) return this._account.address;
 
     const [encryptedAccount] = LocalStorageService.get("@accountData") || [];
     if (encryptedAccount) return encryptedAccount.address;
@@ -58,15 +71,24 @@ export default class LTOService {
       throw new Error("Account not created");
     }
 
+    if (!this._account.seed) {
+      throw new Error("Account not created");
+    }
+
+    const encryptedSeed = encryptData(
+      this._account.seed,
+      password + SECURE_KEY
+    );
+
     LocalStorageService.set("@accountData", [
       {
         nickname: nickname,
         address: this._account.address,
-        seed: this._account.encryptSeed(password),
+        seed: encryptedSeed,
       },
     ]);
 
-    SessionStorageService.set("@seed", this._account.seed);
+    SessionStorageService.set("@pass", password);
   }
 
   public static createAccount(): void {
