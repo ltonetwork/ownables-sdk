@@ -61,16 +61,16 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [blurThumbnail, setBlurThumbnail] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
 
-  const getPlaceholderText = (network: string) => {
-    switch (network) {
-      case "ethereum":
-        return "Ethereum Address";
-      case "arbitrum":
-        return "Arbitrum Address";
-      default:
-        return "Address";
-    }
-  };
+  // const getPlaceholderText = (network: string) => {
+  //   switch (network) {
+  //     case "ethereum":
+  //       return "Ethereum Address";
+  //     case "arbitrum":
+  //       return "Arbitrum Address";
+  //     default:
+  //       return "Address";
+  //   }
+  // };
 
   const fetchBuildAmount = useCallback(async () => {
     try {
@@ -83,7 +83,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         }
       );
       const value = +response.data[selectedNetwork];
-      console.log("BuildAmount", value);
       const address = await axios.get(
         `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
         {
@@ -93,13 +92,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         }
       );
       const serverAddress = address.data.serverWalletAddressLTO;
-      console.log("serverAddress", serverAddress);
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
         parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
-      console.log("calculatesAmount", calculatesAmount);
       if (calculatesAmount < 1.1) {
-        console.log("error server is not ready yet");
+        console.error("error server is not ready yet");
         return;
       } else {
         setAmount(value);
@@ -264,7 +261,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 
     if (file) {
       const resizedImage = await resizeImage(file);
-      console.log(resizedImage);
       file = new File([resizedImage], file.name, { type: "image/webp" });
       const thumbnailImage = await createThumbnail(resizedImage);
       setThumbnail(thumbnailImage);
@@ -376,7 +372,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       const transaction = await LTOService.broadcast(tx!.signWith(account));
       setTimeout(() => {
         if (transaction.id) {
-          console.log("Transaction id", transaction.id, "ready");
           const imageType = "webp";
           const imageName = ownable.name.replace(/\s+/g, "-");
           const formattedName = ownable.name.toLowerCase().replace(/\s+/g, "_");
@@ -413,7 +408,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             const thumbnailBlob = getThumbnailBlob(thumbnail, blurThumbnail);
             zip.file(`thumbnail.webp`, thumbnailBlob);
           }
-          console.log("zip", zip);
           zip.generateAsync({ type: "blob" }).then((zipFile: Blob) => {
             // for testing creating download zip file, remove for live version
             // Create a temporary link element
