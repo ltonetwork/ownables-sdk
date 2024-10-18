@@ -146,7 +146,7 @@ export default function PromptDialog(props: PromptDialogProps) {
               <span style={{ color: "#007FFF" }}>{network.toUpperCase()}</span>
             </Typography>
             <Typography variant="body2" color="#000">
-              Bridge Fee: <span style={{ color: "red" }}>-{fee} LTO</span>
+              Bridge Fee: <span style={{ color: "red" }}>{fee} LTO</span>
             </Typography>
           </DialogContent>
         </DialogContent>

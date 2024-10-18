@@ -25,7 +25,7 @@ export interface TypedMetadata {
 
 export interface TypedOwnable {
   owner: string;
-  email: string;
+  email?: string;
   name: string;
   description?: string;
   keywords?: string[];
