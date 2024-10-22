@@ -25,8 +25,7 @@ import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
-import CreateOwnable from './components/CreateOwnable';
-
+import CreateOwnable from "./components/CreateOwnable";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -108,9 +107,9 @@ export default function App() {
         title: "New Ownables Detected",
         message: "New ownables have been detected. Refreshing...",
       });
-      // setTimeout(() => {
-      //   window.location.reload();
-      // }, 4000);
+      setTimeout(() => {
+        window.location.reload();
+      }, 4000);
     } else {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",
@@ -264,7 +263,16 @@ export default function App() {
                 </Link>
               </If>
               .
-              <br />Or you can also <Link component="button" onClick={() => setShowCreate(true)} style={{fontSize: 'inherit'}}>create your own</Link>.
+              <br />
+              Or you can also{" "}
+              <Link
+                component="button"
+                onClick={() => setShowCreate(true)}
+                style={{ fontSize: "inherit" }}
+              >
+                create your own
+              </Link>
+              .
             </Typography>
           </Grid>
         </Grid>
@@ -322,7 +330,9 @@ export default function App() {
         onSelect={forge}
         onImportFR={relayImport}
         onError={showError}
-        onCreate={() => {setShowCreate(true)}}
+        onCreate={() => {
+          setShowCreate(true);
+        }}
       />
 
       <Sidebar
@@ -333,10 +343,7 @@ export default function App() {
         onFactoryReset={factoryReset}
       />
 
-      <CreateOwnable 
-        open={showCreate} 
-        onClose={() => setShowCreate(false)} 
-      />
+      <CreateOwnable open={showCreate} onClose={() => setShowCreate(false)} />
 
       <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
 
