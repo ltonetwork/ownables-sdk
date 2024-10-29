@@ -89,24 +89,34 @@ export default function App() {
   };
 
   const relayImport = async (pkg: TypedPackage[] | null) => {
+    const batchNumber = 2; //batchsize
+
     if (pkg != null && pkg.length > 0) {
-      setOwnables((prevOwnables) => [
-        ...prevOwnables,
-        ...pkg.map((data: any) => {
-          return {
+      for (let i = 0; i < pkg.length; i += 2) {
+        const batch = pkg.slice(i, i + batchNumber);
+
+        // Update ownables with only the current batch
+        setOwnables((prevOwnables) => [
+          ...prevOwnables,
+          ...batch.map((data: any) => ({
             chain: data.chain,
             package: data.cid,
-          };
-        }),
-      ]);
-      enqueueSnackbar(`Ownable successfully loaded`, {
-        variant: "success",
-      });
+          })),
+        ]);
+
+        // Notification for each batch
+        enqueueSnackbar(`Ownable successfully loaded`, {
+          variant: "success",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+
       setAlert({
         severity: "info",
         title: "New Ownables Detected",
         message: "New ownables have been detected. Refreshing...",
       });
+
       setTimeout(() => {
         window.location.reload();
       }, 4000);
@@ -116,6 +126,35 @@ export default function App() {
       });
     }
   };
+
+  // const relayImport = async (pkg: TypedPackage[] | null) => {
+  //   if (pkg != null && pkg.length > 0) {
+  //     setOwnables((prevOwnables) => [
+  //       ...prevOwnables,
+  //       ...pkg.map((data: any) => {
+  //         return {
+  //           chain: data.chain,
+  //           package: data.cid,
+  //         };
+  //       }),
+  //     ]);
+  //     enqueueSnackbar(`Ownable successfully loaded`, {
+  //       variant: "success",
+  //     });
+  //     setAlert({
+  //       severity: "info",
+  //       title: "New Ownables Detected",
+  //       message: "New ownables have been detected. Refreshing...",
+  //     });
+  //     setTimeout(() => {
+  //       window.location.reload();
+  //     }, 4000);
+  //   } else {
+  //     enqueueSnackbar(`Nothing to Load from relay`, {
+  //       variant: "error",
+  //     });
+  //   }
+  // };
 
   const deleteOwnable = (id: string, packageCid: string) => {
     const pkg = PackageService.info(packageCid);
