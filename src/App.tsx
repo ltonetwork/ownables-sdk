@@ -89,14 +89,73 @@ export default function App() {
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
+  // const relayImport = async (pkg: TypedPackage[] | null) => {
+  //   const batchNumber = 2;
+
+  //   //In a case where imported ownable is an update to an
+  //   //existing ownable trigger refresh to delete old version
+  //   let triggerRefresh = false;
+
+  //   if (pkg != null && pkg.length > 0) {
+  //     for (let i = 0; i < pkg.length; i += 2) {
+  //       const batch = pkg.slice(i, i + batchNumber);
+
+  //       // Update ownables with only the current batch
+  //       setOwnables((prevOwnables) => [
+  //         ...prevOwnables,
+  //         ...batch.map((data: any) => ({
+  //           chain: data.chain,
+  //           package: data.cid,
+  //         })),
+  //       ]);
+
+  //       // Notification for each batch
+  //       enqueueSnackbar(`Ownable successfully loaded`, {
+  //         variant: "success",
+  //       });
+  //       await new Promise((resolve) => setTimeout(resolve, 3000));
+  //     }
+
+  //     setAlert({
+  //       severity: "info",
+  //       title: "New Ownables Detected",
+  //       message: "New ownables have been detected. Refreshing...",
+  //     });
+
+  //     setTimeout(() => {
+  //       window.location.reload();
+  //     }, 4000);
+  //   } else {
+  //     enqueueSnackbar(`Nothing to Load from relay`, {
+  //       variant: "error",
+  //     });
+  //   }
+  // };
+
   const relayImport = async (pkg: TypedPackage[] | null) => {
-    const batchNumber = 2; //batchsize
+    const batchNumber = 2;
+
+    // In a case where imported ownable is an update to an
+    // existing ownable, trigger refresh to delete old version
+    let triggerRefresh = false;
+
+    // Get existing packages from local storage
+    const storedPackages: TypedPackage[] =
+      LocalStorageService.get("packages") || [];
+    console.log(storedPackages);
 
     if (pkg != null && pkg.length > 0) {
-      for (let i = 0; i < pkg.length; i += 2) {
+      for (let i = 0; i < pkg.length; i += batchNumber) {
         const batch = pkg.slice(i, i + batchNumber);
 
-        // Update ownables with only the current batch
+        if (
+          batch.some((data) =>
+            storedPackages.some((storedPkg) => storedPkg.title === data.title)
+          )
+        ) {
+          triggerRefresh = true;
+        }
+
         setOwnables((prevOwnables) => [
           ...prevOwnables,
           ...batch.map((data: any) => ({
@@ -112,15 +171,22 @@ export default function App() {
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
 
-      setAlert({
-        severity: "info",
-        title: "New Ownables Detected",
-        message: "New ownables have been detected. Refreshing...",
-      });
+      // Trigger a refresh only if any package matched
+      if (triggerRefresh) {
+        setAlert({
+          severity: "info",
+          title: "New Ownables Detected",
+          message: "New ownables have been detected. Refreshing...",
+        });
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 4000);
+        setTimeout(() => {
+          window.location.reload();
+        }, 4000);
+      } else {
+        enqueueSnackbar(`No matching packages found for refresh`, {
+          variant: "info",
+        });
+      }
     } else {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",

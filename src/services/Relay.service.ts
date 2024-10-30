@@ -77,6 +77,7 @@ export class RelayService {
     const url = `${this.relayURL}/inboxes/${address}/`;
     try {
       const responses = await this.handleSignedRequest("GET", url);
+      console.log(responses);
 
       if (!responses.data.length) return null;
 
