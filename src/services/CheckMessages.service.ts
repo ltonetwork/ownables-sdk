@@ -7,7 +7,14 @@ export class CheckForMessages {
 
   static initializeWebSocket() {
     if (!this.socket) {
-      this.socket = io("ws://localhost:8080/messages", {
+      const relayUrl =
+        process.env.RELAY_WS_URL || "http://localhost:8080/messages";
+
+      const wsUrl = relayUrl.replace(/^http(s)?:\/\//, (match, isSecure) =>
+        isSecure ? "wss://" : "ws://"
+      );
+
+      this.socket = io(wsUrl, {
         transports: ["websocket"],
       });
 
