@@ -217,6 +217,30 @@ export default class IDBService {
     });
   }
 
+  // static async getAllOwnablesByLatestHash(): Promise<string[]> {
+  //   await this.open();
+
+  //   // Filter stores that begin with "ownable:" and do not end with ".state"
+  //   const storeNames = await this.listStores();
+  //   const ownableStores = storeNames.filter(
+  //     (store) => store.startsWith("ownable:") && !store.endsWith(".state")
+  //   );
+
+  //   const uniqueHashes = new Set<string>();
+
+  //   for (const store of ownableStores) {
+  //     const latestHash = await this.get(store, "latestHash");
+  //     if (latestHash && typeof latestHash === "string") {
+  //       uniqueHashes.add(latestHash);
+  //     } else {
+  //       console.warn(`No valid latestHash found in store ${store}`);
+  //     }
+  //   }
+
+  //   const allHashes = Array.from(uniqueHashes);
+  //   return allHashes;
+  // }
+
   public static async deleteStore(store: string | RegExp): Promise<void> {
     const stores =
       store instanceof RegExp

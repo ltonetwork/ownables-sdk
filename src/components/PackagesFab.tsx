@@ -14,11 +14,12 @@ import PackageService from "../services/Package.service";
 import Tooltip from "./Tooltip";
 import Loading from "./Loading";
 import useBusy from "../utils/useBusy";
-import { checkForMessages } from "../services/CheckMessages.service";
+import { CheckForMessages } from "../services/CheckMessages.service";
+import LTOService from "../services/LTO.service";
+import { Account } from "@ltonetwork/lto";
 
 //globally pass the messages in the relay
-let newMessage: number | null;
-
+//let message: number | null;
 interface PackagesDialogProps {
   packages: Array<TypedPackage | TypedPackageStub>;
   open: boolean;
@@ -27,11 +28,20 @@ interface PackagesDialogProps {
   onImport: () => void;
   fetchPkgFromRelay: () => void;
   onCreate: () => void;
+  message: number; // Add message as a prop
 }
 
 function PackagesDialog(props: PackagesDialogProps) {
-  const { onClose, onSelect, onImport, fetchPkgFromRelay, onCreate, open, packages } =
-    props;
+  const {
+    onClose,
+    onSelect,
+    onImport,
+    fetchPkgFromRelay,
+    onCreate,
+    open,
+    packages,
+    message,
+  } = props; // Destructure message
   const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
 
   return (
@@ -94,11 +104,10 @@ function PackagesDialog(props: PackagesDialogProps) {
             <ListItemIcon>
               <MailIcon />
             </ListItemIcon>
-
             <ListItemText primary="Import from relay" />
             <span
               style={{
-                backgroundColor: newMessage ? "#D32F2F" : "",
+                backgroundColor: message ? "#D32F2F" : "",
                 padding: "4px",
                 margin: "2px",
                 fontSize: "11px",
@@ -108,15 +117,21 @@ function PackagesDialog(props: PackagesDialogProps) {
               }}
               color="error"
             >
-              {newMessage}
+              {message} {/* message count */}
             </span>
           </ListItemButton>
         </ListItem>
         <Divider />
         <ListItem disablePadding disableGutters key="create-ownable">
-          <ListItemButton autoFocus onClick={onCreate} style={{textAlign: "center"}}>
-            <ListItemIcon><AddIcon/></ListItemIcon>
-            <ListItemText primary="Create ownable"/>
+          <ListItemButton
+            autoFocus
+            onClick={onCreate}
+            style={{ textAlign: "center" }}
+          >
+            <ListItemIcon>
+              <AddIcon />
+            </ListItemIcon>
+            <ListItemText primary="Create ownable" />
           </ListItemButton>
         </ListItem>
       </List>
@@ -152,18 +167,46 @@ export default function PackagesFab(props: PackagesFabProps) {
   const updatePackages = () => setPackages(PackageService.list());
   useEffect(updatePackages, []);
 
-  useEffect(() => {
-    const intervalId = setInterval(async () => {
-      try {
-        const count = await checkForMessages.valueOfValidCids();
-        newMessage = count;
-        setMessages(count || 0);
-      } catch (error) {
-        console.error("Error occurred while checking messages:", error);
-      }
-    }, 10000);
+  const getAddress = async () => {
+    const account: Account = await LTOService.getAccount();
+    const address = account.address;
+    return address;
+  };
 
-    return () => clearInterval(intervalId);
+  useEffect(() => {
+    const initializeSocket = async () => {
+      // Initialize WebSocket
+      CheckForMessages.initializeWebSocket();
+
+      // Get wallet address
+      const walletAddress = await getAddress();
+
+      if (CheckForMessages.socket) {
+        // Initial check for new messages
+        CheckForMessages.getNewMessageCount(walletAddress);
+
+        // Start polling for new messages every 5 seconds
+        const intervalId = setInterval(() => {
+          CheckForMessages.getNewMessageCount(walletAddress);
+        }, 5000);
+
+        // Listen for new message counts from the server
+        CheckForMessages.socket.on(
+          "newMessageCount",
+          (data: { count: number }) => {
+            setMessages(data.count);
+          }
+        );
+
+        // Cleanup function to clear interval and remove event listeners
+        return () => {
+          clearInterval(intervalId);
+          CheckForMessages.socket?.off("newMessageCount");
+        };
+      }
+    };
+
+    initializeSocket();
   }, []);
 
   const importPackages = async () => {
@@ -231,6 +274,7 @@ export default function PackagesFab(props: PackagesFabProps) {
         onImport={importPackages}
         fetchPkgFromRelay={importPackagesFromRelay}
         onCreate={props.onCreate}
+        message={message}
       />
       <Loading show={isBusy} />
     </>

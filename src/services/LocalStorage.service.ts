@@ -20,6 +20,7 @@ export default class LocalStorageService {
   }
 
   static remove(key: string): void {
+    console.log(key);
     localStorage.removeItem(key);
   }
 

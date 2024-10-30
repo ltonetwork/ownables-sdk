@@ -26,6 +26,7 @@ import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import CreateOwnable from "./components/CreateOwnable";
+import { RelayService } from "./services/Relay.service";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -127,35 +128,6 @@ export default function App() {
     }
   };
 
-  // const relayImport = async (pkg: TypedPackage[] | null) => {
-  //   if (pkg != null && pkg.length > 0) {
-  //     setOwnables((prevOwnables) => [
-  //       ...prevOwnables,
-  //       ...pkg.map((data: any) => {
-  //         return {
-  //           chain: data.chain,
-  //           package: data.cid,
-  //         };
-  //       }),
-  //     ]);
-  //     enqueueSnackbar(`Ownable successfully loaded`, {
-  //       variant: "success",
-  //     });
-  //     setAlert({
-  //       severity: "info",
-  //       title: "New Ownables Detected",
-  //       message: "New ownables have been detected. Refreshing...",
-  //     });
-  //     setTimeout(() => {
-  //       window.location.reload();
-  //     }, 4000);
-  //   } else {
-  //     enqueueSnackbar(`Nothing to Load from relay`, {
-  //       variant: "error",
-  //     });
-  //   }
-  // };
-
   const deleteOwnable = (id: string, packageCid: string) => {
     const pkg = PackageService.info(packageCid);
 
@@ -173,7 +145,19 @@ export default function App() {
           current.filter((ownable) => ownable.chain.id !== id)
         );
         await OwnableService.delete(id);
-        enqueueSnackbar(`${pkg.title} deleted`);
+        const uniqueMessageHash = pkg.uniqueMessageHash;
+        if (uniqueMessageHash) {
+          await RelayService.removeOwnable(uniqueMessageHash);
+        }
+
+        // Retrieve the packages array from local storage
+        const packages = JSON.parse(localStorage.getItem("packages") || "[]");
+
+        const updatedPackages = packages.filter(
+          (item: any) => item.cid !== pkg.cid
+        );
+
+        localStorage.setItem("packages", JSON.stringify(updatedPackages));
       },
     });
   };
