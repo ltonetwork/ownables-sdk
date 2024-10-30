@@ -150,7 +150,7 @@ export default function App() {
 
         if (
           batch.some((data) =>
-            storedPackages.some((storedPkg) => storedPkg.title === data.title)
+            storedPackages.some((storedPkg) => storedPkg.cid === data.cid)
           )
         ) {
           triggerRefresh = true;
