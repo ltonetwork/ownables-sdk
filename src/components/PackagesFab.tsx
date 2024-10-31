@@ -144,7 +144,7 @@ interface PackagesFabProps {
   onOpen: () => void;
   onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
-  onImportFR: (pkg: TypedPackage[]) => void;
+  onImportFR: (pkg: TypedPackage[], triggerRefresh: boolean) => void;
   onError: (title: string, message: string) => void;
   onCreate: () => void;
 }
@@ -174,39 +174,23 @@ export default function PackagesFab(props: PackagesFabProps) {
   };
 
   useEffect(() => {
-    const initializeSocket = async () => {
-      // Initialize WebSocket
-      CheckForMessages.initializeWebSocket();
+    const fetchMessages = async () => {
+      const address = await getAddress();
+      const messageCount = await CheckForMessages.getNewMessageCount(address);
+      setMessages(messageCount);
+    };
+    fetchMessages();
+  }, []);
 
-      // Get wallet address
-      const walletAddress = await getAddress();
-
-      if (CheckForMessages.socket) {
-        // Initial check for new messages
-        CheckForMessages.getNewMessageCount(walletAddress);
-
-        // Start polling for new messages every 5 seconds
-        const intervalId = setInterval(() => {
-          CheckForMessages.getNewMessageCount(walletAddress);
-        }, 5000);
-
-        // Listen for new message counts from the server
-        CheckForMessages.socket.on(
-          "newMessageCount",
-          (data: { count: number }) => {
-            setMessages(data.count);
-          }
-        );
-
-        // Cleanup function to clear interval and remove event listeners
-        return () => {
-          clearInterval(intervalId);
-          CheckForMessages.socket?.off("newMessageCount");
-        };
-      }
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const address = await getAddress();
+      const messageCount = await CheckForMessages.getNewMessageCount(address);
+      setMessages(messageCount);
     };
 
-    initializeSocket();
+    const intervalId = setInterval(fetchMessages, 15000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const importPackages = async () => {
@@ -230,10 +214,20 @@ export default function PackagesFab(props: PackagesFabProps) {
 
   const importPackagesFromRelay = async () => {
     try {
-      const pkg = await PackageService.importFromRelay();
-      if (pkg == null) return;
-      const filteredPackages = pkg.filter((p): p is TypedPackage => p !== null);
-      onImportFR(filteredPackages);
+      const result = await PackageService.importFromRelay();
+      if (!result) return;
+
+      // Ensure TypeScript understands result is a tuple [TypedPackage[] | undefined, boolean]
+      const [filteredPackages, triggerRefresh] = result as [
+        Array<TypedPackage | undefined>,
+        boolean
+      ];
+
+      const validPackages = filteredPackages.filter(
+        (p): p is TypedPackage => p !== null && p !== undefined
+      );
+
+      onImportFR(validPackages, triggerRefresh);
     } catch (error) {
       onError(
         "Failed to import ownable",

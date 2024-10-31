@@ -1,14 +1,16 @@
-import {BaseBlockstore} from "blockstore-core/base";
-import {importer} from "ipfs-unixfs-importer";
+import { BaseBlockstore } from "blockstore-core/base";
+import { importer } from "ipfs-unixfs-importer";
 
 class DummyBlockstore extends BaseBlockstore {
-  async put () { }
-  async has () { return false; }
+  async put() {}
+  async has() {
+    return false;
+  }
 }
 
 export default async function calculateCid(files: File[]): Promise<string> {
   const source = await Promise.all(
-    files.map(async file => ({
+    files.map(async (file) => ({
       path: `./package/${file.name}`,
       content: new Uint8Array(await file.arrayBuffer()),
     }))
@@ -17,8 +19,11 @@ export default async function calculateCid(files: File[]): Promise<string> {
   const blockstore = new DummyBlockstore();
 
   for await (const entry of importer(source, blockstore)) {
-    if (entry.path === 'package' && entry.unixfs?.type === 'directory') return entry.cid.toString();
+    if (entry.path === "package" && entry.unixfs?.type === "directory")
+      return entry.cid.toString();
   }
 
-  throw new Error("Failed to calculate directory CID: importer did not find a directory entry in the input files");
+  throw new Error(
+    "Failed to calculate directory CID: importer did not find a directory entry in the input files"
+  );
 }

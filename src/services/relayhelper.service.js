@@ -8,6 +8,7 @@ export default async function sendFile(relay, content, sender, recipient) {
     let message;
     if (sender && recipient) {
       message = new Message(content).to(recipient).signWith(sender);
+      console.log(message.hash.base58);
     } else {
       return;
     }

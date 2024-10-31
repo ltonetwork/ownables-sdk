@@ -305,11 +305,14 @@ export default class PackageService {
         relayData
       );
 
+      let triggerRefresh = true;
+
       const results = await Promise.all(
         filteredMessages.map(async (data: any) => {
           const { message, ...messageHash } = data;
           const mainMessage = message;
           const asset = await this.extractAssets(mainMessage.data.buffer);
+          if (asset.length === 0) return;
           const cid = await calculateCid(asset);
           const chainJson = await this.getChainJson(
             "chain.json",
@@ -320,7 +323,7 @@ export default class PackageService {
             if (await this.isCurrentEvent(chainJson)) {
               this.removeOlderPackage(chainJson.id);
             } else {
-              return null;
+              return;
             }
           }
 
@@ -336,6 +339,15 @@ export default class PackageService {
           const isNotLocal = true;
           const { ...values } = messageHash;
           const uniqueMessageHash = values.messageHash;
+
+          //Get a list of stored packages
+          const storedPackages: TypedPackage[] =
+            LocalStorageService.get("packages") || [];
+
+          //If any of the storedpackageCid matches cid then refresh
+          if (storedPackages.some((item) => item.cid === cid)) {
+            triggerRefresh = true;
+          }
 
           await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
@@ -355,7 +367,9 @@ export default class PackageService {
         })
       );
 
-      return results.filter((pkg) => pkg !== null);
+      const allPackages = results.filter((pkg) => pkg !== null);
+
+      return [allPackages, triggerRefresh];
     } catch (error) {
       console.error("Error:", error);
       return null;
