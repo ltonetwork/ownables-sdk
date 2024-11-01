@@ -54,7 +54,13 @@ export class RelayService {
 
     try {
       if (sender) {
-        await sendFile(this.relay, content, sender, recipient);
+        const messageHash = await sendFile(
+          this.relay,
+          content,
+          sender,
+          recipient
+        );
+        return messageHash;
       }
     } catch (error) {
       console.error("Error sending message:", error);

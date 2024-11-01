@@ -15,8 +15,6 @@ import Tooltip from "./Tooltip";
 import Loading from "./Loading";
 import useBusy from "../utils/useBusy";
 import { CheckForMessages } from "../services/CheckMessages.service";
-import LTOService from "../services/LTO.service";
-import { Account } from "@ltonetwork/lto";
 
 //globally pass the messages in the relay
 //let message: number | null;
@@ -144,7 +142,7 @@ interface PackagesFabProps {
   onOpen: () => void;
   onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
-  onImportFR: (pkg: TypedPackage[], triggerRefresh: boolean) => void;
+  onImportFR: (pkg: TypedPackage[]) => void;
   onError: (title: string, message: string) => void;
   onCreate: () => void;
 }
@@ -167,30 +165,57 @@ export default function PackagesFab(props: PackagesFabProps) {
   const updatePackages = () => setPackages(PackageService.list());
   useEffect(updatePackages, []);
 
-  const getAddress = async () => {
-    const account: Account = await LTOService.getAccount();
-    const address = account.address;
-    return address;
-  };
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const messageCount = await CheckForMessages.getNewMessageCount();
+      setMessages(messageCount);
+    };
+    const intervalId = setInterval(fetchMessages, 15000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // useEffect(() => {
+  //   const initializeSocket = async () => {
+  //     // Initialize WebSocket
+  //     CheckForMessages.initializeWebSocket();
+
+  //     // Get wallet address
+  //     const walletAddress = await getAddress();
+
+  //     if (CheckForMessages.socket) {
+  //       // Initial check for new messages
+  //       CheckForMessages.getNewMessageCount(walletAddress);
+
+  //       // Start polling for new messages every 5 seconds
+  //       const intervalId = setInterval(() => {
+  //         CheckForMessages.getNewMessageCount(walletAddress);
+  //       }, 5000);
+
+  //       // Listen for new message counts from the server
+  //       CheckForMessages.socket.on(
+  //         "newMessageCount",
+  //         (data: { count: number }) => {
+  //           setMessages(data.count);
+  //         }
+  //       );
+
+  //       // Cleanup function to clear interval and remove event listeners
+  //       return () => {
+  //         clearInterval(intervalId);
+  //         CheckForMessages.socket?.off("newMessageCount");
+  //       };
+  //     }
+  //   };
+
+  //   initializeSocket();
+  // }, []);
 
   useEffect(() => {
     const fetchMessages = async () => {
-      const address = await getAddress();
-      const messageCount = await CheckForMessages.getNewMessageCount(address);
+      const messageCount = await CheckForMessages.getNewMessageCount();
       setMessages(messageCount);
     };
     fetchMessages();
-  }, []);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      const address = await getAddress();
-      const messageCount = await CheckForMessages.getNewMessageCount(address);
-      setMessages(messageCount);
-    };
-
-    const intervalId = setInterval(fetchMessages, 15000);
-    return () => clearInterval(intervalId);
   }, []);
 
   const importPackages = async () => {
@@ -214,20 +239,10 @@ export default function PackagesFab(props: PackagesFabProps) {
 
   const importPackagesFromRelay = async () => {
     try {
-      const result = await PackageService.importFromRelay();
-      if (!result) return;
-
-      // Ensure TypeScript understands result is a tuple [TypedPackage[] | undefined, boolean]
-      const [filteredPackages, triggerRefresh] = result as [
-        Array<TypedPackage | undefined>,
-        boolean
-      ];
-
-      const validPackages = filteredPackages.filter(
-        (p): p is TypedPackage => p !== null && p !== undefined
-      );
-
-      onImportFR(validPackages, triggerRefresh);
+      const pkg = await PackageService.importFromRelay();
+      if (pkg == null) return;
+      const filteredPackages = pkg.filter((p): p is TypedPackage => p !== null);
+      onImportFR(filteredPackages);
     } catch (error) {
       onError(
         "Failed to import ownable",

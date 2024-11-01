@@ -187,6 +187,11 @@ export default class PackageService {
     );
   }
 
+  private static async storeMessageHash(messageHash: string) {
+    const key = "messageHashes";
+    LocalStorageService.append(key, messageHash);
+  }
+
   static stringToBuffer(str: string): Buffer {
     return Buffer.from(str, "utf8");
   }
@@ -305,8 +310,6 @@ export default class PackageService {
         relayData
       );
 
-      let triggerRefresh = true;
-
       const results = await Promise.all(
         filteredMessages.map(async (data: any) => {
           const { message, ...messageHash } = data;
@@ -340,14 +343,11 @@ export default class PackageService {
           const { ...values } = messageHash;
           const uniqueMessageHash = values.messageHash;
 
-          //Get a list of stored packages
-          const storedPackages: TypedPackage[] =
-            LocalStorageService.get("packages") || [];
+          await this.storeMessageHash(uniqueMessageHash);
 
-          //If any of the storedpackageCid matches cid then refresh
-          if (storedPackages.some((item) => item.cid === cid)) {
-            triggerRefresh = true;
-          }
+          //Get a list of stored packages
+          // const storedPackages: TypedPackage[] =
+          //   LocalStorageService.get("packages") || [];
 
           await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
@@ -367,9 +367,7 @@ export default class PackageService {
         })
       );
 
-      const allPackages = results.filter((pkg) => pkg !== null);
-
-      return [allPackages, triggerRefresh];
+      return results.filter((pkg) => pkg !== null);
     } catch (error) {
       console.error("Error:", error);
       return null;

@@ -89,11 +89,16 @@ export default function App() {
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
-  const relayImport = async (
-    pkg: TypedPackage[] | null,
-    triggerRefresh: boolean
-  ) => {
+  const relayImport = async (pkg: TypedPackage[] | null) => {
     const batchNumber = 2;
+
+    // In a case where imported ownable is an update to an
+    // existing ownable, trigger refresh to delete old version
+    let triggerRefresh = false;
+
+    // Get existing packages from local storage
+    const storedPackages: TypedPackage[] =
+      LocalStorageService.get("packages") || [];
 
     if (pkg != null && pkg.length > 0) {
       for (let i = 0; i < pkg.length; i += batchNumber) {
@@ -101,6 +106,14 @@ export default function App() {
         const filteredBatch = batch.filter(
           (item) => item !== null && item !== undefined
         );
+
+        if (
+          filteredBatch.some((data) =>
+            storedPackages.some((storedPkg) => storedPkg.cid === data.cid)
+          )
+        ) {
+          triggerRefresh = true;
+        }
 
         setOwnables((prevOwnables) => [
           ...prevOwnables,
@@ -164,13 +177,15 @@ export default function App() {
         }
 
         // Retrieve the packages array from local storage
-        const packages = JSON.parse(localStorage.getItem("packages") || "[]");
+        // const packages = JSON.parse(
+        //   localStorage.getItem("messageHashes") || "[]"
+        // );
 
-        const updatedPackages = packages.filter(
-          (item: any) => item.cid !== pkg.cid
-        );
+        // const updatedHashes = packages.filter(
+        //   (item: any) => item.uniqueMessageHash !== pkg.uniqueMessageHash
+        // );
 
-        localStorage.setItem("packages", JSON.stringify(updatedPackages));
+        // localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
       },
     });
   };

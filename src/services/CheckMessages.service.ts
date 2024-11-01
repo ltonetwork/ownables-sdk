@@ -70,31 +70,22 @@
 //   }
 // }
 
-import { TypedPackage } from "../interfaces/TypedPackage";
+//import { TypedPackage } from "../interfaces/TypedPackage";
 import LocalStorageService from "./LocalStorage.service";
 import { RelayService } from "./Relay.service";
 
 export class CheckForMessages {
-  static async getMessageHashOnClient() {
-    const packagesInfo = await LocalStorageService.get("packages");
-    let knownHashes: any[];
-
-    if (packagesInfo) {
-      knownHashes = packagesInfo
-        .map((item: TypedPackage) => item.uniqueMessageHash)
-        .filter(Boolean);
-    } else {
-      knownHashes = [];
-    }
-    return knownHashes;
+  static async getMessageHashOnClient(): Promise<string[]> {
+    const knownHashes = await LocalStorageService.get("messageHashes");
+    return Array.isArray(knownHashes) ? knownHashes : [];
   }
 
   static async getServerHashes() {
-    const serverHashes = RelayService.readInboxHashes();
+    const serverHashes = await RelayService.readInboxHashes();
     return serverHashes;
   }
 
-  static async getNewMessageCount(address: string) {
+  static async getNewMessageCount() {
     try {
       const clientHashes = await this.getMessageHashOnClient();
       const serverHashes = (await this.getServerHashes()) || [];

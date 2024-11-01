@@ -97,8 +97,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         const content = await zip.generateAsync({
           type: "uint8array",
         });
-        await RelayService.sendOwnable(to, content);
-        enqueueSnackbar("Ownable sent Successfully!!", { variant: "success" });
+        const messageHash = await RelayService.sendOwnable(to, content);
+        enqueueSnackbar(`Ownable ${messageHash} sent Successfully!!`, {
+          variant: "success",
+        });
         //Remove ownable from relay's inbox
         if (this.pkg.uniqueMessageHash) {
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
