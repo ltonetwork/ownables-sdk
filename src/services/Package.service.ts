@@ -76,34 +76,120 @@ const capabilitiesStaticOwnable = {
 };
 
 export default class PackageService {
+  // static list(): Array<TypedPackage | TypedPackageStub> {
+  //   const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
+  //   for (const pkg of local) {
+  //     pkg.versions = pkg.versions.map(({ date, cid }) => ({
+  //       date: new Date(date),
+  //       cid,
+  //     }));
+  //   }
+
+  //   const set = new Map(
+  //     [...examples, ...local].map((pkg) => [pkg.name, pkg])
+  //   ).values();
+
+  //   return Array.from(set).sort((a, b) => (a.title >= b.title ? 1 : -1));
+  // }
+
   static list(): Array<TypedPackage | TypedPackageStub> {
     const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
-    for (const pkg of local) {
-      pkg.versions = pkg.versions.map(({ date, cid }) => ({
+
+    // Ensure each version includes the uniqueMessageHash to differentiate them
+    local.forEach((pkg) => {
+      pkg.versions = pkg.versions.map(({ date, cid, uniqueMessageHash }) => ({
         date: new Date(date),
         cid,
+        uniqueMessageHash, // Keep unique hash for each version
       }));
-    }
+    });
 
-    const set = new Map(
-      [...examples, ...local].map((pkg) => [pkg.name, pkg])
-    ).values();
+    // Use a Map to store packages by a unique key combining name and uniqueMessageHash
+    const set = new Map<string, TypedPackage>();
 
-    return Array.from(set).sort((a, b) => (a.title >= b.title ? 1 : -1));
+    local.forEach((pkg) => {
+      const uniqueKey = `${pkg.name}:${pkg.uniqueMessageHash || ""}`;
+      set.set(uniqueKey, pkg);
+    });
+
+    // Return sorted packages by title
+    return Array.from(set.values()).sort((a, b) =>
+      a.title >= b.title ? 1 : -1
+    );
   }
 
-  static info(nameOrCid: string): TypedPackage {
+  // static info(nameOrCid: string): TypedPackage {
+  //   const packages = (LocalStorageService.get("packages") ||
+  //     []) as TypedPackage[];
+  //   const found = packages.find(
+  //     (pkg) =>
+  //       pkg.name === nameOrCid ||
+  //       pkg.versions.map((v) => v.cid).includes(nameOrCid)
+  //   );
+
+  //   if (!found) throw new Error(`Package not found: ${nameOrCid}`);
+  //   return found;
+  // }
+
+  static info(nameOrCid: string, uniqueMessageHash?: string): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
+
+    // Find the package by name or cid and check uniqueMessageHash if provided
     const found = packages.find(
       (pkg) =>
-        pkg.name === nameOrCid ||
-        pkg.versions.map((v) => v.cid).includes(nameOrCid)
+        (pkg.name === nameOrCid ||
+          pkg.versions.some((v) => v.cid === nameOrCid)) &&
+        (!uniqueMessageHash ||
+          pkg.versions.some((v) => v.uniqueMessageHash === uniqueMessageHash))
     );
 
     if (!found) throw new Error(`Package not found: ${nameOrCid}`);
     return found;
   }
+
+  // private static storePackageInfo(
+  //   title: string,
+  //   name: string,
+  //   description: string | undefined,
+  //   cid: string,
+  //   keywords: string[],
+  //   capabilities: TypedPackageCapabilities,
+  //   isNotLocal?: boolean,
+  //   uniqueMessageHash?: string
+  // ): TypedPackage {
+  //   const packages = (LocalStorageService.get("packages") ||
+  //     []) as TypedPackage[];
+  //   let pkg = packages.find((pkg) => pkg.name === name);
+
+  //   if (!pkg) {
+  //     pkg = {
+  //       title,
+  //       name,
+  //       description,
+  //       cid,
+  //       keywords,
+  //       isNotLocal,
+  //       ...capabilities,
+  //       uniqueMessageHash,
+  //       versions: [],
+  //     };
+  //     packages.push(pkg);
+  //   } else {
+  //     Object.assign(pkg, {
+  //       cid,
+  //       description,
+  //       keywords,
+  //       uniqueMessageHash,
+  //       ...capabilities,
+  //     });
+  //   }
+
+  //   pkg.versions.push({ date: new Date(), cid });
+  //   LocalStorageService.set("packages", packages);
+
+  //   return pkg;
+  // }
 
   private static storePackageInfo(
     title: string,
@@ -117,9 +203,17 @@ export default class PackageService {
   ): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
-    let pkg = packages.find((pkg) => pkg.name === name);
+
+    // Locate the package with matching cid and uniqueMessageHash
+    let pkg = packages.find(
+      (pkg) =>
+        pkg.name === name &&
+        pkg.cid === cid &&
+        pkg.uniqueMessageHash === uniqueMessageHash
+    );
 
     if (!pkg) {
+      // Create new package entry if not found
       pkg = {
         title,
         name,
@@ -129,20 +223,21 @@ export default class PackageService {
         isNotLocal,
         ...capabilities,
         uniqueMessageHash,
-        versions: [],
+        versions: [{ date: new Date(), cid, uniqueMessageHash }],
       };
       packages.push(pkg);
     } else {
+      // Update package and add new version info if it's an update
       Object.assign(pkg, {
-        cid,
         description,
         keywords,
         uniqueMessageHash,
         ...capabilities,
       });
+      pkg.versions.push({ date: new Date(), cid, uniqueMessageHash });
     }
 
-    pkg.versions.push({ date: new Date(), cid });
+    // Save all packages back to LocalStorage under the single "packages" key
     LocalStorageService.set("packages", packages);
 
     return pkg;
@@ -310,6 +405,8 @@ export default class PackageService {
         relayData
       );
 
+      let triggerRefresh = false;
+
       const results = await Promise.all(
         filteredMessages.map(async (data: any) => {
           const { message, ...messageHash } = data;
@@ -343,11 +440,16 @@ export default class PackageService {
           const { ...values } = messageHash;
           const uniqueMessageHash = values.messageHash;
 
-          await this.storeMessageHash(uniqueMessageHash);
+          const storedPackages: TypedPackage[] =
+            LocalStorageService.get("messageHashes") || [];
 
-          //Get a list of stored packages
-          // const storedPackages: TypedPackage[] =
-          //   LocalStorageService.get("packages") || [];
+          // In a case where imported ownable is an update to an
+          // existing ownable, trigger refresh to delete old version
+          if (storedPackages.some((hash) => hash === uniqueMessageHash)) {
+            triggerRefresh = true;
+          }
+
+          await this.storeMessageHash(uniqueMessageHash);
 
           await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
@@ -366,8 +468,8 @@ export default class PackageService {
           return pkg;
         })
       );
-
-      return results.filter((pkg) => pkg !== null);
+      const filteredPackages = results.filter((pkg) => pkg !== null);
+      return [filteredPackages, triggerRefresh];
     } catch (error) {
       console.error("Error:", error);
       return null;

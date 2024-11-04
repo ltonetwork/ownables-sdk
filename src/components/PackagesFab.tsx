@@ -142,7 +142,7 @@ interface PackagesFabProps {
   onOpen: () => void;
   onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
-  onImportFR: (pkg: TypedPackage[]) => void;
+  onImportFR: (pkg: TypedPackage[], triggerRefresh: boolean) => void;
   onError: (title: string, message: string) => void;
   onCreate: () => void;
 }
@@ -239,10 +239,21 @@ export default function PackagesFab(props: PackagesFabProps) {
 
   const importPackagesFromRelay = async () => {
     try {
-      const pkg = await PackageService.importFromRelay();
-      if (pkg == null) return;
-      const filteredPackages = pkg.filter((p): p is TypedPackage => p !== null);
-      onImportFR(filteredPackages);
+      const result = await PackageService.importFromRelay();
+      if (result == null) return;
+
+      const [filteredPackages, triggerRefresh] = result as [
+        Array<TypedPackage | undefined>,
+        boolean
+      ];
+
+      const validPackages = Array.isArray(filteredPackages)
+        ? filteredPackages.filter(
+            (p): p is TypedPackage => p !== null && p !== undefined
+          )
+        : [];
+
+      onImportFR(validPackages, triggerRefresh);
     } catch (error) {
       onError(
         "Failed to import ownable",

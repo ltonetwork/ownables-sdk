@@ -89,67 +89,57 @@ export default function App() {
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
-  const relayImport = async (pkg: TypedPackage[] | null) => {
+  const relayImport = async (
+    pkg: TypedPackage[] | null,
+    triggerRefresh: boolean
+  ) => {
     const batchNumber = 2;
+    console.log(pkg);
 
-    // In a case where imported ownable is an update to an
-    // existing ownable, trigger refresh to delete old version
-    let triggerRefresh = false;
-
-    // Get existing packages from local storage
-    const storedPackages: TypedPackage[] =
-      LocalStorageService.get("packages") || [];
-
-    if (pkg != null && pkg.length > 0) {
-      for (let i = 0; i < pkg.length; i += batchNumber) {
-        const batch = pkg.slice(i, i + batchNumber);
-        const filteredBatch = batch.filter(
-          (item) => item !== null && item !== undefined
-        );
-
-        if (
-          filteredBatch.some((data) =>
-            storedPackages.some((storedPkg) => storedPkg.cid === data.cid)
-          )
-        ) {
-          triggerRefresh = true;
-        }
-
-        setOwnables((prevOwnables) => [
-          ...prevOwnables,
-          ...filteredBatch
-            .filter((data: any) => data.chain && data.cid)
-            .map((data: any) => ({
-              chain: data.chain,
-              package: data.cid,
-            })),
-        ]);
-
-        enqueueSnackbar(`Ownable successfully loaded`, {
-          variant: "success",
-        });
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-      }
-
-      //Trigger a refresh only if any package matched current one
-      if (triggerRefresh) {
-        setAlert({
-          severity: "info",
-          title: "New Ownables Detected",
-          message: "New ownables have been detected. Refreshing...",
-        });
-
-        setTimeout(() => {
-          window.location.reload();
-        }, 4000);
-      } else {
-        enqueueSnackbar(`No matching packages found for refresh`, {
-          variant: "info",
-        });
-      }
-    } else {
+    if (pkg === null || pkg.length === 0) {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",
+      });
+      return;
+    }
+
+    // Process batches of packages
+    for (let i = 0; i < pkg.length; i += batchNumber) {
+      const batch = pkg.slice(i, i + batchNumber);
+      const filteredBatch = batch.filter(
+        (item) => item !== null && item !== undefined
+      );
+
+      setOwnables((prevOwnables) => [
+        ...prevOwnables,
+        ...filteredBatch
+          .filter((data: TypedPackage) => data.chain && data.cid)
+          .map((data: TypedPackage) => ({
+            chain: data.chain,
+            package: data.cid,
+          })),
+      ]);
+
+      enqueueSnackbar(`Ownable successfully loaded`, {
+        variant: "success",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
+    // Trigger a refresh only for updated ownables
+    if (triggerRefresh) {
+      setAlert({
+        severity: "info",
+        title: "New Ownables Detected",
+        message: "New ownables have been detected. Refreshing...",
+      });
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 4000);
+    } else {
+      enqueueSnackbar(`No matching packages found for refresh`, {
+        variant: "info",
       });
     }
   };
@@ -171,21 +161,21 @@ export default function App() {
           current.filter((ownable) => ownable.chain.id !== id)
         );
         await OwnableService.delete(id);
-        const uniqueMessageHash = pkg.uniqueMessageHash;
-        if (uniqueMessageHash) {
-          await RelayService.removeOwnable(uniqueMessageHash);
-        }
+        // const uniqueMessageHash = pkg.uniqueMessageHash;
+        // if (uniqueMessageHash) {
+        //   await RelayService.removeOwnable(uniqueMessageHash);
+        // }
 
         // Retrieve the packages array from local storage
-        // const packages = JSON.parse(
-        //   localStorage.getItem("messageHashes") || "[]"
-        // );
+        const packages = JSON.parse(
+          localStorage.getItem("messageHashes") || "[]"
+        );
 
-        // const updatedHashes = packages.filter(
-        //   (item: any) => item.uniqueMessageHash !== pkg.uniqueMessageHash
-        // );
+        const updatedHashes = packages.filter(
+          (item: any) => item.uniqueMessageHash !== pkg.uniqueMessageHash
+        );
 
-        // localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
+        localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
       },
     });
   };
@@ -379,7 +369,7 @@ export default function App() {
         onOpen={() => setShowPackages(true)}
         onClose={() => setShowPackages(false)}
         onSelect={forge}
-        onImportFR={relayImport}
+        onImportFR={(pkg, triggerRefresh) => relayImport(pkg, triggerRefresh)}
         onError={showError}
         onCreate={() => {
           setShowCreate(true);
