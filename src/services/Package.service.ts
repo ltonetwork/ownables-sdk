@@ -446,7 +446,7 @@ export default class PackageService {
           // In a case where imported ownable is an update to an
           // existing ownable, trigger refresh to delete old version
           if (storedPackages.some((hash) => hash === uniqueMessageHash)) {
-            triggerRefresh = true;
+            triggerRefresh = false;
           }
 
           await this.storeMessageHash(uniqueMessageHash);
