@@ -1,8 +1,9 @@
 [package]
-name = "ownable"
-description = "My First Ownable"
+name = "ownable-armor"
 version = "0.1.0"
-authors = ["LTO Network <info@ltonetwork.com>"]
+description = "Add-on for Robot"
+license = "MIT"
+authors = ["bekauz <bekauz@protonmail.com>"]
 edition = "2018"
 
 exclude = [
@@ -46,10 +47,8 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 [dependencies]
 log = "0.4"
 wasm-bindgen = { version = "0.2.63", features = ["serde-serialize"] }
-wasm-bindgen-test = "*"
 wasm-bindgen-futures = "0.4.30"
 cosmwasm-std = "1.0.0"
-cosmwasm-storage = "1.0.0"
 cw-storage-plus = "0.13.2"
 cw2 = "0.13.2"
 sha2 = "0.10.6"
@@ -61,9 +60,6 @@ js-sys = "0.3.56"
 serde_json = "1.0.59"
 serde_with = "2.0.1"
 serde-wasm-bindgen = "0.4.2"
-indexed_db_futures = "0.2.3"
-futures = "0.3.21"
-rand = "0.8"
 bs58 = "0.4.0"
 blake2 = "0.10.6"
 hex = "0.4.3"
@@ -71,12 +67,5 @@ secp256k1 = "0.26.0"
 ownable-std = "0.2.3"
 ownable-std-macros = "0.1.1"
 
-[dependencies.web-sys]
-version = "0.3"
-features = [
-  "Storage", "Window"
-]
-
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"
-cw-multi-test = "0.13.2"
