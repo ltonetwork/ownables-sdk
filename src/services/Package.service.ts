@@ -72,6 +72,7 @@ const capabilitiesStaticOwnable = {
   isConsumable: false,
   isConsumer: false,
   isTransferable: false,
+  isBridgeable: false,
 };
 
 export default class PackageService {
@@ -91,18 +92,65 @@ export default class PackageService {
     return Array.from(set).sort((a, b) => (a.title >= b.title ? 1 : -1));
   }
 
-  static info(nameOrCid: string): TypedPackage {
+  static info(nameOrCid: string, uniqueMessageHash?: string): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
+
+    // Find the package by name or cid and check uniqueMessageHash if provided
     const found = packages.find(
       (pkg) =>
-        pkg.name === nameOrCid ||
-        pkg.versions.map((v) => v.cid).includes(nameOrCid)
+        (pkg.name === nameOrCid ||
+          pkg.versions.some((v) => v.cid === nameOrCid)) &&
+        (!uniqueMessageHash ||
+          pkg.versions.some((v) => v.uniqueMessageHash === uniqueMessageHash))
     );
 
     if (!found) throw new Error(`Package not found: ${nameOrCid}`);
     return found;
   }
+
+  // private static storePackageInfo(
+  //   title: string,
+  //   name: string,
+  //   description: string | undefined,
+  //   cid: string,
+  //   keywords: string[],
+  //   capabilities: TypedPackageCapabilities,
+  //   isNotLocal?: boolean,
+  //   uniqueMessageHash?: string
+  // ): TypedPackage {
+  //   const packages = (LocalStorageService.get("packages") ||
+  //     []) as TypedPackage[];
+  //   let pkg = packages.find((pkg) => pkg.name === name);
+
+  //   if (!pkg) {
+  //     pkg = {
+  //       title,
+  //       name,
+  //       description,
+  //       cid,
+  //       keywords,
+  //       isNotLocal,
+  //       ...capabilities,
+  //       uniqueMessageHash,
+  //       versions: [],
+  //     };
+  //     packages.push(pkg);
+  //   } else {
+  //     Object.assign(pkg, {
+  //       cid,
+  //       description,
+  //       keywords,
+  //       uniqueMessageHash,
+  //       ...capabilities,
+  //     });
+  //   }
+
+  //   pkg.versions.push({ date: new Date(), cid });
+  //   LocalStorageService.set("packages", packages);
+
+  //   return pkg;
+  // }
 
   private static storePackageInfo(
     title: string,
@@ -116,9 +164,17 @@ export default class PackageService {
   ): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
-    let pkg = packages.find((pkg) => pkg.name === name);
+
+    // Locate the package with matching cid and uniqueMessageHash
+    let pkg = packages.find(
+      (pkg) =>
+        pkg.name === name &&
+        pkg.cid === cid &&
+        pkg.uniqueMessageHash === uniqueMessageHash
+    );
 
     if (!pkg) {
+      // Create new package entry if not found
       pkg = {
         title,
         name,
@@ -128,21 +184,21 @@ export default class PackageService {
         isNotLocal,
         ...capabilities,
         uniqueMessageHash,
-        versions: [],
+        versions: [{ date: new Date(), cid, uniqueMessageHash }],
       };
       packages.push(pkg);
     } else {
-      console.log(pkg);
+      // Update package and add new version info if it's an update
       Object.assign(pkg, {
-        cid,
         description,
         keywords,
         uniqueMessageHash,
         ...capabilities,
       });
+      pkg.versions.push({ date: new Date(), cid, uniqueMessageHash });
     }
 
-    pkg.versions.push({ date: new Date(), cid });
+    // Save all packages back to LocalStorage under the single "packages" key
     LocalStorageService.set("packages", packages);
 
     return pkg;
@@ -175,18 +231,21 @@ export default class PackageService {
           return new File([blob], filename, { type });
         })
     );
-
     return assetFiles;
   }
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
     if (await IDBService.hasStore(`package:${cid}`)) return;
-
     await IDBService.createStore(`package:${cid}`);
     await IDBService.setAll(
       `package:${cid}`,
       Object.fromEntries(files.map((file) => [file.name, file]))
     );
+  }
+
+  private static async storeMessageHash(messageHash: string) {
+    const key = "messageHashes";
+    LocalStorageService.append(key, messageHash);
   }
 
   static stringToBuffer(str: string): Buffer {
@@ -307,11 +366,14 @@ export default class PackageService {
         relayData
       );
 
+      let triggerRefresh = false;
+
       const results = await Promise.all(
         filteredMessages.map(async (data: any) => {
           const { message, ...messageHash } = data;
           const mainMessage = message;
           const asset = await this.extractAssets(mainMessage.data.buffer);
+          if (asset.length === 0) return;
           const cid = await calculateCid(asset);
           const chainJson = await this.getChainJson(
             "chain.json",
@@ -322,7 +384,7 @@ export default class PackageService {
             if (await this.isCurrentEvent(chainJson)) {
               this.removeOlderPackage(chainJson.id);
             } else {
-              return null;
+              return;
             }
           }
 
@@ -338,6 +400,17 @@ export default class PackageService {
           const isNotLocal = true;
           const { ...values } = messageHash;
           const uniqueMessageHash = values.messageHash;
+
+          const storedPackages: TypedPackage[] =
+            LocalStorageService.get("messageHashes") || [];
+
+          // In a case where imported ownable is an update to an
+          // existing ownable, trigger refresh to delete old version
+          if (storedPackages.some((hash) => hash === uniqueMessageHash)) {
+            triggerRefresh = false;
+          }
+
+          await this.storeMessageHash(uniqueMessageHash);
 
           await this.storeAssets(cid, asset);
           const pkg = this.storePackageInfo(
@@ -356,8 +429,8 @@ export default class PackageService {
           return pkg;
         })
       );
-
-      return results.filter((pkg) => pkg !== null);
+      const filteredPackages = results.filter((pkg) => pkg !== null);
+      return [filteredPackages, triggerRefresh];
     } catch (error) {
       console.error("Error:", error);
       return null;

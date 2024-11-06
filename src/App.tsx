@@ -25,6 +25,8 @@ import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
+import CreateOwnable from "./components/CreateOwnable";
+import { RelayService } from "./services/Relay.service";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -52,6 +54,7 @@ export default function App() {
     ok?: string;
     onConfirm: () => void;
   } | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     // IDBService.open();
@@ -86,41 +89,57 @@ export default function App() {
     enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
   };
 
-  const isEmpty = (obj: TypedPackage[]) => {
-    if (Array.isArray(obj)) {
-      return obj.length === 0;
-    } else if (obj && typeof obj === "object") {
-      return Object.keys(obj).length === 0;
-    }
-    return true;
-  };
+  const relayImport = async (
+    pkg: TypedPackage[] | null,
+    triggerRefresh: boolean
+  ) => {
+    const batchNumber = 2;
+    console.log(pkg);
 
-  const relayImport = async (pkg: TypedPackage[] | null) => {
-    if (pkg != null && !isEmpty(pkg)) {
+    if (pkg === null || pkg.length === 0) {
+      enqueueSnackbar(`Nothing to Load from relay`, {
+        variant: "error",
+      });
+      return;
+    }
+
+    // Process batches of packages
+    for (let i = 0; i < pkg.length; i += batchNumber) {
+      const batch = pkg.slice(i, i + batchNumber);
+      const filteredBatch = batch.filter(
+        (item) => item !== null && item !== undefined
+      );
+
       setOwnables((prevOwnables) => [
         ...prevOwnables,
-        ...pkg.map((data: any) => {
-          return {
+        ...filteredBatch
+          .filter((data: TypedPackage) => data.chain && data.cid)
+          .map((data: TypedPackage) => ({
             chain: data.chain,
             package: data.cid,
-          };
-        }),
+          })),
       ]);
-      setShowPackages(false);
+
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
+    // Trigger a refresh only for updated ownables
+    if (triggerRefresh) {
       setAlert({
         severity: "info",
         title: "New Ownables Detected",
         message: "New ownables have been detected. Refreshing...",
       });
+
       setTimeout(() => {
         window.location.reload();
       }, 4000);
     } else {
-      enqueueSnackbar(`Nothing to Load from relay`, {
-        variant: "error",
+      enqueueSnackbar(`No matching packages found for refresh`, {
+        variant: "info",
       });
     }
   };
@@ -142,7 +161,21 @@ export default function App() {
           current.filter((ownable) => ownable.chain.id !== id)
         );
         await OwnableService.delete(id);
-        enqueueSnackbar(`${pkg.title} deleted`);
+        // const uniqueMessageHash = pkg.uniqueMessageHash;
+        // if (uniqueMessageHash) {
+        //   await RelayService.removeOwnable(uniqueMessageHash);
+        // }
+
+        // Retrieve the packages array from local storage
+        const packages = JSON.parse(
+          localStorage.getItem("messageHashes") || "[]"
+        );
+
+        const updatedHashes = packages.filter(
+          (item: any) => item.uniqueMessageHash !== pkg.uniqueMessageHash
+        );
+
+        localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
       },
     });
   };
@@ -271,6 +304,16 @@ export default function App() {
                 </Link>
               </If>
               .
+              <br />
+              Or you can also{" "}
+              <Link
+                component="button"
+                onClick={() => setShowCreate(true)}
+                style={{ fontSize: "inherit" }}
+              >
+                create your own
+              </Link>
+              .
             </Typography>
           </Grid>
         </Grid>
@@ -326,8 +369,11 @@ export default function App() {
         onOpen={() => setShowPackages(true)}
         onClose={() => setShowPackages(false)}
         onSelect={forge}
-        onImportFR={relayImport}
+        onImportFR={(pkg, triggerRefresh) => relayImport(pkg, triggerRefresh)}
         onError={showError}
+        onCreate={() => {
+          setShowCreate(true);
+        }}
       />
 
       <Sidebar
@@ -337,6 +383,9 @@ export default function App() {
         onReset={reset}
         onFactoryReset={factoryReset}
       />
+
+      <CreateOwnable open={showCreate} onClose={() => setShowCreate(false)} />
+
       <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
 
       <HelpDrawer open={consuming !== null}>

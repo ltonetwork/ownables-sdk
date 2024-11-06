@@ -1,112 +1,211 @@
 import { EventChain, LTO, Message, Relay } from "@ltonetwork/lto";
-import SessionStorageService from "./SessionStorage.service";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 import { sign } from "@ltonetwork/http-message-signatures";
+import LTOService from "./LTO.service";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
+
 export class RelayService {
-  private static seed = SessionStorageService.get("@seed");
-
   private static relayURL =
-    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL_RELAY;
-  private static relay = new Relay(`${RelayService.relayURL}`);
-  private static sender = lto.account({ seed: RelayService.seed });
+    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
+  private static relay = new Relay(`${this.relayURL}`);
 
-  static async sendOwnable(recipient: string, content?: Uint8Array) {
+  /**
+   * Handle All Signed Requests
+   */
+  private static async handleSignedRequest(method: string, url: string) {
     try {
-      if (RelayService.sender && recipient) {
-        await sendFile(
-          RelayService.relay,
+      const sender = LTOService.account;
+      const request = {
+        headers: {},
+        method,
+        url,
+      };
+
+      const signedRequest = await sign(request, { signer: sender });
+
+      const response = await axios({
+        method: signedRequest.method,
+        url: signedRequest.url,
+        headers: signedRequest.headers,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error in handleSignedRequest:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send ownable to a recipient.
+   */
+  static async sendOwnable(recipient: string, content?: Uint8Array) {
+    const sender = LTOService.account;
+
+    if (!recipient) {
+      console.error("Recipient not provided");
+      return;
+    }
+
+    try {
+      if (sender) {
+        const messageHash = await sendFile(
+          this.relay,
           content,
-          RelayService.sender,
+          sender,
           recipient
         );
-      } else {
-        console.error("No recipient provided");
+        return messageHash;
       }
     } catch (error) {
       console.error("Error sending message:", error);
     }
   }
 
-  static async readRelayData() {
+  /**
+   * Return just message hashes
+   */
+  static async readInboxHashes() {
+    const sender = LTOService.account;
+    if (!sender) {
+      console.error("Account not initialized");
+      return [];
+    }
+
+    const address = sender.address;
+    const isRelayAvailable = await this.isRelayUp();
+    if (!isRelayAvailable) return [];
+
+    const url = `${this.relayURL}/inboxes/${address}/`;
+
     try {
-      const Address = this.sender.address;
-      const isRelayAvailable = await RelayService.isRelayUp();
-      if (!isRelayAvailable) return null;
+      const responses = await this.handleSignedRequest("GET", url);
 
-      const responses = await axios.get(`${this.relayURL}/inboxes/${Address}/`);
+      if (!responses || !responses.data || responses.data.length === 0) {
+        return [];
+      }
 
-      const ownableData = await Promise.all(
+      const serverHashes = await Promise.all(
         responses.data.map(async (response: MessageInfo) => {
-          const infoResponse = await axios.get(
-            `${this.relayURL}/inboxes/${Address}/${response.hash}`
+          const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
+          const infoResponse = await this.handleSignedRequest(
+            "GET",
+            messageUrl
           );
-          const messageHash = infoResponse.data.hash;
-          const message = Message.from(infoResponse.data);
-          return { message, messageHash };
+
+          if (infoResponse && infoResponse.data && infoResponse.data.hash) {
+            return infoResponse.data.hash;
+          } else {
+            console.warn(
+              "Failed to retrieve message hash for response:",
+              response
+            );
+            return null;
+          }
         })
       );
 
-      if (ownableData.length < 1) return null;
+      return serverHashes.filter(Boolean);
+    } catch (error) {
+      console.error("Failed to read relay data:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Read relay data for the current sender.
+   */
+  static async readRelayData() {
+    const sender = LTOService.account;
+    if (!sender) {
+      console.error("Account not initialized");
+      return null;
+    }
+
+    const address = sender.address;
+    const isRelayAvailable = await this.isRelayUp();
+    if (!isRelayAvailable) return null;
+    const url = `${this.relayURL}/inboxes/${address}/`;
+    try {
+      const responses = await this.handleSignedRequest("GET", url);
+
+      if (!responses.data.length) return null;
+
+      const ownableData = await Promise.all(
+        responses.data.map(async (response: MessageInfo) => {
+          const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
+          const infoResponse = await this.handleSignedRequest(
+            "GET",
+            messageUrl
+          );
+          const message = Message.from(infoResponse.data);
+          return { message, messageHash: infoResponse.data.hash };
+        })
+      );
       return ownableData;
     } catch (error) {
-      console.error("Error reading relay data:", error);
+      console.error("Failed to read relay data:", error);
       return null;
     }
   }
 
-  static async removeOwnable(hash: string) {
-    const address = this.sender.address;
-
-    const request = {
-      method: "DELETE",
-      url: `${this.relayURL}/${address}/${hash}/`,
-      headers: {},
-    };
-
-    const signedRequest = await sign(request, { signer: this.sender });
-
-    const response = await fetch(signedRequest.url, {
-      method: signedRequest.method,
-      headers: signedRequest.headers,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete: ${response.statusText}`);
+  /**
+   * Remove an ownable by its hash.
+   */
+  static async removeOwnable(hash: string): Promise<string> {
+    const sender = LTOService.account;
+    if (!sender) {
+      throw new Error("Sender not initialized");
     }
 
-    console.log("Ownable deleted successfully");
+    const address = sender.address;
+    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
+
+    try {
+      const response = await this.handleSignedRequest("DELETE", url);
+
+      if (response?.status === 204) {
+        return "Successfully cleared ownable";
+      } else {
+        throw new Error(`${response}`);
+      }
+    } catch (error) {
+      console.error("Failed to remove ownable:", error);
+      throw new Error("Failed to clear: " + error);
+    }
   }
 
+  /**
+   * Check if relay service is up.
+   */
   static async isRelayUp(): Promise<boolean> {
+    if (!this.relayURL) return false;
     try {
-      const url: string | undefined = RelayService.relayURL;
-      if (!url) return false;
-      const response = await fetch(url, {
-        method: "HEAD",
-      });
-      return response.ok;
+      const response = await this.handleSignedRequest("HEAD", this.relayURL);
+      if (response.status === 200) {
+        return true;
+      } else {
+        return false;
+      }
     } catch (error) {
-      console.error("Server is down:", error);
+      console.error("Relay service is down:", error);
       return false;
     }
   }
 
+  /**
+   * Extract assets from a zip file.
+   */
   static async extractAssets(zipFile: File | JSZip): Promise<File[]> {
-    let zip;
-    if (!(zipFile instanceof JSZip)) {
-      zip = await JSZip.loadAsync(zipFile);
-    } else {
-      zip = zipFile;
-    }
-
+    const zip =
+      zipFile instanceof JSZip ? zipFile : await JSZip.loadAsync(zipFile);
     const assetFiles = await Promise.all(
-      Array.from(Object.entries(zip.files))
+      Object.entries(zip.files)
         .filter(([filename]) => !filename.startsWith("."))
         .map(async ([filename, file]) => {
           const blob = await file.async("blob");
@@ -114,42 +213,61 @@ export class RelayService {
           return new File([blob], filename, { type });
         })
     );
-
     return assetFiles;
   }
 
+  /**
+   * Get chain.json from a list of files.
+   */
   private static async getChainJson(
     filename: string,
     files: File[]
   ): Promise<EventChain> {
-    const file = files.find((file) => file.name === filename);
+    const file = files.find((f) => f.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
     return JSON.parse(await file.text());
   }
 
+  /**
+   * Check and return unique messages, avoiding duplicates.
+   */
   static async checkDuplicateMessage(messages: MessageExt[]) {
-    const uniqueItems = new Map();
+    console.log(messages);
+    const uniqueItems = new Map<
+      string,
+      { message: Message; eventsLength: number; messageHash: string }
+    >();
 
-    for (const theMessage of messages) {
-      const { message, ...theHash } = theMessage;
-      const data = message?.data;
+    for (const messageExt of messages) {
+      const { message, messageHash } = messageExt;
+
+      if (!message || !messageHash) {
+        console.error("Message or messageHash is missing.");
+        continue;
+      }
+
+      const data = message.data;
+      if (!data) {
+        console.error("Message data is missing.");
+        continue;
+      }
+
       const assets = await this.extractAssets(data.buffer);
       const chain = await this.getChainJson("chain.json", assets);
-      const id = chain.id;
-      const eventsLength = chain.events.length;
 
-      if (
-        !uniqueItems.has(id) ||
-        eventsLength > uniqueItems.get(id).eventsLength
-      ) {
-        const { messageHash } = theHash;
-        uniqueItems.set(id, { message, eventsLength, messageHash });
+      const currentLength = uniqueItems.get(chain.id)?.eventsLength || 0;
+      if (chain.events.length > currentLength) {
+        uniqueItems.set(chain.id, {
+          message,
+          eventsLength: chain.events.length,
+          messageHash,
+        });
       }
     }
 
-    return Array.from(uniqueItems.values()).map((item) => ({
-      message: item.message,
-      messageHash: item.messageHash,
+    return Array.from(uniqueItems.values()).map(({ message, messageHash }) => ({
+      message,
+      messageHash,
     }));
   }
 }
