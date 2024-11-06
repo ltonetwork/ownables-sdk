@@ -72,3 +72,5 @@ ownable-std-macros = "0.1.1"
 [dev-dependencies]
 cw-multi-test = "0.13.2"
 cosmwasm-schema = "1.0.0"
+bumpalo = "=3.9.0"
+

@@ -67,5 +67,10 @@ secp256k1 = "0.26.0"
 ownable-std = "0.2.3"
 ownable-std-macros = "0.1.1"
 
+[patch.crates-io]
+
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"
+bumpalo = "=3.9.0"
+
+

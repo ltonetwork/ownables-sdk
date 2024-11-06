@@ -69,3 +69,5 @@ ownable-std-macros = "0.1.1"
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"
+bumpalo = "=3.9.0"
+
