@@ -35,7 +35,7 @@
     "react-dom": "^18.2.0",
     "react-json-view": "^1.21.3",
     "react-scripts": "5.0.1",
-    "simple-iframe-rpc": "^0.1.10",
+    "simple-iframe-rpc": "^0.1.16",
     "socket.io-client": "^4.8.1",
     "stream-browserify": "^3.0.0",
     "tuai": "^1.0.8",

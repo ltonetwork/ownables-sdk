@@ -53,7 +53,7 @@ function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
     worker.onmessage = (event) => {
       resolve(event.data);
     };
-    worker.onerror = (err) => reject(err);
+    worker.onerror = (ev) => reject(ev.error ?? new Error("Worker caused an unexpected error"));
     worker.onmessageerror = (err) => reject(err);
 
     const buffer = wasm.buffer;
