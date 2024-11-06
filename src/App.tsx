@@ -26,7 +26,7 @@ import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import CreateOwnable from "./components/CreateOwnable";
-import { RelayService } from "./services/Relay.service";
+//import { RelayService } from "./services/Relay.service";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
