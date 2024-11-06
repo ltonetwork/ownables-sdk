@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Divider, Fab, ListItemIcon, Badge } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import MailIcon from "@mui/icons-material/CallReceivedOutlined";
 import Dialog from "@mui/material/Dialog";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -13,11 +14,10 @@ import PackageService from "../services/Package.service";
 import Tooltip from "./Tooltip";
 import Loading from "./Loading";
 import useBusy from "../utils/useBusy";
-import { checkForMessages } from "../services/CheckMessages.service";
+import { CheckForMessages } from "../services/CheckMessages.service";
 
 //globally pass the messages in the relay
-export let newMessage: number | null;
-
+//let message: number | null;
 interface PackagesDialogProps {
   packages: Array<TypedPackage | TypedPackageStub>;
   open: boolean;
@@ -25,11 +25,21 @@ interface PackagesDialogProps {
   onSelect: (pkg: TypedPackage | TypedPackageStub) => void;
   onImport: () => void;
   fetchPkgFromRelay: () => void;
+  onCreate: () => void;
+  message: number; // Add message as a prop
 }
 
 function PackagesDialog(props: PackagesDialogProps) {
-  const { onClose, onSelect, onImport, fetchPkgFromRelay, open, packages } =
-    props;
+  const {
+    onClose,
+    onSelect,
+    onImport,
+    fetchPkgFromRelay,
+    onCreate,
+    open,
+    packages,
+    message,
+  } = props; // Destructure message
   const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
 
   return (
@@ -82,6 +92,7 @@ function PackagesDialog(props: PackagesDialogProps) {
             <ListItemText primary="Import from local" />
           </ListItemButton>
         </ListItem>
+        <Divider />
         <ListItem disablePadding disableGutters key="add-relay">
           <ListItemButton
             autoFocus
@@ -89,13 +100,12 @@ function PackagesDialog(props: PackagesDialogProps) {
             style={{ textAlign: "center" }}
           >
             <ListItemIcon>
-              <AddIcon />
+              <MailIcon />
             </ListItemIcon>
-
             <ListItemText primary="Import from relay" />
             <span
               style={{
-                backgroundColor: newMessage ? "#D32F2F" : "",
+                backgroundColor: message ? "#D32F2F" : "",
                 padding: "4px",
                 margin: "2px",
                 fontSize: "11px",
@@ -105,8 +115,21 @@ function PackagesDialog(props: PackagesDialogProps) {
               }}
               color="error"
             >
-              {newMessage}
+              {message} {/* message count */}
             </span>
+          </ListItemButton>
+        </ListItem>
+        <Divider />
+        <ListItem disablePadding disableGutters key="create-ownable">
+          <ListItemButton
+            autoFocus
+            onClick={onCreate}
+            style={{ textAlign: "center" }}
+          >
+            <ListItemIcon>
+              <AddIcon />
+            </ListItemIcon>
+            <ListItemText primary="Create ownable" />
           </ListItemButton>
         </ListItem>
       </List>
@@ -119,8 +142,9 @@ interface PackagesFabProps {
   onOpen: () => void;
   onClose: () => void;
   onSelect: (pkg: TypedPackage) => void;
-  onImportFR: (pkg: TypedPackage[]) => void;
+  onImportFR: (pkg: TypedPackage[], triggerRefresh: boolean) => void;
   onError: (title: string, message: string) => void;
+  onCreate: () => void;
 }
 
 export default function PackagesFab(props: PackagesFabProps) {
@@ -142,17 +166,56 @@ export default function PackagesFab(props: PackagesFabProps) {
   useEffect(updatePackages, []);
 
   useEffect(() => {
-    const intervalId = setInterval(async () => {
-      try {
-        const count = await checkForMessages.valueOfValidCids();
-        newMessage = count;
-        setMessages(count || 0);
-      } catch (error) {
-        console.error("Error occurred while checking messages:", error);
-      }
-    }, 10000);
-
+    const fetchMessages = async () => {
+      const messageCount = await CheckForMessages.getNewMessageCount();
+      setMessages(messageCount);
+    };
+    const intervalId = setInterval(fetchMessages, 15000);
     return () => clearInterval(intervalId);
+  }, []);
+
+  // useEffect(() => {
+  //   const initializeSocket = async () => {
+  //     // Initialize WebSocket
+  //     CheckForMessages.initializeWebSocket();
+
+  //     // Get wallet address
+  //     const walletAddress = await getAddress();
+
+  //     if (CheckForMessages.socket) {
+  //       // Initial check for new messages
+  //       CheckForMessages.getNewMessageCount(walletAddress);
+
+  //       // Start polling for new messages every 5 seconds
+  //       const intervalId = setInterval(() => {
+  //         CheckForMessages.getNewMessageCount(walletAddress);
+  //       }, 5000);
+
+  //       // Listen for new message counts from the server
+  //       CheckForMessages.socket.on(
+  //         "newMessageCount",
+  //         (data: { count: number }) => {
+  //           setMessages(data.count);
+  //         }
+  //       );
+
+  //       // Cleanup function to clear interval and remove event listeners
+  //       return () => {
+  //         clearInterval(intervalId);
+  //         CheckForMessages.socket?.off("newMessageCount");
+  //       };
+  //     }
+  //   };
+
+  //   initializeSocket();
+  // }, []);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const messageCount = await CheckForMessages.getNewMessageCount();
+      setMessages(messageCount);
+    };
+    fetchMessages();
   }, []);
 
   const importPackages = async () => {
@@ -176,10 +239,21 @@ export default function PackagesFab(props: PackagesFabProps) {
 
   const importPackagesFromRelay = async () => {
     try {
-      const pkg = await PackageService.importFromRelay();
-      if (pkg == null) return;
-      const filteredPackages = pkg.filter((p): p is TypedPackage => p !== null);
-      onImportFR(filteredPackages);
+      const result = await PackageService.importFromRelay();
+      if (result == null) return;
+
+      const [filteredPackages, triggerRefresh] = result as [
+        Array<TypedPackage | undefined>,
+        boolean
+      ];
+
+      const validPackages = Array.isArray(filteredPackages)
+        ? filteredPackages.filter(
+            (p): p is TypedPackage => p !== null && p !== undefined
+          )
+        : [];
+
+      onImportFR(validPackages, triggerRefresh);
     } catch (error) {
       onError(
         "Failed to import ownable",
@@ -219,6 +293,8 @@ export default function PackagesFab(props: PackagesFabProps) {
         onSelect={selectPackage}
         onImport={importPackages}
         fetchPkgFromRelay={importPackagesFromRelay}
+        onCreate={props.onCreate}
+        message={message}
       />
       <Loading show={isBusy} />
     </>
