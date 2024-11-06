@@ -8,7 +8,7 @@
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
     "@fontsource/montserrat": "^4.5.14",
-    "@ltonetwork/http-message-signatures": "^0.1.11",
+    "@ltonetwork/http-message-signatures": "^0.1.12",
     "@ltonetwork/lto": "^0.15.16",
     "@mui/icons-material": "^5.11.9",
     "@mui/material": "^5.11.10",
