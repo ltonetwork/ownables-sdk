@@ -22,6 +22,8 @@ jobs:
           - speakers
     concurrency: ci-${{ github.ref }}-${{ matrix.package }}
     runs-on: ubuntu-latest
+    env:
+      CC: clang
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -37,7 +39,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: 'npm'
+          cache: "npm"
       - name: Setup wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
       - name: Build
@@ -58,7 +60,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: 'npm'
+          cache: "npm"
       - name: NPM Install
         run: npm ci
       - name: Download Ownables packages
