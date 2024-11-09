@@ -156,6 +156,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       if (this.pkg.uniqueMessageHash) {
         await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
       }
+      const hashes = JSON.parse(localStorage.getItem("messageHashes") || "[]");
+
+      const updatedHashes = hashes.filter(
+        (item: any) => item.uniqueMessageHash !== this.pkg.uniqueMessageHash
+      );
+      localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
       enqueueSnackbar("Successfully bridged!!", { variant: "success" });
     } catch (error) {
       console.error("Error while attempting to bridge:", error);

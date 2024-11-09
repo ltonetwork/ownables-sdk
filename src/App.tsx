@@ -26,6 +26,7 @@ import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import CreateOwnable from "./components/CreateOwnable";
+import { RelayService } from "./services/Relay.service";
 //import { RelayService } from "./services/Relay.service";
 
 export default function App() {
@@ -160,21 +161,23 @@ export default function App() {
         setOwnables((current) =>
           current.filter((ownable) => ownable.chain.id !== id)
         );
+        //Delete ownable
         await OwnableService.delete(id);
-        // const uniqueMessageHash = pkg.uniqueMessageHash;
-        // if (uniqueMessageHash) {
-        //   await RelayService.removeOwnable(uniqueMessageHash);
-        // }
 
-        // Retrieve the packages array from local storage
-        const packages = JSON.parse(
+        //delete ownable from relay
+        const uniqueMessageHash = pkg.uniqueMessageHash;
+        if (uniqueMessageHash) {
+          await RelayService.removeOwnable(uniqueMessageHash);
+        }
+
+        //Update knownhashes in localstorage
+        const hashes = JSON.parse(
           localStorage.getItem("messageHashes") || "[]"
         );
 
-        const updatedHashes = packages.filter(
+        const updatedHashes = hashes.filter(
           (item: any) => item.uniqueMessageHash !== pkg.uniqueMessageHash
         );
-
         localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
       },
     });
