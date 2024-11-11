@@ -123,6 +123,16 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
             "uniqueMessageHash",
             this.pkg.uniqueMessageHash
           );
+
+          // Update state to trigger re-render
+          // this.setState((prevState) => ({
+          //   ownables: prevState.ownables.filter(
+          //     (ownable) => ownable.chain.id !== this.chain.id
+          //   ),
+          //   packages: prevState.packages.filter(
+          //     (pkg) => pkg.uniqueMessageHash !== this.pkg.uniqueMessageHash
+          //   ),
+          // }));
         }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });
