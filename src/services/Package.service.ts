@@ -407,7 +407,7 @@ export default class PackageService {
           // In a case where imported ownable is an update to an
           // existing ownable, trigger refresh to delete old version
           if (storedPackages.some((hash) => hash === uniqueMessageHash)) {
-            triggerRefresh = false;
+            triggerRefresh = true;
           }
 
           await this.storeMessageHash(uniqueMessageHash);
@@ -429,6 +429,7 @@ export default class PackageService {
           return pkg;
         })
       );
+
       const filteredPackages = results.filter((pkg) => pkg !== null);
       return [filteredPackages, triggerRefresh];
     } catch (error) {

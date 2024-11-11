@@ -15,6 +15,7 @@ export default async function sendFile(relay, content, sender, recipient) {
       return;
     }
     await relay.send(message);
+    return message.hash.base58;
   } catch {
     return true;
   }

@@ -232,7 +232,6 @@ export class RelayService {
    * Check and return unique messages, avoiding duplicates.
    */
   static async checkDuplicateMessage(messages: MessageExt[]) {
-    console.log(messages);
     const uniqueItems = new Map<
       string,
       { message: Message; eventsLength: number; messageHash: string }

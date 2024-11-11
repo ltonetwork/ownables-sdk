@@ -27,7 +27,7 @@ import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import CreateOwnable from "./components/CreateOwnable";
 import { RelayService } from "./services/Relay.service";
-//import { RelayService } from "./services/Relay.service";
+import { CheckForMessages } from "./services/CheckMessages.service";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -35,6 +35,7 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
+  const [message, setMessages] = useState(0);
   const [ownables, setOwnables] = useState<
     Array<{ chain: EventChain; package: string }>
   >([]);
@@ -58,14 +59,27 @@ export default function App() {
   const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
-    // IDBService.open();
-    // LocalStorageService.clear();
-    // SessionStorageService.clear();
-    // IDBService.deleteDatabase();
     IDBService.open()
       .then(() => OwnableService.loadAll())
       .then((ownables) => setOwnables(ownables))
       .then(() => setLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const messageCount = await CheckForMessages.getNewMessageCount();
+      setMessages(messageCount);
+    };
+    fetchMessages();
+  });
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const messageCount = await CheckForMessages.getNewMessageCount();
+      setMessages(messageCount);
+    };
+    const intervalId = setInterval(fetchMessages, 15000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const showError = (title: string, message: string) => {
@@ -94,8 +108,11 @@ export default function App() {
     pkg: TypedPackage[] | null,
     triggerRefresh: boolean
   ) => {
+    //update message count
+    const updatedMessageCount = await CheckForMessages.getNewMessageCount();
+    setMessages(updatedMessageCount);
+
     const batchNumber = 2;
-    console.log(pkg);
 
     if (pkg === null || pkg.length === 0) {
       enqueueSnackbar(`Nothing to Load from relay`, {
@@ -138,10 +155,6 @@ export default function App() {
       setTimeout(() => {
         window.location.reload();
       }, 4000);
-    } else {
-      enqueueSnackbar(`No matching packages found for refresh`, {
-        variant: "info",
-      });
     }
   };
 
@@ -171,14 +184,16 @@ export default function App() {
         }
 
         //Update knownhashes in localstorage
-        const hashes = JSON.parse(
-          localStorage.getItem("messageHashes") || "[]"
+        await LocalStorageService.removeItem(
+          "messageHashes",
+          pkg.uniqueMessageHash
         );
 
-        const updatedHashes = hashes.filter(
-          (item: any) => item.uniqueMessageHash !== pkg.uniqueMessageHash
+        await LocalStorageService.removeByField(
+          "packages",
+          "uniqueMessageHash",
+          pkg.uniqueMessageHash
         );
-        localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
       },
     });
   };
@@ -374,9 +389,8 @@ export default function App() {
         onSelect={forge}
         onImportFR={(pkg, triggerRefresh) => relayImport(pkg, triggerRefresh)}
         onError={showError}
-        onCreate={() => {
-          setShowCreate(true);
-        }}
+        onCreate={() => setShowCreate(true)}
+        message={message}
       />
 
       <Sidebar

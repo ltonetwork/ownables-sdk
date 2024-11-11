@@ -27,6 +27,7 @@ import { enqueueSnackbar } from "notistack";
 import { BridgeService } from "../services/Bridge.service";
 import shortId from "../utils/shortId";
 import SessionStorageService from "../services/SessionStorage.service";
+import LocalStorageService from "../services/LocalStorage.service";
 
 interface OwnableProps {
   chain: EventChain;
@@ -97,13 +98,31 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         const content = await zip.generateAsync({
           type: "uint8array",
         });
+
         const messageHash = await RelayService.sendOwnable(to, content);
         enqueueSnackbar(`Ownable ${messageHash} sent Successfully!!`, {
           variant: "success",
         });
-        //Remove ownable from relay's inbox
+
         if (this.pkg.uniqueMessageHash) {
+          //remove hash from localstorage messageHashes
+          await LocalStorageService.removeItem(
+            "messageHashes",
+            this.pkg.uniqueMessageHash
+          );
+
+          //Remove ownable from relay's inbox
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
+
+          //remove ownable from IDB
+          await OwnableService.delete(this.chain.id);
+
+          //remove package from localstorage packages
+          await LocalStorageService.removeByField(
+            "packages",
+            "uniqueMessageHash",
+            this.pkg.uniqueMessageHash
+          );
         }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });

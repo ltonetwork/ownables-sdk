@@ -14,7 +14,6 @@ import PackageService from "../services/Package.service";
 import Tooltip from "./Tooltip";
 import Loading from "./Loading";
 import useBusy from "../utils/useBusy";
-import { CheckForMessages } from "../services/CheckMessages.service";
 
 //globally pass the messages in the relay
 //let message: number | null;
@@ -26,7 +25,7 @@ interface PackagesDialogProps {
   onImport: () => void;
   fetchPkgFromRelay: () => void;
   onCreate: () => void;
-  message: number; // Add message as a prop
+  message: number;
 }
 
 function PackagesDialog(props: PackagesDialogProps) {
@@ -39,7 +38,7 @@ function PackagesDialog(props: PackagesDialogProps) {
     open,
     packages,
     message,
-  } = props; // Destructure message
+  } = props;
   const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
 
   return (
@@ -145,6 +144,7 @@ interface PackagesFabProps {
   onImportFR: (pkg: TypedPackage[], triggerRefresh: boolean) => void;
   onError: (title: string, message: string) => void;
   onCreate: () => void;
+  message: number;
 }
 
 export default function PackagesFab(props: PackagesFabProps) {
@@ -155,68 +155,15 @@ export default function PackagesFab(props: PackagesFabProps) {
     right: 20,
   };
 
-  const { open, onOpen, onClose, onSelect, onImportFR, onError } = props;
+  const { open, onOpen, onClose, onSelect, onImportFR, onError, message } =
+    props;
   const [packages, setPackages] = React.useState<
     Array<TypedPackage | TypedPackageStub>
   >([]);
   const [isBusy, busy] = useBusy();
-  const [message, setMessages] = useState(0);
 
   const updatePackages = () => setPackages(PackageService.list());
   useEffect(updatePackages, []);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      const messageCount = await CheckForMessages.getNewMessageCount();
-      setMessages(messageCount);
-    };
-    const intervalId = setInterval(fetchMessages, 15000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // useEffect(() => {
-  //   const initializeSocket = async () => {
-  //     // Initialize WebSocket
-  //     CheckForMessages.initializeWebSocket();
-
-  //     // Get wallet address
-  //     const walletAddress = await getAddress();
-
-  //     if (CheckForMessages.socket) {
-  //       // Initial check for new messages
-  //       CheckForMessages.getNewMessageCount(walletAddress);
-
-  //       // Start polling for new messages every 5 seconds
-  //       const intervalId = setInterval(() => {
-  //         CheckForMessages.getNewMessageCount(walletAddress);
-  //       }, 5000);
-
-  //       // Listen for new message counts from the server
-  //       CheckForMessages.socket.on(
-  //         "newMessageCount",
-  //         (data: { count: number }) => {
-  //           setMessages(data.count);
-  //         }
-  //       );
-
-  //       // Cleanup function to clear interval and remove event listeners
-  //       return () => {
-  //         clearInterval(intervalId);
-  //         CheckForMessages.socket?.off("newMessageCount");
-  //       };
-  //     }
-  //   };
-
-  //   initializeSocket();
-  // }, []);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      const messageCount = await CheckForMessages.getNewMessageCount();
-      setMessages(messageCount);
-    };
-    fetchMessages();
-  }, []);
 
   const importPackages = async () => {
     const files = await selectFile({ accept: ".zip", multiple: true });
