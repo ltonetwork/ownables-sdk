@@ -97,6 +97,12 @@ export default function App() {
     setShowLogin(true);
   };
 
+  const removeOwnable = (ownableId: string) => {
+    setOwnables((prevOwnables) =>
+      prevOwnables.filter((ownable) => ownable.chain.id !== ownableId)
+    );
+  };
+
   const forge = async (pkg: TypedPackage) => {
     const chain = await OwnableService.create(pkg);
     setOwnables([...ownables, { chain, package: pkg.cid }]);
@@ -356,6 +362,7 @@ export default function App() {
               packageCid={packageCid}
               selected={consuming?.chain.id === chain.id}
               onDelete={() => deleteOwnable(chain.id, packageCid)}
+              onRemove={() => removeOwnable(chain.id)}
               onConsume={(info) =>
                 setConsuming({ chain, package: packageCid, info })
               }

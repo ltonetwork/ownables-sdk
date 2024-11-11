@@ -35,6 +35,7 @@ interface OwnableProps {
   selected: boolean;
   onDelete: () => void;
   onConsume: (info: TypedOwnableInfo) => void;
+  onRemove: () => void;
   onError: (title: string, message: string) => void;
   children?: ReactNode;
 }
@@ -124,15 +125,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
             this.pkg.uniqueMessageHash
           );
 
-          // Update state to trigger re-render
-          // this.setState((prevState) => ({
-          //   ownables: prevState.ownables.filter(
-          //     (ownable) => ownable.chain.id !== this.chain.id
-          //   ),
-          //   packages: prevState.packages.filter(
-          //     (pkg) => pkg.uniqueMessageHash !== this.pkg.uniqueMessageHash
-          //   ),
-          // }));
+          this.props.onRemove();
         }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });
