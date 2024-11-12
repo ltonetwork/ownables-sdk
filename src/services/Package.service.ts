@@ -403,9 +403,6 @@ export default class PackageService {
           const { ...values } = messageHash;
           const uniqueMessageHash = values.messageHash;
 
-          const storedPackages: TypedPackage[] =
-            LocalStorageService.get("messageHashes") || [];
-
           if (await IDBService.hasStore(`package:${cid}`)) {
             triggerRefresh = true;
           }

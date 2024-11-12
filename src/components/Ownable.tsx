@@ -106,24 +106,27 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         });
 
         if (this.pkg.uniqueMessageHash) {
+          //Remove ownable from relay's inbox
+          console.log("First hash check", this.pkg.uniqueMessageHash);
+          await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
+
+          //remove ownable from IDB
+          //await OwnableService.delete(this.chain.id);
+
+          console.log("Hash", this.pkg.uniqueMessageHash);
+
           //remove hash from localstorage messageHashes
           await LocalStorageService.removeItem(
             "messageHashes",
             this.pkg.uniqueMessageHash
           );
 
-          //Remove ownable from relay's inbox
-          await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
-
-          //remove ownable from IDB
-          //await OwnableService.delete(this.chain.id);
-
           //remove package from localstorage packages
-          // await LocalStorageService.removeByField(
-          //   "packages",
-          //   "uniqueMessageHash",
-          //   this.pkg.uniqueMessageHash
-          // );
+          await LocalStorageService.removeByField(
+            "packages",
+            "uniqueMessageHash",
+            this.pkg.uniqueMessageHash
+          );
 
           //this.props.onRemove();
         }
