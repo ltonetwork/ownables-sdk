@@ -235,8 +235,10 @@ export default class PackageService {
   }
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
-    if (await IDBService.hasStore(`package:${cid}`)) return;
-    await IDBService.createStore(`package:${cid}`);
+    if (!(await IDBService.hasStore(`package:${cid}`))) {
+      await IDBService.createStore(`package:${cid}`);
+    }
+
     await IDBService.setAll(
       `package:${cid}`,
       Object.fromEntries(files.map((file) => [file.name, file]))
@@ -404,9 +406,7 @@ export default class PackageService {
           const storedPackages: TypedPackage[] =
             LocalStorageService.get("messageHashes") || [];
 
-          // In a case where imported ownable is an update to an
-          // existing ownable, trigger refresh to delete old version
-          if (storedPackages.some((hash) => hash === uniqueMessageHash)) {
+          if (await IDBService.hasStore(`package:${cid}`)) {
             triggerRefresh = true;
           }
 
@@ -430,8 +430,9 @@ export default class PackageService {
         })
       );
 
-      const filteredPackages = results.filter((pkg) => pkg !== null);
-      return [filteredPackages, triggerRefresh];
+      const packages = results.filter((pkg) => pkg !== null);
+
+      return [packages, triggerRefresh];
     } catch (error) {
       console.error("Error:", error);
       return null;

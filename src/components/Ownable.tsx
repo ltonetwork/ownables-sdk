@@ -116,16 +116,16 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
 
           //remove ownable from IDB
-          await OwnableService.delete(this.chain.id);
+          //await OwnableService.delete(this.chain.id);
 
           //remove package from localstorage packages
-          await LocalStorageService.removeByField(
-            "packages",
-            "uniqueMessageHash",
-            this.pkg.uniqueMessageHash
-          );
+          // await LocalStorageService.removeByField(
+          //   "packages",
+          //   "uniqueMessageHash",
+          //   this.pkg.uniqueMessageHash
+          // );
 
-          this.props.onRemove();
+          //this.props.onRemove();
         }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });

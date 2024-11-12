@@ -164,12 +164,30 @@ export default class IDBService {
     return (await this.db).objectStoreNames.contains(store);
   }
 
+  // static async createStore(...stores: string[]): Promise<void> {
+  //   await this.upgrade((db) => {
+  //     for (const store of stores) {
+  //       db.createObjectStore(store);
+  //     }
+  //   });
+  // }
+
   static async createStore(...stores: string[]): Promise<void> {
     await this.upgrade((db) => {
       for (const store of stores) {
-        db.createObjectStore(store);
+        if (!db.objectStoreNames.contains(store)) {
+          db.createObjectStore(store);
+        }
       }
     });
+
+    // Check that the store(s) now exist
+    const db = await this.db;
+    for (const store of stores) {
+      if (!db.objectStoreNames.contains(store)) {
+        throw new Error(`Failed to create store ${store}.`);
+      }
+    }
   }
 
   public static async deleteStore(store: string | RegExp): Promise<void> {
