@@ -23,11 +23,11 @@ import JSZip from "jszip";
 import axios from "axios";
 import heic2any from "heic2any";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
-import { Transfer as TransferTx } from "@ltonetwork/lto";
+import { Transfer as TransferTx, getNetwork } from "@ltonetwork/lto";
 import { TypedOwnable } from "../interfaces/TypedOwnableInfo";
 import { useSnackbar } from "notistack";
 import TagInputField from "./TagInputField";
-
+import { sign } from "@ltonetwork/http-message-signatures";
 interface CreateOwnableProps {
   open: boolean;
   onClose: () => void;
@@ -82,16 +82,22 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
-      const value = +response.data[selectedNetwork];
+      console.log("response.data",response.data);
+      console.log("selectedNetwork: ",selectedNetwork);
+      const value = +response.data.T[selectedNetwork];
+      console.log("value of response.data", value);
       const address = await axios.get(
-        `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
+        // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
+        `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
         {
           headers: {
             Accept: "*/*",
           },
         }
       );
-      const serverAddress = address.data.serverWalletAddressLTO;
+      console.log("address.data", address.data);
+      const serverAddress_L = address.data.serverLtoWalletAddress_L;
+      const serverAddress_T = address.data.serverLtoWalletAddress_T;
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
         parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
@@ -101,7 +107,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       } else {
         setAmount(value);
         setShowAmount(calculatesAmount);
-        setShowAddress(serverAddress);
+        setShowAddress(serverAddress_T);
       }
     } catch (error) {
       console.error("Error fetching build amount:", error);
@@ -368,21 +374,43 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     }
     const tx = new TransferTx(recipient, amount);
     try {
-      const account = await LTOService.getAccount();
+      const account1 = await LTOService.getAccount();
+      console.log("account1", account1.address);
+      console.log("Network1", getNetwork(account1.address));
+      const account = LTOService.account;
+      console.log("account", account.address);
+      console.log("Network", getNetwork(account.address));
       const transaction = await LTOService.broadcast(tx!.signWith(account));
+
+      const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
+      const request = {
+        headers: {},
+        method: "POST",
+        url,
+      };
+      const signedRequest = await sign(request, { signer: account });
+      request.url = request.url + `?ltoNetworkId=${getNetwork(account.address)}`;
+      console.log("signedRequest", signedRequest);
+      const headers1 = {
+        "Content-Type": "multipart/form-data",
+        Accept: "*/*",
+      };
+      const combinedHeaders = { ...signedRequest.headers, ...headers1 };
+      // const combinedHeaders = headers1;
+      console.log("combinedHeaders", combinedHeaders);
+
       setTimeout(() => {
         if (transaction.id) {
           const imageType = "webp";
           const imageName = ownable.name.replace(/\s+/g, "-");
           const formattedName = ownable.name.toLowerCase().replace(/\s+/g, "_");
-
           const ownableData = [
             {
               template: "template1",
               CREATE_NFT: "true",
               NFT_BLOCKCHAIN: ownable.network,
-              NFT_TOKEN_URI:
-                "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
+              // NFT_TOKEN_URI:
+              //   "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
               OWNABLE_THUMBNAIL: "thumbnail.webp",
               OWNABLE_LTO_TRANSACTION_ID: transaction.id,
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
@@ -418,15 +446,18 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             link.click();
 
             // Send the zip file to oBuilder
-            const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
+            // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
             const formData = new FormData();
             formData.append("file", zipFile, formattedName + ".zip");
             axios
-              .post(url, formData, {
-                headers: {
-                  "Content-Type": "multipart/form-data",
-                  Accept: "*/*",
-                },
+              // .post(url, formData, {
+              //   headers: {
+              //     "Content-Type": "multipart/form-data",
+              //     Accept: "*/*",
+              //   },
+              // })
+              .post(request.url, formData, {
+                headers: combinedHeaders,
               })
               .then((res) => {
                 console.log(res.data);
