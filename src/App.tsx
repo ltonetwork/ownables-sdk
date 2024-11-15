@@ -65,22 +65,22 @@ export default function App() {
       .then(() => setLoaded(true));
   }, []);
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      const messageCount = await CheckForMessages.getNewMessageCount();
-      setMessages(messageCount);
-    };
-    fetchMessages();
-  });
+  // useEffect(() => {
+  //   const fetchMessages = async () => {
+  //     const messageCount = await CheckForMessages.getNewMessageCount();
+  //     setMessages(messageCount);
+  //   };
+  //   fetchMessages();
+  // });
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      const messageCount = await CheckForMessages.getNewMessageCount();
-      setMessages(messageCount);
-    };
-    const intervalId = setInterval(fetchMessages, 15000);
-    return () => clearInterval(intervalId);
-  }, []);
+  // useEffect(() => {
+  //   const fetchMessages = async () => {
+  //     const messageCount = await CheckForMessages.getNewMessageCount();
+  //     setMessages(messageCount);
+  //   };
+  //   const intervalId = setInterval(fetchMessages, 15000);
+  //   return () => clearInterval(intervalId);
+  // }, []);
 
   const showError = (title: string, message: string) => {
     setAlert({ severity: "error", title, message });
