@@ -34,23 +34,54 @@ export default class EventChainService {
       keywords: string[];
     }>
   > {
-    const ids = (await IDBService.listStores())
-      .filter((name) => name.match(/^ownable:\w+$/))
-      .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
+    // const ids = (await IDBService.listStores())
+    //   .filter((name) => name.match(/^ownable:\w+$/))
+    //   .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
+    // Retrieve the list of store names
+    const storeNames = await IDBService.listStores();
+  console.log("TEST1:", storeNames);
 
-    return (
-      await Promise.all(
-        ids.map(async (id) => {
-          const {
-            chain,
-            package: packageCid,
-            created,
-            keywords,
-          } = await this.load(id);
+  const filteredNames = storeNames.filter((name) => name.match(/^ownable:\w+$/));
+  console.log("TEST:", filteredNames);
+
+  const ids = filteredNames.map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
+  console.log("TEST:", ids);
+
+  try {
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const { chain, package: packageCid, created, keywords } = await this.load(id);
           return { chain, package: packageCid, created, keywords };
-        })
-      )
-    ).sort(({ created: a }, { created: b }) => a.getTime() - b.getTime());
+        } catch (error) {
+          console.error(`Failed to load ID ${id}:`, error);
+          return null; // Optionally handle errors per ID
+        }
+      })
+    );
+
+    // Filter out null values
+    const validResults = results.filter((result): result is NonNullable<typeof result> => result !== null);
+
+    return validResults;
+    } catch (error) {
+      console.error("An error occurred while processing IDs:", error);
+      throw error; // Re-throw to propagate the error
+    }
+    
+    // return (
+    //   await Promise.all(
+    //     ids.map(async (id) => {
+    //       const {
+    //         chain,
+    //         package: packageCid,
+    //         created,
+    //         keywords,
+    //       } = await this.load(id);
+    //       return { chain, package: packageCid, created, keywords };
+    //     })
+    //   )
+    // ).sort(({ created: a }, { created: b }) => a.getTime() - b.getTime());
   }
 
   static async load(id: string): Promise<{
