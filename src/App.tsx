@@ -37,6 +37,7 @@ export default function App() {
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
   const [message, setMessages] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
   const [ownables, setOwnables] = useState<
     Array<{ chain: EventChain; package: string }>
   >([]);
@@ -67,7 +68,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (address.length > 1) {
+    if (!showLogin && address.length > 1) {
       const stopPolling = PollingService.startPolling(
         address,
         (newCount: any) => {
@@ -76,9 +77,8 @@ export default function App() {
         5000
       );
       return () => stopPolling();
-    } else {
     }
-  }, [address]);
+  }, [address, showLogin]);
 
   const showError = (title: string, message: string) => {
     setAlert({ severity: "error", title, message });
@@ -112,10 +112,7 @@ export default function App() {
     pkg: TypedPackage[] | null,
     triggerRefresh: boolean
   ) => {
-    //update message count
-    // const updatedMessageCount = await CheckForMessages.getNewMessageCount();
-    // // setMessages(updatedMessageCount);
-    // CheckForMessages.initializeWebSocket();
+    if (isImporting) return;
 
     const batchNumber = 2;
 
@@ -123,6 +120,7 @@ export default function App() {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",
       });
+      setIsImporting(false);
       return;
     }
 
@@ -146,6 +144,8 @@ export default function App() {
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
+      LocalStorageService.set("messageCount", 0);
+      setMessages(0);
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
 
@@ -161,6 +161,8 @@ export default function App() {
     //     window.location.reload();
     //   }, 4000);
     // }
+
+    setIsImporting(false);
   };
 
   const deleteOwnable = (id: string, packageCid: string) => {

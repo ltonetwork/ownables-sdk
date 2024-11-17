@@ -13,27 +13,58 @@ export class PollingService {
         address
       )}/hashes`;
 
-      // Fetch only hashes via a signed request
-      const response = await RelayService.handleSignedRequest("GET", url);
+      // Get cached ETag and Last-Modified values if they exist
+      const headers: Record<string, string> = {};
+      const etag = LocalStorageService.get("messageEtag");
+      const lastModified = LocalStorageService.get("lastModified");
 
+      if (etag) {
+        headers["If-None-Match"] = etag;
+      }
+      if (lastModified) {
+        headers["If-Modified-Since"] = lastModified;
+      }
+
+      //pass headers
+      const requestOptions = Object.keys(headers).length > 0 ? { headers } : {};
+      const response = await RelayService.handleSignedRequest(
+        "GET",
+        url,
+        requestOptions
+      );
+
+      // Handle 304 Not Modified
       if (response.status === 304) {
-        console.log("No new hashes");
-        return 0; // No updates
+        const messageCount = LocalStorageService.get("messageCount") || 0;
+        return messageCount;
       }
 
       if (response.status === 200) {
         const serverHashes = response.data.hashes;
+
+        const newEtag = response.headers?.etag;
+        if (newEtag) {
+          LocalStorageService.set("messageEtag", newEtag);
+        }
+
+        // Store new Last-Modified if available
+        const newLastModified = response.headers?.["last-modified"];
+        if (newLastModified) {
+          LocalStorageService.set("lastModified", newLastModified);
+        }
 
         // Compare client and server hashes to find new ones
         const newHashes = serverHashes.filter(
           (hash: string) => !clientHashes.includes(hash)
         );
 
-        // Update local storage with the new hashes
-        //LocalStorageService.set("messageHashes", serverHashes);
+        // Update local storage with messagehash count
+        LocalStorageService.set("messageCount", newHashes.length);
 
-        return newHashes.length; // Return the count of new messages
+        return newHashes.length;
       }
+
+      return 0;
     } catch (error) {
       console.error("Error fetching message hashes:", error);
       return 0;
@@ -48,19 +79,31 @@ export class PollingService {
     onUpdate: (count: number) => void,
     interval = 15000
   ): () => void {
+    this.checkForNewHashes(address).then(onUpdate);
+
     const fetchHashes = async () => {
       try {
         const newCount = await this.checkForNewHashes(address);
-        onUpdate(newCount); // Pass the count of new messages to the callback
+        onUpdate(newCount);
       } catch (error) {
         console.error("Polling error:", error);
       }
     };
 
-    // Set up the polling interval
     const intervalId = setInterval(fetchHashes, interval);
 
-    // Return a function to stop polling
-    return () => clearInterval(intervalId);
+    //cleanup function
+    return () => {
+      clearInterval(intervalId);
+    };
+  }
+
+  /**
+   * Clear cached headers and hashes - call this on logout
+   */
+  static clearCache() {
+    LocalStorageService.remove("messageEtag");
+    LocalStorageService.remove("lastModified");
+    LocalStorageService.remove("messageHashes");
   }
 }

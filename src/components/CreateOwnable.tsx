@@ -83,10 +83,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
-      console.log("response.data",response.data);
-      console.log("selectedNetwork: ",selectedNetwork);
       const value = +response.data.T[selectedNetwork];
-      console.log("value of response.data", value);
       const address = await axios.get(
         // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
         `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
@@ -111,7 +108,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         setShowAddress(serverAddress_T);
       }
     } catch (error) {
-      console.error("Error fetching build amount:", error);
+      //console.error("Error fetching build amount:", error);
       setNoConnection(true);
     }
   }, [selectedNetwork]);
@@ -202,70 +199,77 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   };
 
   const handleImageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>, 
+    e: React.ChangeEvent<HTMLInputElement>,
     format: "webp" | "gif" = "webp"
-) => {
+  ) => {
     let file = e.target.files?.[0] || null;
 
     if (file && file.type === "image/heic") {
-        // Convert HEIC to desired format
-        const blob = await heic2any({
-            blob: file,
-            toType: format === "gif" ? "image/gif" : "image/webp",
-            quality: 0.7,
-        });
+      // Convert HEIC to desired format
+      const blob = await heic2any({
+        blob: file,
+        toType: format === "gif" ? "image/gif" : "image/webp",
+        quality: 0.7,
+      });
 
-        if (blob instanceof Blob) {
-            file = new File([blob], file.name, { type: format === "gif" ? "image/gif" : "image/webp" });
-        }
+      if (blob instanceof Blob) {
+        file = new File([blob], file.name, {
+          type: format === "gif" ? "image/gif" : "image/webp",
+        });
+      }
     }
 
     if (file) {
-        // Resize the image
-        const resizedImage = await resizeImage(file, format);
-        file = new File([resizedImage], file.name, { type: format === "gif" ? "image/gif" : "image/webp" });
+      // Resize the image
+      const resizedImage = await resizeImage(file, format);
+      file = new File([resizedImage], file.name, {
+        type: format === "gif" ? "image/gif" : "image/webp",
+      });
 
-        // Generate a thumbnail (defaulting to WebP)
-        const thumbnailImage = await createThumbnail(resizedImage, format);
-        setThumbnail(thumbnailImage);
+      // Generate a thumbnail (defaulting to WebP)
+      const thumbnailImage = await createThumbnail(resizedImage, format);
+      setThumbnail(thumbnailImage);
     }
 
     // Update the state with the processed file
     setOwnable((prevOwnable) => ({
-        ...prevOwnable,
-        image: file,
+      ...prevOwnable,
+      image: file,
     }));
-};
+  };
 
-async function createThumbnail(blob: Blob, format: "webp" | "gif" = "webp"): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+  async function createThumbnail(
+    blob: Blob,
+    format: "webp" | "gif" = "webp"
+  ): Promise<Blob> {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-          // Set thumbnail size
-          canvas.width = 50;
-          canvas.height = 50;
+        // Set thumbnail size
+        canvas.width = 50;
+        canvas.height = 50;
 
-          // Draw image on the canvas
-          ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Draw image on the canvas
+        ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          // Export the canvas as the specified format
-          const mimeType = format === "gif" ? "image/gif" : "image/webp";
-          canvas.toBlob((thumbnailBlob) => {
-              if (thumbnailBlob) {
-                  resolve(thumbnailBlob);
-              } else {
-                  reject(new Error("Could not create thumbnail blob"));
-              }
-          }, mimeType);
+        // Export the canvas as the specified format
+        const mimeType = format === "gif" ? "image/gif" : "image/webp";
+        canvas.toBlob((thumbnailBlob) => {
+          if (thumbnailBlob) {
+            resolve(thumbnailBlob);
+          } else {
+            reject(new Error("Could not create thumbnail blob"));
+          }
+        }, mimeType);
       };
 
       img.onerror = reject;
       img.src = URL.createObjectURL(blob);
-  });
-}
+    });
+  }
 
   const handleThumbnailUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -290,56 +294,56 @@ async function createThumbnail(blob: Blob, format: "webp" | "gif" = "webp"): Pro
     }
   };
 
-  async function resizeImage(file: File, format: "webp" | "gif" = "webp"): Promise<Blob> {
+  async function resizeImage(
+    file: File,
+    format: "webp" | "gif" = "webp"
+  ): Promise<Blob> {
     return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            let { width, height } = img;
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
 
-            // Create a canvas
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
+        // Create a canvas
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-            if (width === height) {
-                // Square image: Use original dimensions
-                canvas.width = width;
-                canvas.height = height;
-                ctx!.drawImage(img, 0, 0, width, height);
-            } else {
-                // Non-square image: Create a square canvas with transparent background
-                const maxSize = Math.max(width, height);
-                canvas.width = maxSize;
-                canvas.height = maxSize;
+        if (width === height) {
+          // Square image: Use original dimensions
+          canvas.width = width;
+          canvas.height = height;
+          ctx!.drawImage(img, 0, 0, width, height);
+        } else {
+          // Non-square image: Create a square canvas with transparent background
+          const maxSize = Math.max(width, height);
+          canvas.width = maxSize;
+          canvas.height = maxSize;
 
-                // Fill with transparent background
-                ctx!.fillStyle = "rgba(0, 0, 0, 0)";
-                ctx!.fillRect(0, 0, maxSize, maxSize);
+          // Fill with transparent background
+          ctx!.fillStyle = "rgba(0, 0, 0, 0)";
+          ctx!.fillRect(0, 0, maxSize, maxSize);
 
-                // Center the image
-                const x = maxSize / 2 - width / 2;
-                const y = maxSize / 2 - height / 2;
-                ctx!.drawImage(img, x, y, width, height);
-            }
+          // Center the image
+          const x = maxSize / 2 - width / 2;
+          const y = maxSize / 2 - height / 2;
+          ctx!.drawImage(img, x, y, width, height);
+        }
 
-            // Export the image as WebP or GIF
-            const mimeType = format === "gif" ? "image/gif" : "image/webp";
+        // Export the image as WebP or GIF
+        const mimeType = format === "gif" ? "image/gif" : "image/webp";
 
-            canvas.toBlob(
-                (blob) => {
-                    if (blob) {
-                        resolve(blob);
-                    } else {
-                        reject(new Error("Could not create blob"));
-                    }
-                },
-                mimeType
-            );
-        };
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("Could not create blob"));
+          }
+        }, mimeType);
+      };
 
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
     });
-}
+  }
 
   async function getThumbnailBlob(
     thumbnail: File | Blob,
@@ -410,7 +414,8 @@ async function createThumbnail(blob: Blob, format: "webp" | "gif" = "webp"): Pro
         url,
       };
       const signedRequest = await sign(request, { signer: account });
-      request.url = request.url + `?ltoNetworkId=${getNetwork(account.address)}`;
+      request.url =
+        request.url + `?ltoNetworkId=${getNetwork(account.address)}`;
       console.log("signedRequest", signedRequest);
       const headers1 = {
         "Content-Type": "multipart/form-data",

@@ -16,11 +16,41 @@ export class RelayService {
   /**
    * Handle All Signed Requests
    */
-  static async handleSignedRequest(method: string, url: string) {
+  // static async handleSignedRequest(method: string, url: string) {
+  //   try {
+  //     const sender = LTOService.account;
+  //     const request = {
+  //       headers: {},
+  //       method,
+  //       url,
+  //     };
+
+  //     const signedRequest = await sign(request, { signer: sender });
+
+  //     const response = await axios({
+  //       method: signedRequest.method,
+  //       url: signedRequest.url,
+  //       headers: signedRequest.headers,
+  //     });
+
+  //     return response;
+  //   } catch (error) {
+  //     console.error("Error in handleSignedRequest:", error);
+  //     throw error;
+  //   }
+  // }
+
+  static async handleSignedRequest(
+    method: string,
+    url: string,
+    options: { headers?: Record<string, string> } = {}
+  ) {
     try {
       const sender = LTOService.account;
       const request = {
-        headers: {},
+        headers: {
+          ...options.headers, // Include optional headers in the request
+        },
         method,
         url,
       };
@@ -30,7 +60,13 @@ export class RelayService {
       const response = await axios({
         method: signedRequest.method,
         url: signedRequest.url,
-        headers: signedRequest.headers,
+        headers: {
+          ...signedRequest.headers,
+          ...options.headers, // Ensure optional headers are included after signing
+        },
+        validateStatus: (status) => {
+          return (status >= 200 && status < 300) || status === 304;
+        },
       });
 
       return response;
