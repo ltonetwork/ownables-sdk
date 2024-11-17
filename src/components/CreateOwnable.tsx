@@ -74,7 +74,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 
   const fetchBuildAmount = useCallback(async () => {
     try {
-      console.log("REACT_APP_OBUILDER", process.env.REACT_APP_OBUILDER);
       const response = await axios.get(
         `${process.env.REACT_APP_OBUILDER}/api/v1/templateCost?templateId=1`,
         {

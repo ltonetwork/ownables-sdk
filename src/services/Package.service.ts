@@ -372,58 +372,69 @@ export default class PackageService {
 
       const results = await Promise.all(
         filteredMessages.map(async (data: any) => {
-          const { message, ...messageHash } = data;
-          const mainMessage = message;
-          const asset = await this.extractAssets(mainMessage.data.buffer);
-          if (asset.length === 0) return;
-          const cid = await calculateCid(asset);
-          const chainJson = await this.getChainJson(
-            "chain.json",
-            mainMessage.data.buffer
-          );
+          try {
+            const { message, ...messageHash } = data;
+            const mainMessage = message;
+            const asset = await this.extractAssets(mainMessage.data.buffer);
+            if (asset.length === 0) return null;
 
-          if (await IDBService.hasStore(`package:${cid}`)) {
-            if (await this.isCurrentEvent(chainJson)) {
-              this.removeOlderPackage(chainJson.id);
-            } else {
-              return;
+            const cid = await calculateCid(asset);
+            const chainJson = await this.getChainJson(
+              "chain.json",
+              mainMessage.data.buffer
+            );
+
+            if (await IDBService.hasStore(`package:${cid}`)) {
+              if (await this.isCurrentEvent(chainJson)) {
+                this.removeOlderPackage(chainJson.id);
+              } else {
+                return null;
+              }
             }
+
+            const packageJson = await this.getPackageJson(
+              "package.json",
+              asset
+            );
+            const name = packageJson.name;
+            const title = name
+              .replace(/^ownable-|-ownable$/, "")
+              .replace(/[-_]+/, " ")
+              .replace(/\b\w/, (c: any) => c.toUpperCase());
+            const description = packageJson.description;
+            const capabilities = await this.getCapabilities(asset);
+            const keywords: string[] = packageJson.keywords || "";
+            const isNotLocal = true;
+            const { ...values } = messageHash;
+            const uniqueMessageHash = values.messageHash;
+
+            if (await IDBService.hasStore(`package:${cid}`)) {
+              triggerRefresh = true;
+            }
+
+            await this.storeMessageHash(uniqueMessageHash);
+            await this.storeAssets(cid, asset);
+
+            const pkg = this.storePackageInfo(
+              title,
+              name,
+              description,
+              cid,
+              keywords,
+              capabilities,
+              isNotLocal,
+              uniqueMessageHash
+            );
+
+            const chain = EventChain.from(chainJson);
+            pkg.chain = chain;
+            pkg.uniqueMessageHash = uniqueMessageHash;
+
+            return pkg;
+          } catch (err) {
+            console.error("Error processing data:", err);
+            return null; // Skip failed items
           }
-
-          const packageJson = await this.getPackageJson("package.json", asset);
-          const name = packageJson.name;
-          const title = name
-            .replace(/^ownable-|-ownable$/, "")
-            .replace(/[-_]+/, " ")
-            .replace(/\b\w/, (c: any) => c.toUpperCase());
-          const description = packageJson.description;
-          const capabilities = await this.getCapabilities(asset);
-          const keywords: string[] = packageJson.keywords || "";
-          const isNotLocal = true;
-          const { ...values } = messageHash;
-          const uniqueMessageHash = values.messageHash;
-
-          if (await IDBService.hasStore(`package:${cid}`)) {
-            triggerRefresh = true;
-          }
-
-          await this.storeMessageHash(uniqueMessageHash);
-
-          await this.storeAssets(cid, asset);
-          const pkg = this.storePackageInfo(
-            title,
-            name,
-            description,
-            cid,
-            keywords,
-            capabilities,
-            isNotLocal,
-            uniqueMessageHash
-          );
-          const chain = EventChain.from(chainJson);
-          pkg.chain = chain;
-          pkg.uniqueMessageHash = uniqueMessageHash;
-          return pkg;
         })
       );
 

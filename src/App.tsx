@@ -150,17 +150,17 @@ export default function App() {
     }
 
     // Trigger a refresh only for updated ownables
-    // if (triggerRefresh) {
-    //   setAlert({
-    //     severity: "info",
-    //     title: "New Ownables Detected",
-    //     message: "New ownables have been detected. Refreshing...",
-    //   });
+    if (triggerRefresh) {
+      setAlert({
+        severity: "info",
+        title: "New Ownables Detected",
+        message: "New ownables have been detected. Refreshing...",
+      });
 
-    //   setTimeout(() => {
-    //     window.location.reload();
-    //   }, 4000);
-    // }
+      setTimeout(() => {
+        window.location.reload();
+      }, 10000);
+    }
 
     setIsImporting(false);
   };

@@ -37,9 +37,10 @@ export default class EventChainService {
     const ids = (await IDBService.listStores())
       .filter((name) => name.match(/^ownable:\w+$/))
       .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
-    return (
-      await Promise.all(
-        ids.map(async (id) => {
+
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        try {
           const {
             chain,
             package: packageCid,
@@ -47,9 +48,17 @@ export default class EventChainService {
             keywords,
           } = await this.load(id);
           return { chain, package: packageCid, created, keywords };
-        })
-      )
-    ).sort(({ created: a }, { created: b }) => a.getTime() - b.getTime());
+        } catch (error) {
+          console.error(`Failed to load chain with id ${id}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null
+    return results
+      .filter((result): result is NonNullable<typeof result> => result !== null)
+      .sort(({ created: a }, { created: b }) => a.getTime() - b.getTime());
   }
 
   static async load(id: string): Promise<{
