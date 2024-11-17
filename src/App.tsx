@@ -27,7 +27,8 @@ import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import CreateOwnable from "./components/CreateOwnable";
 import { RelayService } from "./services/Relay.service";
-import { CheckForMessages } from "./services/CheckMessages.service";
+//import { CheckForMessages } from "./services/CheckMessages.service";
+import { PollingService } from "./services/Polling.service";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -65,22 +66,19 @@ export default function App() {
       .then(() => setLoaded(true));
   }, []);
 
-  // useEffect(() => {
-  //   const fetchMessages = async () => {
-  //     const messageCount = await CheckForMessages.getNewMessageCount();
-  //     setMessages(messageCount);
-  //   };
-  //   fetchMessages();
-  // });
-
-  // useEffect(() => {
-  //   const fetchMessages = async () => {
-  //     const messageCount = await CheckForMessages.getNewMessageCount();
-  //     setMessages(messageCount);
-  //   };
-  //   const intervalId = setInterval(fetchMessages, 15000);
-  //   return () => clearInterval(intervalId);
-  // }, []);
+  useEffect(() => {
+    if (address.length > 1) {
+      const stopPolling = PollingService.startPolling(
+        address,
+        (newCount: any) => {
+          setMessages(newCount);
+        },
+        5000
+      );
+      return () => stopPolling();
+    } else {
+    }
+  }, [address]);
 
   const showError = (title: string, message: string) => {
     setAlert({ severity: "error", title, message });
@@ -115,8 +113,9 @@ export default function App() {
     triggerRefresh: boolean
   ) => {
     //update message count
-    const updatedMessageCount = await CheckForMessages.getNewMessageCount();
-    setMessages(updatedMessageCount);
+    // const updatedMessageCount = await CheckForMessages.getNewMessageCount();
+    // // setMessages(updatedMessageCount);
+    // CheckForMessages.initializeWebSocket();
 
     const batchNumber = 2;
 
@@ -151,17 +150,17 @@ export default function App() {
     }
 
     // Trigger a refresh only for updated ownables
-    if (triggerRefresh) {
-      setAlert({
-        severity: "info",
-        title: "New Ownables Detected",
-        message: "New ownables have been detected. Refreshing...",
-      });
+    // if (triggerRefresh) {
+    //   setAlert({
+    //     severity: "info",
+    //     title: "New Ownables Detected",
+    //     message: "New ownables have been detected. Refreshing...",
+    //   });
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 4000);
-    }
+    //   setTimeout(() => {
+    //     window.location.reload();
+    //   }, 4000);
+    // }
   };
 
   const deleteOwnable = (id: string, packageCid: string) => {

@@ -10,14 +10,13 @@ import LTOService from "./LTO.service";
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 
 export class RelayService {
-  private static relayURL =
-    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
+  static relayURL = process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
   private static relay = new Relay(`${this.relayURL}`);
 
   /**
    * Handle All Signed Requests
    */
-  private static async handleSignedRequest(method: string, url: string) {
+  static async handleSignedRequest(method: string, url: string) {
     try {
       const sender = LTOService.account;
       const request = {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Divider, Fab, ListItemIcon, Badge } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import MailIcon from "@mui/icons-material/CallReceivedOutlined";
@@ -15,8 +15,6 @@ import Tooltip from "./Tooltip";
 import Loading from "./Loading";
 import useBusy from "../utils/useBusy";
 
-//globally pass the messages in the relay
-//let message: number | null;
 interface PackagesDialogProps {
   packages: Array<TypedPackage | TypedPackageStub>;
   open: boolean;
