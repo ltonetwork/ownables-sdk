@@ -119,11 +119,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           );
 
           //remove package from localstorage packages
-          await LocalStorageService.removeByField(
-            "packages",
-            "uniqueMessageHash",
-            this.pkg.uniqueMessageHash
-          );
+          // await LocalStorageService.removeByField(
+          //   "packages",
+          //   "uniqueMessageHash",
+          //   this.pkg.uniqueMessageHash
+          // );
 
           //this.props.onRemove();
         }
