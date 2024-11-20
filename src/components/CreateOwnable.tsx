@@ -28,6 +28,9 @@ import { TypedOwnable } from "../interfaces/TypedOwnableInfo";
 import { useSnackbar } from "notistack";
 import TagInputField from "./TagInputField";
 import { sign } from "@ltonetwork/http-message-signatures";
+import { parseGIF, decompressFrames } from 'gifuct-js';
+import GIF from 'gif.js';
+
 interface CreateOwnableProps {
   open: boolean;
   onClose: () => void;
@@ -40,12 +43,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [balance, setBalance] = useState<number>();
   const [ownable, setOwnable] = useState<TypedOwnable>({
     owner: "",
-    //email: "",
     name: "",
     description: "",
     keywords: [],
     evmAddress: "",
-    network: "ethereum",
+    network: "arbitrum",
     image: null,
   });
   const [missingFields, setMissingFields] = useState<string[]>([]);
@@ -56,21 +58,10 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [recipient, setShowAddress] = useState<string | undefined>();
   const [noConnection, setNoConnection] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState("ethereum");
+  const [selectedNetwork, setSelectedNetwork] = useState("arbitrum");
   const [thumbnail, setThumbnail] = useState<Blob | null>(null);
   const [blurThumbnail, setBlurThumbnail] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
-
-  // const getPlaceholderText = (network: string) => {
-  //   switch (network) {
-  //     case "ethereum":
-  //       return "Ethereum Address";
-  //     case "arbitrum":
-  //       return "Arbitrum Address";
-  //     default:
-  //       return "Address";
-  //   }
-  // };
 
   const fetchBuildAmount = useCallback(async () => {
     try {
@@ -93,7 +84,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         }
       );
       console.log("address.data", address.data);
-      const serverAddress_L = address.data.serverLtoWalletAddress_L;
+      // const serverAddress_L = address.data.serverLtoWalletAddress_L;
       const serverAddress_T = address.data.serverLtoWalletAddress_T;
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
@@ -107,7 +98,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         setShowAddress(serverAddress_T);
       }
     } catch (error) {
-      //console.error("Error fetching build amount:", error);
       setNoConnection(true);
     }
   }, [selectedNetwork]);
@@ -138,7 +128,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const clearFields = () => {
     setOwnable({
       owner: "",
-      //email: "",
       name: "",
       description: "",
       keywords: [],
@@ -197,83 +186,19 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     }
   };
 
-  const handleImageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    format: "webp" | "gif" = "webp"
-  ) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let file = e.target.files?.[0] || null;
 
-    if (file && file.type === "image/heic") {
-      // Convert HEIC to desired format
-      const blob = await heic2any({
-        blob: file,
-        toType: format === "gif" ? "image/gif" : "image/webp",
-        quality: 0.7,
-      });
-
-      if (blob instanceof Blob) {
-        file = new File([blob], file.name, {
-          type: format === "gif" ? "image/gif" : "image/webp",
-        });
-      }
+    if (!file) {
+      // Clear the thumbnail if no file is selected
+      setOwnable((prevOwnable) => ({
+        ...prevOwnable,
+        image: null,
+      }));
+      setThumbnail(null);
+      return;
     }
 
-    if (file) {
-      // Resize the image
-      const resizedImage = await resizeImage(file, format);
-      file = new File([resizedImage], file.name, {
-        type: format === "gif" ? "image/gif" : "image/webp",
-      });
-
-      // Generate a thumbnail (defaulting to WebP)
-      const thumbnailImage = await createThumbnail(resizedImage, format);
-      setThumbnail(thumbnailImage);
-    }
-
-    // Update the state with the processed file
-    setOwnable((prevOwnable) => ({
-      ...prevOwnable,
-      image: file,
-    }));
-  };
-
-  async function createThumbnail(
-    blob: Blob,
-    format: "webp" | "gif" = "webp"
-  ): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        // Set thumbnail size
-        canvas.width = 50;
-        canvas.height = 50;
-
-        // Draw image on the canvas
-        ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        // Export the canvas as the specified format
-        const mimeType = format === "gif" ? "image/gif" : "image/webp";
-        canvas.toBlob((thumbnailBlob) => {
-          if (thumbnailBlob) {
-            resolve(thumbnailBlob);
-          } else {
-            reject(new Error("Could not create thumbnail blob"));
-          }
-        }, mimeType);
-      };
-
-      img.onerror = reject;
-      img.src = URL.createObjectURL(blob);
-    });
-  }
-
-  const handleThumbnailUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    let file = e.target.files?.[0] || null;
     if (file && file.type === "image/heic") {
       const blob = await heic2any({
         blob: file,
@@ -285,69 +210,146 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       }
     }
 
-    if (file) {
+    setOwnable((prevOwnable) => ({
+      ...prevOwnable,
+      image: file,
+    }));
+
+    if (file && file.type === "image/gif") {
+      const thumbnailImage = await createGifThumbnail(file);
+      setThumbnail(thumbnailImage);
+    }else if(file){
       const resizedImage = await resizeImage(file);
       file = new File([resizedImage], file.name, { type: "image/webp" });
       const thumbnailImage = await createThumbnail(resizedImage);
       setThumbnail(thumbnailImage);
     }
-  };
+  }
 
-  async function resizeImage(
-    file: File,
-    format: "webp" | "gif" = "webp"
-  ): Promise<Blob> {
+  async function createGifThumbnail(blob: Blob): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const buffer = event.target?.result;
+        if (buffer && typeof buffer !== 'string') {
+          const gifData = parseGIF(buffer as ArrayBuffer);
+          const frames = decompressFrames(gifData, true);
+  
+          if (frames.length > 0) {
+            const gif = new GIF({
+              workers: 2,
+              quality: 10,
+              width: 50,
+              height: 50,
+            });
+  
+            frames.forEach(frame => {
+              const tempCanvas = document.createElement("canvas");
+              const tempCtx = tempCanvas.getContext("2d");
+              tempCanvas.width = frame.dims.width;
+              tempCanvas.height = frame.dims.height;
+              const imageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+              tempCtx!.putImageData(imageData, 0, 0);
+  
+              const canvas = document.createElement("canvas");
+              const ctx = canvas.getContext("2d");
+              canvas.width = 50;
+              canvas.height = 50;
+              ctx!.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+  
+              gif.addFrame(canvas, { copy: true, delay: frame.delay });
+            });
+  
+            gif.on('finished', (blob: Blob) => {
+              resolve(blob);
+            });
+  
+            gif.render();
+          } else {
+            reject(new Error("No frames found in GIF"));
+          }
+        } else {
+          reject(new Error("Could not read file as ArrayBuffer"));
+        }
+      };
+  
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+  }
+
+  async function createThumbnail(blob: Blob): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        // Set thumbnail size
+        canvas.width = 50;
+        canvas.height = 50;
+        ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("Could not create thumbnail blob"));
+          }
+        }, "image/webp");
+      };
+      console.log("new blob image", blob);
+      img.onerror = reject;
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  async function resizeImage(file: File): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
 
-        // Create a canvas
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
         if (width === height) {
-          // Square image: Use original dimensions
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           canvas.width = width;
           canvas.height = height;
           ctx!.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("Could not create blob"));
+            }
+          }, "image/webp");
         } else {
-          // Non-square image: Create a square canvas with transparent background
           const maxSize = Math.max(width, height);
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           canvas.width = maxSize;
           canvas.height = maxSize;
 
-          // Fill with transparent background
           ctx!.fillStyle = "rgba(0, 0, 0, 0)";
           ctx!.fillRect(0, 0, maxSize, maxSize);
 
-          // Center the image
           const x = maxSize / 2 - width / 2;
           const y = maxSize / 2 - height / 2;
           ctx!.drawImage(img, x, y, width, height);
+
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("Could not create blob"));
+            }
+          }, "image/webp");
         }
-
-        // Export the image as WebP or GIF
-        const mimeType = format === "gif" ? "image/gif" : "image/webp";
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error("Could not create blob"));
-          }
-        }, mimeType);
       };
-
       img.onerror = reject;
       img.src = URL.createObjectURL(file);
     });
   }
 
-  async function getThumbnailBlob(
-    thumbnail: File | Blob,
-    blur: boolean
-  ): Promise<Blob> {
+  async function getThumbnailBlob( thumbnail: File | Blob, blur: boolean ): Promise<Blob> {
     if (!blur) {
       return thumbnail;
     }
@@ -434,14 +436,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               template: "template1",
               CREATE_NFT: "true",
               NFT_BLOCKCHAIN: ownable.network,
-              // NFT_TOKEN_URI:
-              //   "https://black-rigid-chickadee-743.mypinata.cloud/ipfs/QmSHE3ReBy7b8kmVVbyzA2PdiYyxWsQNU89SsAnWycwMhB",
               OWNABLE_THUMBNAIL: "thumbnail.webp",
               OWNABLE_LTO_TRANSACTION_ID: transaction.id,
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
               PLACEHOLDER1_DESCRIPTION: ownable.description,
               PLACEHOLDER1_VERSION: "0.1.0",
-              //PLACEHOLDER1_AUTHORS: ownable.owner + " <" + ownable.email + ">",
               PLACEHOLDER1_KEYWORDS: tags,
               PLACEHOLDER2_TITLE: ownable.name,
               PLACEHOLDER2_IMG: imageName + "." + imageType,
@@ -474,14 +473,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
             const formData = new FormData();
             formData.append("file", zipFile, formattedName + ".zip");
-            axios
-              // .post(url, formData, {
-              //   headers: {
-              //     "Content-Type": "multipart/form-data",
-              //     Accept: "*/*",
-              //   },
-              // })
-              .post(request.url, formData, {
+            axios.post(request.url, formData, {
                 headers: combinedHeaders,
               })
               .then((res) => {
@@ -627,17 +619,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                 sx={{ fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" } }}
                 required
               />
-              {/* <Input
-                error={missingFields.includes("email")}
-                fullWidth
-                type="email"
-                name="email"
-                placeholder="Owner email"
-                value={ownable.email}
-                onChange={handleInputChange}
-                sx={{ fontSize: { xs: "0.8rem", sm: "1rem", md: "1.2rem" } }}
-                required
-              /> */}
               <Box component="div" sx={{ mt: 2 }}>
                 <Input
                   error={missingFields.includes("name")}
@@ -741,7 +722,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                       {blurThumbnail ? "Unblur Thumbnail" : "Blur Thumbnail"}
                     </Button>
                     <br></br>
-                    <Button>
+                    {/* <Button>
                       <label
                         htmlFor="thumbUpload"
                         className="custom-file-upload"
@@ -755,7 +736,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                       accept="image/*,.heic"
                       onChange={handleThumbnailUpload}
                       style={{ marginBottom: "10px", display: "none" }}
-                    />
+                    /> */}
                   </>
                 )}
                 <Box
