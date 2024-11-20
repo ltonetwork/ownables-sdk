@@ -774,7 +774,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           onClose={() => setShowNoBalance(false)}
         >
           <Alert variant="outlined" severity="warning">
-            <AlertTitle>Your balance is zero</AlertTitle>A minumum of{" "}
+            <AlertTitle>Your balance is zero</AlertTitle>A minimum of{" "}
             {showAmount + 1} LTO is required to build a ownable.
           </Alert>
         </Dialog>
@@ -785,7 +785,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         >
           <Alert variant="outlined" severity="warning">
             <AlertTitle>
-              Your balance is to low. A A minumum of {showAmount + 1} LTO is
+              Your balance is to low. A minimum of {showAmount + 1} LTO is
               required to build a ownable.{" "}
             </AlertTitle>
             Please top up.
