@@ -309,6 +309,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         let { width, height } = img;
 
         if (width === height) {
+          // Square image: Use original dimensions
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
           canvas.width = width;
@@ -322,15 +323,18 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             }
           }, "image/webp");
         } else {
+          // Non-square image: Create a square canvas with transparent background
           const maxSize = Math.max(width, height);
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
           canvas.width = maxSize;
           canvas.height = maxSize;
 
+          // Fill with transparent background
           ctx!.fillStyle = "rgba(0, 0, 0, 0)";
           ctx!.fillRect(0, 0, maxSize, maxSize);
 
+          // Center the image
           const x = maxSize / 2 - width / 2;
           const y = maxSize / 2 - height / 2;
           ctx!.drawImage(img, x, y, width, height);
