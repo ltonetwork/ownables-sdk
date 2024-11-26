@@ -82,7 +82,13 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
-      const value = +response.data.T[selectedNetwork];
+	  let value;
+	  if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
+		value = +response.data.L[selectedNetwork];
+	  } else {
+		value = +response.data.T[selectedNetwork];
+	  }
+      console.log("Value:", value);
       const address = await axios.get(
         // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
         `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
@@ -93,7 +99,13 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         }
       );
       //const serverAddress_L = address.data.serverLtoWalletAddress_L;
-      const serverAddress_T = address.data.serverLtoWalletAddress_T;
+    //   const serverAddress_T = address.data.serverLtoWalletAddress_T;
+	  let serverAddress;
+	  if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
+		serverAddress = address.data.serverLtoWalletAddress_L;
+	  }else {
+		serverAddress = address.data.serverLtoWalletAddress_T;
+	  }
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
         parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
@@ -103,7 +115,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       } else {
         setAmount(value);
         setShowAmount(calculatesAmount);
-        setShowAddress(serverAddress_T);
+        setShowAddress(serverAddress);
       }
     } catch (error) {
       //console.error("Error fetching build amount:", error);
