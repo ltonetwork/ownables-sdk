@@ -159,7 +159,7 @@ export default function App() {
 
       setTimeout(() => {
         window.location.reload();
-      }, 10000);
+      }, 7000);
     }
 
     setIsImporting(false);
