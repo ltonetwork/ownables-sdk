@@ -11,21 +11,15 @@ export class PollingService {
     try {
       const url = `${RelayService.relayURL}/inboxes/${encodeURIComponent(
         address
-      )}/hashes`;
+      )}/list`;
 
-      // Get cached ETag and Last-Modified values if they exist
       const headers: Record<string, string> = {};
-      const etag = LocalStorageService.get("messageEtag");
       const lastModified = LocalStorageService.get("lastModified");
 
-      if (etag) {
-        headers["If-None-Match"] = etag;
-      }
       if (lastModified) {
         headers["If-Modified-Since"] = lastModified;
       }
 
-      //pass headers
       const requestOptions = Object.keys(headers).length > 0 ? { headers } : {};
       const response = await RelayService.handleSignedRequest(
         "GET",
@@ -33,27 +27,20 @@ export class PollingService {
         requestOptions
       );
 
-      // Handle 304 Not Modified
       if (response.status === 304) {
         const messageCount = LocalStorageService.get("messageCount") || 0;
         return messageCount;
       }
 
       if (response.status === 200) {
-        const serverHashes = response.data.hashes;
+        const serverHashes = response.data.metadata
+          .filter((message: any) => message.hash)
+          .map((message: any) => message.hash);
 
-        const newEtag = response.headers?.etag;
-        if (newEtag) {
-          LocalStorageService.set("messageEtag", newEtag);
-        }
-
-        // Store new Last-Modified if available
         const newLastModified = response.headers?.["last-modified"];
         if (newLastModified) {
           LocalStorageService.set("lastModified", newLastModified);
         }
-
-        // Compare client and server hashes to find new ones
         const newHashes = serverHashes.filter(
           (hash: string) => !clientHashes.includes(hash)
         );
@@ -92,17 +79,16 @@ export class PollingService {
 
     const intervalId = setInterval(fetchHashes, interval);
 
-    //cleanup function
+    //cleanup
     return () => {
       clearInterval(intervalId);
     };
   }
 
   /**
-   * Clear cached headers and hashes - call this on logout
+   * Clear cached headers and hashes
    */
   static clearCache() {
-    LocalStorageService.remove("messageEtag");
     LocalStorageService.remove("lastModified");
     LocalStorageService.remove("messageHashes");
   }
