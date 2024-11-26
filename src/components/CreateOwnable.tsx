@@ -92,8 +92,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
-      console.log("address.data", address.data);
-      const serverAddress_L = address.data.serverLtoWalletAddress_L;
+      //const serverAddress_L = address.data.serverLtoWalletAddress_L;
       const serverAddress_T = address.data.serverLtoWalletAddress_T;
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
