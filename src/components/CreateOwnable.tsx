@@ -65,6 +65,71 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [blurThumbnail, setBlurThumbnail] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
 
+  // const fetchBuildAmount = useCallback(async () => {
+  //   try {
+  //     console.log("process.env.REACT_APP_OBUILDER",process.env.REACT_APP_OBUILDER);
+  //     const response = await axios.get(
+  //       `${process.env.REACT_APP_OBUILDER}/api/v1/templateCost?templateId=1`,
+  //       {
+  //         headers: {
+  //           Accept: "*/*",
+  //         },
+  //       }
+  //     );
+  //     console.log("response: ", response);
+	//   let value;
+  //   console.log("proces env: ", process.env.REACT_APP_LTO_NETWORK_ID);
+  //   const network = process.env.REACT_APP_LTO_NETWORK_ID;
+  //   console.log("network: ", network);
+  //   if (network === 'T') {
+  //     console.log("networkK T");
+  //     console.log("response.data.: ", response.data.network[selectedNetwork]);
+  //     console.log("response", response);
+  //     console.log("selectedNetwork: ", response.data.T[selectedNetwork]);
+  //   }
+	//   if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
+  //     console.log("response.data.L[selectedNetwork]: ", response.data.L[selectedNetwork]);
+	// 	value = +response.data.L[selectedNetwork];
+	//   } else {
+  //     console.log("response.data.T[selectedNetwork]: ", response.data.T[selectedNetwork]);
+	// 	value = +response.data.T[selectedNetwork];
+  //   console.log("value: ", value);
+	//   }
+  //     console.log("Value:", value);
+  //     const address = await axios.get(
+  //       // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
+  //       `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
+  //       {
+  //         headers: {
+  //           Accept: "*/*",
+  //         },
+  //       }
+  //     );
+  //     //const serverAddress_L = address.data.serverLtoWalletAddress_L;
+  //   //   const serverAddress_T = address.data.serverLtoWalletAddress_T;
+	//   let serverAddress;
+	//   if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
+	// 	serverAddress = address.data.serverLtoWalletAddress_L;
+	//   }else {
+	// 	serverAddress = address.data.serverLtoWalletAddress_T;
+	//   }
+  //   console.log("serverAddress: ", serverAddress);
+  //     const LTO_REPRESENTATION = 100000000;
+  //     const calculatesAmount =
+  //       parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
+  //     if (calculatesAmount < 1.1) {
+  //       console.error("error server is not ready yet");
+  //       return;
+  //     } else {
+  //       setAmount(value);
+  //       setShowAmount(calculatesAmount);
+  //       setShowAddress(serverAddress);
+  //     }
+  //   } catch (error) {
+  //     setNoConnection(true);
+  //   }
+  // }, [selectedNetwork]);
+
   const fetchBuildAmount = useCallback(async () => {
     try {
       const response = await axios.get(
@@ -75,13 +140,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
-	  let value;
-	  if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
-		value = +response.data.L[selectedNetwork];
-	  } else {
-		value = +response.data.T[selectedNetwork];
-	  }
-      console.log("Value:", value);
+      const value = +response.data.T[selectedNetwork];
       const address = await axios.get(
         // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
         `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
@@ -91,14 +150,9 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
-      //const serverAddress_L = address.data.serverLtoWalletAddress_L;
-    //   const serverAddress_T = address.data.serverLtoWalletAddress_T;
-	  let serverAddress;
-	  if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
-		serverAddress = address.data.serverLtoWalletAddress_L;
-	  }else {
-		serverAddress = address.data.serverLtoWalletAddress_T;
-	  }
+      console.log("address.data", address.data);
+      // const serverAddress_L = address.data.serverLtoWalletAddress_L;
+      const serverAddress_T = address.data.serverLtoWalletAddress_T;
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
         parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
@@ -108,7 +162,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       } else {
         setAmount(value);
         setShowAmount(calculatesAmount);
-        setShowAddress(serverAddress);
+        setShowAddress(serverAddress_T);
       }
     } catch (error) {
       setNoConnection(true);
@@ -624,19 +678,19 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             // Simulate a click on the link to trigger the download
             link.click();
 
-            // // Send the zip file to oBuilder
-            // // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
-            // const formData = new FormData();
-            // formData.append("file", zipFile, formattedName + ".zip");
-            // axios.post(request.url, formData, {
-            //     headers: combinedHeaders,
-            //   })
-            //   .then((res) => {
-            //     console.log(res.data);
-            //   })
-            //   .catch((err) => {
-            //     console.log(err);
-            //   });
+            // Send the zip file to oBuilder
+            // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
+            const formData = new FormData();
+            formData.append("file", zipFile, formattedName + ".zip");
+            axios.post(request.url, formData, {
+                headers: combinedHeaders,
+              })
+              .then((res) => {
+                console.log(res.data);
+              })
+              .catch((err) => {
+                console.log(err);
+              });
             setOpenDialog(true);
           });
           handleCloseDialog();
