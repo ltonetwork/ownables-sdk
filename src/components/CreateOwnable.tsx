@@ -45,7 +45,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     description: "",
     keywords: [],
     evmAddress: "",
-    network: "ethereum",
+    network: "arbitrum",
     image: null,
   });
   const [missingFields, setMissingFields] = useState<string[]>([]);
@@ -56,7 +56,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [recipient, setShowAddress] = useState<string | undefined>();
   const [noConnection, setNoConnection] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState("ethereum");
+  const [selectedNetwork, setSelectedNetwork] = useState("arbitrum");
   const [thumbnail, setThumbnail] = useState<Blob | null>(null);
   const [blurThumbnail, setBlurThumbnail] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
@@ -154,10 +154,10 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       description: "",
       keywords: [],
       evmAddress: "",
-      network: "ethereum",
+      network: "arbitrum",
       image: null,
     });
-    setSelectedNetwork("ethereum");
+    setSelectedNetwork("arbitrum");
   };
 
   const loadBalance = () => {
