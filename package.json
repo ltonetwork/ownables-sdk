@@ -30,6 +30,7 @@
     "gifuct-js": "^2.1.2",
     "heic2any": "^0.0.4",
     "ipfs-unixfs-importer": "^15.1.0",
+    "is-file-animated": "^1.0.2",
     "jszip": "^3.10.0",
     "mime": "^3.0.0",
     "notistack": "^3.0.1",

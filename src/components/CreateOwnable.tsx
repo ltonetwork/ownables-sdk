@@ -30,6 +30,8 @@ import TagInputField from "./TagInputField";
 import { sign } from "@ltonetwork/http-message-signatures";
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import GIF from 'gif.js';
+import isFileAnimated from 'is-file-animated';
+
 
 interface CreateOwnableProps {
   open: boolean;
@@ -210,17 +212,65 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       }
     }
 
-    setOwnable((prevOwnable) => ({
-      ...prevOwnable,
-      image: file,
-    }));
-
-    if (file && file.type === "image/gif") {
-      const thumbnailImage = await createGifThumbnail(file);
-      setThumbnail(thumbnailImage);
+    // setOwnable((prevOwnable) => ({
+    //   ...prevOwnable,
+    //   image: file,
+    // }));
+    console.log("file ", file, "file type: ", file.type);
+    if (file && (file.type === "image/gif" || file.type === "image/webp")) {
+      if (file.type === "image/gif"){
+        setOwnable((prevOwnable) => ({
+          ...prevOwnable,
+          image: file,
+        }));
+        const thumbnailImage = await createGifThumbnail(file);
+        setThumbnail(thumbnailImage);
+      } else if (file.type === "image/webp") {
+        // Check if the WebP file is animated
+        const isAnimatedWebP = await isFileAnimated(file);
+        
+        if (isAnimatedWebP) {
+          console.log("isAnimatedWebP");
+          // Treat as animated GIF
+          setOwnable((prevOwnable) => ({
+            ...prevOwnable,
+            image: file,
+          }));
+          const thumbnailImage = await createGifThumbnail(file); // You can use a different method if needed
+          setThumbnail(thumbnailImage);
+        } else {
+          const resizedImage = await resizeImage(file);
+          file = new File([resizedImage], file.name, { type: "image/webp" });
+          setOwnable((prevOwnable) => ({
+            ...prevOwnable,
+            image: file,
+          }));
+          const thumbnailImage = await createThumbnail(resizedImage);
+          setThumbnail(thumbnailImage);
+          console.log("not isAnimatedWebP");
+          // Treat as static image
+        }
+      }
+      // }
+      // if(file.type === "image/webp"){
+        
+      //   setOwnable((prevOwnable) => ({
+      //     ...prevOwnable,
+      //     image: file,
+      //   }));
+      //   const resizedImage = await resizeImage(file);
+      //   // file = new File([resizedImage], file.name, { type: "image/webp" });
+      //   const thumbnailImage = await createThumbnail(resizedImage);
+      //   setThumbnail(thumbnailImage);
+      // }
+      
     }else if(file){
       const resizedImage = await resizeImage(file);
       file = new File([resizedImage], file.name, { type: "image/webp" });
+      setOwnable((prevOwnable) => ({
+        ...prevOwnable,
+        image: file,
+      }));
       const thumbnailImage = await createThumbnail(resizedImage);
       setThumbnail(thumbnailImage);
     }
@@ -232,41 +282,74 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       reader.onload = async (event) => {
         const buffer = event.target?.result;
         if (buffer && typeof buffer !== 'string') {
-          const gifData = parseGIF(buffer as ArrayBuffer);
-          const frames = decompressFrames(gifData, true);
+          const mimeType = blob.type;
   
-          if (frames.length > 0) {
-            const gif = new GIF({
-              workers: 2,
-              quality: 10,
-              width: 50,
-              height: 50,
-            });
-  
-            frames.forEach(frame => {
-              const tempCanvas = document.createElement("canvas");
-              const tempCtx = tempCanvas.getContext("2d");
-              tempCanvas.width = frame.dims.width;
-              tempCanvas.height = frame.dims.height;
-              const imageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
-              tempCtx!.putImageData(imageData, 0, 0);
-  
+          if (mimeType === 'image/webp') {
+            console.log("mimeType", mimeType);
+            const img = new Image();
+            img.onload = () => {
               const canvas = document.createElement("canvas");
               const ctx = canvas.getContext("2d");
-              canvas.width = 50;
-              canvas.height = 50;
-              ctx!.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
   
-              gif.addFrame(canvas, { copy: true, delay: frame.delay });
-            });
+              const aspectRatio = img.width / img.height;
+              const thumbnailHeight = 50;
+              const thumbnailWidth = Math.round(thumbnailHeight * aspectRatio);
   
-            gif.on('finished', (blob: Blob) => {
-              resolve(blob);
-            });
+              canvas.width = thumbnailWidth;
+              canvas.height = thumbnailHeight;
+              ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
   
-            gif.render();
+              canvas.toBlob((thumbnailBlob) => {
+                if (thumbnailBlob) {
+                  resolve(thumbnailBlob);
+                } else {
+                  reject(new Error("Could not create thumbnail from WebP image"));
+                }
+              }, 'image/webp');
+            };
+            img.onerror = () => reject(new Error("Could not load WebP image"));
+            img.src = URL.createObjectURL(blob);
           } else {
-            reject(new Error("No frames found in GIF"));
+            console.log("mimeType", mimeType);
+            const gifData = parseGIF(buffer as ArrayBuffer);
+            const frames = decompressFrames(gifData, true);
+  
+            if (frames.length > 0) {
+              const gif = new GIF({
+                workers: 2,
+                quality: 10,
+              });
+  
+              frames.forEach(frame => {
+                const tempCanvas = document.createElement("canvas");
+                const tempCtx = tempCanvas.getContext("2d");
+                tempCanvas.width = frame.dims.width;
+                tempCanvas.height = frame.dims.height;
+                const imageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+                tempCtx!.putImageData(imageData, 0, 0);
+  
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+  
+                const aspectRatio = frame.dims.width / frame.dims.height;
+                const thumbnailHeight = 50;
+                const thumbnailWidth = Math.round(thumbnailHeight * aspectRatio);
+  
+                canvas.width = thumbnailWidth;
+                canvas.height = thumbnailHeight;
+                ctx!.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+  
+                gif.addFrame(canvas, { copy: true, delay: frame.delay });
+              });
+  
+              gif.on('finished', (blob: Blob) => {
+                resolve(blob);
+              });
+  
+              gif.render();
+            } else {
+              reject(new Error("No frames found in GIF"));
+            }
           }
         } else {
           reject(new Error("Could not read file as ArrayBuffer"));
@@ -277,6 +360,63 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       reader.readAsArrayBuffer(blob);
     });
   }
+
+  // async function createGifThumbnail(blob: Blob): Promise<Blob> {
+  //   return new Promise((resolve, reject) => {
+  //     const reader = new FileReader();
+  //     reader.onload = async (event) => {
+  //       const buffer = event.target?.result;
+  //       if (buffer && typeof buffer !== 'string') {
+  //         const gifData = parseGIF(buffer as ArrayBuffer);
+  //         const frames = decompressFrames(gifData, true);
+  
+  //         if (frames.length > 0) {
+  //           const gif = new GIF({
+  //             workers: 2,
+  //             quality: 10,
+  //             // width: 50,
+  //             // height: 50,
+  //           });
+  
+  //           frames.forEach(frame => {
+  //             const tempCanvas = document.createElement("canvas");
+  //             const tempCtx = tempCanvas.getContext("2d");
+  //             tempCanvas.width = frame.dims.width;
+  //             tempCanvas.height = frame.dims.height;
+  //             const imageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+  //             tempCtx!.putImageData(imageData, 0, 0);
+  
+  //             const canvas = document.createElement("canvas");
+  //             const ctx = canvas.getContext("2d");
+
+  //             const aspectRatio = frame.dims.width / frame.dims.height;
+  //             const thumbnailHeight = 50;
+  //             const thumbnailWidth = Math.round(thumbnailHeight * aspectRatio);
+
+  //             canvas.width = thumbnailWidth;
+  //             canvas.height = thumbnailHeight;
+  //             ctx!.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+  
+  //             gif.addFrame(canvas, { copy: true, delay: frame.delay });
+  //           });
+  
+  //           gif.on('finished', (blob: Blob) => {
+  //             resolve(blob);
+  //           });
+  
+  //           gif.render();
+  //         } else {
+  //           reject(new Error("No frames found in GIF"));
+  //         }
+  //       } else {
+  //         reject(new Error("Could not read file as ArrayBuffer"));
+  //       }
+  //     };
+  
+  //     reader.onerror = reject;
+  //     reader.readAsArrayBuffer(blob);
+  //   });
+  // }
 
   async function createThumbnail(blob: Blob): Promise<Blob> {
     return new Promise((resolve, reject) => {
@@ -473,19 +613,19 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             // Simulate a click on the link to trigger the download
             link.click();
 
-            // Send the zip file to oBuilder
-            // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
-            const formData = new FormData();
-            formData.append("file", zipFile, formattedName + ".zip");
-            axios.post(request.url, formData, {
-                headers: combinedHeaders,
-              })
-              .then((res) => {
-                console.log(res.data);
-              })
-              .catch((err) => {
-                console.log(err);
-              });
+            // // Send the zip file to oBuilder
+            // // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
+            // const formData = new FormData();
+            // formData.append("file", zipFile, formattedName + ".zip");
+            // axios.post(request.url, formData, {
+            //     headers: combinedHeaders,
+            //   })
+            //   .then((res) => {
+            //     console.log(res.data);
+            //   })
+            //   .catch((err) => {
+            //     console.log(err);
+            //   });
             setOpenDialog(true);
           });
           handleCloseDialog();
