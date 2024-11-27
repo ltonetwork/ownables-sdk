@@ -299,6 +299,7 @@ export default class OwnableService {
     delay: number = 1000
   ): Promise<T> {
     //let lastError: Error;
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         await this.ensureDBConnection();
