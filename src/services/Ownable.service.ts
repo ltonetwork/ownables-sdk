@@ -298,14 +298,13 @@ export default class OwnableService {
     maxRetries: number = 3,
     delay: number = 1000
   ): Promise<T> {
-    // let lastError: Error;
-
+    //let lastError: Error;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         await this.ensureDBConnection();
         return await operation();
       } catch (error) {
-        // lastError = error as Error;
+        //lastError = error as Error;
         console.warn(`Attempt ${attempt} failed:`, error);
 
         if (attempt < maxRetries) {

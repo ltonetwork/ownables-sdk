@@ -144,7 +144,7 @@ export default function App() {
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
-      LocalStorageService.set("messageCount", 0);
+      LocalStorageService.remove("messageCount");
       setMessages(0);
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
@@ -159,7 +159,7 @@ export default function App() {
 
       setTimeout(() => {
         window.location.reload();
-      }, 10000);
+      }, 7000);
     }
 
     setIsImporting(false);
