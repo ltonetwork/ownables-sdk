@@ -16,30 +16,6 @@ export class RelayService {
   /**
    * Handle All Signed Requests
    */
-  // static async handleSignedRequest(method: string, url: string) {
-  //   try {
-  //     const sender = LTOService.account;
-  //     const request = {
-  //       headers: {},
-  //       method,
-  //       url,
-  //     };
-
-  //     const signedRequest = await sign(request, { signer: sender });
-
-  //     const response = await axios({
-  //       method: signedRequest.method,
-  //       url: signedRequest.url,
-  //       headers: signedRequest.headers,
-  //     });
-
-  //     return response;
-  //   } catch (error) {
-  //     console.error("Error in handleSignedRequest:", error);
-  //     throw error;
-  //   }
-  // }
-
   static async handleSignedRequest(
     method: string,
     url: string,
