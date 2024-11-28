@@ -359,13 +359,7 @@ export default class PackageService {
 
   static async importFromRelay() {
     try {
-      const input = await RelayService.readRelayData();
-
-      const relayData = input?.filter((message) => {
-        return message !== undefined;
-      });
-
-      console.log(relayData);
+      const relayData = await RelayService.readRelayData();
 
       if (
         !relayData ||

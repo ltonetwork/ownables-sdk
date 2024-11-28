@@ -65,9 +65,7 @@ export class RelayService {
           ...options.headers, // Ensure optional headers are included after signing
         },
         validateStatus: (status) => {
-          return (
-            (status >= 200 && status < 300) || status === 304 || status === 500
-          );
+          return (status >= 200 && status < 300) || status === 304;
         },
       });
 
@@ -167,27 +165,46 @@ export class RelayService {
     const address = sender.address;
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
-    const url = `${this.relayURL}/inboxes/${address}/`;
+
+    const url = `${this.relayURL}/inboxes/${address}/list`;
+
     try {
       const responses = await this.handleSignedRequest("GET", url);
 
-      if (!responses.data.length) return null;
+      if (!responses.data.metadata.length) return null;
 
       const ownableData = await Promise.all(
-        responses.data.map(async (response: MessageInfo) => {
+        responses.data.metadata.map(async (response: MessageInfo) => {
+          if (!response.hash) {
+            console.warn("Skipping response without a hash:", response);
+            return null;
+          }
+
           const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
-          const infoResponse = await this.handleSignedRequest(
-            "GET",
-            messageUrl
-          );
+          try {
+            const infoResponse = await this.handleSignedRequest(
+              "GET",
+              messageUrl
+            );
 
-          if (infoResponse.data.sender == undefined) return;
-          const message = Message.from(infoResponse.data);
+            if (!infoResponse.data.sender) {
+              console.warn("Skipping response without a sender:", infoResponse);
+              return null;
+            }
 
-          return { message, messageHash: infoResponse.data.hash };
+            const message = Message.from(infoResponse.data);
+
+            return { message, messageHash: infoResponse.data.hash };
+          } catch (error) {
+            console.error(
+              `Failed to process message with hash ${response.hash}:`,
+              error
+            );
+            return null;
+          }
         })
       );
-      return ownableData;
+      return ownableData.filter((data) => data !== null);
     } catch (error) {
       console.error("Failed to read relay data:", error);
       return null;
