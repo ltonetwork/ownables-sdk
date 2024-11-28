@@ -361,16 +361,9 @@ export default class PackageService {
     try {
       const relayData = await RelayService.readRelayData();
 
-      if (
-        !relayData ||
-        relayData == undefined ||
-        !Array.isArray(relayData) ||
-        relayData.length === 0
-      ) {
+      if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         return null;
       }
-
-      console.log(relayData);
 
       const filteredMessages = await RelayService.checkDuplicateMessage(
         relayData
