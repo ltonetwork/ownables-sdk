@@ -359,10 +359,24 @@ export default class PackageService {
 
   static async importFromRelay() {
     try {
-      const relayData = await RelayService.readRelayData();
-      if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
+      const input = await RelayService.readRelayData();
+
+      const relayData = input?.filter((message) => {
+        return message !== undefined;
+      });
+
+      console.log(relayData);
+
+      if (
+        !relayData ||
+        relayData == undefined ||
+        !Array.isArray(relayData) ||
+        relayData.length === 0
+      ) {
         return null;
       }
+
+      console.log(relayData);
 
       const filteredMessages = await RelayService.checkDuplicateMessage(
         relayData

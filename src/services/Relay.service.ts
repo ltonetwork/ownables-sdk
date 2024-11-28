@@ -65,7 +65,9 @@ export class RelayService {
           ...options.headers, // Ensure optional headers are included after signing
         },
         validateStatus: (status) => {
-          return (status >= 200 && status < 300) || status === 304;
+          return (
+            (status >= 200 && status < 300) || status === 304 || status === 500
+          );
         },
       });
 
@@ -178,7 +180,10 @@ export class RelayService {
             "GET",
             messageUrl
           );
+
+          if (infoResponse.data.sender == undefined) return;
           const message = Message.from(infoResponse.data);
+
           return { message, messageHash: infoResponse.data.hash };
         })
       );
