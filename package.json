@@ -58,13 +58,12 @@
     "start": "npm run build:ownable.js && craco start",
     "build": "npm run build:ownable.js && craco build",
     "test": "craco test",
-    "start:mainnet": "dotenv -e .env.mainnet -- npm run build:ownable.js && craco start",
-    "start:testnet": "dotenv -e .env.testnet -- npm run build:ownable.js && craco start",
-    "build:mainnet": "dotenv -e .env.mainnet -- npm run build:ownable.js && craco build",
-    "build:testnet": "dotenv -e .env.testnet -- npm run build:ownable.js && craco build",
-    "test:mainnet": "dotenv -e .env.mainnet -- craco test",
-    "test:testnet": "dotenv -e .env.testnet -- craco test",
+    "start:test:stg": "env-cmd -f .env.test.stg npm run build:ownable.js && craco start",
+    "start:test:prod": "env-cmd -f .env.test.prod npm run build:ownable.js && env-cmd -f .env.test.prod craco start",
+    "start:main:stg": "env-cmd -f .env.main.stg npm run build:ownable.js && env-cmd -f .env.main.stg craco start",
+    "start:main:prod": "env-cmd -f .env.main.prod npm run build:ownable.js && craco start",
     "build:ownable.js": "webpack --config ownable-js.webpack.js --no-stats",
+    "clean-node": "rm -rf node_modules && rm -f package-lock.json && npm cache clean --force",
     "rustup": "curl https://sh.rustup.rs -sSf | sh; curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh; rustup default stable; rustup update stable; rustup target add wasm32-unknown-unknown",
     "ownables:build": "if test -f ./ownables/$npm_config_package/Cargo.toml; then rm -rf ./ownables/$npm_config_package/pkg/ && wasm-pack build --out-name ownable --target web ./ownables/$npm_config_package/ && cd ./ownables/$npm_config_package/ && cargo schema && cd ../../ && zip -r -j ./ownables/$npm_config_package.zip ./ownables/$npm_config_package/assets/ ./ownables/$npm_config_package/pkg/*.js ./ownables/$npm_config_package/pkg/*.wasm ./ownables/$npm_config_package/pkg/package.json ./ownables/$npm_config_package/schema/*.json; else zip -r -j ./ownables/$npm_config_package.zip ./ownables/$npm_config_package/*; fi",
     "ownables:build-all": "for DIR in $(ls ./ownables); do test -d ./ownables/$DIR && npm run ownables:build --package=$DIR; done",
@@ -101,6 +100,6 @@
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
-    "dotenv-cli": "^7.4.4"
+    "env-cmd": "^10.1.0"
   }
 }

@@ -64,6 +64,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   const [thumbnail, setThumbnail] = useState<Blob | null>(null);
   const [blurThumbnail, setBlurThumbnail] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+  
 
   // const fetchBuildAmount = useCallback(async () => {
   //   try {
@@ -132,6 +133,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 
   const fetchBuildAmount = useCallback(async () => {
     try {
+      console.log("project env: ",process.env.REACT_APP_ENV, "network id: ", process.env.REACT_APP_LTO_NETWORK_ID);
       const response = await axios.get(
         `${process.env.REACT_APP_OBUILDER}/api/v1/templateCost?templateId=1`,
         {
@@ -140,6 +142,12 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
+      console.log("response: ", response);
+      const networkId = process.env.REACT_APP_LTO_NETWORK_ID;
+      const values = networkId === 'T' 
+        ? +response.data.T[selectedNetwork] 
+        : +response.data.L[selectedNetwork];
+      console.log("values: ", values);
       const value = +response.data.T[selectedNetwork];
       const address = await axios.get(
         // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
@@ -151,8 +159,13 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         }
       );
       console.log("address.data", address.data);
+      const serverAddresss = networkId === 'T'
+      ? address.data.serverLtoWalletAddress_T
+      : address.data.serverLtoWalletAddress_L;
+      console.log("serverAddresss: ", serverAddresss);
       // const serverAddress_L = address.data.serverLtoWalletAddress_L;
       const serverAddress_T = address.data.serverLtoWalletAddress_T;
+      console.log("serverAddress_T: ", serverAddress_T);
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
         parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
@@ -199,10 +212,10 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       description: "",
       keywords: [],
       evmAddress: "",
-      network: "ethereum",
+      network: "arbitrum",
       image: null,
     });
-    setSelectedNetwork("ethereum");
+    setSelectedNetwork("arbitrum");
   };
 
   const loadBalance = () => {
@@ -301,7 +314,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             ...prevOwnable,
             image: file,
           }));
-          const thumbnailImage = await createGifThumbnail(file); // You can use a different method if needed
+          const thumbnailImage = await createGifThumbnail(file);
           setThumbnail(thumbnailImage);
         } else {
           const resizedImage = await resizeImage(file);
@@ -766,6 +779,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                     value="ethereum"
                     control={
                       <Radio
+                      disabled
                         sx={{
                           width: { xs: "12px", sm: "16px" },
                           height: { xs: "12px", sm: "16px" },

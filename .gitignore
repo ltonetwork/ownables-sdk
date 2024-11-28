@@ -42,3 +42,11 @@ yarn-error.log*
 /public/ownables
 /public/ownable.js
 /public/ownable.js.map
+.env.main.prod
+.env.main.stg
+.env.main.stgt
+.env.mainnet
+.env.mainnet
+.env.test.prod
+.env.test.prodt
+.env.test.stg
