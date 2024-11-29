@@ -96,7 +96,6 @@ export default class PackageService {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
 
-    // Find the package by name or cid and check uniqueMessageHash if provided
     const found = packages.find(
       (pkg) =>
         (pkg.name === nameOrCid ||
