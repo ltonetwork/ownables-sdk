@@ -32,7 +32,6 @@ import { parseGIF, decompressFrames } from 'gifuct-js';
 import GIF from 'gif.js';
 import isFileAnimated from 'is-file-animated';
 
-
 interface CreateOwnableProps {
   open: boolean;
   onClose: () => void;
@@ -183,6 +182,12 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   }, [selectedNetwork]);
 
   useEffect(() => {
+    if (open) {
+      fetchBuildAmount();
+    }
+  }, [open, fetchBuildAmount]);
+
+  useEffect(() => {
     fetchBuildAmount();
   }, [fetchBuildAmount]);
 
@@ -266,6 +271,95 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     }
   };
 
+  // const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   let file = e.target.files?.[0] || null;
+
+  //   if (!file) {
+  //     // Clear the thumbnail if no file is selected
+  //     setOwnable((prevOwnable) => ({
+  //       ...prevOwnable,
+  //       image: null,
+  //     }));
+  //     setThumbnail(null);
+  //     return;
+  //   }
+
+  //   if (file && file.type === "image/heic") {
+  //     const blob = await heic2any({
+  //       blob: file,
+  //       toType: "image/webp",
+  //       quality: 0.7,
+  //     });
+  //     if (blob instanceof Blob) {
+  //       file = new File([blob], file.name, { type: "image/webp" });
+  //     }
+  //   }
+
+  //   console.log("file ", file, "file type: ", file.type);
+  //   if (file && (file.type === "image/gif" || file.type === "image/webp")) {
+  //     if (file.type === "image/gif"){
+  //       setOwnable((prevOwnable) => ({
+  //         ...prevOwnable,
+  //         image: file,
+  //       }));
+  //       const thumbnailImage = await createGifThumbnail(file);
+  //       setThumbnail(thumbnailImage);
+  //     } else if (file.type === "image/webp") {
+  //       // Check if the WebP file is animated
+  //       const isAnimatedWebP = await isFileAnimated(file);
+        
+  //       if (isAnimatedWebP) {
+  //         console.log("isAnimatedWebP");
+
+  //         // Convert animated WebP to GIF
+  //         const webpData = await file.arrayBuffer();
+  //         console.log("webpData", webpData);
+  //         const gif = new GIF({
+  //           workers: 2,
+  //           quality: 10
+  //         });
+
+  //         const webpImage = await createImageBitmap(new Blob([webpData]));
+  //         console.log("webpImage", webpImage);
+  //         gif.addFrame(webpImage, { delay: 200 });
+  //         console.log("gif", gif);
+  //         gif.on('finished', async (blob: Blob) => {
+  //           if (file) {
+  //             console.log("file", file);
+  //             file = new File([blob], file.name.replace(/\.webp$/, '.gif'), { type: "image/gif" });
+  //           }
+
+  //           setOwnable((prevOwnable) => ({
+  //             ...prevOwnable,
+  //             image: file,
+  //           }));
+  //           // const thumbnailImage = await createGifThumbnail(file);
+  //           setThumbnail(file);
+  //         });
+
+  //         gif.render();
+  //       } else {
+  //         setOwnable((prevOwnable) => ({
+  //           ...prevOwnable,
+  //           image: file,
+  //         }));
+  //         const thumbnailImage = await createThumbnail(file);
+  //         setThumbnail(thumbnailImage);
+  //         console.log("not isAnimatedWebP");
+  //       }
+  //     }
+  //   } else if (file) {
+  //     const resizedImage = await resizeImage(file);
+  //     file = new File([resizedImage], file.name, { type: "image/webp" });
+  //     setOwnable((prevOwnable) => ({
+  //       ...prevOwnable,
+  //       image: file,
+  //     }));
+  //     const thumbnailImage = await createThumbnail(resizedImage);
+  //     setThumbnail(thumbnailImage);
+  //   }
+  // }
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let file = e.target.files?.[0] || null;
 
@@ -309,6 +403,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         
         if (isAnimatedWebP) {
           console.log("isAnimatedWebP");
+          
           // Treat as animated GIF
           setOwnable((prevOwnable) => ({
             ...prevOwnable,
@@ -317,13 +412,14 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           const thumbnailImage = await createGifThumbnail(file);
           setThumbnail(thumbnailImage);
         } else {
-          const resizedImage = await resizeImage(file);
-          file = new File([resizedImage], file.name, { type: "image/webp" });
+          // const resizedImage = await resizeImage(file);
+          // file = new File([resizedImage], file.name, { type: "image/webp" });
           setOwnable((prevOwnable) => ({
             ...prevOwnable,
             image: file,
           }));
-          const thumbnailImage = await createThumbnail(resizedImage);
+           const thumbnailImage = await createThumbnail(file);
+          // const thumbnailImage = await createThumbnail(resizedImage);
           setThumbnail(thumbnailImage);
           console.log("not isAnimatedWebP");
           // Treat as static image
@@ -349,6 +445,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         ...prevOwnable,
         image: file,
       }));
+      // const thumbnailImage = await createThumbnail(file);
       const thumbnailImage = await createThumbnail(resizedImage);
       setThumbnail(thumbnailImage);
     }
@@ -377,6 +474,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               canvas.height = thumbnailHeight;
               ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
   
+              // // Add text tag
+              // ctx!.font = "9px Arial";
+              // ctx!.fillStyle = "rgba(255, 255, 255, 0.5)";
+              // ctx!.fillText("GIF", 5, 45);
+
               canvas.toBlob((thumbnailBlob) => {
                 if (thumbnailBlob) {
                   resolve(thumbnailBlob);
@@ -496,16 +598,69 @@ export default function CreateOwnable(props: CreateOwnableProps) {
   //   });
   // }
 
+  // async function createThumbnail(blob: Blob): Promise<Blob> {
+  //   return new Promise((resolve, reject) => {
+  //     const img = new Image();
+  //     img.onload = () => {
+  //       const canvas = document.createElement("canvas");
+  //       const ctx = canvas.getContext("2d");
+  //       const aspectRatio = img.width / img.height;
+  //             // check dimensions and set thumbnail size
+  //             const thumbnailHeight = 50;
+  //             const thumbnailWidth = Math.round(thumbnailHeight * aspectRatio);
+  
+  //             canvas.width = thumbnailWidth;
+  //             canvas.height = thumbnailHeight;
+  //             ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  //       // Set thumbnail size
+  //       // canvas.width = 50;
+  //       // canvas.height = 50;
+  //       // ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  //       canvas.toBlob((blob) => {
+  //         if (blob) {
+  //           resolve(blob);
+  //         } else {
+  //           reject(new Error("Could not create thumbnail blob"));
+  //         }
+  //       }, "image/webp");
+  //     };
+  //     console.log("new blob image", blob);
+  //     img.onerror = reject;
+  //     img.src = URL.createObjectURL(blob);
+  //   });
+  // }
+
   async function createThumbnail(blob: Blob): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-        // Set thumbnail size
-        canvas.width = 50;
-        canvas.height = 50;
+        const maxSize = 50;
+        let thumbnailWidth, thumbnailHeight;
+  
+        if (img.width > img.height) {
+          thumbnailWidth = maxSize;
+          thumbnailHeight = (img.height / img.width) * maxSize;
+        } else {
+          thumbnailHeight = maxSize;
+          thumbnailWidth = (img.width / img.height) * maxSize;
+        }
+
+        // Ensure the thumbnail fits within the maxSize for both dimensions
+        if (thumbnailWidth > maxSize) {
+          thumbnailWidth = maxSize;
+          thumbnailHeight = (img.height / img.width) * maxSize;
+        }
+        if (thumbnailHeight > maxSize) {
+          thumbnailHeight = maxSize;
+          thumbnailWidth = (img.width / img.height) * maxSize;
+        }
+  
+        canvas.width = thumbnailWidth;
+        canvas.height = thumbnailHeight;
         ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  
         canvas.toBlob((blob) => {
           if (blob) {
             resolve(blob);
@@ -691,19 +846,19 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             // Simulate a click on the link to trigger the download
             link.click();
 
-            // Send the zip file to oBuilder
-            // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
-            const formData = new FormData();
-            formData.append("file", zipFile, formattedName + ".zip");
-            axios.post(request.url, formData, {
-                headers: combinedHeaders,
-              })
-              .then((res) => {
-                console.log(res.data);
-              })
-              .catch((err) => {
-                console.log(err);
-              });
+            // // Send the zip file to oBuilder
+            // // const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
+            // const formData = new FormData();
+            // formData.append("file", zipFile, formattedName + ".zip");
+            // axios.post(request.url, formData, {
+            //     headers: combinedHeaders,
+            //   })
+            //   .then((res) => {
+            //     console.log(res.data);
+            //   })
+            //   .catch((err) => {
+            //     console.log(err);
+            //   });
             setOpenDialog(true);
           });
           handleCloseDialog();
