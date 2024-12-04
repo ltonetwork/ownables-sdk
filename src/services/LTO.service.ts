@@ -1,4 +1,4 @@
-import { Account, Binary, LTO, Transaction } from "@ltonetwork/lto";
+import { Account, Binary, LTO, Transaction, getNetwork, Transfer } from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
 import CryptoJS from "crypto-js";
@@ -201,7 +201,10 @@ export default class LTOService {
       publicKey: publicKey instanceof Binary ? publicKey.base58 : publicKey,
     }).address;
   }
-
+  public static getNetwork(ltoAddress: string): string {
+	return getNetwork(ltoAddress);
+	
+  }
   public static getAccount = async (): Promise<Account> => {
     if (!this.account) {
       throw new Error("Not logged in");
@@ -209,4 +212,5 @@ export default class LTOService {
 
     return this.account;
   };
+  
 }

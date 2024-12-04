@@ -88,7 +88,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 	  } else {
 		value = +response.data.T[selectedNetwork];
 	  }
-      console.log("Value:", value);
+      console.log("templateCost value:", value);
       const address = await axios.get(
         // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
         `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
@@ -409,12 +409,9 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     }
     const tx = new TransferTx(recipient, amount);
     try {
-      const account1 = await LTOService.getAccount();
-      console.log("account1", account1.address);
-      console.log("Network1", getNetwork(account1.address));
+ 
       const account = LTOService.account;
-      console.log("account", account.address);
-      console.log("Network", getNetwork(account.address));
+
       const transaction = await LTOService.broadcast(tx!.signWith(account));
 
       const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
@@ -426,14 +423,13 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       const signedRequest = await sign(request, { signer: account });
       request.url =
         request.url + `?ltoNetworkId=${getNetwork(account.address)}`;
-      console.log("signedRequest", signedRequest);
+      // console.log("signedRequest", signedRequest);
       const headers1 = {
         "Content-Type": "multipart/form-data",
         Accept: "*/*",
       };
       const combinedHeaders = { ...signedRequest.headers, ...headers1 };
-      // const combinedHeaders = headers1;
-      console.log("combinedHeaders", combinedHeaders);
+      // console.log("combinedHeaders", combinedHeaders);
 
       setTimeout(() => {
         if (transaction.id) {

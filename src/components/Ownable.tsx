@@ -151,7 +151,13 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   ): Promise<void> {
     try {
       const bridgeAddress = await BridgeService.getBridgeAddress();
+
+      //   const previousHash: string = this.chain.latestHash.hex;
+
       await this.execute({ transfer: { to: bridgeAddress } });
+
+      this.chain.validate();
+
       const zip = await OwnableService.zip(this.chain);
       const content = await zip.generateAsync({
         type: "uint8array",
@@ -169,6 +175,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         type: "application/octet-stream",
       });
       if (transactionId) {
+
         await BridgeService.bridgeOwnableToNft(
           address,
           transactionId,
@@ -204,9 +211,9 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     )) as TypedOwnableInfo;
     const metadata = this.pkg.hasMetadata
       ? ((await OwnableService.rpc(this.chain.id).query(
-          { get_metadata: {} },
-          stateDump
-        )) as TypedMetadata)
+        { get_metadata: {} },
+        stateDump
+      )) as TypedMetadata)
       : this.state.metadata;
 
     this.setState({ info, metadata });

@@ -49,10 +49,12 @@ export default function OwnableActions(props: OwnableActionsProps) {
 
   const handleFee = async () => {
     try {
-      const feeObject = await BridgeService.getBridgeCost(1);
-      console.log(feeObject);
-      const fee = feeObject[nftNetwork];
-      setBridgeFee(fee / 100000000);
+    //   const feeObject = await BridgeService.getBridgeCost(1);
+    //   console.log(feeObject);
+    //   const fee = feeObject[nftNetwork];
+	const feeString = await BridgeService.getBridgeCost(1);
+		const feeNumber= Number(feeString);
+      setBridgeFee(feeNumber / 100000000);
     } catch (error) {
       console.error("Error fetching fee:", error);
       setBridgeFee(null);
