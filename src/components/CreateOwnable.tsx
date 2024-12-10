@@ -440,7 +440,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       
     }else if(file){
       const resizedImage = await resizeImage(file);
-      file = new File([resizedImage], file.name, { type: "image/webp" });
+      file = new File([file], file.name, { type: "image/webp" });
       setOwnable((prevOwnable) => ({
         ...prevOwnable,
         image: file,
@@ -636,7 +636,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-        const maxSize = 50;
+        const maxSize = 200;
         let thumbnailWidth, thumbnailHeight;
   
         if (img.width > img.height) {
@@ -818,6 +818,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
               PLACEHOLDER1_DESCRIPTION: ownable.description,
               PLACEHOLDER1_VERSION: "0.1.0",
+              PLACEHOLDER1_AUTHORS: ownable.owner,
               PLACEHOLDER1_KEYWORDS: tags,
               PLACEHOLDER2_TITLE: ownable.name,
               PLACEHOLDER2_IMG: imageName + "." + imageType,
