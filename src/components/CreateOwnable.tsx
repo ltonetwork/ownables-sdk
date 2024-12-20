@@ -411,8 +411,8 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     try {
  
       const account = LTOService.account;
-
-      const transaction = await LTOService.broadcast(tx!.signWith(account));
+	  const signedTransaction = await tx.signWith(account);
+      const transaction = await LTOService.broadcast(signedTransaction);
 
       const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
       const request = {

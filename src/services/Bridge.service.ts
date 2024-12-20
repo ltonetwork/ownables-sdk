@@ -2,6 +2,7 @@ import axios from "axios";
 import LTOService from "./LTO.service";
 import { sign } from "@ltonetwork/http-message-signatures";
 // import { Transfer as TransferTx } from "@ltonetwork/lto";
+import { Transfer as TransferTx, getNetwork } from "@ltonetwork/lto";
 
 export class BridgeService {
   private static obridgeUrl =
@@ -48,10 +49,22 @@ export class BridgeService {
   //Pay bridging fee
   static async payBridgingFee(fee: number | null, bridgeAddress: string) {
     try {
+		console.log("fee", fee)
+		console.log("bridgeAddress", bridgeAddress)
       if (fee != null) {
-        const amount = fee * Math.pow(10, 8);
-        const transactionId = await LTOService.transfer(bridgeAddress, amount);
-        return transactionId;
+        // const amount = fee * Math.pow(10, 8);
+		const amount = Math.round(fee * 1e8); // Multiply by 10^8 to shift the decimal places
+		console.log("amount", amount)
+		const tx = new TransferTx(bridgeAddress, amount);
+		const account = await LTOService.getAccount();
+
+		const transaction = await LTOService.broadcast(tx!.signWith(account));
+        // const transactionId = await LTOService.transfer(bridgeAddress, amount);
+		console.log("transactionId", transaction.id);
+		if(transaction.id === 'failed') {
+			console.error("Transaction failed !");
+		}
+        return transaction.id;
       }
     } catch (err) {
       console.error("Fee not provided", err);

@@ -1,4 +1,4 @@
-import { Account, Binary, LTO, Transaction, getNetwork, Transfer } from "@ltonetwork/lto";
+import { Account, Binary, LTO, Transaction, getNetwork } from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
 import CryptoJS from "crypto-js";
