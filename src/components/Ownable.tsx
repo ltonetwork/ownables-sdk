@@ -104,8 +104,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       );
       console.log(response.value, redeemAddress);
       await this.transfer(redeemAddress);
-      //await LTOService.transfer(redeemAddress, response.value);
-      //this.setState({ isRedeemed: true });
       enqueueSnackbar("Successfully redeemed!", { variant: "success" });
     } catch (error) {
       console.error("Error during redeem:", error);
