@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
-import { Divider, Fab, ListItemIcon, Badge } from "@mui/material";
+import { Divider, Fab, ListItemIcon } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import MailIcon from "@mui/icons-material/CallReceivedOutlined";
 import Dialog from "@mui/material/Dialog";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -14,6 +13,7 @@ import PackageService from "../services/Package.service";
 import Tooltip from "./Tooltip";
 import Loading from "./Loading";
 import useBusy from "../utils/useBusy";
+//import MailIcon from "@mui/icons-material/CallReceivedOutlined";
 
 interface PackagesDialogProps {
   packages: Array<TypedPackage | TypedPackageStub>;
@@ -31,11 +31,11 @@ function PackagesDialog(props: PackagesDialogProps) {
     onClose,
     onSelect,
     onImport,
-    fetchPkgFromRelay,
+    //fetchPkgFromRelay,
     onCreate,
     open,
     packages,
-    message,
+    //message,
   } = props;
   const filteredPackages = packages.filter((pkg) => !pkg.isNotLocal);
 
@@ -90,7 +90,7 @@ function PackagesDialog(props: PackagesDialogProps) {
           </ListItemButton>
         </ListItem>
         <Divider />
-        <ListItem disablePadding disableGutters key="add-relay">
+        {/* <ListItem disablePadding disableGutters key="add-relay">
           <ListItemButton
             autoFocus
             onClick={() => fetchPkgFromRelay()}
@@ -113,10 +113,10 @@ function PackagesDialog(props: PackagesDialogProps) {
               color="error"
             >
               {message} {/* message count */}
-            </span>
-          </ListItemButton>
-        </ListItem>
-        <Divider />
+        {/* </span> */}
+        {/* </ListItemButton> */}
+        {/* </ListItem> */}
+        {/* <Divider /> */}
         <ListItem disablePadding disableGutters key="create-ownable">
           <ListItemButton
             autoFocus
@@ -227,10 +227,10 @@ export default function PackagesFab(props: PackagesFabProps) {
     <>
       <Fab sx={fabStyle} aria-label="add" size="large" onClick={onOpen}>
         {/* The notification message */}
-        <Badge badgeContent={message} color="error">
-          <AddIcon fontSize="large" />
-        </Badge>
+
+        <AddIcon fontSize="large" />
       </Fab>
+
       <PackagesDialog
         packages={packages}
         open={open}

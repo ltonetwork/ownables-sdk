@@ -426,8 +426,8 @@ export default class PackageService {
               uniqueMessageHash
             );
 
-            const chain = EventChain.from(chainJson);
-            pkg.chain = chain;
+            // const chain = EventChain.from(chainJson);
+            // pkg.chain = chain;
             pkg.uniqueMessageHash = uniqueMessageHash;
 
             return pkg;
@@ -443,6 +443,59 @@ export default class PackageService {
       return [packages, triggerRefresh];
     } catch (error) {
       console.error("Error:", error);
+      return null;
+    }
+  }
+
+  static async processMessage(
+    message: any,
+    uniqueMessageHash: string
+  ): Promise<TypedPackage | null> {
+    try {
+      const asset = await this.extractAssets(message.data.buffer);
+      if (asset.length === 0) return null;
+
+      const cid = await calculateCid(asset);
+      const chainJson = await this.getChainJson(
+        "chain.json",
+        message.data.buffer
+      );
+
+      if (await IDBService.hasStore(`package:${cid}`)) {
+        if (!(await this.isCurrentEvent(chainJson))) return null;
+        await this.removeOlderPackage(chainJson.id);
+      }
+
+      const packageJson = await this.getPackageJson("package.json", asset);
+      const name = packageJson.name;
+      const title = name
+        .replace(/^ownable-|-ownable$/, "")
+        .replace(/[-_]+/, " ")
+        .replace(/\b\w/, (c: any) => c.toUpperCase());
+      const description = packageJson.description;
+      const capabilities = await this.getCapabilities(asset);
+      const keywords: string[] = packageJson.keywords || "";
+
+      await this.storeMessageHash(uniqueMessageHash);
+      console.log(uniqueMessageHash);
+
+      await this.storeAssets(cid, asset);
+      const pkg = this.storePackageInfo(
+        title,
+        name,
+        description,
+        cid,
+        keywords,
+        capabilities,
+        true,
+        uniqueMessageHash
+      );
+      const chain = EventChain.from(chainJson);
+      pkg.chain = chain;
+      pkg.uniqueMessageHash = uniqueMessageHash;
+      return pkg;
+    } catch (error) {
+      console.error("Error processing message:", error);
       return null;
     }
   }

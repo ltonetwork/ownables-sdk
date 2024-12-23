@@ -2,7 +2,12 @@ import { Menu, MenuItem, IconButton, SxProps, Theme } from "@mui/material";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import MoreVert from "@mui/icons-material/MoreVert";
 import { useState, MouseEvent } from "react";
-import { Delete, PrecisionManufacturing, SwapHoriz } from "@mui/icons-material";
+import {
+  Delete,
+  PrecisionManufacturing,
+  SwapHoriz,
+  RedeemOutlined,
+} from "@mui/icons-material";
 import BridgeIcon from "@mui/icons-material/LeakAdd";
 import PromptDialog from "./PromptDialog";
 import LTOService from "../services/LTO.service";
@@ -13,6 +18,7 @@ interface OwnableActionsProps {
   isConsumable: boolean;
   isTransferable: boolean;
   isBridgeable: boolean;
+  isRedeemable: boolean;
   nftNetwork: string;
   onDelete: () => void;
   onConsume: () => void;
@@ -22,6 +28,7 @@ interface OwnableActionsProps {
     fee: number | undefined,
     network: string | null
   ) => void;
+  onRedeem: () => void;
 }
 
 export default function OwnableActions(props: OwnableActionsProps) {
@@ -30,9 +37,11 @@ export default function OwnableActions(props: OwnableActionsProps) {
     onConsume,
     onTransfer,
     onBridge,
+    onRedeem,
     isConsumable,
     isTransferable,
     isBridgeable,
+    isRedeemable,
     nftNetwork,
   } = props;
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -49,11 +58,11 @@ export default function OwnableActions(props: OwnableActionsProps) {
 
   const handleFee = async () => {
     try {
-    //   const feeObject = await BridgeService.getBridgeCost(1);
-    //   console.log(feeObject);
-    //   const fee = feeObject[nftNetwork];
-	const feeString = await BridgeService.getBridgeCost(1);
-		const feeNumber= Number(feeString);
+      //   const feeObject = await BridgeService.getBridgeCost(1);
+      //   console.log(feeObject);
+      //   const fee = feeObject[nftNetwork];
+      const feeString = await BridgeService.getBridgeCost(1);
+      const feeNumber = Number(feeString);
       setBridgeFee(feeNumber / 100000000);
     } catch (error) {
       console.error("Error fetching fee:", error);
@@ -135,6 +144,19 @@ export default function OwnableActions(props: OwnableActionsProps) {
           </ListItemIcon>
           Send to bridge
         </MenuItem>
+        {isRedeemable && (
+          <MenuItem
+            onClick={() => {
+              close();
+              onRedeem();
+            }}
+          >
+            <ListItemIcon>
+              <RedeemOutlined fontSize="small" />
+            </ListItemIcon>
+            Redeem
+          </MenuItem>
+        )}
         <MenuItem
           onClick={() => {
             close();

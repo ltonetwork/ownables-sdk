@@ -215,7 +215,7 @@ export default class OwnableService {
     new Event({ "@context": "execute_msg.json", ...msg })
       .addTo(chain)
       .signWith(LTOService.account);
-	console.log("MSG:", {...msg});
+    console.log("MSG:", { ...msg });
     await EventChainService.store({ chain, stateDump });
 
     return newStateDump;
@@ -335,8 +335,6 @@ export default class OwnableService {
     const storeId = `ownable:${chain.id}`;
     const stateStoreId = `${storeId}.state`;
 
-    console.log(uniqueMessageHash);
-
     const chainData = {
       chain: chain.toJSON(),
       state: chain.state.hex,
@@ -421,7 +419,6 @@ export default class OwnableService {
       }
     });
   }
-
 
   static async delete(id: string): Promise<void> {
     await EventChainService.delete(id);

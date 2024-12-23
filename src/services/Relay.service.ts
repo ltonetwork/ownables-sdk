@@ -6,6 +6,7 @@ import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 import { sign } from "@ltonetwork/http-message-signatures";
 import LTOService from "./LTO.service";
+import PackageService from "./Package.service";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 
@@ -129,6 +130,34 @@ export class RelayService {
   }
 
   /**
+   * Read a single message by its hash.
+   */
+  static async readSingleMessage(hash: string) {
+    const sender = LTOService.account;
+    if (!sender) {
+      console.error("Account not initialized");
+      return null;
+    }
+
+    const address = sender.address;
+    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
+
+    try {
+      const response = await this.handleSignedRequest("GET", url);
+
+      if (response?.data) {
+        const message = Message.from(response.data);
+        return await PackageService.processMessage(message, hash);
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error reading single message:", error);
+      return null;
+    }
+  }
+
+  /**
    * Read relay data for the current sender.
    */
   static async readRelayData() {
@@ -228,6 +257,29 @@ export class RelayService {
     } catch (error) {
       console.error("Relay service is down:", error);
       return false;
+    }
+  }
+
+  static async listRelayMetaData(): Promise<any[] | null> {
+    const sender = await LTOService.getAccount();
+    if (!sender) {
+      console.error("Account not initialized");
+      return null;
+    }
+
+    const address = sender.address;
+    const isRelayAvailable = await this.isRelayUp();
+    if (!isRelayAvailable) return null;
+
+    const url = `${this.relayURL}/inboxes/${address}/list`;
+
+    try {
+      const response = await this.handleSignedRequest("GET", url);
+      //this.logger.debug('Relay metadata response:', response.data);
+      return response.data.metadata || null;
+    } catch (error) {
+      console.error("Failed to read relay metadata:", error);
+      return null;
     }
   }
 

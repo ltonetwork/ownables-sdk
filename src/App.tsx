@@ -7,6 +7,7 @@ import LoginDialog from "./components/LoginDialog";
 import Loading from "./components/Loading";
 import LTOService from "./services/LTO.service";
 import Sidebar from "./components/Sidebar";
+import { ViewMessagesBar } from "./components/ViewMessagesBar";
 import LocalStorageService from "./services/LocalStorage.service";
 import SessionStorageService from "./services/SessionStorage.service";
 import OwnableService from "./services/Ownable.service";
@@ -33,13 +34,11 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [showLogin, setShowLogin] = useState(!LTOService.isUnlocked());
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showViewMessagesBar, setShowViewMessagesBar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
   const [message, setMessages] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
-  // const [ownables, setOwnables] = useState<
-  //   Array<{ chain: EventChain; package: string }>
-  // >([]);
   const [ownables, setOwnables] = useState<
     Array<{ chain: EventChain; package: string; uniqueMessageHash?: string }>
   >([]);
@@ -61,6 +60,10 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+
+  const handleNotificationClick = () => {
+    setShowViewMessagesBar(true);
+  };
 
   useEffect(() => {
     IDBService.open()
@@ -140,7 +143,7 @@ export default function App() {
           .map((data: TypedPackage) => ({
             chain: data.chain,
             package: data.cid,
-            uniqueMessageHash: data.uniqueMessageHash, // Include uniqueMessageHash
+            uniqueMessageHash: data.uniqueMessageHash,
           })),
       ]);
 
@@ -291,7 +294,11 @@ export default function App() {
 
   return (
     <>
-      <AppToolbar onMenuClick={() => setShowSidebar(true)} />
+      <AppToolbar
+        onMenuClick={() => setShowSidebar(true)}
+        onNotificationClick={handleNotificationClick}
+        messagesCount={message}
+      />
       <If condition={ownables.length === 0}>
         <Grid
           container
@@ -419,6 +426,13 @@ export default function App() {
         onLogout={logout}
         onReset={reset}
         onFactoryReset={factoryReset}
+      />
+
+      <ViewMessagesBar
+        open={showViewMessagesBar}
+        onClose={() => setShowViewMessagesBar(false)}
+        messagesCount={message}
+        setOwnables={setOwnables}
       />
 
       <CreateOwnable open={showCreate} onClose={() => setShowCreate(false)} />

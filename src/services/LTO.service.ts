@@ -1,4 +1,4 @@
-import { Account, Binary, LTO, Transaction, getNetwork, Transfer } from "@ltonetwork/lto";
+import { Account, Binary, LTO, Transaction, getNetwork } from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
 import CryptoJS from "crypto-js";
@@ -202,8 +202,7 @@ export default class LTOService {
     }).address;
   }
   public static getNetwork(ltoAddress: string): string {
-	return getNetwork(ltoAddress);
-	
+    return getNetwork(ltoAddress);
   }
   public static getAccount = async (): Promise<Account> => {
     if (!this.account) {
@@ -212,5 +211,4 @@ export default class LTOService {
 
     return this.account;
   };
-  
 }

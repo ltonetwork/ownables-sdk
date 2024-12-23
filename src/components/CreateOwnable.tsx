@@ -82,12 +82,12 @@ export default function CreateOwnable(props: CreateOwnableProps) {
           },
         }
       );
-	  let value;
-	  if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
-		value = +response.data.L[selectedNetwork];
-	  } else {
-		value = +response.data.T[selectedNetwork];
-	  }
+      let value;
+      if (process.env.REACT_APP_LTO_NETWORK_ID === "L") {
+        value = +response.data.L[selectedNetwork];
+      } else {
+        value = +response.data.T[selectedNetwork];
+      }
       console.log("templateCost value:", value);
       const address = await axios.get(
         // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
@@ -99,13 +99,13 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         }
       );
       //const serverAddress_L = address.data.serverLtoWalletAddress_L;
-    //   const serverAddress_T = address.data.serverLtoWalletAddress_T;
-	  let serverAddress;
-	  if(process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
-		serverAddress = address.data.serverLtoWalletAddress_L;
-	  }else {
-		serverAddress = address.data.serverLtoWalletAddress_T;
-	  }
+      //   const serverAddress_T = address.data.serverLtoWalletAddress_T;
+      let serverAddress;
+      if (process.env.REACT_APP_LTO_NETWORK_ID === "L") {
+        serverAddress = address.data.serverLtoWalletAddress_L;
+      } else {
+        serverAddress = address.data.serverLtoWalletAddress_T;
+      }
       const LTO_REPRESENTATION = 100000000;
       const calculatesAmount =
         parseFloat(value.toString()) / LTO_REPRESENTATION + 1;
@@ -409,7 +409,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
     }
     const tx = new TransferTx(recipient, amount);
     try {
- 
       const account = LTOService.account;
 
       const transaction = await LTOService.broadcast(tx!.signWith(account));
@@ -448,7 +447,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
               PLACEHOLDER1_NAME: "ownable_" + formattedName,
               PLACEHOLDER1_DESCRIPTION: ownable.description,
               PLACEHOLDER1_VERSION: "0.1.0",
-            //   PLACEHOLDER1_AUTHORS: ownable.owner + " <" + ownable.email + ">",
+              //   PLACEHOLDER1_AUTHORS: ownable.owner + " <" + ownable.email + ">",
               PLACEHOLDER1_AUTHORS: ownable.owner,
               PLACEHOLDER1_KEYWORDS: tags,
               PLACEHOLDER2_TITLE: ownable.name,
