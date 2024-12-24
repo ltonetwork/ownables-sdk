@@ -153,7 +153,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         });
 
         if (this.pkg.uniqueMessageHash) {
-          console.log(this.pkg.uniqueMessageHash);
           //Remove ownable from relay's inbox
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
 

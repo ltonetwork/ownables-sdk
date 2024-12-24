@@ -180,19 +180,6 @@ export default function PromptDialog(props: PromptDialogProps) {
           </Typography>
         )}
       </DialogContent>
-      {/* <DialogActions>
-        <Button onClick={close} color="secondary">
-          Cancel
-        </Button>
-        <Button
-          onClick={submit}
-          color="primary"
-          variant="contained"
-          disabled={redeemValue === null}
-        >
-          Redeem
-        </Button>
-      </DialogActions> */}
 
       <DialogActions>
         <Button onClick={close} color="secondary">
