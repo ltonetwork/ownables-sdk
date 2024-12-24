@@ -36,11 +36,20 @@ interface PromptDialogProps {
   fee?: number | null;
   showChainDropdown?: boolean;
   network?: string | null;
+  redeemValue?: number | null;
 }
 
 export default function PromptDialog(props: PromptDialogProps) {
-  const { open, onClose, onSubmit, validate, fee, showChainDropdown, network } =
-    props;
+  const {
+    open,
+    onClose,
+    onSubmit,
+    validate,
+    fee,
+    showChainDropdown,
+    network,
+    redeemValue,
+  } = props;
   const [address, setAddress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
@@ -108,30 +117,33 @@ export default function PromptDialog(props: PromptDialogProps) {
           paddingBottom: "0px",
         }}
       >
-        <TextField
-          {...props.TextFieldProps}
-          label={getChainLabel()}
-          variant="standard"
-          autoFocus
-          required
-          error={!!error}
-          helperText={error}
-          value={address}
-          onChange={(e) => {
-            setError(null);
-            setAddress(e.target.value);
-          }}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton onClick={handlePaste} edge="end">
-                  <Paste />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
+        {props.TextFieldProps ? (
+          <TextField
+            {...props.TextFieldProps}
+            label={getChainLabel()}
+            variant="standard"
+            autoFocus
+            required
+            error={!!error}
+            helperText={error}
+            value={address}
+            onChange={(e) => {
+              setError(null);
+              setAddress(e.target.value);
+            }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={handlePaste} edge="end">
+                    <Paste />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        ) : null}
       </DialogContent>
+
       {network && (
         <DialogContent>
           <DialogContent
@@ -151,6 +163,37 @@ export default function PromptDialog(props: PromptDialogProps) {
           </DialogContent>
         </DialogContent>
       )}
+
+      <DialogContent>
+        {redeemValue !== null ? (
+          <>
+            <Typography variant="body1" color="textPrimary">
+              You are about to redeem this ownable for:
+            </Typography>
+            <Typography variant="h6" color="primary">
+              {redeemValue} LTO
+            </Typography>
+          </>
+        ) : (
+          <Typography variant="body1" color="textSecondary">
+            Fetching redeem value...
+          </Typography>
+        )}
+      </DialogContent>
+      {/* <DialogActions>
+        <Button onClick={close} color="secondary">
+          Cancel
+        </Button>
+        <Button
+          onClick={submit}
+          color="primary"
+          variant="contained"
+          disabled={redeemValue === null}
+        >
+          Redeem
+        </Button>
+      </DialogActions> */}
+
       <DialogActions>
         <Button onClick={close} color="secondary">
           {props.cancel || "Cancel"}

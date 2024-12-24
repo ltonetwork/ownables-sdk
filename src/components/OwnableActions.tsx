@@ -12,14 +12,17 @@ import BridgeIcon from "@mui/icons-material/LeakAdd";
 import PromptDialog from "./PromptDialog";
 import LTOService from "../services/LTO.service";
 import { BridgeService } from "../services/Bridge.service";
+import { RedeemService } from "../services/Redeem.service";
 
 interface OwnableActionsProps {
   sx?: SxProps<Theme>;
+  title: string;
   isConsumable: boolean;
   isTransferable: boolean;
   isBridgeable: boolean;
   isRedeemable: boolean;
   nftNetwork: string;
+  chain: any;
   onDelete: () => void;
   onConsume: () => void;
   onTransfer: (address: string) => void;
@@ -28,7 +31,7 @@ interface OwnableActionsProps {
     fee: number | undefined,
     network: string | null
   ) => void;
-  onRedeem: () => void;
+  onRedeem: (value: number | null) => void;
 }
 
 export default function OwnableActions(props: OwnableActionsProps) {
@@ -48,12 +51,35 @@ export default function OwnableActions(props: OwnableActionsProps) {
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showBridgeDialog, setShowBridgeDialog] = useState(false);
   const [bridgeFee, setBridgeFee] = useState<number | null>(null);
+  const [showRedeemDialog, setShowRedeemDialog] = useState(false);
+  const [redeemValue, setRedeemValue] = useState<number | null>(null);
 
   const open = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
   const close = () => {
     setAnchorEl(null);
+  };
+
+  const fetchRedeemValue = async () => {
+    try {
+      const genesisAddress = await RedeemService.getOwnableCreator(
+        props.chain.events
+      );
+      const response = await RedeemService.isRedeemable(
+        genesisAddress,
+        props.title
+      );
+      setRedeemValue(response.value);
+    } catch (error) {
+      console.error("Error fetching redeem value:", error);
+      setRedeemValue(null);
+    }
+  };
+
+  const openRedeemDialog = async () => {
+    await fetchRedeemValue();
+    setShowRedeemDialog(true);
   };
 
   const handleFee = async () => {
@@ -148,7 +174,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
           <MenuItem
             onClick={() => {
               close();
-              onRedeem();
+              openRedeemDialog();
             }}
           >
             <ListItemIcon>
@@ -206,6 +232,17 @@ export default function OwnableActions(props: OwnableActionsProps) {
         }}
         fee={bridgeFee}
         network={nftNetwork}
+      />
+
+      <PromptDialog
+        title="Redeem Ownable"
+        open={showRedeemDialog}
+        onClose={() => setShowRedeemDialog(false)}
+        onSubmit={() => {
+          setShowRedeemDialog(false);
+          onRedeem(redeemValue);
+        }}
+        redeemValue={redeemValue}
       />
     </>
   );

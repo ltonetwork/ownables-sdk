@@ -102,7 +102,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         genesisAddress,
         this.pkg.title
       );
-      console.log(response.value, redeemAddress);
       await this.transfer(redeemAddress);
       enqueueSnackbar("Successfully redeemed!", { variant: "success" });
     } catch (error) {
@@ -406,12 +405,14 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         />
         <OwnableActions
           sx={{ position: "absolute", right: 5, top: 5, zIndex: 10 }}
+          title={this.pkg.title}
           isConsumable={this.pkg.isConsumable && !this.isTransferred}
           isTransferable={this.pkg.isTransferable && !this.isTransferred}
           isBridgeable={!this.isTransferred && this.hasNFT}
           isRedeemable={this.state.isRedeemable}
           nftNetwork={this.nftNetwork}
           onDelete={this.props.onDelete}
+          chain={this.chain}
           onConsume={() =>
             !!this.state.info && this.props.onConsume(this.state.info)
           }
@@ -420,7 +421,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
             if (!fee) return;
             this.bridge(address, fee, this.nftNetwork);
           }}
-          onRedeem={() => this.redeem()}
+          onRedeem={(value: number | null) => {
+            if (value !== null) {
+              this.redeem();
+            }
+          }}
         />
 
         <OwnableFrame

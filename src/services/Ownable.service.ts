@@ -215,7 +215,6 @@ export default class OwnableService {
     new Event({ "@context": "execute_msg.json", ...msg })
       .addTo(chain)
       .signWith(LTOService.account);
-    console.log("MSG:", { ...msg });
     await EventChainService.store({ chain, stateDump });
 
     return newStateDump;
