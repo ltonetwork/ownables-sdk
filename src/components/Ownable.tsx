@@ -49,6 +49,7 @@ interface OwnableState {
   info?: TypedOwnableInfo;
   metadata: TypedMetadata;
   isRedeemable: boolean;
+  redeemAddress?: string;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -92,32 +93,21 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  private async redeem(): Promise<void> {
-    try {
-      const redeemAddress = await RedeemService.redeemAddress();
-      const genesisAddress = await RedeemService.getOwnableCreator(
-        this.chain.events
-      );
-      const response = await RedeemService.isRedeemable(
-        genesisAddress,
-        this.pkg.title
-      );
-      await this.transfer(redeemAddress);
-      enqueueSnackbar("Successfully redeemed!", { variant: "success" });
-    } catch (error) {
-      console.error("Error during redeem:", error);
-      enqueueSnackbar("Failed to redeem. Try again.", { variant: "error" });
-    }
-  }
-
   get isRedeemed(): boolean {
-    const transferred =
-      !!this.state.info && this.state.info.owner !== LTOService.address;
-    return transferred && this.state.isRedeemable;
+    const ownedBySwap =
+      !!this.state.info && this.state.info.owner === this.state.redeemAddress;
+    console.log("SWAP OWNS", ownedBySwap);
+    return (
+      this.isTransferred && ownedBySwap && this.state.isRedeemable === true
+    );
   }
 
   get isTransferred(): boolean {
-    return !!this.state.info && this.state.info.owner !== LTOService.address;
+    return (
+      !!this.state.info &&
+      this.state.info.owner !== LTOService.address &&
+      this.state.info.owner !== undefined
+    );
   }
 
   get isBridged() {
@@ -136,6 +126,43 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     return nftNetwork || "";
   }
 
+  private async redeem(): Promise<void> {
+    try {
+      const redeemAddress = await RedeemService.redeemAddress();
+      const genesisAddress = await RedeemService.getOwnableCreator(
+        this.chain.events
+      );
+      const response = await RedeemService.isRedeemable(
+        genesisAddress,
+        this.pkg.title
+      );
+
+      await this.execute({ transfer: { to: redeemAddress } });
+
+      const zip = await OwnableService.zip(this.chain);
+      const content = await zip.generateAsync({
+        type: "uint8array",
+      });
+
+      await RelayService.sendOwnable(redeemAddress, content);
+      enqueueSnackbar("Successfully redeemed!", { variant: "success" });
+
+      const account = LTOService.getAccount();
+      const address = (await account).address;
+      console.log(address);
+
+      await RedeemService.storeDetail(address, response.value, this.chain.id);
+
+      if (this.pkg.uniqueMessageHash) {
+        console.log(this.pkg.uniqueMessageHash);
+        await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
+      }
+    } catch (error) {
+      console.error("Error during redeem:", error);
+      enqueueSnackbar("Failed to redeem. Try again.", { variant: "error" });
+    }
+  }
+
   private async transfer(to: string): Promise<void> {
     try {
       const value = await RelayService.isRelayUp();
@@ -147,8 +174,9 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           type: "uint8array",
         });
 
-        const messageHash = await RelayService.sendOwnable(to, content);
-        enqueueSnackbar(`Ownable ${messageHash} sent Successfully!!`, {
+        ///const messageHash = await RelayService.sendOwnable(to, content);
+        await RelayService.sendOwnable(to, content);
+        enqueueSnackbar(`Ownable sent Successfully!!`, {
           variant: "success",
         });
 
@@ -357,8 +385,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
 
     try {
-      const isRedeemable = await this.checkRedeemable();
-      this.setState({ isRedeemable });
+      const [isRedeemable, redeemAddress] = await Promise.all([
+        this.checkRedeemable(),
+        RedeemService.redeemAddress(),
+      ]);
+      this.setState({ isRedeemable, redeemAddress });
     } catch (error) {
       console.error("Error during initialization:", error);
     }

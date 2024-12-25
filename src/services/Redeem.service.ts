@@ -22,7 +22,6 @@ export class RedeemService {
         title: response.data.title,
       };
     }
-
     return { isRedeemable: false };
   }
 
@@ -30,5 +29,23 @@ export class RedeemService {
     const url = `${this.swapUrl}/info`;
     const response = await axios.get(url);
     return response.data.address;
+  }
+
+  static async storeDetail(address: string, amount: number, chainId: string) {
+    const url = `${this.swapUrl}/info/store`;
+
+    try {
+      const response = await axios.post(url, {
+        address: address,
+        amount: amount,
+        chainId: chainId,
+        isPaid: false,
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("Error storing detail:", error);
+      throw error;
+    }
   }
 }
