@@ -37,6 +37,7 @@ interface PromptDialogProps {
   showChainDropdown?: boolean;
   network?: string | null;
   redeemValue?: number | null;
+  actionType: "redeem" | "transfer" | "bridge" | "delete";
 }
 
 export default function PromptDialog(props: PromptDialogProps) {
@@ -49,6 +50,7 @@ export default function PromptDialog(props: PromptDialogProps) {
     showChainDropdown,
     network,
     redeemValue,
+    actionType,
   } = props;
   const [address, setAddress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +146,7 @@ export default function PromptDialog(props: PromptDialogProps) {
         ) : null}
       </DialogContent>
 
-      {network && (
+      {actionType === "bridge" && network && (
         <DialogContent>
           <DialogContent
             style={{
@@ -164,22 +166,24 @@ export default function PromptDialog(props: PromptDialogProps) {
         </DialogContent>
       )}
 
-      <DialogContent>
-        {redeemValue !== null ? (
-          <>
-            <Typography variant="body1" color="textPrimary">
-              You are about to redeem this ownable for:
+      {actionType === "redeem" && (
+        <DialogContent>
+          {redeemValue !== null ? (
+            <>
+              <Typography variant="body1" color="textPrimary">
+                You are about to redeem this ownable for:
+              </Typography>
+              <Typography variant="h6" color="primary">
+                {redeemValue} LTO
+              </Typography>
+            </>
+          ) : (
+            <Typography variant="body1" color="textSecondary">
+              Fetching redeem value...
             </Typography>
-            <Typography variant="h6" color="primary">
-              {redeemValue} LTO
-            </Typography>
-          </>
-        ) : (
-          <Typography variant="body1" color="textSecondary">
-            Fetching redeem value...
-          </Typography>
-        )}
-      </DialogContent>
+          )}
+        </DialogContent>
+      )}
 
       <DialogActions>
         <Button onClick={close} color="secondary">

@@ -78,8 +78,12 @@ export default function OwnableActions(props: OwnableActionsProps) {
   };
 
   const openRedeemDialog = async () => {
-    await fetchRedeemValue();
-    setShowRedeemDialog(true);
+    try {
+      await fetchRedeemValue();
+      setShowRedeemDialog(true);
+    } catch (error) {
+      console.error("Failed to fetch redeem value:", error);
+    }
   };
 
   const handleFee = async () => {
@@ -172,6 +176,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
         </MenuItem>
         {isRedeemable && (
           <MenuItem
+            disabled={!isTransferable}
             onClick={() => {
               close();
               openRedeemDialog();
@@ -211,6 +216,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
           label: "Recipient address",
           sx: { width: "380px", maxWidth: "100%" },
         }}
+        actionType="transfer"
       />
 
       <PromptDialog
@@ -232,6 +238,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
         }}
         fee={bridgeFee}
         network={nftNetwork}
+        actionType="bridge"
       />
 
       <PromptDialog
@@ -243,6 +250,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
           onRedeem(redeemValue);
         }}
         redeemValue={redeemValue}
+        actionType="redeem"
       />
     </>
   );

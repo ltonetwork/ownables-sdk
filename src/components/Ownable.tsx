@@ -96,7 +96,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   get isRedeemed(): boolean {
     const ownedBySwap =
       !!this.state.info && this.state.info.owner === this.state.redeemAddress;
-    console.log("SWAP OWNS", ownedBySwap);
+
     return (
       this.isTransferred && ownedBySwap && this.state.isRedeemable === true
     );
@@ -149,7 +149,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
       const account = LTOService.getAccount();
       const address = (await account).address;
-      console.log(address);
 
       await RedeemService.storeDetail(address, response.value, this.chain.id);
 
