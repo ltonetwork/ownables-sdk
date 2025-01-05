@@ -14,7 +14,7 @@ export class RelayService {
   static relayURL = process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
   private static relay = new Relay(`${this.relayURL}`);
 
-  /**
+  /*
    * Handle All Signed Requests
    */
   static async handleSignedRequest(
