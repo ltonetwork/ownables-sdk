@@ -164,7 +164,7 @@ export default class PackageService {
   ): TypedPackage {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
-
+    console.log("packages", packages);
     // Locate the package with matching cid and uniqueMessageHash
     let pkg = packages.find(
       (pkg) =>
@@ -172,7 +172,7 @@ export default class PackageService {
         pkg.cid === cid &&
         pkg.uniqueMessageHash === uniqueMessageHash
     );
-
+    console.log("pkg", pkg);
     if (!pkg) {
       // Create new package entry if not found
       pkg = {

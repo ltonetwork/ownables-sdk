@@ -56,6 +56,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   constructor(props: OwnableProps) {
     super(props);
     this.pkg = PackageService.info(props.packageCid);
+    console.log(this.pkg);
     this.iframeRef = createRef();
     this.state = {
       initialized: false,

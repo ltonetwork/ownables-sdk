@@ -860,6 +860,27 @@ export default function CreateOwnable(props: CreateOwnableProps) {
             //   .catch((err) => {
             //     console.log(err);
             //   });
+
+            // Send the zip file to oBuilder
+            const formData = new FormData();
+            formData.append("file", zipFile, formattedName + ".zip");
+            
+            const headers = { ...combinedHeaders };
+            delete headers['Content-Type' as keyof typeof headers];
+            
+            fetch(request.url, {
+              method: 'POST',
+              headers: headers,
+              body: formData
+            })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log(data);
+            })
+            .catch((error) => {
+              console.log(error);
+            });
+
             setOpenDialog(true);
           });
           handleCloseDialog();
