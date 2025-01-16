@@ -329,31 +329,44 @@ export default class PackageService {
     };
   }
 
-  static async import(zipFile: File): Promise<TypedPackage> {
-    const files = await this.extractAssets(zipFile);
+  static async processPackage(
+    files: any,
+    uniqueMessageHash?: string,
+    isNotLocal = false
+  ): Promise<TypedPackage> {
     const packageJson: TypedDict = await this.getPackageJson(
       "package.json",
       files
     );
-    const name: string = packageJson.name || zipFile.name.replace(/\.\w+$/, "");
+    const name: string = packageJson.name || "Unnamed Package";
     const title = name
       .replace(/^ownable-|-ownable$/, "")
       .replace(/[-_]+/, " ")
       .replace(/\b\w/, (c) => c.toUpperCase());
     const description: string | undefined = packageJson.description;
+    const keywords: string[] = packageJson.keywords || [];
     const cid = await calculateCid(files);
     const capabilities = await this.getCapabilities(files);
-    const keywords: string[] = packageJson.keywords || "";
 
+    // Store assets in IndexedDB
     await this.storeAssets(cid, files);
+
+    // Save package information, including the hash if provided
     return this.storePackageInfo(
       title,
       name,
       description,
       cid,
       keywords,
-      capabilities
+      capabilities,
+      isNotLocal,
+      uniqueMessageHash
     );
+  }
+
+  static async import(zipFile: File): Promise<TypedPackage> {
+    const files = await this.extractAssets(zipFile);
+    return this.processPackage(files);
   }
 
   static async importFromRelay() {
@@ -373,129 +386,33 @@ export default class PackageService {
       const results = await Promise.all(
         filteredMessages.map(async (data: any) => {
           try {
-            const { message, ...messageHash } = data;
-            const mainMessage = message;
-            const asset = await this.extractAssets(mainMessage.data.buffer);
-            if (asset.length === 0) return null;
+            const { message, messageHash } = data;
+            const files = await this.extractAssets(message.data.buffer);
 
-            const cid = await calculateCid(asset);
-            const chainJson = await this.getChainJson(
-              "chain.json",
-              mainMessage.data.buffer
-            );
+            if (files.length === 0) return null;
 
-            if (await IDBService.hasStore(`package:${cid}`)) {
-              if (await this.isCurrentEvent(chainJson)) {
-                this.removeOlderPackage(chainJson.id);
-              } else {
-                return null;
-              }
-            }
+            // Pass the hash to the processing function
+            const pkg = await this.processPackage(files, messageHash, true);
 
-            const packageJson = await this.getPackageJson(
-              "package.json",
-              asset
-            );
-            const name = packageJson.name;
-            const title = name
-              .replace(/^ownable-|-ownable$/, "")
-              .replace(/[-_]+/, " ")
-              .replace(/\b\w/, (c: any) => c.toUpperCase());
-            const description = packageJson.description;
-            const capabilities = await this.getCapabilities(asset);
-            const keywords: string[] = packageJson.keywords || "";
-            const isNotLocal = true;
-            const { ...values } = messageHash;
-            const uniqueMessageHash = values.messageHash;
-
-            if (await IDBService.hasStore(`package:${cid}`)) {
+            if (await IDBService.hasStore(`package:${pkg.cid}`)) {
               triggerRefresh = true;
             }
 
-            await this.storeMessageHash(uniqueMessageHash);
-            await this.storeAssets(cid, asset);
-
-            const pkg = this.storePackageInfo(
-              title,
-              name,
-              description,
-              cid,
-              keywords,
-              capabilities,
-              isNotLocal,
-              uniqueMessageHash
-            );
-
-            // const chain = EventChain.from(chainJson);
-            // pkg.chain = chain;
-            pkg.uniqueMessageHash = uniqueMessageHash;
+            // Store the message hash
+            if (messageHash) await this.storeMessageHash(messageHash);
 
             return pkg;
           } catch (err) {
             console.error("Error processing data:", err);
-            return null; // Skip failed items
+            return null;
           }
         })
       );
 
       const packages = results.filter((pkg) => pkg !== null);
-
       return [packages, triggerRefresh];
     } catch (error) {
       console.error("Error:", error);
-      return null;
-    }
-  }
-
-  static async processMessage(
-    message: any,
-    uniqueMessageHash: string
-  ): Promise<TypedPackage | null> {
-    try {
-      const asset = await this.extractAssets(message.data.buffer);
-      if (asset.length === 0) return null;
-
-      const cid = await calculateCid(asset);
-      const chainJson = await this.getChainJson(
-        "chain.json",
-        message.data.buffer
-      );
-
-      if (await IDBService.hasStore(`package:${cid}`)) {
-        if (!(await this.isCurrentEvent(chainJson))) return null;
-        await this.removeOlderPackage(chainJson.id);
-      }
-
-      const packageJson = await this.getPackageJson("package.json", asset);
-      const name = packageJson.name;
-      const title = name
-        .replace(/^ownable-|-ownable$/, "")
-        .replace(/[-_]+/, " ")
-        .replace(/\b\w/, (c: any) => c.toUpperCase());
-      const description = packageJson.description;
-      const capabilities = await this.getCapabilities(asset);
-      const keywords: string[] = packageJson.keywords || "";
-
-      await this.storeMessageHash(uniqueMessageHash);
-      console.log(uniqueMessageHash);
-
-      await this.storeAssets(cid, asset);
-      const pkg = this.storePackageInfo(
-        title,
-        name,
-        description,
-        cid,
-        keywords,
-        capabilities,
-        true,
-        uniqueMessageHash
-      );
-      const chain = EventChain.from(chainJson);
-      pkg.chain = chain;
-      pkg.uniqueMessageHash = uniqueMessageHash;
-      return pkg;
-    } catch (error) {
-      console.error("Error processing message:", error);
       return null;
     }
   }

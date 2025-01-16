@@ -147,7 +147,7 @@ export class RelayService {
 
       if (response?.data) {
         const message = Message.from(response.data);
-        return await PackageService.processMessage(message, hash);
+        return await PackageService.processPackage(message, hash, true);
       }
 
       return null;

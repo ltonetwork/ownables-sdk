@@ -8,12 +8,14 @@ import {
   ListItem,
   ListItemText,
   Button,
+  Badge,
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
 import { RelayService } from "../services/Relay.service";
 import axios from "axios";
 import { EventChain } from "@ltonetwork/lto";
 import { enqueueSnackbar } from "notistack";
+import LocalStorageService from "../services/LocalStorage.service";
 
 interface ViewMessagesBarProps {
   open: boolean;
@@ -37,6 +39,7 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [builderAddress, setBuilderAddress] = useState<string | null>(null);
+  const [importedHashes, setImportedHashes] = useState<Set<string>>(new Set());
 
   const fetchBuilderAddress = async () => {
     try {
@@ -47,7 +50,6 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
         network === "T"
           ? response.data.serverLtoWalletAddress_T
           : response.data.serverLtoWalletAddress_L;
-
       setBuilderAddress(serverAddress);
     } catch (error) {
       console.error("Failed to fetch builder address:", error);
@@ -71,14 +73,21 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
     setLoading(false);
   };
 
+  const fetchImportedHashes = async () => {
+    try {
+      const hashes = await LocalStorageService.get("messageHashes");
+      setImportedHashes(new Set(hashes));
+    } catch (error) {
+      console.error("Failed to fetch imported hashes:", error);
+    }
+  };
+
   const handleImportMessage = async (hash: string) => {
     try {
       const importedPackage = await RelayService.readSingleMessage(hash);
 
       if (importedPackage) {
         const chain = importedPackage.chain ? importedPackage.chain : null;
-
-        console.log(chain);
 
         if (chain) {
           setOwnables((prevOwnables) => [
@@ -89,6 +98,12 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
               uniqueMessageHash: importedPackage.uniqueMessageHash,
             },
           ]);
+
+          // Update imported hashes
+          setImportedHashes((prev) => new Set(prev).add(hash));
+          const messageCount = await LocalStorageService.get("messageCount");
+          const newCount = Math.max(0, parseInt(messageCount || "0", 10) - 1);
+          await LocalStorageService.set("messageCount", newCount);
           enqueueSnackbar(`Ownable imported successfully!`, {
             variant: "success",
           });
@@ -117,6 +132,7 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   useEffect(() => {
     if (open) {
       fetchMessages();
+      fetchImportedHashes();
     }
   }, [open]);
 
@@ -186,14 +202,18 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
                 >
                   Time: {new Date(msg?.timestamp || 0).toLocaleString()}
                 </Typography>
-                <Button
-                  variant="contained"
-                  size="small"
-                  sx={{ mt: 1 }}
-                  onClick={() => handleImportMessage(msg?.hash)}
-                >
-                  Import Message
-                </Button>
+                <Box display="flex" alignItems="center" mt={1}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => handleImportMessage(msg?.hash)}
+                  >
+                    Import Message
+                  </Button>
+                  {!importedHashes.has(msg?.hash) && (
+                    <Badge color="success" variant="dot" sx={{ ml: 2 }} />
+                  )}
+                </Box>
               </ListItem>
             ))}
           </List>
