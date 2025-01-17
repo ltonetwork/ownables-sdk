@@ -262,8 +262,7 @@ export default class PackageService {
   }
 
   static async getChainJson(filename: string, files: any): Promise<any> {
-    const extractedFile = await this.extractAssets(files, true);
-    const file = extractedFile.find((file) => file.name === filename);
+    const file = files.find((file: any) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
 
     const fileContent = await file.text();
@@ -330,43 +329,91 @@ export default class PackageService {
   }
 
   static async processPackage(
-    files: any,
+    message: any,
     uniqueMessageHash?: string,
     isNotLocal = false
-  ): Promise<TypedPackage> {
-    const packageJson: TypedDict = await this.getPackageJson(
-      "package.json",
-      files
-    );
-    const name: string = packageJson.name || "Unnamed Package";
-    const title = name
-      .replace(/^ownable-|-ownable$/, "")
-      .replace(/[-_]+/, " ")
-      .replace(/\b\w/, (c) => c.toUpperCase());
-    const description: string | undefined = packageJson.description;
-    const keywords: string[] = packageJson.keywords || [];
-    const cid = await calculateCid(files);
-    const capabilities = await this.getCapabilities(files);
+  ) {
+    try {
+      let chainJson: any;
+      let files: File[];
+      let packageJson: TypedDict;
 
-    // Store assets in IndexedDB
-    await this.storeAssets(cid, files);
+      if (isNotLocal) {
+        files = await this.extractAssets(message.data.buffer, true);
+        packageJson = await this.getPackageJson("package.json", files);
+        chainJson = await this.getChainJson("chain.json", files);
+      } else {
+        files = message; // Local files
+        packageJson = await this.getPackageJson("package.json", files);
+      }
 
-    // Save package information, including the hash if provided
-    return this.storePackageInfo(
-      title,
-      name,
-      description,
-      cid,
-      keywords,
-      capabilities,
-      isNotLocal,
-      uniqueMessageHash
-    );
+      if (!packageJson)
+        throw new Error("Missing package.json in extracted assets");
+      if (isNotLocal && !chainJson)
+        throw new Error("Missing chain.json for relay package");
+
+      const cid = await calculateCid(files);
+
+      // Check for duplicates
+      if (await IDBService.hasStore(`package:${cid}`)) {
+        if (
+          isNotLocal &&
+          chainJson &&
+          !(await this.isCurrentEvent(chainJson))
+        ) {
+          console.warn(`Package with CID ${cid} is already current or newer.`);
+          return null;
+        }
+      }
+
+      const name = packageJson.name || "Unnamed Package";
+      const title = name
+        .replace(/^ownable-|-ownable$/, "")
+        .replace(/[-_]+/, " ")
+        .replace(/\b\w/, (c: string) => c.toUpperCase());
+      const description = packageJson.description;
+      const keywords: string[] = packageJson.keywords || [];
+      const capabilities = await this.getCapabilities(files);
+
+      // Store assets in IndexedDB
+      await this.storeAssets(cid, files);
+
+      // Store package information
+      const pkg = this.storePackageInfo(
+        title,
+        name,
+        description,
+        cid,
+        keywords,
+        capabilities,
+        isNotLocal,
+        uniqueMessageHash
+      );
+
+      if (isNotLocal && chainJson) {
+        const chain = EventChain.from(chainJson);
+        pkg.chain = chain;
+      }
+
+      pkg.uniqueMessageHash = uniqueMessageHash;
+      return pkg;
+    } catch (error) {
+      console.error("Error processing package:", error);
+      throw error;
+    }
   }
 
   static async import(zipFile: File): Promise<TypedPackage> {
     const files = await this.extractAssets(zipFile);
-    return this.processPackage(files);
+    const pkg = await this.processPackage(files);
+
+    if (!pkg) {
+      throw new Error(
+        "Failed to process package: duplicate or invalid package."
+      );
+    }
+
+    return pkg;
   }
 
   static async importFromRelay() {
@@ -388,11 +435,14 @@ export default class PackageService {
           try {
             const { message, messageHash } = data;
             const files = await this.extractAssets(message.data.buffer);
+            console.log(files);
 
             if (files.length === 0) return null;
 
             // Pass the hash to the processing function
             const pkg = await this.processPackage(files, messageHash, true);
+
+            if (!pkg) return;
 
             if (await IDBService.hasStore(`package:${pkg.cid}`)) {
               triggerRefresh = true;
