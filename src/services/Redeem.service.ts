@@ -1,4 +1,3 @@
-import { EventChain } from "@ltonetwork/lto";
 import LTOService from "./LTO.service";
 import axios from "axios";
 
