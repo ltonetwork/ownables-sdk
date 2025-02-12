@@ -336,10 +336,16 @@ export default class PackageService {
     try {
       let chainJson: any;
       let files: File[];
+      let filesWithoutChain: File[] | undefined;
       let packageJson: TypedDict;
 
+      //Extract files
       if (isNotLocal) {
         files = await this.extractAssets(message.data.buffer, true);
+        filesWithoutChain = await this.extractAssets(
+          message.data.buffer,
+          false
+        );
         packageJson = await this.getPackageJson("package.json", files);
         chainJson = await this.getChainJson("chain.json", files);
       } else {
@@ -347,14 +353,28 @@ export default class PackageService {
         packageJson = await this.getPackageJson("package.json", files);
       }
 
-      if (!packageJson)
+      //Check for required JSON files
+      if (!packageJson) {
         throw new Error("Missing package.json in extracted assets");
-      if (isNotLocal && !chainJson)
+      }
+      if (isNotLocal && !chainJson) {
         throw new Error("Missing chain.json for relay package");
+      }
 
-      const cid = await calculateCid(files);
+      //Calculate CID
+      console.log("CID Calc.");
 
-      // Check for duplicates
+      let cid: string;
+      if (isNotLocal) {
+        // Safely assume filesWithoutChain is defined if isNotLocal is true
+        cid = await calculateCid(filesWithoutChain!);
+      } else {
+        cid = await calculateCid(files);
+      }
+
+      console.log("THE CID", cid);
+
+      //Check for duplicates
       if (await IDBService.hasStore(`package:${cid}`)) {
         if (
           isNotLocal &&
@@ -366,6 +386,7 @@ export default class PackageService {
         }
       }
 
+      //Prepare metadata
       const name = packageJson.name || "Unnamed Package";
       const title = name
         .replace(/^ownable-|-ownable$/, "")
@@ -375,10 +396,10 @@ export default class PackageService {
       const keywords: string[] = packageJson.keywords || [];
       const capabilities = await this.getCapabilities(files);
 
-      // Store assets in IndexedDB
+      // 6. Store assets
       await this.storeAssets(cid, files);
 
-      // Store package information
+      // 7. Store package info
       const pkg = this.storePackageInfo(
         title,
         name,
@@ -390,6 +411,7 @@ export default class PackageService {
         uniqueMessageHash
       );
 
+      // 8. Attach chain if needed
       if (isNotLocal && chainJson) {
         const chain = EventChain.from(chainJson);
         pkg.chain = chain;
@@ -549,6 +571,7 @@ export default class PackageService {
   }
 
   static async zip(cid: string): Promise<JSZip> {
+    console.log("ZIP FUNC", cid);
     const zip = new JSZip();
     const files = await IDBService.getAll(`package:${cid}`);
 
