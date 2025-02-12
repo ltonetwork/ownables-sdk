@@ -262,7 +262,8 @@ export default class PackageService {
   }
 
   static async getChainJson(filename: string, files: any): Promise<any> {
-    const file = files.find((file: any) => file.name === filename);
+    const extractedFile = await this.extractAssets(files, true);
+    const file = extractedFile.find((file: any) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
 
     const fileContent = await file.text();
@@ -336,18 +337,15 @@ export default class PackageService {
     try {
       let chainJson: any;
       let files: File[];
-      let filesWithoutChain: File[] | undefined;
       let packageJson: TypedDict;
+
+      console.log(message);
 
       //Extract files
       if (isNotLocal) {
-        files = await this.extractAssets(message.data.buffer, true);
-        filesWithoutChain = await this.extractAssets(
-          message.data.buffer,
-          false
-        );
+        files = await this.extractAssets(message.data.buffer, false);
         packageJson = await this.getPackageJson("package.json", files);
-        chainJson = await this.getChainJson("chain.json", files);
+        chainJson = await this.getChainJson("chain.json", message.data.buffer);
       } else {
         files = message; // Local files
         packageJson = await this.getPackageJson("package.json", files);
@@ -362,17 +360,7 @@ export default class PackageService {
       }
 
       //Calculate CID
-      console.log("CID Calc.");
-
-      let cid: string;
-      if (isNotLocal) {
-        // Safely assume filesWithoutChain is defined if isNotLocal is true
-        cid = await calculateCid(filesWithoutChain!);
-      } else {
-        cid = await calculateCid(files);
-      }
-
-      console.log("THE CID", cid);
+      const cid = await calculateCid(files);
 
       //Check for duplicates
       if (await IDBService.hasStore(`package:${cid}`)) {
@@ -396,10 +384,10 @@ export default class PackageService {
       const keywords: string[] = packageJson.keywords || [];
       const capabilities = await this.getCapabilities(files);
 
-      // 6. Store assets
+      //Store assets
       await this.storeAssets(cid, files);
 
-      // 7. Store package info
+      //Store package info
       const pkg = this.storePackageInfo(
         title,
         name,
@@ -411,7 +399,7 @@ export default class PackageService {
         uniqueMessageHash
       );
 
-      // 8. Attach chain if needed
+      //Attach chain if needed
       if (isNotLocal && chainJson) {
         const chain = EventChain.from(chainJson);
         pkg.chain = chain;
