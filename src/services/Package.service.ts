@@ -339,8 +339,6 @@ export default class PackageService {
       let files: File[];
       let packageJson: TypedDict;
 
-      console.log(message);
-
       //Extract files
       if (isNotLocal) {
         files = await this.extractAssets(message.data.buffer, false);
