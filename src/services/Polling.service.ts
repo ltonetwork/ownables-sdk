@@ -13,10 +13,14 @@ export class PollingService {
         address
       )}/list`;
 
+      // const url = `${RelayService.relayURL}/inboxes/${encodeURIComponent(
+      //   address
+      // )}/list?limit=4&offset=0`;
+
       const headers: Record<string, string> = {};
       const lastModified = LocalStorageService.get("lastModified");
 
-      if (lastModified) {
+      if (!lastModified) {
         headers["If-Modified-Since"] = lastModified;
       }
 

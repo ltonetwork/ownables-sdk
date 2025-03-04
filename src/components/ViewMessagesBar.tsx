@@ -85,7 +85,6 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   const handleImportMessage = async (hash: string) => {
     try {
       const importedPackage = await RelayService.readSingleMessage(hash);
-      console.log(importedPackage);
 
       if (importedPackage) {
         const chain = importedPackage.chain ? importedPackage.chain : null;

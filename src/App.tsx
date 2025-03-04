@@ -177,7 +177,6 @@ export default function App() {
     uniqueMessageHash?: string
   ) => {
     const pkg = PackageService.info(packageCid);
-    console.log(pkg, uniqueMessageHash);
 
     setConfirm({
       severity: "error",

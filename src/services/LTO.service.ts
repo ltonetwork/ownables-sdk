@@ -201,9 +201,11 @@ export default class LTOService {
       publicKey: publicKey instanceof Binary ? publicKey.base58 : publicKey,
     }).address;
   }
+
   public static getNetwork(ltoAddress: string): string {
     return getNetwork(ltoAddress);
   }
+
   public static getAccount = async (): Promise<Account> => {
     if (!this.account) {
       throw new Error("Not logged in");

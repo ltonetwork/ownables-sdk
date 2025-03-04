@@ -9,9 +9,11 @@ export default async function sendFile(relay, content, sender, recipient) {
   try {
     let message;
     if (sender && recipient) {
-      message = new Message(content).to(recipient).signWith(sender);
+      message = new Message(content)
+        .to(recipient)
+        .encryptFor(recipient)
+        .signWith(sender);
     } else {
-      //console.log("provide the signer and recipient");
       return;
     }
     await relay.send(message);

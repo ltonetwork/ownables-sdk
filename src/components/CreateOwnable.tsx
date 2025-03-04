@@ -88,7 +88,6 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       } else {
         value = +response.data.T[selectedNetwork];
       }
-      console.log("templateCost value:", value);
       const address = await axios.get(
         // `${process.env.REACT_APP_OBUILDER}/api/v1/ServerWalletAddressLTO`,
         `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,

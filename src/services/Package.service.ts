@@ -443,7 +443,6 @@ export default class PackageService {
           try {
             const { message, messageHash } = data;
             const files = await this.extractAssets(message.data.buffer);
-            console.log(files);
 
             if (files.length === 0) return null;
 
@@ -557,7 +556,6 @@ export default class PackageService {
   }
 
   static async zip(cid: string): Promise<JSZip> {
-    console.log("ZIP FUNC", cid);
     const zip = new JSZip();
     const files = await IDBService.getAll(`package:${cid}`);
 

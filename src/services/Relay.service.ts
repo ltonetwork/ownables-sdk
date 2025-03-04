@@ -56,7 +56,11 @@ export class RelayService {
   /**
    * Send ownable to a recipient.
    */
-  static async sendOwnable(recipient: string, content?: Uint8Array) {
+  static async sendOwnable(
+    recipient: string,
+    content: Uint8Array,
+    messageDetail: any
+  ) {
     const sender = LTOService.account;
 
     if (!recipient) {

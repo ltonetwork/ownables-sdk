@@ -144,7 +144,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         type: "uint8array",
       });
 
-      await RelayService.sendOwnable(redeemAddress, content);
+      await RelayService.sendOwnable(redeemAddress, content, {
+        title: this.pkg.title,
+        description: this.pkg.description,
+      });
       enqueueSnackbar("Successfully redeemed!", { variant: "success" });
 
       const account = LTOService.getAccount();
@@ -174,7 +177,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         });
 
         ///const messageHash = await RelayService.sendOwnable(to, content);
-        await RelayService.sendOwnable(to, content);
+        await RelayService.sendOwnable(to, content, {
+          title: this.pkg.title,
+          description: this.pkg.description,
+        });
         enqueueSnackbar(`Ownable sent Successfully!!`, {
           variant: "success",
         });
