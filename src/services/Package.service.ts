@@ -403,7 +403,11 @@ export default class PackageService {
         pkg.chain = chain;
       }
 
-      pkg.uniqueMessageHash = uniqueMessageHash;
+      if (uniqueMessageHash) {
+        pkg.uniqueMessageHash = uniqueMessageHash;
+        this.storeMessageHash(uniqueMessageHash);
+      }
+
       return pkg;
     } catch (error) {
       console.error("Error processing package:", error);
@@ -442,6 +446,7 @@ export default class PackageService {
         filteredMessages.map(async (data: any) => {
           try {
             const { message, messageHash } = data;
+            console.log(data);
             const files = await this.extractAssets(message.data.buffer);
 
             if (files.length === 0) return null;
