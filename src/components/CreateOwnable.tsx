@@ -23,11 +23,11 @@ import JSZip from "jszip";
 import axios from "axios";
 import heic2any from "heic2any";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
-import { Transfer as TransferTx } from "@ltonetwork/lto";
+import { Transfer as TransferTx, getNetwork } from "@ltonetwork/lto";
 import { TypedOwnable } from "../interfaces/TypedOwnableInfo";
 import { useSnackbar } from "notistack";
 import TagInputField from "./TagInputField";
-
+import { sign } from "@ltonetwork/http-message-signatures";
 interface CreateOwnableProps {
 	open: boolean;
 	onClose: () => void;
