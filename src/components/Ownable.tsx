@@ -29,6 +29,9 @@ import shortId from "../utils/shortId";
 import SessionStorageService from "../services/SessionStorage.service";
 import LocalStorageService from "../services/LocalStorage.service";
 import { RedeemService } from "../services/Redeem.service";
+import { PACKAGE_TYPE } from "../constants";
+import IDBService from "../services/IDB.service";
+import { IMessageMeta } from "@ltonetwork/lto/interfaces";
 
 interface OwnableProps {
   chain: EventChain;
@@ -144,10 +147,10 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
         type: "uint8array",
       });
 
-      await RelayService.sendOwnable(redeemAddress, content, {
-        title: this.pkg.title,
-        description: this.pkg.description,
-      });
+      //construct Metadata
+      const meta = await this.constructMeta();
+
+      await RelayService.sendOwnable(redeemAddress, content, meta);
       enqueueSnackbar("Successfully redeemed!", { variant: "success" });
 
       const account = LTOService.getAccount();
@@ -165,6 +168,26 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
+  private async constructMeta(): Promise<Partial<IMessageMeta>> {
+    const title = this.pkg.title;
+    const description = this.pkg.description ?? "";
+    const type = PACKAGE_TYPE;
+
+    const thumbnailData = await IDBService.get(
+      `package:${this.pkg.cid}`,
+      "thumbnail.webp"
+    );
+
+    const thumbnail = thumbnailData ? new Binary(thumbnailData) : undefined;
+
+    return {
+      type,
+      title,
+      description,
+      thumbnail,
+    };
+  }
+
   private async transfer(to: string): Promise<void> {
     try {
       const value = await RelayService.isRelayUp();
@@ -176,21 +199,21 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           type: "uint8array",
         });
 
-        ///const messageHash = await RelayService.sendOwnable(to, content);
-        await RelayService.sendOwnable(to, content, {
-          title: this.pkg.title,
-          description: this.pkg.description,
-        });
+        //construct Metadata
+        const meta = await this.constructMeta();
+
+        //const messageHash = await RelayService.sendOwnable(to, content);
+        await RelayService.sendOwnable(to, content, meta);
         enqueueSnackbar(`Ownable sent Successfully!!`, {
           variant: "success",
         });
 
         if (this.pkg.uniqueMessageHash) {
           //Remove ownable from relay's inbox
-          console.log(this.pkg);
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
 
           //remove ownable from IDB
+          //Investigate why commented
           //await OwnableService.delete(this.chain.id);
 
           //remove hash from localstorage messageHashes

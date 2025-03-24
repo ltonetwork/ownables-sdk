@@ -5,11 +5,17 @@
 //import { lto } from "./Relay.service";
 const { Message } = require("@ltonetwork/lto");
 
-export default async function sendFile(relay, content, sender, recipient) {
+export default async function sendFile(
+  relay,
+  content,
+  sender,
+  recipient,
+  meta
+) {
   try {
     let message;
     if (sender && recipient) {
-      message = new Message(content)
+      message = new Message(content, "application/octet-stream", meta)
         .to(recipient)
         .encryptFor(recipient)
         .signWith(sender);

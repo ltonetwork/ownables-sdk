@@ -12,9 +12,9 @@ export class BridgeService {
     const url = `${this.obridgeUrl}/api/v1/oBridgeCost?templateId=${templateId}`;
     try {
       const response = await axios.get(url);
-      console.log("response", response)
+      console.log("response", response);
       let oBridgeCost;
-      if (process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
+      if (process.env.REACT_APP_LTO_NETWORK_ID === "L") {
         oBridgeCost = response.data.L.arbitrum;
       } else {
         oBridgeCost = response.data.T.arbitrum;
@@ -33,7 +33,7 @@ export class BridgeService {
     try {
       const response = await axios.get(url);
       let bridgeAddress;
-      if (process.env.REACT_APP_LTO_NETWORK_ID === 'L') {
+      if (process.env.REACT_APP_LTO_NETWORK_ID === "L") {
         bridgeAddress = response.data.serverLtoWalletAddress_L;
       } else {
         bridgeAddress = response.data.serverLtoWalletAddress_T;
@@ -81,8 +81,6 @@ export class BridgeService {
         console.log("Bridge Address undefined. Maybe oBridge not reachable?");
       }
       // tx = new TransferTx(bridgeAddress, bridgingCosts);
-
-
     } catch (err) {
       console.log("Error:", err);
     }
@@ -94,8 +92,6 @@ export class BridgeService {
         return;
       }
 
-  
-
       const urlToSign = `${this.obridgeUrl}/api/v1/bridgeOwnable`;
       const request = {
         headers: {},
@@ -104,19 +100,20 @@ export class BridgeService {
       };
       const signedRequest = await sign(request, { signer: account });
       request.url =
-        request.url + `?ltoNetworkId=${ltoNetworkId}&ltoTransactionId=${txId}&nftReceiverAddress=${nftReceiverAddress}`;
+        request.url +
+        `?ltoNetworkId=${ltoNetworkId}&ltoTransactionId=${txId}&nftReceiverAddress=${nftReceiverAddress}`;
 
       const headers1 = {
         "Content-Type": "multipart/form-data",
         Accept: "*/*",
       };
       const combinedHeaders = { ...signedRequest.headers, ...headers1 };
-    //   console.log("combinedHeaders", combinedHeaders);
+      //   console.log("combinedHeaders", combinedHeaders);
 
       const formData = new FormData();
       formData.append("file", ownable, filename);
       const response = await axios.post(request.url, formData, {
-        headers: combinedHeaders
+        headers: combinedHeaders,
       });
       console.log("response", response);
     } catch (err) {

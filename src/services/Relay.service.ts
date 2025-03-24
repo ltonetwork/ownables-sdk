@@ -1,4 +1,4 @@
-import { EventChain, LTO, Message, Relay } from "@ltonetwork/lto";
+import { EventChain, LTO, Message, Relay, Binary } from "@ltonetwork/lto";
 import axios from "axios";
 import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
@@ -7,6 +7,7 @@ import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 import { sign } from "@ltonetwork/http-message-signatures";
 import LTOService from "./LTO.service";
 import PackageService from "./Package.service";
+import { IMessageMeta } from "@ltonetwork/lto/interfaces";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 
@@ -59,7 +60,7 @@ export class RelayService {
   static async sendOwnable(
     recipient: string,
     content: Uint8Array,
-    messageDetail: any
+    meta: Partial<IMessageMeta>
   ) {
     const sender = LTOService.account;
 
@@ -70,13 +71,28 @@ export class RelayService {
 
     try {
       if (sender) {
-        const messageHash = await sendFile(
-          this.relay,
-          content,
-          sender,
-          recipient
-        );
-        return messageHash;
+        // const messageHash = await sendFile(
+        //   this.relay,
+        //   content,
+        //   sender,
+        //   recipient,
+        //   meta
+        // );
+        // return messageHash;
+
+        // .encryptFor(recipient).signWith
+
+        const messageContent = Binary.from(content);
+        const message = new Message(
+          messageContent,
+          "application/octet-stream",
+          meta
+        )
+          .to(recipient)
+          .signWith(sender);
+
+        await this.relay.send(message);
+        return message.hash.base58;
       }
     } catch (error) {
       console.error("Error sending message:", error);
