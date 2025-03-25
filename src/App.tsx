@@ -66,6 +66,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // RelayService.readSingleMessage(
+    //   "6u6uEr12kHbTCRRpazuaFKjqxm7ug4EtGEU7uxqP6812"
+    // );
     IDBService.open()
       .then(() => OwnableService.loadAll())
       .then((ownables) => setOwnables(ownables))

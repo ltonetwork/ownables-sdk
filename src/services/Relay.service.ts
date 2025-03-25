@@ -71,17 +71,6 @@ export class RelayService {
 
     try {
       if (sender) {
-        // const messageHash = await sendFile(
-        //   this.relay,
-        //   content,
-        //   sender,
-        //   recipient,
-        //   meta
-        // );
-        // return messageHash;
-
-        // .encryptFor(recipient).signWith
-
         const messageContent = Binary.from(content);
         const message = new Message(
           messageContent,
@@ -117,6 +106,7 @@ export class RelayService {
 
     try {
       const responses = await this.handleSignedRequest("GET", url);
+      console.log(responses.data);
 
       if (!responses || !responses.data || responses.data.length === 0) {
         return [];
@@ -164,6 +154,8 @@ export class RelayService {
 
     try {
       const response = await this.handleSignedRequest("GET", url);
+
+      console.log(response.data);
 
       if (response?.data) {
         const message = Message.from(response.data);

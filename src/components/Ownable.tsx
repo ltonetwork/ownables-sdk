@@ -168,17 +168,56 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
+  private async resizeToThumbnail(file: File): Promise<Blob> {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = URL.createObjectURL(file);
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 50;
+    canvas.height = 50;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Failed to get canvas context");
+
+    ctx.drawImage(img, 0, 0, 50, 50);
+
+    const quality = 0.8; // adjustment
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", quality)
+    );
+
+    if (!blob) {
+      throw new Error("Failed to create thumbnail blob");
+    }
+
+    if (blob.size > 256 * 1024) {
+      throw new Error("Compressed thumbnail still exceeds 256KB");
+    }
+
+    return blob;
+  }
+
   private async constructMeta(): Promise<Partial<IMessageMeta>> {
     const title = this.pkg.title;
     const description = this.pkg.description ?? "";
     const type = PACKAGE_TYPE;
 
-    const thumbnailData = await IDBService.get(
+    let thumbnail: Binary | undefined;
+
+    const thumbnailFile = await IDBService.get(
       `package:${this.pkg.cid}`,
       "thumbnail.webp"
     );
 
-    const thumbnail = thumbnailData ? new Binary(thumbnailData) : undefined;
+    if (thumbnailFile) {
+      const resizedFile = await this.resizeToThumbnail(thumbnailFile);
+      const buffer = await resizedFile.arrayBuffer();
+      thumbnail = Binary.from(new Uint8Array(buffer));
+    }
 
     return {
       type,
@@ -201,6 +240,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
         //construct Metadata
         const meta = await this.constructMeta();
+        console.log(meta);
 
         //const messageHash = await RelayService.sendOwnable(to, content);
         await RelayService.sendOwnable(to, content, meta);
