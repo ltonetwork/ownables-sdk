@@ -78,6 +78,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         `${process.env.REACT_APP_OBUILDER}/api/v1/templateCost?templateId=1`,
         {
           headers: {
+			"X-API-Key": `${process.env.REACT_APP_OBUILDER_API_SECRET_KEY}`,
             Accept: "*/*",
           },
         }
@@ -93,6 +94,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
         `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
         {
           headers: {
+			"X-API-Key": `${process.env.REACT_APP_OBUILDER_API_SECRET_KEY}`,
             Accept: "*/*",
           },
         }
@@ -425,7 +427,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 	  // Create the ownable data (without requiring transaction.id)
 	  const ownableData = [
 		{
-		  template: "template1",
+		//   template: "template2",
 		  CREATE_NFT: "true",
 		  NFT_BLOCKCHAIN: ownable.network,
 		  OWNABLE_THUMBNAIL: "thumbnail.webp",
@@ -457,7 +459,8 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 	  
 	  const headers1 = {
 		"Content-Type": "multipart/form-data",
-		Accept: "*/*",
+		"X-API-Key": `${process.env.REACT_APP_OBUILDER_API_SECRET_KEY}`,
+		"Accept": "*/*",
 	  };
 	  
 	  const combinedHeaders = { ...signedRequest.headers, ...headers1 };
@@ -487,7 +490,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
 	  // Prepare form data with both the file and the signed transaction
 	  const formData = new FormData();
 	  formData.append("file", zipFile, formattedName + ".zip");
-	  formData.append("templateId", ownable.templateId || "1");
+	  formData.append("templateId", ownable.templateId || "2");
 	  formData.append("signedTransaction", signedTransaction);
   
 	  // Send to oBuilder
