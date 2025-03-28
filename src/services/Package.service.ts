@@ -440,7 +440,6 @@ export default class PackageService {
         filteredMessages.map(async (data: any) => {
           try {
             const { message, messageHash } = data;
-            console.log(data);
             const files = await this.extractAssets(message.data.buffer);
 
             if (files.length === 0) return null;
