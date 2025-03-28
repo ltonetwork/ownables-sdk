@@ -387,7 +387,139 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       img.src = URL.createObjectURL(thumbnail);
     });
   }
-
+  const handleCreateOwnableWithoutBroadcasting = async () => {
+	const requiredFields = ["name", "network", "owner", "image"];
+	let newMissingFields: string[] = [];
+	
+	for (let field of requiredFields) {
+	  if (!ownable[field as keyof TypedOwnable]) {
+		console.error(`Missing required field: ${field}`);
+		newMissingFields.push(field);
+	  }
+	}
+	
+	setMissingFields(newMissingFields);
+	if (newMissingFields.length > 0) {
+	  return;
+	}
+	
+	if (!recipient || !amount) {
+	  console.error("Recipient or amount is not defined");
+	  setNoConnection(true);
+	  return;
+	}
+	
+	try {
+	  const account = LTOService.account;
+	  // Create the transaction
+	  const tx = new TransferTx(recipient, amount);
+	  // Sign the transaction but don't broadcast it
+	  const signedTx = tx.signWith(account);
+	  // Convert to JSON format that can be sent to the backend
+	  const signedTransaction = JSON.stringify(signedTx.toJSON());
+	  
+	  const imageType = "webp";
+	  const imageName = ownable.name.replace(/\s+/g, "-");
+	  const formattedName = ownable.name.toLowerCase().replace(/\s+/g, "_");
+	  
+	  // Create the ownable data (without requiring transaction.id)
+	  const ownableData = [
+		{
+		  template: "template1",
+		  CREATE_NFT: "true",
+		  NFT_BLOCKCHAIN: ownable.network,
+		  OWNABLE_THUMBNAIL: "thumbnail.webp",
+		  // Don't include transaction ID - it will be handled by oBuilder
+		  // OWNABLE_LTO_TRANSACTION_ID: transaction.id,
+		  PLACEHOLDER1_NAME: "ownable_" + formattedName,
+		  PLACEHOLDER1_DESCRIPTION: ownable.description,
+		  PLACEHOLDER1_VERSION: "0.1.0",
+		  PLACEHOLDER1_AUTHORS: ownable.owner,
+		  PLACEHOLDER1_KEYWORDS: tags,
+		  PLACEHOLDER2_TITLE: ownable.name,
+		  PLACEHOLDER2_IMG: imageName + "." + imageType,
+		  PLACEHOLDER4_TYPE: ownable.name,
+		  PLACEHOLDER4_DESCRIPTION: ownable.description,
+		  PLACEHOLDER4_NAME: ownable.name,
+		},
+	  ];
+  
+	  // Prepare the signed request
+	  const url = `${process.env.REACT_APP_OBUILDER}/api/v1/upload`;
+	  const request = {
+		headers: {},
+		method: "POST",
+		url,
+	  };
+	  
+	  const signedRequest = await sign(request, { signer: account });
+	  request.url = request.url + `?ltoNetworkId=${getNetwork(account.address)}`;
+	  
+	  const headers1 = {
+		"Content-Type": "multipart/form-data",
+		Accept: "*/*",
+	  };
+	  
+	  const combinedHeaders = { ...signedRequest.headers, ...headers1 };
+  
+	  // Create the zip file
+	  const zip = new JSZip();
+	  zip.file("ownableData.json", JSON.stringify(ownableData, null, 2));
+	  
+	  if (ownable.image) {
+		zip.file(`${imageName}.${imageType}`, ownable.image);
+	  }
+  
+	  if (thumbnail) {
+		const thumbnailBlob = getThumbnailBlob(thumbnail, blurThumbnail);
+		zip.file(`thumbnail.webp`, thumbnailBlob);
+	  }
+	  
+	  // Generate the zip file
+	  const zipFile = await zip.generateAsync({ type: "blob" });
+	  
+	  // For testing - download zip file
+	  const link = document.createElement("a");
+	  link.href = URL.createObjectURL(zipFile);
+	  link.download = formattedName + ".zip";
+	  link.click();
+  
+	  // Prepare form data with both the file and the signed transaction
+	  const formData = new FormData();
+	  formData.append("file", zipFile, formattedName + ".zip");
+	  formData.append("templateId", ownable.templateId || "1");
+	  formData.append("signedTransaction", signedTransaction);
+  
+	  // Send to oBuilder
+	  const response = await axios.post(request.url, formData, {
+		headers: combinedHeaders,
+	  });
+	  
+	  console.log("Upload response:", response.data);
+	  setOpenDialog(true);
+	  handleCloseDialog();
+	  
+	} catch (error: unknown) {
+	  
+	  console.error("Error creating ownable:", error);
+    
+    // Proper type checking for the error
+    if (typeof error === 'object' && error !== null) {
+      // Now check if it has a message property that includes "balance"
+      if ('message' in error && 
+          typeof error.message === 'string' && 
+          error.message.includes('balance')) {
+        setLowBalance(true);
+      } else {
+        // Handle other errors
+        console.log("Failed to create ownable. Please try again.");
+      }
+    } else {
+      // Handle primitive error values
+      console.log("An unexpected error occurred. Please try again.");
+    }
+  }
+	}
   const handleCreateOwnable = async () => {
     const requiredFields = ["name", "network", "owner", "image"];
     let newMissingFields: string[] = [];
@@ -771,7 +903,7 @@ export default function CreateOwnable(props: CreateOwnableProps) {
                   <Button
                     variant="contained"
                     sx={{ mt: 2 }}
-                    onClick={handleCreateOwnable}
+                    onClick={handleCreateOwnableWithoutBroadcasting}
                     disabled={
                       isNaN(amount) || amount <= 0 || amount > available
                     }
