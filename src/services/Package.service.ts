@@ -400,7 +400,6 @@ export default class PackageService {
 
       if (uniqueMessageHash) {
         pkg.uniqueMessageHash = uniqueMessageHash;
-        this.storeMessageHash(uniqueMessageHash);
       }
 
       return pkg;
