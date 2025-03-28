@@ -159,7 +159,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       await RedeemService.storeDetail(address, response.value, this.chain.id);
 
       if (this.pkg.uniqueMessageHash) {
-        console.log(this.pkg.uniqueMessageHash);
         await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
       }
     } catch (error) {
@@ -240,35 +239,27 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
         //construct Metadata
         const meta = await this.constructMeta();
-        console.log(meta);
 
-        //const messageHash = await RelayService.sendOwnable(to, content);
         await RelayService.sendOwnable(to, content, meta);
         enqueueSnackbar(`Ownable sent Successfully!!`, {
           variant: "success",
         });
 
         if (this.pkg.uniqueMessageHash) {
-          //Remove ownable from relay's inbox
+          //remove from relay
           await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
 
-          //remove ownable from IDB
-          //Investigate why commented
-          //await OwnableService.delete(this.chain.id);
+          //remove from IDB
+          await OwnableService.delete(this.chain.id);
 
-          //remove hash from localstorage messageHashes
-          await LocalStorageService.removeItem(
-            "messageHashes",
+          //remove from LS
+          await LocalStorageService.removeByField(
+            "packages",
+            "uniqueMessageHash",
             this.pkg.uniqueMessageHash
           );
 
-          //remove package from localstorage packages
-          // await LocalStorageService.removeByField(
-          //   "packages",
-          //   "uniqueMessageHash",
-          //   this.pkg.uniqueMessageHash
-          // );
-
+          //remove from browser screen
           //this.props.onRemove();
         }
       } else {
@@ -333,6 +324,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       const updatedHashes = hashes.filter(
         (item: any) => item.uniqueMessageHash !== this.pkg.uniqueMessageHash
       );
+
       localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
       enqueueSnackbar("Successfully bridged!!", { variant: "success" });
     } catch (error) {

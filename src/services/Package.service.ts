@@ -244,11 +244,6 @@ export default class PackageService {
     );
   }
 
-  private static async storeMessageHash(messageHash: string) {
-    const key = "messageHashes";
-    LocalStorageService.append(key, messageHash);
-  }
-
   static stringToBuffer(str: string): Buffer {
     return Buffer.from(str, "utf8");
   }
@@ -454,9 +449,6 @@ export default class PackageService {
             if (await IDBService.hasStore(`package:${pkg.cid}`)) {
               triggerRefresh = true;
             }
-
-            // Store the message hash
-            if (messageHash) await this.storeMessageHash(messageHash);
 
             return pkg;
           } catch (err) {

@@ -201,10 +201,10 @@ export default function App() {
         const uniqueMessageHash = pkg.uniqueMessageHash;
 
         //Update knownhashes in localstorage
-        await LocalStorageService.removeItem(
-          "messageHashes",
-          pkg.uniqueMessageHash
-        );
+        // await LocalStorageService.removeItem(
+        //   "messageHashes",
+        //   pkg.uniqueMessageHash
+        // );
 
         await LocalStorageService.removeByField(
           "packages",

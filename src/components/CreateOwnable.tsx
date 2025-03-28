@@ -421,13 +421,11 @@ export default function CreateOwnable(props: CreateOwnableProps) {
       const signedRequest = await sign(request, { signer: account });
       request.url =
         request.url + `?ltoNetworkId=${getNetwork(account.address)}`;
-      // console.log("signedRequest", signedRequest);
       const headers1 = {
         "Content-Type": "multipart/form-data",
         Accept: "*/*",
       };
       const combinedHeaders = { ...signedRequest.headers, ...headers1 };
-      // console.log("combinedHeaders", combinedHeaders);
 
       setTimeout(() => {
         if (transaction.id) {

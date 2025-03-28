@@ -6,21 +6,20 @@ export class PollingService {
    * Fetch new message hashes from the server and compare with client hashes.
    */
   static async checkForNewHashes(address: string) {
-    const clientHashes = LocalStorageService.get("messageHashes") || [];
+    const pkgs = LocalStorageService.get("packages") || [];
+    const clientHashes = pkgs.map((msg: any) => {
+      return msg.uniqueMessageHash;
+    });
 
     try {
       const url = `${RelayService.relayURL}/inboxes/${encodeURIComponent(
         address
       )}/list`;
 
-      // const url = `${RelayService.relayURL}/inboxes/${encodeURIComponent(
-      //   address
-      // )}/list?limit=4&offset=0`;
-
       const headers: Record<string, string> = {};
       const lastModified = LocalStorageService.get("lastModified");
 
-      if (!lastModified) {
+      if (lastModified) {
         headers["If-Modified-Since"] = lastModified;
       }
 
@@ -49,7 +48,6 @@ export class PollingService {
           (hash: string) => !clientHashes.includes(hash)
         );
 
-        // Update local storage with messagehash count
         LocalStorageService.set("messageCount", newHashes.length);
 
         return newHashes.length;
@@ -94,6 +92,5 @@ export class PollingService {
    */
   static clearCache() {
     LocalStorageService.remove("lastModified");
-    LocalStorageService.remove("messageHashes");
   }
 }

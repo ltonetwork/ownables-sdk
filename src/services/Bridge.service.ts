@@ -12,7 +12,6 @@ export class BridgeService {
     const url = `${this.obridgeUrl}/api/v1/oBridgeCost?templateId=${templateId}`;
     try {
       const response = await axios.get(url);
-      console.log("response", response);
       let oBridgeCost;
       if (process.env.REACT_APP_LTO_NETWORK_ID === "L") {
         oBridgeCost = response.data.L.arbitrum;
@@ -71,14 +70,12 @@ export class BridgeService {
       let bridgingCosts;
       let bridgeAddress;
       bridgingCosts = await this.getBridgeCost(1);
-      console.log("bridgingCosts", bridgingCosts);
       if (bridgingCosts === null) {
-        console.log("Bridging Costs undefined. Maybe oBridge not reachable?");
+        console.error("Bridging Costs undefined. Maybe oBridge not reachable?");
       }
       bridgeAddress = await this.getBridgeAddress();
-      console.log("bridgeAddress", bridgeAddress);
       if (bridgeAddress === null) {
-        console.log("Bridge Address undefined. Maybe oBridge not reachable?");
+        console.error("Bridge Address undefined. Maybe oBridge not reachable?");
       }
       // tx = new TransferTx(bridgeAddress, bridgingCosts);
     } catch (err) {

@@ -1,6 +1,5 @@
 import { EventChain, LTO, Message, Relay, Binary } from "@ltonetwork/lto";
 import axios from "axios";
-import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
@@ -26,11 +25,11 @@ export class RelayService {
     try {
       const sender = LTOService.account;
       const request = {
+        method,
+        url,
         headers: {
           ...options.headers, // Include optional headers in the request
         },
-        method,
-        url,
       };
 
       const signedRequest = await sign(request, { signer: sender });
@@ -40,7 +39,6 @@ export class RelayService {
         url: signedRequest.url,
         headers: {
           ...signedRequest.headers,
-          ...options.headers, // Ensure optional headers are included after signing
         },
         validateStatus: (status) => {
           return (status >= 200 && status < 300) || status === 304;
@@ -72,6 +70,9 @@ export class RelayService {
     try {
       if (sender) {
         const messageContent = Binary.from(content);
+
+        //const recipientAccount = await lto.resolveAccount(recipient);
+
         const message = new Message(
           messageContent,
           "application/octet-stream",
@@ -79,6 +80,14 @@ export class RelayService {
         )
           .to(recipient)
           .signWith(sender);
+
+        // const message = new Message(
+        //   messageContent,
+        //   "application/octet-stream",
+        //   meta
+        // )
+        //   .encryptFor(recipientAccount)
+        //   .signWith(sender);
 
         await this.relay.send(message);
         return message.hash.base58;
@@ -106,7 +115,6 @@ export class RelayService {
 
     try {
       const responses = await this.handleSignedRequest("GET", url);
-      console.log(responses.data);
 
       if (!responses || !responses.data || responses.data.length === 0) {
         return [];
@@ -155,10 +163,13 @@ export class RelayService {
     try {
       const response = await this.handleSignedRequest("GET", url);
 
-      console.log(response.data);
-
       if (response?.data) {
         const message = Message.from(response.data);
+
+        if (message.isEncrypted()) {
+          message.decryptWith(sender);
+        }
+
         return await PackageService.processPackage(message, hash, true);
       }
 
@@ -174,6 +185,7 @@ export class RelayService {
    */
   static async readRelayData() {
     const sender = LTOService.account;
+
     if (!sender) {
       console.error("Account not initialized");
       return null;
@@ -209,7 +221,7 @@ export class RelayService {
               return null;
             }
 
-            const message = Message.from(infoResponse.data);
+            const message = Message.from(infoResponse.data).decryptWith(sender);
 
             return { message, messageHash: infoResponse.data.hash };
           } catch (error) {
@@ -289,6 +301,30 @@ export class RelayService {
       const response = await this.handleSignedRequest("GET", url);
       //this.logger.debug('Relay metadata response:', response.data);
       return response.data.metadata || null;
+    } catch (error) {
+      console.error("Failed to read relay metadata:", error);
+      return null;
+    }
+  }
+
+  //Paginated
+  static async list(start: number, end: number) {
+    const sender = await LTOService.getAccount();
+
+    if (!sender) {
+      console.error("Account not initialized");
+      return null;
+    }
+
+    const address = sender.address;
+    const isRelayAvailable = await this.isRelayUp();
+    if (!isRelayAvailable) return null;
+
+    const url = `${this.relayURL}/inboxes/${address}/list?limit=${end}&offset=${start}`;
+
+    try {
+      const response = await this.handleSignedRequest("GET", url);
+      return response.data || null;
     } catch (error) {
       console.error("Failed to read relay metadata:", error);
       return null;
