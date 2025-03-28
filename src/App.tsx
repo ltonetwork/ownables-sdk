@@ -66,6 +66,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // RelayService.readSingleMessage(
+    //   "6u6uEr12kHbTCRRpazuaFKjqxm7ug4EtGEU7uxqP6812"
+    // );
     IDBService.open()
       .then(() => OwnableService.loadAll())
       .then((ownables) => setOwnables(ownables))
@@ -198,10 +201,10 @@ export default function App() {
         const uniqueMessageHash = pkg.uniqueMessageHash;
 
         //Update knownhashes in localstorage
-        await LocalStorageService.removeItem(
-          "messageHashes",
-          pkg.uniqueMessageHash
-        );
+        // await LocalStorageService.removeItem(
+        //   "messageHashes",
+        //   pkg.uniqueMessageHash
+        // );
 
         await LocalStorageService.removeByField(
           "packages",
