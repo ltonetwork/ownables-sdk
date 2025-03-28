@@ -82,7 +82,13 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   const fetchBuilderAddress = async () => {
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`
+		`${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
+        {
+          headers: {
+			"X-API-Key": `${process.env.REACT_APP_OBUILDER_API_SECRET_KEY}`,
+            Accept: "*/*",
+          },
+        }        
       );
       const serverAddress =
         network === "T"
