@@ -72,7 +72,6 @@ const capabilitiesStaticOwnable = {
   isConsumable: false,
   isConsumer: false,
   isTransferable: false,
-  isBridgeable: false,
 };
 
 export default class PackageService {

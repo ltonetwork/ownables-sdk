@@ -24,15 +24,10 @@ import If from "./If";
 import EventChainService from "../services/EventChain.service";
 import { RelayService } from "../services/Relay.service";
 import { enqueueSnackbar } from "notistack";
-import { BridgeService } from "../services/Bridge.service";
-import shortId from "../utils/shortId";
-import SessionStorageService from "../services/SessionStorage.service";
 import LocalStorageService from "../services/LocalStorage.service";
-import { RedeemService } from "../services/Redeem.service";
 import { PACKAGE_TYPE } from "../constants";
 import IDBService from "../services/IDB.service";
 import { IMessageMeta } from "@ltonetwork/lto/interfaces";
-
 interface OwnableProps {
   chain: EventChain;
   packageCid: string;
@@ -51,8 +46,6 @@ interface OwnableState {
   stateDump: StateDump;
   info?: TypedOwnableInfo;
   metadata: TypedMetadata;
-  isRedeemable: boolean;
-  redeemAddress?: string;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -69,40 +62,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       applied: new EventChain(this.chain.id).latestHash,
       stateDump: [],
       metadata: { name: this.pkg.title, description: this.pkg.description },
-      isRedeemable: false,
     };
   }
 
   get chain(): EventChain {
     return this.props.chain;
-  }
-
-  private async checkRedeemable(): Promise<boolean> {
-    try {
-      const genesisAddress = await RedeemService.getOwnableCreator(
-        this.chain.events
-      );
-
-      this.chain.validate();
-
-      const response = await RedeemService.isRedeemable(
-        genesisAddress,
-        this.pkg.title
-      );
-      return response.isRedeemable;
-    } catch (error) {
-      console.error("Error checking redeemable status:", error);
-      return false;
-    }
-  }
-
-  get isRedeemed(): boolean {
-    const ownedBySwap =
-      !!this.state.info && this.state.info.owner === this.state.redeemAddress;
-
-    return (
-      this.isTransferred && ownedBySwap && this.state.isRedeemable === true
-    );
   }
 
   get isTransferred(): boolean {
@@ -113,13 +77,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     );
   }
 
-  get isBridged() {
-    const bridgeAddress = SessionStorageService.get("bridgeAddress");
-    const currentOwner = this.state.info?.owner;
-    if (!bridgeAddress || !currentOwner) return false;
-    return currentOwner === bridgeAddress;
-  }
-
   get hasNFT(): boolean {
     return this.pkg.keywords?.includes("hasNFT") ?? false;
   }
@@ -127,44 +84,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   get nftNetwork(): string {
     const nftNetwork = this.state.info?.nft?.network;
     return nftNetwork || "";
-  }
-
-  private async redeem(): Promise<void> {
-    try {
-      const redeemAddress = await RedeemService.redeemAddress();
-      const genesisAddress = await RedeemService.getOwnableCreator(
-        this.chain.events
-      );
-      const response = await RedeemService.isRedeemable(
-        genesisAddress,
-        this.pkg.title
-      );
-
-      await this.execute({ transfer: { to: redeemAddress } });
-
-      const zip = await OwnableService.zip(this.chain);
-      const content = await zip.generateAsync({
-        type: "uint8array",
-      });
-
-      //construct Metadata
-      const meta = await this.constructMeta();
-
-      await RelayService.sendOwnable(redeemAddress, content, meta);
-      enqueueSnackbar("Successfully redeemed!", { variant: "success" });
-
-      const account = LTOService.getAccount();
-      const address = (await account).address;
-
-      await RedeemService.storeDetail(address, response.value, this.chain.id);
-
-      if (this.pkg.uniqueMessageHash) {
-        await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
-      }
-    } catch (error) {
-      console.error("Error during redeem:", error);
-      enqueueSnackbar("Failed to redeem. Try again.", { variant: "error" });
-    }
   }
 
   private async resizeToThumbnail(file: File): Promise<Blob> {
@@ -277,61 +196,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     }
   }
 
-  private async bridge(
-    address: string,
-    fee: number | null,
-    nftNetwork?: string
-  ): Promise<void> {
-    try {
-      const bridgeAddress = await BridgeService.getBridgeAddress();
-
-      //   const previousHash: string = this.chain.latestHash.hex;
-
-      await this.execute({ transfer: { to: bridgeAddress } });
-
-      this.chain.validate();
-
-      const zip = await OwnableService.zip(this.chain);
-      const content = await zip.generateAsync({
-        type: "uint8array",
-      });
-      const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
-        this.chain.state?.base58,
-        8,
-        ""
-      )}.zip`;
-      const transactionId = await BridgeService.payBridgingFee(
-        fee,
-        bridgeAddress
-      );
-      const contentBlob = new Blob([content], {
-        type: "application/octet-stream",
-      });
-      if (transactionId) {
-        await BridgeService.bridgeOwnableToNft(
-          address,
-          transactionId,
-          filename,
-          contentBlob
-        );
-      }
-      //remove ownable from relay's inbox
-      if (this.pkg.uniqueMessageHash) {
-        await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
-      }
-      const hashes = JSON.parse(localStorage.getItem("messageHashes") || "[]");
-
-      const updatedHashes = hashes.filter(
-        (item: any) => item.uniqueMessageHash !== this.pkg.uniqueMessageHash
-      );
-
-      localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
-      enqueueSnackbar("Successfully bridged!!", { variant: "success" });
-    } catch (error) {
-      console.error("Error while attempting to bridge:", error);
-    }
-  }
-
   private async refresh(stateDump?: StateDump): Promise<void> {
     if (!stateDump) stateDump = this.state.stateDump;
 
@@ -436,21 +300,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   async componentDidMount() {
     window.addEventListener("message", this.windowMessageHandler);
 
-    let bridgeAddress = SessionStorageService.get("bridgeAddress");
-
-    if (!bridgeAddress) {
-      bridgeAddress = await BridgeService.getBridgeAddress();
-      if (bridgeAddress) {
-        SessionStorageService.set("bridgeAddress", bridgeAddress);
-      }
-    }
-
     try {
-      const [isRedeemable, redeemAddress] = await Promise.all([
-        this.checkRedeemable(),
-        RedeemService.redeemAddress(),
-      ]);
-      this.setState({ isRedeemable, redeemAddress });
     } catch (error) {
       console.error("Error during initialization:", error);
     }
@@ -499,24 +349,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           title={this.pkg.title}
           isConsumable={this.pkg.isConsumable && !this.isTransferred}
           isTransferable={this.pkg.isTransferable && !this.isTransferred}
-          isBridgeable={!this.isTransferred && this.hasNFT}
-          isRedeemable={this.state.isRedeemable}
-          nftNetwork={this.nftNetwork}
           onDelete={this.props.onDelete}
           chain={this.chain}
           onConsume={() =>
             !!this.state.info && this.props.onConsume(this.state.info)
           }
           onTransfer={(address) => this.transfer(address)}
-          onBridge={(address, fee) => {
-            if (!fee) return;
-            this.bridge(address, fee, this.nftNetwork);
-          }}
-          onRedeem={(value: number | null) => {
-            if (value !== null) {
-              this.redeem();
-            }
-          }}
         />
 
         <OwnableFrame
@@ -527,34 +365,13 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onLoad={() => this.onLoad()}
         />
         {this.props.children}
-        <If condition={this.isTransferred && !this.isBridged}>
+        <If condition={this.isTransferred}>
           <Tooltip
             title="You're unable to interact with this Ownable, because it has been transferred to a different account."
             followCursor
           >
             <Overlay sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)" }}>
               <OverlayBanner>Transferred</OverlayBanner>
-            </Overlay>
-          </Tooltip>
-        </If>
-        <If condition={this.isRedeemed}>
-          <Tooltip
-            title="You're unable to interact with this Ownable, because it has been sent to the redeemed."
-            followCursor
-          >
-            <Overlay sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)" }}>
-              <OverlayBanner>Reedemed</OverlayBanner>
-            </Overlay>
-          </Tooltip>
-        </If>
-
-        <If condition={this.isBridged && this.isTransferred}>
-          <Tooltip
-            title="You're unable to interact with this Ownable, because it has been sent to the bridge."
-            followCursor
-          >
-            <Overlay sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)" }}>
-              <OverlayBanner>Bridged</OverlayBanner>
             </Overlay>
           </Tooltip>
         </If>
