@@ -112,7 +112,6 @@ export class BridgeService {
       const response = await axios.post(request.url, formData, {
         headers: combinedHeaders,
       });
-      console.log("response", response);
     } catch (err) {
       console.error("bridging failed", err);
     }
