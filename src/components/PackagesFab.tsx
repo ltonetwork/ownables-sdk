@@ -32,7 +32,6 @@ function PackagesDialog(props: PackagesDialogProps) {
     onSelect,
     onImport,
     //fetchPkgFromRelay,
-    onCreate,
     open,
     packages,
     //message,

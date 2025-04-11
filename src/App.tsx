@@ -58,7 +58,6 @@ export default function App() {
     ok?: string;
     onConfirm: () => void;
   } | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
 
   const handleNotificationClick = () => {
     setShowViewMessagesBar(true);
@@ -347,15 +346,6 @@ export default function App() {
               </If>
               .
               <br />
-              Or you can also{" "}
-              <Link
-                component="button"
-                onClick={() => setShowCreate(true)}
-                style={{ fontSize: "inherit" }}
-              >
-                create your own
-              </Link>
-              .
             </Typography>
           </Grid>
         </Grid>
@@ -417,7 +407,7 @@ export default function App() {
         onSelect={forge}
         onImportFR={(pkg, triggerRefresh) => relayImport(pkg, triggerRefresh)}
         onError={showError}
-        onCreate={() => setShowCreate(true)}
+        onCreate={() => null}
         message={message}
       />
 
