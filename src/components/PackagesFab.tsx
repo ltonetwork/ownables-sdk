@@ -90,34 +90,7 @@ function PackagesDialog(props: PackagesDialogProps) {
           </ListItemButton>
         </ListItem>
         <Divider />
-        {/* <ListItem disablePadding disableGutters key="add-relay">
-          <ListItemButton
-            autoFocus
-            onClick={() => fetchPkgFromRelay()}
-            style={{ textAlign: "center" }}
-          >
-            <ListItemIcon>
-              <MailIcon />
-            </ListItemIcon>
-            <ListItemText primary="Import from relay" />
-            <span
-              style={{
-                backgroundColor: message ? "#D32F2F" : "",
-                padding: "4px",
-                margin: "2px",
-                fontSize: "11px",
-                fontWeight: "bold",
-                color: "white",
-                minWidth: "auto",
-              }}
-              color="error"
-            >
-              {message} {/* message count */}
-        {/* </span> */}
-        {/* </ListItemButton> */}
-        {/* </ListItem> */}
-        {/* <Divider /> */}
-        <ListItem disablePadding disableGutters key="create-ownable">
+        {/* <ListItem disablePadding disableGutters key="create-ownable">
           <ListItemButton
             autoFocus
             onClick={onCreate}
@@ -128,7 +101,7 @@ function PackagesDialog(props: PackagesDialogProps) {
             </ListItemIcon>
             <ListItemText primary="Create ownable" />
           </ListItemButton>
-        </ListItem>
+        </ListItem> */}
       </List>
     </Dialog>
   );

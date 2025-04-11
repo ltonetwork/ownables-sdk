@@ -26,7 +26,6 @@ import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
-import CreateOwnable from "./components/CreateOwnable";
 import { RelayService } from "./services/Relay.service";
 import { PollingService } from "./services/Polling.service";
 
@@ -436,8 +435,6 @@ export default function App() {
         messagesCount={message}
         setOwnables={setOwnables}
       />
-
-      <CreateOwnable open={showCreate} onClose={() => setShowCreate(false)} />
 
       <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
 
