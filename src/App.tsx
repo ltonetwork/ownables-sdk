@@ -7,6 +7,7 @@ import LoginDialog from "./components/LoginDialog";
 import Loading from "./components/Loading";
 import LTOService from "./services/LTO.service";
 import Sidebar from "./components/Sidebar";
+import { ViewMessagesBar } from "./components/ViewMessagesBar";
 import LocalStorageService from "./services/LocalStorage.service";
 import SessionStorageService from "./services/SessionStorage.service";
 import OwnableService from "./services/Ownable.service";
@@ -25,17 +26,20 @@ import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
-import CreateOwnable from "./components/CreateOwnable";
-//import { RelayService } from "./services/Relay.service";
+import { RelayService } from "./services/Relay.service";
+import { PollingService } from "./services/Polling.service";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [showLogin, setShowLogin] = useState(!LTOService.isUnlocked());
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showViewMessagesBar, setShowViewMessagesBar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
+  const [message, setMessages] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
   const [ownables, setOwnables] = useState<
-    Array<{ chain: EventChain; package: string }>
+    Array<{ chain: EventChain; package: string; uniqueMessageHash?: string }>
   >([]);
   const [consuming, setConsuming] = useState<{
     chain: EventChain;
@@ -54,18 +58,33 @@ export default function App() {
     ok?: string;
     onConfirm: () => void;
   } | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+
+  const handleNotificationClick = () => {
+    setShowViewMessagesBar(true);
+  };
 
   useEffect(() => {
-    // IDBService.open();
-    // LocalStorageService.clear();
-    // SessionStorageService.clear();
-    // IDBService.deleteDatabase();
+    // RelayService.readSingleMessage(
+    //   "6u6uEr12kHbTCRRpazuaFKjqxm7ug4EtGEU7uxqP6812"
+    // );
     IDBService.open()
       .then(() => OwnableService.loadAll())
       .then((ownables) => setOwnables(ownables))
       .then(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (!showLogin && address.length > 1) {
+      const stopPolling = PollingService.startPolling(
+        address,
+        (newCount: any) => {
+          setMessages(newCount);
+        },
+        5000
+      );
+      return () => stopPolling();
+    }
+  }, [address, showLogin]);
 
   const showError = (title: string, message: string) => {
     setAlert({ severity: "error", title, message });
@@ -82,6 +101,12 @@ export default function App() {
     setShowLogin(true);
   };
 
+  const removeOwnable = (ownableId: string) => {
+    setOwnables((prevOwnables) =>
+      prevOwnables.filter((ownable) => ownable.chain.id !== ownableId)
+    );
+  };
+
   const forge = async (pkg: TypedPackage) => {
     const chain = await OwnableService.create(pkg);
     setOwnables([...ownables, { chain, package: pkg.cid }]);
@@ -93,13 +118,15 @@ export default function App() {
     pkg: TypedPackage[] | null,
     triggerRefresh: boolean
   ) => {
+    if (isImporting) return;
+
     const batchNumber = 2;
-    console.log(pkg);
 
     if (pkg === null || pkg.length === 0) {
       enqueueSnackbar(`Nothing to Load from relay`, {
         variant: "error",
       });
+      setIsImporting(false);
       return;
     }
 
@@ -117,12 +144,15 @@ export default function App() {
           .map((data: TypedPackage) => ({
             chain: data.chain,
             package: data.cid,
+            uniqueMessageHash: data.uniqueMessageHash,
           })),
       ]);
 
       enqueueSnackbar(`Ownable successfully loaded`, {
         variant: "success",
       });
+      LocalStorageService.remove("messageCount");
+      setMessages(0);
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
 
@@ -136,15 +166,17 @@ export default function App() {
 
       setTimeout(() => {
         window.location.reload();
-      }, 4000);
-    } else {
-      enqueueSnackbar(`No matching packages found for refresh`, {
-        variant: "info",
-      });
+      }, 7000);
     }
+
+    setIsImporting(false);
   };
 
-  const deleteOwnable = (id: string, packageCid: string) => {
+  const deleteOwnable = (
+    id: string,
+    packageCid: string,
+    uniqueMessageHash?: string
+  ) => {
     const pkg = PackageService.info(packageCid);
 
     setConfirm({
@@ -160,22 +192,27 @@ export default function App() {
         setOwnables((current) =>
           current.filter((ownable) => ownable.chain.id !== id)
         );
+        //Delete ownable
         await OwnableService.delete(id);
-        // const uniqueMessageHash = pkg.uniqueMessageHash;
-        // if (uniqueMessageHash) {
-        //   await RelayService.removeOwnable(uniqueMessageHash);
-        // }
 
-        // Retrieve the packages array from local storage
-        const packages = JSON.parse(
-          localStorage.getItem("messageHashes") || "[]"
+        //delete ownable from relay
+        const uniqueMessageHash = pkg.uniqueMessageHash;
+
+        //Update knownhashes in localstorage
+        // await LocalStorageService.removeItem(
+        //   "messageHashes",
+        //   pkg.uniqueMessageHash
+        // );
+
+        await LocalStorageService.removeByField(
+          "packages",
+          "uniqueMessageHash",
+          pkg.uniqueMessageHash
         );
 
-        const updatedHashes = packages.filter(
-          (item: any) => item.uniqueMessageHash !== pkg.uniqueMessageHash
-        );
-
-        localStorage.setItem("messageHashes", JSON.stringify(updatedHashes));
+        if (uniqueMessageHash) {
+          await RelayService.removeOwnable(uniqueMessageHash);
+        }
       },
     });
   };
@@ -257,7 +294,11 @@ export default function App() {
 
   return (
     <>
-      <AppToolbar onMenuClick={() => setShowSidebar(true)} />
+      <AppToolbar
+        onMenuClick={() => setShowSidebar(true)}
+        onNotificationClick={handleNotificationClick}
+        messagesCount={message}
+      />
       <If condition={ownables.length === 0}>
         <Grid
           container
@@ -305,15 +346,6 @@ export default function App() {
               </If>
               .
               <br />
-              Or you can also{" "}
-              <Link
-                component="button"
-                onClick={() => setShowCreate(true)}
-                style={{ fontSize: "inherit" }}
-              >
-                create your own
-              </Link>
-              .
             </Typography>
           </Grid>
         </Grid>
@@ -325,7 +357,7 @@ export default function App() {
         columnSpacing={6}
         rowSpacing={4}
       >
-        {ownables.map(({ chain, package: packageCid }) => (
+        {ownables.map(({ chain, package: packageCid, uniqueMessageHash }) => (
           <Grid
             key={chain.id}
             xs={12}
@@ -336,8 +368,12 @@ export default function App() {
             <Ownable
               chain={chain}
               packageCid={packageCid}
+              uniqueMessageHash={uniqueMessageHash}
               selected={consuming?.chain.id === chain.id}
-              onDelete={() => deleteOwnable(chain.id, packageCid)}
+              onDelete={() =>
+                deleteOwnable(chain.id, packageCid, uniqueMessageHash)
+              }
+              onRemove={() => removeOwnable(chain.id)}
               onConsume={(info) =>
                 setConsuming({ chain, package: packageCid, info })
               }
@@ -371,9 +407,8 @@ export default function App() {
         onSelect={forge}
         onImportFR={(pkg, triggerRefresh) => relayImport(pkg, triggerRefresh)}
         onError={showError}
-        onCreate={() => {
-          setShowCreate(true);
-        }}
+        onCreate={() => null}
+        message={message}
       />
 
       <Sidebar
@@ -384,7 +419,12 @@ export default function App() {
         onFactoryReset={factoryReset}
       />
 
-      <CreateOwnable open={showCreate} onClose={() => setShowCreate(false)} />
+      <ViewMessagesBar
+        open={showViewMessagesBar}
+        onClose={() => setShowViewMessagesBar(false)}
+        messagesCount={message}
+        setOwnables={setOwnables}
+      />
 
       <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
 

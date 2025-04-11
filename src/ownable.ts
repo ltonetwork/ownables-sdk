@@ -4,9 +4,9 @@
 // @ts-ignore
 import Listener from "simple-iframe-rpc/listener";
 
-type Dict = {[prop: string]: any};
+type Dict = { [prop: string]: any };
 type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
-type CosmWasmEvent = {type: string, attributes: Dict};
+type CosmWasmEvent = { type: string; attributes: Dict };
 
 interface MessageInfo {
   sender: string;
@@ -14,8 +14,11 @@ interface MessageInfo {
 }
 
 interface Response {
-  attributes: Array<{key: string, value: any}>;
-  events?: Array<{type: string, attributes: Array<{key: string, value: any}>}>;
+  attributes: Array<{ key: string; value: any }>;
+  events?: Array<{
+    type: string;
+    attributes: Array<{ key: string; value: any }>;
+  }>;
   data?: string;
 }
 
@@ -34,19 +37,21 @@ let ownableId: string;
 let worker: Worker;
 
 window.addEventListener("message", (e) => {
-  if (e.origin !== "null" || '@rpc' in e.data) return;
+  if (e.origin !== "null" || "@rpc" in e.data) return;
   window.parent.postMessage(e.data, "*");
 });
 
-function attributesToDict(attributes: Array<{key: string, value: any}>): Dict {
-  return Object.fromEntries(attributes.map(a => [a.key, a.value]));
+function attributesToDict(
+  attributes: Array<{ key: string; value: any }>
+): Dict {
+  return Object.fromEntries(attributes.map((a) => [a.key, a.value]));
 }
 
 function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   ownableId = id;
 
   return new Promise(async (resolve, reject) => {
-    const blob = new Blob([javascript], {type: `application/javascript`});
+    const blob = new Blob([javascript], { type: `application/javascript` });
     const blobURL = URL.createObjectURL(blob);
     worker = new Worker(blobURL, { type: "module" });
 
@@ -61,52 +66,80 @@ function init(id: string, javascript: string, wasm: Uint8Array): Promise<any> {
   });
 }
 
-function workerCall<T extends Response|string>(
+function workerCall<T extends Response | string>(
   type: string,
   ownableId: string,
   msg: Dict,
   info: Dict,
-  state?: StateDump,
-): Promise<{response: T, state: StateDump}> {
+  state?: StateDump
+): Promise<{ response: T; state: StateDump }> {
   return new Promise((resolve, reject) => {
     if (!worker) {
       reject(`Unable to ${type}: not initialized`);
       return;
     }
 
-    worker.addEventListener('message', (event: MessageEvent<Map<string, any>|{err: any}>) => {
-      if ('err' in event.data) {
-        reject(new Error(`Ownable ${type} failed`, { cause: event.data.err }));
-        return;
-      }
+    worker.addEventListener(
+      "message",
+      (event: MessageEvent<Map<string, any> | { err: any }>) => {
+        if ("err" in event.data) {
+          reject(
+            new Error(`Ownable ${type} failed`, { cause: event.data.err })
+          );
+          return;
+        }
 
-      const result = event.data.get('result');
-      const response = JSON.parse(result);
-      const nextState: StateDump = event.data.has('mem') ? JSON.parse(event.data.get('mem')).state_dump : state;
+        const result = event.data.get("result");
+        const response = JSON.parse(result);
+        const nextState: StateDump = event.data.has("mem")
+          ? JSON.parse(event.data.get("mem")).state_dump
+          : state;
 
-      resolve({response, state: nextState});
-    }, { once: true });
-    worker.postMessage({type, ownable_id: ownableId, msg, info, mem: {state_dump: state}});
+        resolve({ response, state: nextState });
+      },
+      { once: true }
+    );
+    worker.postMessage({
+      type,
+      ownable_id: ownableId,
+      msg,
+      info,
+      mem: { state_dump: state },
+    });
   });
 }
 
-async function instantiate(msg: Dict, info: Dict): Promise<{attributes: Dict, state: StateDump}> {
-  const {response, state} = await workerCall<Response>(
+async function instantiate(
+  msg: Dict,
+  info: Dict
+): Promise<{ attributes: Dict; state: StateDump }> {
+  const { response, state } = await workerCall<Response>(
     "instantiate",
     ownableId,
     msg,
     info
   );
 
-  return {attributes: attributesToDict(response.attributes), state};
+  return { attributes: attributesToDict(response.attributes), state };
 }
 
 async function execute(
   msg: Dict,
   info: MessageInfo,
   state: StateDump
-): Promise<{attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump}> {
-  const {response, state: newState} = await workerCall<Response>("execute", ownableId, msg, info, state);
+): Promise<{
+  attributes: Dict;
+  events: Array<CosmWasmEvent>;
+  data?: string;
+  state: StateDump;
+}> {
+  const { response, state: newState } = await workerCall<Response>(
+    "execute",
+    ownableId,
+    msg,
+    info,
+    state
+  );
   return executeResponse(response, newState);
 }
 
@@ -114,32 +147,49 @@ async function externalEvent(
   msg: Dict,
   messageInfo: MessageInfo,
   state: StateDump
-): Promise<{attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump}> {
+): Promise<{
+  attributes: Dict;
+  events: Array<CosmWasmEvent>;
+  data?: string;
+  state: StateDump;
+}> {
   const info = {
     info: messageInfo,
   };
-  console.log("external event call with ", msg, info);
 
-  const {response, state: newState} = await workerCall<Response>("external_event", ownableId, msg, info, state);
+  const { response, state: newState } = await workerCall<Response>(
+    "external_event",
+    ownableId,
+    msg,
+    info,
+    state
+  );
   return executeResponse(response, newState);
 }
 
 function executeResponse(
   response: Response,
   state: StateDump
-): {attributes: Dict, events: Array<CosmWasmEvent>, data?: string, state: StateDump} {
+): {
+  attributes: Dict;
+  events: Array<CosmWasmEvent>;
+  data?: string;
+  state: StateDump;
+} {
   return {
     attributes: attributesToDict(response.attributes),
-    events: (response.events || []).map(
-      event => ({type: event.type, attributes: attributesToDict(event.attributes)})
-    ),
+    events: (response.events || []).map((event) => ({
+      type: event.type,
+      attributes: attributesToDict(event.attributes),
+    })),
     data: response.data,
     state,
   };
 }
 
 async function queryRaw(msg: Dict, state: StateDump): Promise<string> {
-  return (await workerCall<string>("query", ownableId, msg, {}, state)).response;
+  return (await workerCall<string>("query", ownableId, msg, {}, state))
+    .response;
 }
 
 async function query(msg: Dict, state: StateDump): Promise<any> {
@@ -148,8 +198,11 @@ async function query(msg: Dict, state: StateDump): Promise<any> {
 }
 
 async function refresh(state: StateDump): Promise<void> {
-  const widgetState: Dict = await query({get_widget_state: {}}, state);
+  const widgetState: Dict = await query({ get_widget_state: {} }, state);
 
-  const iframe = document.getElementsByTagName('iframe')[0];
-  iframe.contentWindow!.postMessage({ownable_id: ownableId, state: widgetState}, "*");
+  const iframe = document.getElementsByTagName("iframe")[0];
+  iframe.contentWindow!.postMessage(
+    { ownable_id: ownableId, state: widgetState },
+    "*"
+  );
 }

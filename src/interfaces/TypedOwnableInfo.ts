@@ -32,4 +32,5 @@ export interface TypedOwnable {
   evmAddress: string;
   network: string;
   image: File | null;
+  templateId?: string;
 }

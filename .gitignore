@@ -7,7 +7,9 @@ ownables/*/schema
 ownables/*/Cargo.lock
 ownables/*.zip
 ownables/car
+ownables/storiedApes
 ownables/*/assets/instantiate_msg.json
+ownablesOrig
 /.pnp
 .pnp.js
 /build

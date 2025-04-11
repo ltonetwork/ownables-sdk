@@ -72,7 +72,6 @@ const capabilitiesStaticOwnable = {
   isConsumable: false,
   isConsumer: false,
   isTransferable: false,
-  isBridgeable: false,
 };
 
 export default class PackageService {
@@ -96,7 +95,6 @@ export default class PackageService {
     const packages = (LocalStorageService.get("packages") ||
       []) as TypedPackage[];
 
-    // Find the package by name or cid and check uniqueMessageHash if provided
     const found = packages.find(
       (pkg) =>
         (pkg.name === nameOrCid ||
@@ -235,17 +233,14 @@ export default class PackageService {
   }
 
   private static async storeAssets(cid: string, files: File[]): Promise<void> {
-    if (await IDBService.hasStore(`package:${cid}`)) return;
-    await IDBService.createStore(`package:${cid}`);
+    if (!(await IDBService.hasStore(`package:${cid}`))) {
+      await IDBService.createStore(`package:${cid}`);
+    }
+
     await IDBService.setAll(
       `package:${cid}`,
       Object.fromEntries(files.map((file) => [file.name, file]))
     );
-  }
-
-  private static async storeMessageHash(messageHash: string) {
-    const key = "messageHashes";
-    LocalStorageService.append(key, messageHash);
   }
 
   static stringToBuffer(str: string): Buffer {
@@ -262,7 +257,7 @@ export default class PackageService {
 
   static async getChainJson(filename: string, files: any): Promise<any> {
     const extractedFile = await this.extractAssets(files, true);
-    const file = extractedFile.find((file) => file.name === filename);
+    const file = extractedFile.find((file: any) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
 
     const fileContent = await file.text();
@@ -328,36 +323,108 @@ export default class PackageService {
     };
   }
 
+  static async processPackage(
+    message: any,
+    uniqueMessageHash?: string,
+    isNotLocal = false
+  ) {
+    try {
+      let chainJson: any;
+      let files: File[];
+      let packageJson: TypedDict;
+
+      //Extract files
+      if (isNotLocal) {
+        files = await this.extractAssets(message.data.buffer, false);
+        packageJson = await this.getPackageJson("package.json", files);
+        chainJson = await this.getChainJson("chain.json", message.data.buffer);
+      } else {
+        files = message; // Local files
+        packageJson = await this.getPackageJson("package.json", files);
+      }
+
+      //Check for required JSON files
+      if (!packageJson) {
+        throw new Error("Missing package.json in extracted assets");
+      }
+      if (isNotLocal && !chainJson) {
+        throw new Error("Missing chain.json for relay package");
+      }
+
+      //Calculate CID
+      const cid = await calculateCid(files);
+
+      //Check for duplicates
+      if (await IDBService.hasStore(`package:${cid}`)) {
+        if (
+          isNotLocal &&
+          chainJson &&
+          !(await this.isCurrentEvent(chainJson))
+        ) {
+          console.warn(`Package with CID ${cid} is already current or newer.`);
+          return null;
+        }
+      }
+
+      //Prepare metadata
+      const name = packageJson.name || "Unnamed Package";
+      const title = name
+        .replace(/^ownable-|-ownable$/, "")
+        .replace(/[-_]+/, " ")
+        .replace(/\b\w/, (c: string) => c.toUpperCase());
+      const description = packageJson.description;
+      const keywords: string[] = packageJson.keywords || [];
+      const capabilities = await this.getCapabilities(files);
+
+      //Store assets
+      await this.storeAssets(cid, files);
+
+      //Store package info
+      const pkg = this.storePackageInfo(
+        title,
+        name,
+        description,
+        cid,
+        keywords,
+        capabilities,
+        isNotLocal,
+        uniqueMessageHash
+      );
+
+      //Attach chain if needed
+      if (isNotLocal && chainJson) {
+        const chain = EventChain.from(chainJson);
+        pkg.chain = chain;
+      }
+
+      if (uniqueMessageHash) {
+        pkg.uniqueMessageHash = uniqueMessageHash;
+      }
+
+      return pkg;
+    } catch (error) {
+      console.error("Error processing package:", error);
+      throw error;
+    }
+  }
+
   static async import(zipFile: File): Promise<TypedPackage> {
     const files = await this.extractAssets(zipFile);
-    const packageJson: TypedDict = await this.getPackageJson(
-      "package.json",
-      files
-    );
-    const name: string = packageJson.name || zipFile.name.replace(/\.\w+$/, "");
-    const title = name
-      .replace(/^ownable-|-ownable$/, "")
-      .replace(/[-_]+/, " ")
-      .replace(/\b\w/, (c) => c.toUpperCase());
-    const description: string | undefined = packageJson.description;
-    const cid = await calculateCid(files);
-    const capabilities = await this.getCapabilities(files);
-    const keywords: string[] = packageJson.keywords || "";
+    const pkg = await this.processPackage(files);
 
-    await this.storeAssets(cid, files);
-    return this.storePackageInfo(
-      title,
-      name,
-      description,
-      cid,
-      keywords,
-      capabilities
-    );
+    if (!pkg) {
+      throw new Error(
+        "Failed to process package: duplicate or invalid package."
+      );
+    }
+
+    return pkg;
   }
 
   static async importFromRelay() {
     try {
       const relayData = await RelayService.readRelayData();
+
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         return null;
       }
@@ -370,67 +437,31 @@ export default class PackageService {
 
       const results = await Promise.all(
         filteredMessages.map(async (data: any) => {
-          const { message, ...messageHash } = data;
-          const mainMessage = message;
-          const asset = await this.extractAssets(mainMessage.data.buffer);
-          if (asset.length === 0) return;
-          const cid = await calculateCid(asset);
-          const chainJson = await this.getChainJson(
-            "chain.json",
-            mainMessage.data.buffer
-          );
+          try {
+            const { message, messageHash } = data;
+            const files = await this.extractAssets(message.data.buffer);
 
-          if (await IDBService.hasStore(`package:${cid}`)) {
-            if (await this.isCurrentEvent(chainJson)) {
-              this.removeOlderPackage(chainJson.id);
-            } else {
-              return;
+            if (files.length === 0) return null;
+
+            // Pass the hash to the processing function
+            const pkg = await this.processPackage(files, messageHash, true);
+
+            if (!pkg) return;
+
+            if (await IDBService.hasStore(`package:${pkg.cid}`)) {
+              triggerRefresh = true;
             }
+
+            return pkg;
+          } catch (err) {
+            console.error("Error processing data:", err);
+            return null;
           }
-
-          const packageJson = await this.getPackageJson("package.json", asset);
-          const name = packageJson.name;
-          const title = name
-            .replace(/^ownable-|-ownable$/, "")
-            .replace(/[-_]+/, " ")
-            .replace(/\b\w/, (c: any) => c.toUpperCase());
-          const description = packageJson.description;
-          const capabilities = await this.getCapabilities(asset);
-          const keywords: string[] = packageJson.keywords || "";
-          const isNotLocal = true;
-          const { ...values } = messageHash;
-          const uniqueMessageHash = values.messageHash;
-
-          const storedPackages: TypedPackage[] =
-            LocalStorageService.get("messageHashes") || [];
-
-          // In a case where imported ownable is an update to an
-          // existing ownable, trigger refresh to delete old version
-          if (storedPackages.some((hash) => hash === uniqueMessageHash)) {
-            triggerRefresh = false;
-          }
-
-          await this.storeMessageHash(uniqueMessageHash);
-
-          await this.storeAssets(cid, asset);
-          const pkg = this.storePackageInfo(
-            title,
-            name,
-            description,
-            cid,
-            keywords,
-            capabilities,
-            isNotLocal,
-            uniqueMessageHash
-          );
-          const chain = EventChain.from(chainJson);
-          pkg.chain = chain;
-          pkg.uniqueMessageHash = uniqueMessageHash;
-          return pkg;
         })
       );
-      const filteredPackages = results.filter((pkg) => pkg !== null);
-      return [filteredPackages, triggerRefresh];
+
+      const packages = results.filter((pkg) => pkg !== null);
+      return [packages, triggerRefresh];
     } catch (error) {
       console.error("Error:", error);
       return null;

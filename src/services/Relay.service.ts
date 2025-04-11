@@ -1,29 +1,35 @@
-import { EventChain, LTO, Message, Relay } from "@ltonetwork/lto";
+import { EventChain, LTO, Message, Relay, Binary } from "@ltonetwork/lto";
 import axios from "axios";
-import sendFile from "./relayhelper.service";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 import { sign } from "@ltonetwork/http-message-signatures";
 import LTOService from "./LTO.service";
+import PackageService from "./Package.service";
+import { IMessageMeta } from "@ltonetwork/lto/interfaces";
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 
 export class RelayService {
-  private static relayURL =
-    process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
+  static relayURL = process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
   private static relay = new Relay(`${this.relayURL}`);
 
-  /**
+  /*
    * Handle All Signed Requests
    */
-  private static async handleSignedRequest(method: string, url: string) {
+  static async handleSignedRequest(
+    method: string,
+    url: string,
+    options: { headers?: Record<string, string> } = {}
+  ) {
     try {
       const sender = LTOService.account;
       const request = {
-        headers: {},
         method,
         url,
+        headers: {
+          ...options.headers, // Include optional headers in the request
+        },
       };
 
       const signedRequest = await sign(request, { signer: sender });
@@ -31,7 +37,12 @@ export class RelayService {
       const response = await axios({
         method: signedRequest.method,
         url: signedRequest.url,
-        headers: signedRequest.headers,
+        headers: {
+          ...signedRequest.headers,
+        },
+        validateStatus: (status) => {
+          return (status >= 200 && status < 300) || status === 304;
+        },
       });
 
       return response;
@@ -44,7 +55,11 @@ export class RelayService {
   /**
    * Send ownable to a recipient.
    */
-  static async sendOwnable(recipient: string, content?: Uint8Array) {
+  static async sendOwnable(
+    recipient: string,
+    content: Uint8Array,
+    meta: Partial<IMessageMeta>
+  ) {
     const sender = LTOService.account;
 
     if (!recipient) {
@@ -54,13 +69,28 @@ export class RelayService {
 
     try {
       if (sender) {
-        const messageHash = await sendFile(
-          this.relay,
-          content,
-          sender,
-          recipient
-        );
-        return messageHash;
+        const messageContent = Binary.from(content);
+
+        //const recipientAccount = await lto.resolveAccount(recipient);
+
+        const message = new Message(
+          messageContent,
+          "application/octet-stream",
+          meta
+        )
+          .to(recipient)
+          .signWith(sender);
+
+        // const message = new Message(
+        //   messageContent,
+        //   "application/octet-stream",
+        //   meta
+        // )
+        //   .encryptFor(recipientAccount)
+        //   .signWith(sender);
+
+        await this.relay.send(message);
+        return message.hash.base58;
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -118,10 +148,44 @@ export class RelayService {
   }
 
   /**
+   * Read a single message by its hash.
+   */
+  static async readSingleMessage(hash: string) {
+    const sender = LTOService.account;
+    if (!sender) {
+      console.error("Account not initialized");
+      return null;
+    }
+
+    const address = sender.address;
+    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
+
+    try {
+      const response = await this.handleSignedRequest("GET", url);
+
+      if (response?.data) {
+        const message = Message.from(response.data);
+
+        if (message.isEncrypted()) {
+          message.decryptWith(sender);
+        }
+
+        return await PackageService.processPackage(message, hash, true);
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error reading single message:", error);
+      return null;
+    }
+  }
+
+  /**
    * Read relay data for the current sender.
    */
   static async readRelayData() {
     const sender = LTOService.account;
+
     if (!sender) {
       console.error("Account not initialized");
       return null;
@@ -130,24 +194,46 @@ export class RelayService {
     const address = sender.address;
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
-    const url = `${this.relayURL}/inboxes/${address}/`;
+
+    const url = `${this.relayURL}/inboxes/${address}/list`;
+
     try {
       const responses = await this.handleSignedRequest("GET", url);
 
-      if (!responses.data.length) return null;
+      if (!responses.data.metadata.length) return null;
 
       const ownableData = await Promise.all(
-        responses.data.map(async (response: MessageInfo) => {
+        responses.data.metadata.map(async (response: MessageInfo) => {
+          if (!response.hash) {
+            console.warn("Skipping response without a hash:", response);
+            return null;
+          }
+
           const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
-          const infoResponse = await this.handleSignedRequest(
-            "GET",
-            messageUrl
-          );
-          const message = Message.from(infoResponse.data);
-          return { message, messageHash: infoResponse.data.hash };
+          try {
+            const infoResponse = await this.handleSignedRequest(
+              "GET",
+              messageUrl
+            );
+
+            if (!infoResponse.data.sender) {
+              console.warn("Skipping response without a sender:", infoResponse);
+              return null;
+            }
+
+            const message = Message.from(infoResponse.data).decryptWith(sender);
+
+            return { message, messageHash: infoResponse.data.hash };
+          } catch (error) {
+            console.error(
+              `Failed to process message with hash ${response.hash}:`,
+              error
+            );
+            return null;
+          }
         })
       );
-      return ownableData;
+      return ownableData.filter((data) => data !== null);
     } catch (error) {
       console.error("Failed to read relay data:", error);
       return null;
@@ -198,6 +284,53 @@ export class RelayService {
     }
   }
 
+  static async listRelayMetaData(): Promise<any[] | null> {
+    const sender = await LTOService.getAccount();
+    if (!sender) {
+      console.error("Account not initialized");
+      return null;
+    }
+
+    const address = sender.address;
+    const isRelayAvailable = await this.isRelayUp();
+    if (!isRelayAvailable) return null;
+
+    const url = `${this.relayURL}/inboxes/${address}/list`;
+
+    try {
+      const response = await this.handleSignedRequest("GET", url);
+      //this.logger.debug('Relay metadata response:', response.data);
+      return response.data.metadata || null;
+    } catch (error) {
+      console.error("Failed to read relay metadata:", error);
+      return null;
+    }
+  }
+
+  //Paginated
+  static async list(start: number, end: number) {
+    const sender = await LTOService.getAccount();
+
+    if (!sender) {
+      console.error("Account not initialized");
+      return null;
+    }
+
+    const address = sender.address;
+    const isRelayAvailable = await this.isRelayUp();
+    if (!isRelayAvailable) return null;
+
+    const url = `${this.relayURL}/inboxes/${address}/list?limit=${end}&offset=${start}`;
+
+    try {
+      const response = await this.handleSignedRequest("GET", url);
+      return response.data || null;
+    } catch (error) {
+      console.error("Failed to read relay metadata:", error);
+      return null;
+    }
+  }
+
   /**
    * Extract assets from a zip file.
    */
@@ -232,7 +365,6 @@ export class RelayService {
    * Check and return unique messages, avoiding duplicates.
    */
   static async checkDuplicateMessage(messages: MessageExt[]) {
-    console.log(messages);
     const uniqueItems = new Map<
       string,
       { message: Message; eventsLength: number; messageHash: string }

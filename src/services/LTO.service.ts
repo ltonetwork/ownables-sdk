@@ -1,4 +1,4 @@
-import { Account, Binary, LTO, Transaction } from "@ltonetwork/lto";
+import { Account, Binary, LTO, Transaction, getNetwork } from "@ltonetwork/lto";
 import LocalStorageService from "./LocalStorage.service";
 import SessionStorageService from "./SessionStorage.service";
 import CryptoJS from "crypto-js";
@@ -200,6 +200,10 @@ export default class LTOService {
     return lto.account({
       publicKey: publicKey instanceof Binary ? publicKey.base58 : publicKey,
     }).address;
+  }
+
+  public static getNetwork(ltoAddress: string): string {
+    return getNetwork(ltoAddress);
   }
 
   public static getAccount = async (): Promise<Account> => {
