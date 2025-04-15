@@ -107,49 +107,6 @@ export default class PackageService {
     return found;
   }
 
-  // private static storePackageInfo(
-  //   title: string,
-  //   name: string,
-  //   description: string | undefined,
-  //   cid: string,
-  //   keywords: string[],
-  //   capabilities: TypedPackageCapabilities,
-  //   isNotLocal?: boolean,
-  //   uniqueMessageHash?: string
-  // ): TypedPackage {
-  //   const packages = (LocalStorageService.get("packages") ||
-  //     []) as TypedPackage[];
-  //   let pkg = packages.find((pkg) => pkg.name === name);
-
-  //   if (!pkg) {
-  //     pkg = {
-  //       title,
-  //       name,
-  //       description,
-  //       cid,
-  //       keywords,
-  //       isNotLocal,
-  //       ...capabilities,
-  //       uniqueMessageHash,
-  //       versions: [],
-  //     };
-  //     packages.push(pkg);
-  //   } else {
-  //     Object.assign(pkg, {
-  //       cid,
-  //       description,
-  //       keywords,
-  //       uniqueMessageHash,
-  //       ...capabilities,
-  //     });
-  //   }
-
-  //   pkg.versions.push({ date: new Date(), cid });
-  //   LocalStorageService.set("packages", packages);
-
-  //   return pkg;
-  // }
-
   private static storePackageInfo(
     title: string,
     name: string,

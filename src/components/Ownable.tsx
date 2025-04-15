@@ -24,7 +24,7 @@ import If from "./If";
 import EventChainService from "../services/EventChain.service";
 import { RelayService } from "../services/Relay.service";
 import { enqueueSnackbar } from "notistack";
-import LocalStorageService from "../services/LocalStorage.service";
+//import LocalStorageService from "../services/LocalStorage.service";
 import { PACKAGE_TYPE } from "../constants";
 import IDBService from "../services/IDB.service";
 import { IMessageMeta } from "@ltonetwork/lto/interfaces";
@@ -172,14 +172,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           await OwnableService.delete(this.chain.id);
 
           //remove from LS
-          await LocalStorageService.removeByField(
-            "packages",
-            "uniqueMessageHash",
-            this.pkg.uniqueMessageHash
-          );
-
-          //remove from browser screen
-          //this.props.onRemove();
+          // await LocalStorageService.removeByField(
+          //   "packages",
+          //   "uniqueMessageHash",
+          //   this.pkg.uniqueMessageHash
+          // );
         }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });
