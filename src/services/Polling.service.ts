@@ -14,7 +14,7 @@ export class PollingService {
     try {
       const url = `${RelayService.relayURL}/inboxes/${encodeURIComponent(
         address
-      )}/list`;
+      )}`;
 
       const headers: Record<string, string> = {};
       const lastModified = LocalStorageService.get("lastModified");
@@ -36,7 +36,7 @@ export class PollingService {
       }
 
       if (response.status === 200) {
-        const serverHashes = response.data.metadata
+        const serverHashes = response.data
           .filter((message: any) => message.hash)
           .map((message: any) => message.hash);
 

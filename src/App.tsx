@@ -28,6 +28,7 @@ import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import { RelayService } from "./services/Relay.service";
 import { PollingService } from "./services/Polling.service";
+import { usePackageManager } from "./hooks/usePackageManager";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -37,7 +38,6 @@ export default function App() {
   const [showPackages, setShowPackages] = React.useState(false);
   const [address, setAddress] = useState(LTOService.address);
   const [message, setMessages] = useState(0);
-  const [isImporting, setIsImporting] = useState(false);
   const [ownables, setOwnables] = useState<
     Array<{ chain: EventChain; package: string; uniqueMessageHash?: string }>
   >([]);
@@ -59,14 +59,13 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
+  const { isLoading: isPackageManagerLoading } = usePackageManager();
+
   const handleNotificationClick = () => {
     setShowViewMessagesBar(true);
   };
 
   useEffect(() => {
-    // RelayService.readSingleMessage(
-    //   "6u6uEr12kHbTCRRpazuaFKjqxm7ug4EtGEU7uxqP6812"
-    // );
     IDBService.open()
       .then(() => OwnableService.loadAll())
       .then((ownables) => setOwnables(ownables))
@@ -108,68 +107,59 @@ export default function App() {
   };
 
   const forge = async (pkg: TypedPackage) => {
-    const chain = await OwnableService.create(pkg);
-    setOwnables([...ownables, { chain, package: pkg.cid }]);
-    setShowPackages(false);
-    enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
+    try {
+      const chain = await OwnableService.create(pkg);
+      setOwnables([...ownables, { chain, package: pkg.cid }]);
+      setShowPackages(false);
+      enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
+    } catch (error) {
+      showError("Failed to forge ownable", ownableErrorMessage(error));
+    }
   };
 
   const relayImport = async (
     pkg: TypedPackage[] | null,
     triggerRefresh: boolean
   ) => {
-    if (isImporting) return;
-
-    const batchNumber = 2;
-
-    if (pkg === null || pkg.length === 0) {
-      enqueueSnackbar(`Nothing to Load from relay`, {
-        variant: "error",
-      });
-      setIsImporting(false);
+    if (!pkg || pkg.length === 0) {
+      enqueueSnackbar(`Nothing to Load from relay`, { variant: "error" });
       return;
     }
 
-    // Process batches of packages
-    for (let i = 0; i < pkg.length; i += batchNumber) {
-      const batch = pkg.slice(i, i + batchNumber);
-      const filteredBatch = batch.filter(
-        (item) => item !== null && item !== undefined
+    try {
+      // Process packages
+      const validPackages = pkg.filter(
+        (data: TypedPackage) => data.chain && data.cid
       );
 
       setOwnables((prevOwnables) => [
         ...prevOwnables,
-        ...filteredBatch
-          .filter((data: TypedPackage) => data.chain && data.cid)
-          .map((data: TypedPackage) => ({
-            chain: data.chain,
-            package: data.cid,
-            uniqueMessageHash: data.uniqueMessageHash,
-          })),
+        ...validPackages.map((data: TypedPackage) => ({
+          chain: data.chain,
+          package: data.cid,
+          uniqueMessageHash: data.uniqueMessageHash,
+        })),
       ]);
 
-      enqueueSnackbar(`Ownable successfully loaded`, {
-        variant: "success",
-      });
+      enqueueSnackbar(`Ownable successfully loaded`, { variant: "success" });
       LocalStorageService.remove("messageCount");
       setMessages(0);
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Trigger a refresh only for updated ownables
+      if (triggerRefresh) {
+        setAlert({
+          severity: "info",
+          title: "New Ownables Detected",
+          message: "New ownables have been detected. Refreshing...",
+        });
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 7000);
+      }
+    } catch (error) {
+      showError("Failed to import from relay", ownableErrorMessage(error));
     }
-
-    // Trigger a refresh only for updated ownables
-    if (triggerRefresh) {
-      setAlert({
-        severity: "info",
-        title: "New Ownables Detected",
-        message: "New ownables have been detected. Refreshing...",
-      });
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 7000);
-    }
-
-    setIsImporting(false);
   };
 
   const deleteOwnable = (
@@ -405,7 +395,7 @@ export default function App() {
         onOpen={() => setShowPackages(true)}
         onClose={() => setShowPackages(false)}
         onSelect={forge}
-        onImportFR={(pkg, triggerRefresh) => relayImport(pkg, triggerRefresh)}
+        onImportFR={relayImport}
         onError={showError}
         onCreate={() => null}
         message={message}
@@ -460,7 +450,7 @@ export default function App() {
       >
         {confirm?.message}
       </ConfirmDialog>
-      <Loading show={!loaded} />
+      <Loading show={!loaded || isPackageManagerLoading} />
     </>
   );
 }

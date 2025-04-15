@@ -104,14 +104,13 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
-      const relayData = await RelayService.list(
-        (currentPage - 1) * itemsPerPage,
-        itemsPerPage
-      );
+      const offset = (currentPage - 1) * itemsPerPage;
+      const limit = itemsPerPage;
+      const relayData = await RelayService.list(offset, limit);
 
-      if (relayData && Array.isArray(relayData.metadata)) {
+      if (relayData && Array.isArray(relayData.messages)) {
         setTotalCount(relayData.total);
-        setMessages(relayData.metadata);
+        setMessages(relayData.messages);
       } else {
         setTotalCount(0);
         setMessages([]);
@@ -138,7 +137,7 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
 
   const handleImportMessage = async (hash: string) => {
     try {
-      const importedPackage = await RelayService.readSingleMessage(hash);
+      const importedPackage = await RelayService.readMessage(hash);
 
       if (importedPackage) {
         const chain = importedPackage.chain ? importedPackage.chain : null;

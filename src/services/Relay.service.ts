@@ -81,14 +81,6 @@ export class RelayService {
           .to(recipient)
           .signWith(sender);
 
-        // const message = new Message(
-        //   messageContent,
-        //   "application/octet-stream",
-        //   meta
-        // )
-        //   .encryptFor(recipientAccount)
-        //   .signWith(sender);
-
         await this.relay.send(message);
         return message.hash.base58;
       }
@@ -98,59 +90,9 @@ export class RelayService {
   }
 
   /**
-   * Return just message hashes
-   */
-  static async readInboxHashes() {
-    const sender = LTOService.account;
-    if (!sender) {
-      console.error("Account not initialized");
-      return [];
-    }
-
-    const address = sender.address;
-    const isRelayAvailable = await this.isRelayUp();
-    if (!isRelayAvailable) return [];
-
-    const url = `${this.relayURL}/inboxes/${address}/`;
-
-    try {
-      const responses = await this.handleSignedRequest("GET", url);
-
-      if (!responses || !responses.data || responses.data.length === 0) {
-        return [];
-      }
-
-      const serverHashes = await Promise.all(
-        responses.data.map(async (response: MessageInfo) => {
-          const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
-          const infoResponse = await this.handleSignedRequest(
-            "GET",
-            messageUrl
-          );
-
-          if (infoResponse && infoResponse.data && infoResponse.data.hash) {
-            return infoResponse.data.hash;
-          } else {
-            console.warn(
-              "Failed to retrieve message hash for response:",
-              response
-            );
-            return null;
-          }
-        })
-      );
-
-      return serverHashes.filter(Boolean);
-    } catch (error) {
-      console.error("Failed to read relay data:", error);
-      return [];
-    }
-  }
-
-  /**
    * Read a single message by its hash.
    */
-  static async readSingleMessage(hash: string) {
+  static async readMessage(hash: string) {
     const sender = LTOService.account;
     if (!sender) {
       console.error("Account not initialized");
@@ -195,15 +137,15 @@ export class RelayService {
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
 
-    const url = `${this.relayURL}/inboxes/${address}/list`;
+    const url = `${this.relayURL}/v2/inboxes/${address}`;
 
     try {
       const responses = await this.handleSignedRequest("GET", url);
 
-      if (!responses.data.metadata.length) return null;
+      if (!responses.data.messages?.length) return null;
 
       const ownableData = await Promise.all(
-        responses.data.metadata.map(async (response: MessageInfo) => {
+        responses.data.messages.map(async (response: MessageInfo) => {
           if (!response.hash) {
             console.warn("Skipping response without a hash:", response);
             return null;
@@ -284,31 +226,7 @@ export class RelayService {
     }
   }
 
-  static async listRelayMetaData(): Promise<any[] | null> {
-    const sender = await LTOService.getAccount();
-    if (!sender) {
-      console.error("Account not initialized");
-      return null;
-    }
-
-    const address = sender.address;
-    const isRelayAvailable = await this.isRelayUp();
-    if (!isRelayAvailable) return null;
-
-    const url = `${this.relayURL}/inboxes/${address}/list`;
-
-    try {
-      const response = await this.handleSignedRequest("GET", url);
-      //this.logger.debug('Relay metadata response:', response.data);
-      return response.data.metadata || null;
-    } catch (error) {
-      console.error("Failed to read relay metadata:", error);
-      return null;
-    }
-  }
-
-  //Paginated
-  static async list(start: number, end: number) {
+  static async list(offset: number, limit: number) {
     const sender = await LTOService.getAccount();
 
     if (!sender) {
@@ -320,7 +238,7 @@ export class RelayService {
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
 
-    const url = `${this.relayURL}/inboxes/${address}/list?limit=${end}&offset=${start}`;
+    const url = `${this.relayURL}/v2/inboxes/${address}?limit=${limit}&offset=${offset}`;
 
     try {
       const response = await this.handleSignedRequest("GET", url);
