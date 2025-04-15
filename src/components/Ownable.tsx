@@ -27,7 +27,7 @@ import { enqueueSnackbar } from "notistack";
 import { BridgeService } from "../services/Bridge.service";
 import shortId from "../utils/shortId";
 import SessionStorageService from "../services/SessionStorage.service";
-import LocalStorageService from "../services/LocalStorage.service";
+//import LocalStorageService from "../services/LocalStorage.service";
 import { RedeemService } from "../services/Redeem.service";
 import { PACKAGE_TYPE } from "../constants";
 import IDBService from "../services/IDB.service";
@@ -253,14 +253,11 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           await OwnableService.delete(this.chain.id);
 
           //remove from LS
-          await LocalStorageService.removeByField(
-            "packages",
-            "uniqueMessageHash",
-            this.pkg.uniqueMessageHash
-          );
-
-          //remove from browser screen
-          //this.props.onRemove();
+          // await LocalStorageService.removeByField(
+          //   "packages",
+          //   "uniqueMessageHash",
+          //   this.pkg.uniqueMessageHash
+          // );
         }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });
