@@ -190,17 +190,14 @@ export default function App() {
         //delete ownable from relay
         const uniqueMessageHash = pkg.uniqueMessageHash;
 
-        //Update knownhashes in localstorage
-        // await LocalStorageService.removeItem(
-        //   "messageHashes",
-        //   pkg.uniqueMessageHash
-        // );
-
-        await LocalStorageService.removeByField(
-          "packages",
-          "uniqueMessageHash",
-          pkg.uniqueMessageHash
-        );
+        //delete package
+        if (pkg.isNotLocal) {
+          await LocalStorageService.removeByField(
+            "packages",
+            "uniqueMessageHash",
+            uniqueMessageHash
+          );
+        }
 
         if (uniqueMessageHash) {
           await RelayService.removeOwnable(uniqueMessageHash);
