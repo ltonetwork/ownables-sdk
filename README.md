@@ -126,3 +126,63 @@ Adds armor to the robot. Only one shield can be added.
 
 ![Armor Ownable](https://user-images.githubusercontent.com/100821/221386885-7fa3d0f4-8a15-44c6-80a4-c76d71120ab7.png)
 
+
+## Bridging Process Guide
+
+### Sending to Bridge
+
+When initiating a bridge transfer, you'll need to provide a valid EVM Chain address as the destination. This can be any EVM-compatible wallet address, such as your MetaMask wallet address.
+
+Example EVM address format:
+```0xb0B275587B596389e61e0c92fcdaF70cf7f9e06B```
+
+### Transfer Process
+
+When you transfer an Ownable to the bridge, two key events occur:
+
+1. **LTO Network Transfer**
+   - A transfer is executed from your current LTO Wallet to the Bridge LTO Wallet
+   - This transfer is anchored on the LTO blockchain
+   - The transfer includes specific metadata and signatures
+
+2. **Transfer Event Example**
+   ```json
+   {
+     "timestamp": "2025-04-23T20:33:09-05:00",
+     "signedBy": "3MxtE2REkCberPpMQ4sF855rdK36madT8p9",
+     "publicKey": "Ew6UCSBDN7TVmNHkgisefgt1dx71Kw7A2tomgewGH7YV",
+     "signature": "5wbGcrwRRGe7FnaeMGrMaER2qutMyyU3E8aLigisbjZW76jPfzP1N5q5rGNvdJMfg7HEvHbyePeBwr7cFGWhtY2N",
+     "anchorTx": "3c4FH8JcATUimRMHmbC1uHw2JV5rfxjYfyJXdw51gZLF",
+     "mediaType": "application/json",
+     "data": {
+       "@context": "execute_msg.json",
+       "transfer": {
+         "to": "3N5vwNey9aFkyrQ5KUzMt3qfuwg5jKKzrLB"
+       }
+     },
+     "hash": "3NpFUR2KkjhgxkEhRUVBuXdLH26qjt1eLK2uYCAk978x"
+   }
+   ```
+
+### Important Notes
+
+- Always verify the destination EVM address carefully before initiating the transfer
+- The bridge process is irreversible once confirmed
+- The transfer event on LTO Network serves as proof of the bridging request
+- Keep your transaction hash and anchor transaction ID for reference
+
+### Verification
+
+You can verify your transfer by:
+1. Checking the LTO Network explorer using the anchor transaction ID
+2. Monitoring the destination EVM address on the appropriate block explorer
+3. Checking the bridge status through the API endpoints (see API Documentation section)
+```
+
+This improved version:
+1. Organizes the information into clear sections
+2. Formats the JSON data properly
+3. Adds important notes and verification steps
+4. Uses proper markdown formatting
+5. Provides context for each piece of information
+6. Makes the technical information more readable and understandable
