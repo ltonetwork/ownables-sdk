@@ -24,7 +24,6 @@ new Ownable from a file and select a zipped package. The packages are located in
 
 Please read the [documentation](https://docs.ltonetwork.com/ownables/what-are-ownables) to learn more about Ownables.
 
-
 # SDK Wallet
 
 The wallet is a React application that can be used to test Ownables.
@@ -52,12 +51,14 @@ The build is minified and the filenames include the hashes. Your app is ready to
 
 See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
+> Note: Due to compartibility and version related issues it is preferable to use Node version 20.
 
 # Ownables
 
 ## Prerequisites
 
 Rustup, so that you can set up the wasm32 target:
+
 ```
 curl https://sh.rustup.rs -sSf | sh
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -125,4 +126,3 @@ Adds speakers to the robot. Only one set of speakers can be added.
 Adds armor to the robot. Only one shield can be added.
 
 ![Armor Ownable](https://user-images.githubusercontent.com/100821/221386885-7fa3d0f4-8a15-44c6-80a4-c76d71120ab7.png)
-
