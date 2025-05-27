@@ -104,7 +104,7 @@ export default class OwnableService {
     const chain = EventChain.create(account);
     const anchors: Array<{ key: Binary; value: Binary }> = [];
 
-    if (pkg.isDynamic) {
+    if (pkg.isDynamic || this.anchoring) {
       const msg = {
         "@context": "instantiate_msg.json",
         ownable_id: chain.id,
