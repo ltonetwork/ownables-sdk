@@ -21,13 +21,14 @@ import { TypedPackage } from "../interfaces/TypedPackage";
 import Overlay, { OverlayBanner } from "./Overlay";
 import LTOService from "../services/LTO.service";
 import If from "./If";
-import EventChainService from "../services/EventChain.service";
 import { RelayService } from "../services/Relay.service";
 import { enqueueSnackbar } from "notistack";
 //import LocalStorageService from "../services/LocalStorage.service";
 import { PACKAGE_TYPE } from "../constants";
 import IDBService from "../services/IDB.service";
 import { IMessageMeta } from "@ltonetwork/lto/interfaces";
+import EventChainService from "../services/EventChain.service";
+
 interface OwnableProps {
   chain: EventChain;
   packageCid: string;
@@ -46,6 +47,8 @@ interface OwnableState {
   stateDump: StateDump;
   info?: TypedOwnableInfo;
   metadata: TypedMetadata;
+  isApplying: boolean;
+  error?: string;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -62,6 +65,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       applied: new EventChain(this.chain.id).latestHash,
       stateDump: [],
       metadata: { name: this.pkg.title, description: this.pkg.description },
+      isApplying: false,
     };
   }
 
@@ -216,18 +220,28 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   private async apply(partialChain: EventChain): Promise<void> {
     if (this.busy) return;
     this.busy = true;
+    this.setState({ isApplying: true });
 
-    const stateDump =
-      (await EventChainService.getStateDump(
-        this.chain.id,
-        partialChain.state
-      )) || // Use stored state dump if available
-      (await OwnableService.apply(partialChain, this.state.stateDump));
+    try {
+      const stateDump =
+        (await EventChainService.getStateDump(
+          this.chain.id,
+          partialChain.state
+        )) || // Use stored state dump if available
+        (await OwnableService.apply(partialChain, this.state.stateDump));
 
-    await this.refresh(stateDump);
-
-    this.setState({ applied: this.chain.latestHash, stateDump });
-    this.busy = false;
+      await this.refresh(stateDump);
+      this.setState({ applied: this.chain.latestHash, stateDump });
+    } catch (error) {
+      console.error("Error applying chain:", error);
+      this.props.onError(
+        "Failed to apply chain",
+        ownableErrorMessage(error as Error)
+      );
+    } finally {
+      this.busy = false;
+      this.setState({ isApplying: false });
+    }
   }
 
   async onLoad(): Promise<void> {
@@ -311,13 +325,23 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
+    // Don't try to apply if we're already applying or if there was an error
+    if (this.state.isApplying || this.state.error) return;
+
     const partial = this.chain.startingAfter(this.state.applied);
-    if (partial.events.length > 0) await this.apply(partial);
-    else if (
+    if (partial.events.length > 0) {
+      try {
+        await this.apply(partial);
+      } catch (error) {
+        console.error("Error applying chain:", error);
+        this.setState({ error: ownableErrorMessage(error as Error) });
+      }
+    } else if (
       this.state.initialized !== prev.initialized ||
       this.state.applied.hex !== prev.applied.hex
-    )
+    ) {
       await this.refresh();
+    }
   }
 
   componentWillUnmount() {
@@ -326,16 +350,25 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   render() {
+    const { selected, children } = this.props;
+    const { isApplying } = this.state;
+
     return (
       <Paper
+        elevation={selected ? 8 : 1}
         sx={{
           aspectRatio: "1/1",
           position: "relative",
-          animation: this.props.selected
-            ? "bounce .4s ease infinite alternate"
-            : "",
+          animation: selected ? "bounce .4s ease infinite alternate" : "",
         }}
       >
+        <OwnableFrame
+          id={this.chain.id}
+          packageCid={this.pkg.cid}
+          isDynamic={this.pkg.isDynamic}
+          iframeRef={this.iframeRef}
+          onLoad={() => this.onLoad()}
+        />
         <OwnableInfo
           sx={{ position: "absolute", left: 5, top: 5, zIndex: 10 }}
           chain={this.chain}
@@ -353,15 +386,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           }
           onTransfer={(address) => this.transfer(address)}
         />
-
-        <OwnableFrame
-          id={this.chain.id}
-          packageCid={this.pkg.cid}
-          isDynamic={this.pkg.isDynamic}
-          iframeRef={this.iframeRef}
-          onLoad={() => this.onLoad()}
-        />
-        {this.props.children}
+        {children}
+        <If condition={isApplying}>
+          <Overlay>
+            <OverlayBanner>Applying state...</OverlayBanner>
+          </Overlay>
+        </If>
         <If condition={this.isTransferred}>
           <Tooltip
             title="You're unable to interact with this Ownable, because it has been transferred to a different account."

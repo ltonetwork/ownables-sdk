@@ -55,8 +55,16 @@ export interface OwnableRPC {
   refresh: (state: StateDump) => Promise<void>;
 }
 
+interface StateSnapshot {
+  eventIndex: number;
+  blockHash: string;
+  stateDump: StateDump;
+  timestamp: Date;
+}
+
 export default class OwnableService {
   private static _anchoring = !!LocalStorageService.get("anchoring");
+  private static readonly SNAPSHOT_INTERVAL = 50;
 
   static get anchoring(): boolean {
     return this._anchoring;
@@ -149,27 +157,110 @@ export default class OwnableService {
       (fr, file) => fr.readAsArrayBuffer(file)
     )) as ArrayBuffer;
     await rpc.init(chain.id, js, new Uint8Array(wasm));
+
     const stateDump = await this.apply(chain, []);
     await this.initStore(chain, cid, uniqueMessageHash, stateDump);
   }
 
-  static async apply(
-    partialChain: EventChain,
-    stateDump: StateDump
-  ): Promise<StateDump> {
-    const rpc = this.rpc(partialChain.id);
+  private static async createSnapshot(
+    chain: EventChain,
+    stateDump: StateDump,
+    eventIndex: number
+  ): Promise<void> {
+    try {
+      const snapshot: StateSnapshot = {
+        eventIndex,
+        blockHash: chain.latestHash.hex,
+        stateDump,
+        timestamp: new Date(),
+      };
 
-    for (const event of partialChain.events) {
-      stateDump = (await this.applyEvent(rpc, event, stateDump)).state;
+      const storeId = `ownable:${chain.id}`;
+      const snapshotStoreId = `${storeId}.snapshots`;
+
+      // Ensure snapshot store exists
+      if (!(await IDBService.hasStore(snapshotStoreId))) {
+        await IDBService.createStore(snapshotStoreId);
+      }
+
+      await IDBService.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
+
+      // Cleanup old snapshots (keep only last 3)
+      const snapshots = await IDBService.keys(snapshotStoreId);
+      if (snapshots.length > 3) {
+        const sortedKeys = snapshots
+          .map((key) => parseInt(key.replace("snapshot_", "")))
+          .sort((a, b) => b - a);
+
+        // Delete all but the 3 most recent snapshots
+        const keysToDelete = sortedKeys
+          .slice(3)
+          .map((index) => `snapshot_${index}`);
+        for (const key of keysToDelete) {
+          await IDBService.delete(snapshotStoreId, key);
+        }
+      }
+    } catch (error) {
+      console.error("Error creating snapshot:", error);
+    }
+  }
+
+  private static async getLatestSnapshot(
+    chainId: string
+  ): Promise<StateSnapshot | null> {
+    const storeId = `ownable:${chainId}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
+    // Check if snapshot store exists
+    if (!(await IDBService.hasStore(snapshotStoreId))) {
+      return null;
     }
 
-    return stateDump;
+    const snapshots = await IDBService.keys(snapshotStoreId);
+    if (snapshots.length === 0) return null;
+
+    const latestKey = snapshots
+      .map((key) => parseInt(key.replace("snapshot_", "")))
+      .sort((a, b) => b - a)[0];
+
+    return await IDBService.get(snapshotStoreId, `snapshot_${latestKey}`);
+  }
+
+  static async listSnapshots(chainId: string): Promise<StateSnapshot[]> {
+    const storeId = `ownable:${chainId}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
+    if (!(await IDBService.hasStore(snapshotStoreId))) {
+      return [];
+    }
+
+    const snapshots = await IDBService.keys(snapshotStoreId);
+    const sortedKeys = snapshots
+      .map((key) => parseInt(key.replace("snapshot_", "")))
+      .sort((a, b) => a - b);
+
+    return Promise.all(
+      sortedKeys.map((index) =>
+        IDBService.get(snapshotStoreId, `snapshot_${index}`)
+      )
+    );
+  }
+
+  static async deleteSnapshots(chainId: string): Promise<void> {
+    const storeId = `ownable:${chainId}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
+    if (await IDBService.hasStore(snapshotStoreId)) {
+      await IDBService.deleteStore(snapshotStoreId);
+    }
   }
 
   private static async applyEvent(
     rpc: OwnableRPC,
     event: Event,
-    stateDump: StateDump
+    stateDump: StateDump,
+    chain: EventChain,
+    eventIndex: number
   ): Promise<{ result?: TypedDict; state: StateDump }> {
     const info = {
       sender: event.signKey!.publicKey.base58
@@ -179,11 +270,14 @@ export default class OwnableService {
     };
     const { "@context": context, ...msg } = event.parsedData;
 
+    let result;
     switch (context) {
       case "instantiate_msg.json":
-        return await rpc.instantiate(msg, info);
+        result = await rpc.instantiate(msg, info);
+        break;
       case "execute_msg.json":
-        return await rpc.execute(msg, info, stateDump);
+        result = await rpc.execute(msg, info, stateDump);
+        break;
       case "external_event_msg.json":
         const message = {
           msg: {
@@ -192,10 +286,68 @@ export default class OwnableService {
             network: "",
           },
         };
-        return await rpc.externalEvent(message, info, stateDump);
+        result = await rpc.externalEvent(message, info, stateDump);
+        break;
       default:
         throw new Error(`Unknown event type`);
     }
+
+    // Check if we need to create a snapshot after this event
+    if ((eventIndex + 1) % this.SNAPSHOT_INTERVAL === 0) {
+      console.log(`Creating snapshot at event ${eventIndex + 1}`);
+      await this.createSnapshot(chain, result.state, eventIndex);
+    }
+
+    return result;
+  }
+
+  static async apply(
+    partialChain: EventChain,
+    stateDump: StateDump
+  ): Promise<StateDump> {
+    const rpc = this.rpc(partialChain.id);
+
+    // attempt load of snapshot
+    const snapshot = await this.getLatestSnapshot(partialChain.id);
+    let startIndex = 0;
+    console.log(snapshot);
+
+    if (snapshot) {
+      const snapshotEventIndex = partialChain.events.findIndex(
+        (e) => e.hash?.hex === snapshot.blockHash
+      );
+      if (snapshotEventIndex !== -1) {
+        console.log(`Using snapshot at event ${snapshotEventIndex}`);
+        stateDump = snapshot.stateDump;
+        startIndex = snapshotEventIndex + 1;
+      } else {
+        console.log(
+          "Snapshot found but no matching event hash, starting from beginning"
+        );
+      }
+    } else {
+      console.log("No snapshot found, starting from beginning");
+    }
+
+    // Process remaining events
+    for (let i = startIndex; i < partialChain.events.length; i++) {
+      const event = partialChain.events[i];
+      try {
+        const result = await this.applyEvent(
+          rpc,
+          event,
+          stateDump,
+          partialChain,
+          i
+        );
+        stateDump = result.state;
+      } catch (error) {
+        console.error(`Error applying event at index ${i}:`, error);
+        throw error;
+      }
+    }
+
+    return stateDump;
   }
 
   static async execute(
@@ -214,7 +366,8 @@ export default class OwnableService {
     new Event({ "@context": "execute_msg.json", ...msg })
       .addTo(chain)
       .signWith(LTOService.account);
-    await EventChainService.store({ chain, stateDump });
+
+    await this.store(chain, newStateDump);
 
     return newStateDump;
   }
@@ -303,14 +456,11 @@ export default class OwnableService {
     maxRetries: number = 3,
     delay: number = 1000
   ): Promise<T> {
-    //let lastError: Error;
-
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         await this.ensureDBConnection();
         return await operation();
       } catch (error) {
-        //lastError = error as Error;
         console.warn(`Attempt ${attempt} failed:`, error);
 
         if (attempt < maxRetries) {
@@ -409,6 +559,14 @@ export default class OwnableService {
       };
 
       await IDBService.setAll(data);
+
+      // Check if we need to create a snapshot
+      const eventCount = chain.events.length;
+      if (eventCount % this.SNAPSHOT_INTERVAL === 0) {
+        console.log("ENTEREE");
+        console.log(`Creating snapshot after ${eventCount} events`);
+        await this.createSnapshot(chain, stateDump, eventCount - 1);
+      }
 
       // Verify the write
       const verifyState = await IDBService.get(storeId, "state");
