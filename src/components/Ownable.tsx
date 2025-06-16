@@ -485,8 +485,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
   render() {
     const { selected, children } = this.props;
-    const { initialized, info, metadata, isRedeemable, isApplying } =
-      this.state;
+    const { isApplying } = this.state;
 
     return (
       <Paper
