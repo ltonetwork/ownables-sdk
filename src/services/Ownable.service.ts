@@ -55,8 +55,16 @@ export interface OwnableRPC {
   refresh: (state: StateDump) => Promise<void>;
 }
 
+interface StateSnapshot {
+  eventIndex: number;
+  blockHash: string;
+  stateDump: StateDump;
+  timestamp: Date;
+}
+
 export default class OwnableService {
   private static _anchoring = !!LocalStorageService.get("anchoring");
+  private static readonly SNAPSHOT_INTERVAL = 50;
 
   static get anchoring(): boolean {
     return this._anchoring;
@@ -153,14 +161,126 @@ export default class OwnableService {
     await this.initStore(chain, cid, uniqueMessageHash, stateDump);
   }
 
+  private static async createSnapshot(
+    chain: EventChain,
+    stateDump: StateDump,
+    eventIndex: number
+  ): Promise<void> {
+    const snapshot: StateSnapshot = {
+      eventIndex,
+      blockHash: chain.latestHash.hex,
+      stateDump,
+      timestamp: new Date(),
+    };
+
+    const storeId = `ownable:${chain.id}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
+    // Ensure snapshot store exists
+    if (!(await IDBService.hasStore(snapshotStoreId))) {
+      await IDBService.createStore(snapshotStoreId);
+    }
+
+    await IDBService.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
+
+    // Cleanup old snapshots (keep only last 3)
+    const snapshots = await IDBService.keys(snapshotStoreId);
+    if (snapshots.length > 3) {
+      const sortedKeys = snapshots
+        .map((key) => parseInt(key.replace("snapshot_", "")))
+        .sort((a, b) => b - a);
+
+      // Delete all but the 3 most recent snapshots
+      const keysToDelete = sortedKeys
+        .slice(3)
+        .map((index) => `snapshot_${index}`);
+      for (const key of keysToDelete) {
+        await IDBService.delete(snapshotStoreId, key);
+      }
+    }
+  }
+
+  private static async getLatestSnapshot(
+    chainId: string
+  ): Promise<StateSnapshot | null> {
+    const storeId = `ownable:${chainId}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
+    // Check if snapshot store exists
+    if (!(await IDBService.hasStore(snapshotStoreId))) {
+      return null;
+    }
+
+    const snapshots = await IDBService.keys(snapshotStoreId);
+    if (snapshots.length === 0) return null;
+
+    const latestKey = snapshots
+      .map((key) => parseInt(key.replace("snapshot_", "")))
+      .sort((a, b) => b - a)[0];
+
+    return await IDBService.get(snapshotStoreId, `snapshot_${latestKey}`);
+  }
+
+  static async listSnapshots(chainId: string): Promise<StateSnapshot[]> {
+    const storeId = `ownable:${chainId}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
+    if (!(await IDBService.hasStore(snapshotStoreId))) {
+      return [];
+    }
+
+    const snapshots = await IDBService.keys(snapshotStoreId);
+    const sortedKeys = snapshots
+      .map((key) => parseInt(key.replace("snapshot_", "")))
+      .sort((a, b) => a - b);
+
+    return Promise.all(
+      sortedKeys.map((index) =>
+        IDBService.get(snapshotStoreId, `snapshot_${index}`)
+      )
+    );
+  }
+
+  // Helper method to delete all snapshots for a chain
+  static async deleteSnapshots(chainId: string): Promise<void> {
+    const storeId = `ownable:${chainId}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
+    if (await IDBService.hasStore(snapshotStoreId)) {
+      await IDBService.deleteStore(snapshotStoreId);
+    }
+  }
+
   static async apply(
     partialChain: EventChain,
     stateDump: StateDump
   ): Promise<StateDump> {
     const rpc = this.rpc(partialChain.id);
 
-    for (const event of partialChain.events) {
-      stateDump = (await this.applyEvent(rpc, event, stateDump)).state;
+    // Try to load from snapshot first
+    const snapshot = await this.getLatestSnapshot(partialChain.id);
+    let startIndex = 0;
+
+    if (snapshot) {
+      const snapshotEventIndex = partialChain.events.findIndex(
+        (e) => e.hash?.hex === snapshot.blockHash
+      );
+      if (snapshotEventIndex !== -1) {
+        stateDump = snapshot.stateDump;
+        startIndex = snapshotEventIndex + 1;
+      }
+    }
+
+    // Process remaining events
+    for (let i = startIndex; i < partialChain.events.length; i++) {
+      const event = partialChain.events[i];
+      const result = await this.applyEvent(rpc, event, stateDump);
+      stateDump = result.state;
+
+      // Create snapshot periodically
+      if ((i + 1) % this.SNAPSHOT_INTERVAL === 0) {
+        await this.createSnapshot(partialChain, stateDump, i);
+      }
     }
 
     return stateDump;

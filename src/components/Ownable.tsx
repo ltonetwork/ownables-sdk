@@ -53,6 +53,7 @@ interface OwnableState {
   metadata: TypedMetadata;
   isRedeemable: boolean;
   redeemAddress?: string;
+  isApplying: boolean;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -70,6 +71,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       stateDump: [],
       metadata: { name: this.pkg.title, description: this.pkg.description },
       isRedeemable: false,
+      isApplying: false,
     };
   }
 
@@ -352,18 +354,25 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   private async apply(partialChain: EventChain): Promise<void> {
     if (this.busy) return;
     this.busy = true;
+    this.setState({ isApplying: true });
 
-    const stateDump =
-      (await EventChainService.getStateDump(
-        this.chain.id,
-        partialChain.state
-      )) || // Use stored state dump if available
-      (await OwnableService.apply(partialChain, this.state.stateDump));
-
-    await this.refresh(stateDump);
-
-    this.setState({ applied: this.chain.latestHash, stateDump });
-    this.busy = false;
+    try {
+      const stateDump = await OwnableService.apply(
+        partialChain,
+        this.state.stateDump
+      );
+      await this.refresh(stateDump);
+      this.setState({ applied: partialChain.latestHash });
+    } catch (error) {
+      console.error("Error applying chain:", error);
+      this.props.onError(
+        "Failed to apply chain",
+        ownableErrorMessage(error as Error)
+      );
+    } finally {
+      this.busy = false;
+      this.setState({ isApplying: false });
+    }
   }
 
   async onLoad(): Promise<void> {
@@ -476,16 +485,26 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   render() {
+    const { selected, children } = this.props;
+    const { initialized, info, metadata, isRedeemable, isApplying } =
+      this.state;
+
     return (
       <Paper
+        elevation={selected ? 8 : 1}
         sx={{
           aspectRatio: "1/1",
           position: "relative",
-          animation: this.props.selected
-            ? "bounce .4s ease infinite alternate"
-            : "",
+          animation: selected ? "bounce .4s ease infinite alternate" : "",
         }}
       >
+        <OwnableFrame
+          id={this.chain.id}
+          packageCid={this.pkg.cid}
+          isDynamic={this.pkg.isDynamic}
+          iframeRef={this.iframeRef}
+          onLoad={() => this.onLoad()}
+        />
         <OwnableInfo
           sx={{ position: "absolute", left: 5, top: 5, zIndex: 10 }}
           chain={this.chain}
@@ -515,15 +534,12 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
             }
           }}
         />
-
-        <OwnableFrame
-          id={this.chain.id}
-          packageCid={this.pkg.cid}
-          isDynamic={this.pkg.isDynamic}
-          iframeRef={this.iframeRef}
-          onLoad={() => this.onLoad()}
-        />
-        {this.props.children}
+        {children}
+        <If condition={isApplying}>
+          <Overlay>
+            <OverlayBanner>Applying state...</OverlayBanner>
+          </Overlay>
+        </If>
         <If condition={this.isTransferred && !this.isBridged}>
           <Tooltip
             title="You're unable to interact with this Ownable, because it has been transferred to a different account."
@@ -544,7 +560,6 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
             </Overlay>
           </Tooltip>
         </If>
-
         <If condition={this.isBridged && this.isTransferred}>
           <Tooltip
             title="You're unable to interact with this Ownable, because it has been sent to the bridge."

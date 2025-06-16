@@ -17,54 +17,48 @@ export default class IDBService {
   }
 
   private static error(event: Event): Error {
-    return (
-      (event.target as IDBTransaction)?.error || new Error("Unknown error")
-    );
+    return (event.target as IDBRequest)?.error || new Error("Unknown error");
   }
 
   static async get(store: string, key: string): Promise<any> {
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db)
-        .transaction(store, "readonly")
-        .objectStore(store)
-        .get(key);
+      const db = await this.db;
+      const tx = db.transaction(store, "readonly");
+      const request = tx.objectStore(store).get(key);
 
-      tx.onsuccess = () => resolve(tx.result);
-      tx.onerror = (event) => reject(this.error(event));
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (event) => reject(this.error(event));
     });
   }
 
   static async getAll(store: string): Promise<Array<any>> {
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db)
-        .transaction(store, "readonly")
-        .objectStore(store)
-        .getAll();
+      const db = await this.db;
+      const tx = db.transaction(store, "readonly");
+      const request = tx.objectStore(store).getAll();
 
-      tx.onsuccess = () => resolve(tx.result);
-      tx.onerror = (event) => reject(this.error(event));
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (event) => reject(this.error(event));
     });
   }
 
   static async getMap(store: string): Promise<Map<any, any>> {
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db)
-        .transaction(store, "readonly")
-        .objectStore(store)
-        .openCursor();
-
+      const db = await this.db;
+      const tx = db.transaction(store, "readonly");
+      const request = tx.objectStore(store).openCursor();
       const map = new Map();
 
-      tx.onsuccess = () => {
-        let cursor = tx.result;
+      request.onsuccess = () => {
+        const cursor = request.result;
         if (cursor) {
           map.set(cursor.primaryKey, cursor.value);
           cursor.continue();
         } else {
-          return resolve(map);
+          resolve(map);
         }
       };
-      tx.onerror = (event) => reject(this.error(event));
+      request.onerror = (event) => reject(this.error(event));
     });
   }
 
@@ -82,13 +76,12 @@ export default class IDBService {
 
   static async set(store: string, key: string, value: any): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db)
-        .transaction(store, "readwrite")
-        .objectStore(store)
-        .put(value, key);
+      const db = await this.db;
+      const tx = db.transaction(store, "readwrite");
+      const request = tx.objectStore(store).put(value, key);
 
-      tx.onsuccess = () => resolve();
-      tx.onerror = (event) => reject(this.error(event));
+      request.onsuccess = () => resolve();
+      request.onerror = (event) => reject(this.error(event));
     });
   }
 
@@ -106,31 +99,42 @@ export default class IDBService {
       : a;
 
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db).transaction(storeNames, "readwrite");
+      const db = await this.db;
+      const tx = db.transaction(storeNames, "readwrite");
+      const requests: IDBRequest[] = [];
 
       for (const [store, map] of Object.entries(data)) {
         const objectStore = tx.objectStore(store);
         for (const [key, value] of map instanceof Map
           ? map.entries()
           : Object.entries(map)) {
-          objectStore.put(value, key);
+          requests.push(objectStore.put(value, key));
         }
       }
 
-      tx.oncomplete = () => resolve();
-      tx.onerror = (event) => reject(this.error(event));
+      // Wait for all requests to complete
+      Promise.all(
+        requests.map(
+          (request) =>
+            new Promise<void>((resolve, reject) => {
+              request.onsuccess = () => resolve();
+              request.onerror = (event) => reject(this.error(event));
+            })
+        )
+      )
+        .then(() => resolve())
+        .catch(reject);
     });
   }
 
   static async clear(store: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db)
-        .transaction(store, "readwrite")
-        .objectStore(store)
-        .clear();
+      const db = await this.db;
+      const tx = db.transaction(store, "readwrite");
+      const request = tx.objectStore(store).clear();
 
-      tx.onsuccess = () => resolve();
-      tx.onerror = (event) => reject(this.error(event));
+      request.onsuccess = () => resolve();
+      request.onerror = (event) => reject(this.error(event));
     });
   }
 
@@ -197,7 +201,7 @@ export default class IDBService {
             name.match(store)
           )
         : (await this.db).objectStoreNames.contains(store)
-        ? store
+        ? [store]
         : [];
 
     if (stores.length === 0) return;
@@ -216,7 +220,18 @@ export default class IDBService {
     await new Promise<void>((resolve, reject) => {
       const request = window.indexedDB.deleteDatabase(DB_NAME);
       request.onsuccess = () => resolve();
-      request.onerror = (e) => reject((e.target as IDBTransaction).error);
+      request.onerror = (event) => reject(this.error(event));
+    });
+  }
+
+  static async delete(store: string, key: string): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      const db = await this.db;
+      const tx = db.transaction(store, "readwrite");
+      const request = tx.objectStore(store).delete(key);
+
+      request.onsuccess = () => resolve();
+      request.onerror = (event) => reject(this.error(event));
     });
   }
 }

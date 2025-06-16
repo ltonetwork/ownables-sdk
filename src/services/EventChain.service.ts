@@ -135,7 +135,10 @@ export default class EventChainService {
       await LTOService.anchor(...anchors);
     }
 
-    await IDBService.setAll(data);
+    // Only perform storage operation if there are changes
+    if (Object.keys(data).length > 0) {
+      await IDBService.setAll(data);
+    }
   }
 
   static async getStateDump(
