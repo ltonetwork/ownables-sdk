@@ -31,6 +31,7 @@ import { RedeemService } from "../services/Redeem.service";
 import { PACKAGE_TYPE } from "../constants";
 import IDBService from "../services/IDB.service";
 import { IMessageMeta } from "@ltonetwork/lto/interfaces";
+import EventChainService from "../services/EventChain.service";
 
 interface OwnableProps {
   chain: EventChain;
@@ -53,6 +54,7 @@ interface OwnableState {
   isRedeemable: boolean;
   redeemAddress?: string;
   isApplying: boolean;
+  error?: string;
 }
 
 export default class Ownable extends Component<OwnableProps, OwnableState> {
@@ -356,12 +358,15 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
     this.setState({ isApplying: true });
 
     try {
-      const stateDump = await OwnableService.apply(
-        partialChain,
-        this.state.stateDump
-      );
+      const stateDump =
+        (await EventChainService.getStateDump(
+          this.chain.id,
+          partialChain.state
+        )) || // Use stored state dump if available
+        (await OwnableService.apply(partialChain, this.state.stateDump));
+
       await this.refresh(stateDump);
-      this.setState({ applied: partialChain.latestHash });
+      this.setState({ applied: this.chain.latestHash, stateDump });
     } catch (error) {
       console.error("Error applying chain:", error);
       this.props.onError(
@@ -469,13 +474,23 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
   }
 
   async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
+    // Don't try to apply if we're already applying or if there was an error
+    if (this.state.isApplying || this.state.error) return;
+
     const partial = this.chain.startingAfter(this.state.applied);
-    if (partial.events.length > 0) await this.apply(partial);
-    else if (
+    if (partial.events.length > 0) {
+      try {
+        await this.apply(partial);
+      } catch (error) {
+        console.error("Error applying chain:", error);
+        this.setState({ error: ownableErrorMessage(error as Error) });
+      }
+    } else if (
       this.state.initialized !== prev.initialized ||
       this.state.applied.hex !== prev.applied.hex
-    )
+    ) {
       await this.refresh();
+    }
   }
 
   componentWillUnmount() {
