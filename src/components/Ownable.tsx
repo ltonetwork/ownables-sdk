@@ -21,7 +21,6 @@ import { TypedPackage } from "../interfaces/TypedPackage";
 import Overlay, { OverlayBanner } from "./Overlay";
 import LTOService from "../services/LTO.service";
 import If from "./If";
-import EventChainService from "../services/EventChain.service";
 import { RelayService } from "../services/Relay.service";
 import { enqueueSnackbar } from "notistack";
 import { BridgeService } from "../services/Bridge.service";
