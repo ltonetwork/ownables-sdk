@@ -109,7 +109,7 @@ export class BridgeService {
 
       const formData = new FormData();
       formData.append("file", ownable, filename);
-      const response = await axios.post(request.url, formData, {
+      await axios.post(request.url, formData, {
         headers: combinedHeaders,
       });
     } catch (err) {
