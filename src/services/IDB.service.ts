@@ -93,37 +93,31 @@ export default class IDBService {
     data: TypedDict<TypedDict | Map<any, any>>
   ): Promise<void>;
   static async setAll(a: any, b?: any): Promise<void> {
-    const storeNames: string | string[] = b ? a : Object.keys(a);
-    const data: { [_: string]: TypedDict | Map<any, any> } = b
-      ? Object.fromEntries([[a, b]])
-      : a;
+    const storeNames: string | string[] = b ? [a] : Object.keys(a);
+    const data: { [_: string]: TypedDict | Map<any, any> } = b ? { [a]: b } : a;
 
     return new Promise(async (resolve, reject) => {
       const db = await this.db;
       const tx = db.transaction(storeNames, "readwrite");
-      const requests: IDBRequest[] = [];
 
-      for (const [store, map] of Object.entries(data)) {
-        const objectStore = tx.objectStore(store);
-        for (const [key, value] of map instanceof Map
-          ? map.entries()
-          : Object.entries(map)) {
-          requests.push(objectStore.put(value, key));
+      tx.oncomplete = () => resolve();
+      tx.onerror = (event) => reject(this.error(event));
+      tx.onabort = () => reject(new Error("Transaction aborted"));
+
+      try {
+        for (const [store, map] of Object.entries(data)) {
+          const objectStore = tx.objectStore(store);
+          const entries =
+            map instanceof Map ? map.entries() : Object.entries(map);
+
+          for (const [key, value] of entries) {
+            objectStore.put(value, key);
+          }
         }
+      } catch (error) {
+        tx.abort();
+        reject(error);
       }
-
-      // Wait for all requests to complete
-      Promise.all(
-        requests.map(
-          (request) =>
-            new Promise<void>((resolve, reject) => {
-              request.onsuccess = () => resolve();
-              request.onerror = (event) => reject(this.error(event));
-            })
-        )
-      )
-        .then(() => resolve())
-        .catch(reject);
     });
   }
 

@@ -162,11 +162,58 @@ export default class OwnableService {
     await this.initStore(chain, cid, uniqueMessageHash, stateDump);
   }
 
+  // private static async createSnapshot(
+  //   chain: EventChain,
+  //   stateDump: StateDump,
+  //   eventIndex: number
+  // ): Promise<void> {
+  //   try {
+  //     const snapshot: StateSnapshot = {
+  //       eventIndex,
+  //       blockHash: chain.latestHash.hex,
+  //       stateDump,
+  //       timestamp: new Date(),
+  //     };
+
+  //     const storeId = `ownable:${chain.id}`;
+  //     const snapshotStoreId = `${storeId}.snapshots`;
+
+  //     // Ensure snapshot store exists
+  //     if (!(await IDBService.hasStore(snapshotStoreId))) {
+  //       await IDBService.createStore(snapshotStoreId);
+  //     }
+
+  //     await IDBService.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
+
+  //     // Cleanup old snapshots (keep only last 3)
+  //     const snapshots = await IDBService.keys(snapshotStoreId);
+  //     if (snapshots.length > 3) {
+  //       const sortedKeys = snapshots
+  //         .map((key) => parseInt(key.replace("snapshot_", "")))
+  //         .sort((a, b) => b - a);
+
+  //       // Delete all but the 3 most recent snapshots
+  //       const keysToDelete = sortedKeys
+  //         .slice(3)
+  //         .map((index) => `snapshot_${index}`);
+  //       for (const key of keysToDelete) {
+  //         await IDBService.delete(snapshotStoreId, key);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Error creating snapshot:", error);
+  //   }
+  // }
+
   private static async createSnapshot(
     chain: EventChain,
     stateDump: StateDump,
     eventIndex: number
   ): Promise<void> {
+    const chainId = chain.id;
+    const storeId = `ownable:${chainId}`;
+    const snapshotStoreId = `${storeId}.snapshots`;
+
     try {
       const snapshot: StateSnapshot = {
         eventIndex,
@@ -175,10 +222,6 @@ export default class OwnableService {
         timestamp: new Date(),
       };
 
-      const storeId = `ownable:${chain.id}`;
-      const snapshotStoreId = `${storeId}.snapshots`;
-
-      // Ensure snapshot store exists
       if (!(await IDBService.hasStore(snapshotStoreId))) {
         await IDBService.createStore(snapshotStoreId);
       }
@@ -186,16 +229,17 @@ export default class OwnableService {
       await IDBService.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
 
       // Cleanup old snapshots (keep only last 3)
-      const snapshots = await IDBService.keys(snapshotStoreId);
-      if (snapshots.length > 3) {
-        const sortedKeys = snapshots
+      const keys = await IDBService.keys(snapshotStoreId);
+      if (keys.length > 3) {
+        const sortedKeys = keys
           .map((key) => parseInt(key.replace("snapshot_", "")))
-          .sort((a, b) => b - a);
+          .sort((a, b) => a - b); // Sort ascending by event index
 
-        // Delete all but the 3 most recent snapshots
+        // Delete oldest snapshots, keep the 3 most recent
         const keysToDelete = sortedKeys
-          .slice(3)
+          .slice(0, sortedKeys.length - 3)
           .map((index) => `snapshot_${index}`);
+
         for (const key of keysToDelete) {
           await IDBService.delete(snapshotStoreId, key);
         }
@@ -210,9 +254,9 @@ export default class OwnableService {
   ): Promise<StateSnapshot | null> {
     const storeId = `ownable:${chainId}`;
     const snapshotStoreId = `${storeId}.snapshots`;
+    const exist = await IDBService.hasStore(snapshotStoreId);
 
-    // Check if snapshot store exists
-    if (!(await IDBService.hasStore(snapshotStoreId))) {
+    if (!exist) {
       return null;
     }
 
@@ -222,6 +266,8 @@ export default class OwnableService {
     const latestKey = snapshots
       .map((key) => parseInt(key.replace("snapshot_", "")))
       .sort((a, b) => b - a)[0];
+
+    console.log("Latest snapshot key:", latestKey);
 
     return await IDBService.get(snapshotStoreId, `snapshot_${latestKey}`);
   }
@@ -301,49 +347,115 @@ export default class OwnableService {
     return result;
   }
 
+  // static async apply(
+  //   partialChain: EventChain,
+  //   stateDump: StateDump
+  // ): Promise<StateDump> {
+  //   const rpc = this.rpc(partialChain.id);
+
+  //   // attempt load of snapshot
+  //   const snapshot = await this.getLatestSnapshot(partialChain.id);
+  //   let startIndex = 0;
+  //   console.log(partialChain.id);
+
+  //   if (snapshot) {
+  //     const snapshotEventIndex = partialChain.events.findIndex(
+  //       (e) => e.hash?.hex === snapshot.blockHash
+  //     );
+  //     if (snapshotEventIndex !== -1) {
+  //       console.log(`Using snapshot at event ${snapshotEventIndex}`);
+  //       stateDump = snapshot.stateDump;
+  //       startIndex = snapshotEventIndex + 1;
+  //     } else {
+  //       console.log(
+  //         "Snapshot found but no matching event hash, starting from beginning"
+  //       );
+  //     }
+  //   } else {
+  //     console.log("No snapshot found, starting from beginning");
+  //   }
+
+  //   // Process remaining events
+  //   for (let i = startIndex; i < partialChain.events.length; i++) {
+  //     const event = partialChain.events[i];
+  //     try {
+  //       const result = await this.applyEvent(
+  //         rpc,
+  //         event,
+  //         stateDump,
+  //         partialChain,
+  //         i
+  //       );
+  //       stateDump = result.state;
+  //     } catch (error) {
+  //       console.error(`Error applying event at index ${i}:`, error);
+  //       throw error;
+  //     }
+  //   }
+
+  //   return stateDump;
+  // }
+
   static async apply(
     partialChain: EventChain,
     stateDump: StateDump
   ): Promise<StateDump> {
     const rpc = this.rpc(partialChain.id);
-
-    // attempt load of snapshot
     const snapshot = await this.getLatestSnapshot(partialChain.id);
     let startIndex = 0;
-    console.log(snapshot);
 
     if (snapshot) {
       const snapshotEventIndex = partialChain.events.findIndex(
         (e) => e.hash?.hex === snapshot.blockHash
       );
       if (snapshotEventIndex !== -1) {
-        console.log(`Using snapshot at event ${snapshotEventIndex}`);
         stateDump = snapshot.stateDump;
         startIndex = snapshotEventIndex + 1;
-      } else {
-        console.log(
-          "Snapshot found but no matching event hash, starting from beginning"
-        );
       }
-    } else {
-      console.log("No snapshot found, starting from beginning");
     }
 
-    // Process remaining events
-    for (let i = startIndex; i < partialChain.events.length; i++) {
-      const event = partialChain.events[i];
-      try {
-        const result = await this.applyEvent(
-          rpc,
-          event,
-          stateDump,
-          partialChain,
-          i
-        );
-        stateDump = result.state;
-      } catch (error) {
-        console.error(`Error applying event at index ${i}:`, error);
-        throw error;
+    // Process events in batches for better performance
+    const BATCH_SIZE = 10;
+    const totalEvents = partialChain.events.length;
+
+    for (
+      let batchStart = startIndex;
+      batchStart < totalEvents;
+      batchStart += BATCH_SIZE
+    ) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalEvents);
+      const batch = partialChain.events.slice(batchStart, batchEnd);
+
+      for (let i = 0; i < batch.length; i++) {
+        const globalIndex = batchStart + i;
+        const event = batch[i];
+
+        try {
+          const result = await this.applyEvent(
+            rpc,
+            event,
+            stateDump,
+            partialChain,
+            globalIndex
+          );
+          stateDump = result.state;
+        } catch (error) {
+          console.error(`Error applying event at index ${globalIndex}:`, error);
+
+          // Attempt recovery by creating a checkpoint
+          if (globalIndex > startIndex) {
+            console.log(
+              `Creating recovery snapshot at event ${globalIndex - 1}`
+            );
+            await this.createSnapshot(partialChain, stateDump, globalIndex - 1);
+          }
+          throw error;
+        }
+      }
+
+      // to prevent blocking
+      if (batchEnd < totalEvents) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
 
@@ -543,6 +655,7 @@ export default class OwnableService {
   }
 
   static async store(chain: EventChain, stateDump: StateDump): Promise<void> {
+    const anchors: Array<{ key: Binary; value: Binary }> = [];
     const storeId = `ownable:${chain.id}`;
     const stateStoreId = `${storeId}.state`;
 
@@ -554,16 +667,31 @@ export default class OwnableService {
         [storeId]: {
           chain: chain.toJSON(),
           state: chain.state.hex,
+          latestHash: chain.latestHash.hex,
         },
         [stateStoreId]: new Map(stateDump),
       };
+
+      if (this.anchoring) {
+        const previousHash = await IDBService.get(
+          `ownable:${chain.id}`,
+          "latestHash"
+        );
+        anchors.push(
+          ...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
+        );
+      }
+
+      //anchor
+      if (anchors.length > 0) {
+        await LTOService.anchor(...anchors);
+      }
 
       await IDBService.setAll(data);
 
       // Check if we need to create a snapshot
       const eventCount = chain.events.length;
       if (eventCount % this.SNAPSHOT_INTERVAL === 0) {
-        console.log("ENTEREE");
         console.log(`Creating snapshot after ${eventCount} events`);
         await this.createSnapshot(chain, stateDump, eventCount - 1);
       }
