@@ -27,12 +27,59 @@ export default class EventChainService {
     this._anchoring = enabled;
   }
 
+  // static async loadAll(): Promise<
+  //   Array<{
+  //     chain: EventChain;
+  //     package: string;
+  //     created: Date;
+  //     keywords: string[];
+  //     latestHash?: string;
+  //     uniqueMessageHash: string;
+  //   }>
+  // > {
+  //   const ids = (await IDBService.listStores())
+  //     .filter((name) => name.match(/^ownable:\w+$/))
+  //     .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
+
+  //   const results = await Promise.all(
+  //     ids.map(async (id) => {
+  //       try {
+  //         const {
+  //           chain,
+  //           package: packageCid,
+  //           latestHash,
+  //           uniqueMessageHash,
+  //           created,
+  //           keywords,
+  //         } = await this.load(id);
+  //         return {
+  //           chain,
+  //           package: packageCid,
+  //           latestHash,
+  //           created,
+  //           keywords,
+  //           uniqueMessageHash,
+  //         };
+  //       } catch (error) {
+  //         console.error(`Failed to load chain with id ${id}:`, error);
+  //         return null;
+  //       }
+  //     })
+  //   );
+
+  //   // Filter out null
+  //   return results
+  //     .filter((result): result is NonNullable<typeof result> => result !== null)
+  //     .sort(({ created: a }, { created: b }) => a.getTime() - b.getTime());
+  // }
+
   static async loadAll(): Promise<
     Array<{
       chain: EventChain;
       package: string;
       created: Date;
       keywords: string[];
+      latestHash?: string;
       uniqueMessageHash: string;
     }>
   > {
@@ -40,34 +87,39 @@ export default class EventChainService {
       .filter((name) => name.match(/^ownable:\w+$/))
       .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
 
-    const results = await Promise.all(
-      ids.map(async (id) => {
-        try {
-          const {
-            chain,
-            package: packageCid,
-            uniqueMessageHash,
-            created,
-            keywords,
-          } = await this.load(id);
-          return {
-            chain,
-            package: packageCid,
-            created,
-            keywords,
-            uniqueMessageHash,
-          };
-        } catch (error) {
-          console.error(`Failed to load chain with id ${id}:`, error);
-          return null;
-        }
-      })
-    );
+    const BATCH_SIZE = 10;
+    const results: Array<any> = [];
 
-    // Filter out null
-    return results
-      .filter((result): result is NonNullable<typeof result> => result !== null)
-      .sort(({ created: a }, { created: b }) => a.getTime() - b.getTime());
+    const isFulfilled = <T>(
+      result: PromiseSettledResult<T>
+    ): result is PromiseFulfilledResult<T> => {
+      return result.status === "fulfilled";
+    };
+
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.allSettled(
+        batch.map(async (id) => {
+          try {
+            return await this.load(id);
+          } catch (error) {
+            console.error(`Failed to load chain with id ${id}:`, error);
+            return null;
+          }
+        })
+      );
+
+      results.push(
+        ...batchResults
+          .filter(isFulfilled)
+          .map((result) => result.value)
+          .filter((value) => value !== null)
+      );
+    }
+
+    return results.sort(
+      ({ created: a }, { created: b }) => a.getTime() - b.getTime()
+    );
   }
 
   static async load(id: string): Promise<{
@@ -76,6 +128,7 @@ export default class EventChainService {
     created: Date;
     keywords: string[];
     uniqueMessageHash: string;
+    latestHash?: string;
   }> {
     const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
       Object.fromEntries(map.entries())
@@ -84,6 +137,7 @@ export default class EventChainService {
     const {
       chain: chainJson,
       package: packageCid,
+      latestHash,
       created,
       keywords,
       uniqueMessageHash,
@@ -92,6 +146,7 @@ export default class EventChainService {
     return {
       chain: EventChain.from(chainJson),
       package: packageCid,
+      latestHash,
       created,
       keywords,
       uniqueMessageHash,
@@ -170,18 +225,4 @@ export default class EventChainService {
   public static async verify(chain: EventChain) {
     return await LTOService.verifyAnchors(...chain.anchorMap);
   }
-
-  // public static async verify(chain: EventChain) {
-  //   let anchors: any[];
-
-  //   if (Array.isArray(chain.anchorMap)) {
-  //     anchors = chain.anchorMap;
-  //   } else if (chain.anchorMap && typeof chain.anchorMap === "object") {
-  //     anchors = Object.values(chain.anchorMap);
-  //   } else {
-  //     throw new Error("chain.anchorMap is not an iterable or a valid object");
-  //   }
-
-  //   return await LTOService.verifyAnchors(...anchors);
-  // }
 }
