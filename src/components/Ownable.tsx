@@ -47,6 +47,8 @@ interface OwnableState {
   stateDump: StateDump;
   info?: TypedOwnableInfo;
   metadata: TypedMetadata;
+  isRedeemable: boolean;
+  redeemAddress?: string;
   isApplying: boolean;
   error?: string;
 }
@@ -65,6 +67,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       applied: new EventChain(this.chain.id).latestHash,
       stateDump: [],
       metadata: { name: this.pkg.title, description: this.pkg.description },
+      isRedeemable: false,
       isApplying: false,
     };
   }
@@ -387,6 +390,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
           onTransfer={(address) => this.transfer(address)}
         />
         {children}
+
         <If condition={isApplying}>
           <Overlay>
             <OverlayBanner>Applying state...</OverlayBanner>
