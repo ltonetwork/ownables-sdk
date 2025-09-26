@@ -12,11 +12,11 @@ import reportWebVitals from './reportWebVitals';
 import {createTheme, ThemeProvider} from "@mui/material";
 
 import '@rainbow-me/rainbowkit/styles.css';
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { WagmiConfig, configureChains, createClient } from 'wagmi';
-import { base, baseGoerli } from 'wagmi/chains';
+import { RainbowKitProvider, connectorsForWallets } from '@rainbow-me/rainbowkit';
+import { metaMaskWallet, walletConnectWallet, coinbaseWallet, ledgerWallet, safeWallet } from '@rainbow-me/rainbowkit/wallets';
+import { WagmiConfig, configureChains, createConfig } from 'wagmi';
+import { base, baseSepolia } from 'wagmi/chains';
 import { publicProvider } from 'wagmi/providers/public';
-import { InjectedConnector } from 'wagmi/connectors/injected';
 
 const theme = createTheme({
   palette: {
@@ -30,15 +30,35 @@ const theme = createTheme({
   },
 });
 
-const { chains, provider } = configureChains([base, baseGoerli], [publicProvider()]);
-const wagmiClient = createClient({ autoConnect: true, connectors: [new InjectedConnector({ chains })], provider });
+const { chains, publicClient } = configureChains([baseSepolia, base], [publicProvider()]);
+
+// Use RainbowKit's default wallet connectors to populate the wallet list (WalletConnect, MetaMask, Coinbase, Ledger, etc.)
+const walletConnectProjectId = (process.env.REACT_APP_WALLETCONNECT_PROJECT_ID || '').trim();
+if (!walletConnectProjectId) {
+  // eslint-disable-next-line no-console
+  console.warn('RainbowKit: REACT_APP_WALLETCONNECT_PROJECT_ID is not set. WalletConnect may be unavailable.');
+}
+const connectors = connectorsForWallets([
+  {
+    groupName: 'Popular',
+    wallets: [
+      metaMaskWallet({ projectId: walletConnectProjectId, chains }),
+      walletConnectWallet({ projectId: walletConnectProjectId, chains }),
+      coinbaseWallet({ appName: 'Ownable SDK', chains }),
+      ledgerWallet({ projectId: walletConnectProjectId, chains }),
+      safeWallet({ chains }),
+    ],
+  },
+]);
+
+const wagmiConfig = createConfig({ autoConnect: true, connectors, publicClient });
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
-    <WagmiConfig client={wagmiClient}>
+    <WagmiConfig config={wagmiConfig}>
       <RainbowKitProvider chains={chains}>
         <ThemeProvider theme={theme}>
           <App/>

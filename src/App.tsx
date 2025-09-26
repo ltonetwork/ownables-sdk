@@ -29,6 +29,7 @@ import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import { RelayService } from "./services/Relay.service";
 import { PollingService } from "./services/Polling.service";
 import { usePackageManager } from "./hooks/usePackageManager";
+import { useAccount } from 'wagmi';
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -99,6 +100,13 @@ export default function App() {
     LTOService.lock();
     setShowLogin(true);
   };
+
+  // When the wallet disconnects (from WalletConnectControls or elsewhere), log out of the app.
+  useAccount({
+    onDisconnect() {
+      logout();
+    },
+  });
 
   const removeOwnable = (ownableId: string) => {
     setOwnables((prevOwnables) =>

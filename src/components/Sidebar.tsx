@@ -22,6 +22,7 @@ import ltoExplorerIcon from "../assets/explorer-icon.png";
 import ltoWalletIcon from "../assets/wallet-icon.png";
 import Dialog from "@mui/material/Dialog";
 import EventChainService from "../services/EventChain.service";
+import WalletConnectControls from "./WalletConnectControls"
 
 interface SidebarProps {
   open: boolean;
@@ -35,7 +36,6 @@ export default function Sidebar(props: SidebarProps) {
   const { open, onClose, onLogout, onReset, onFactoryReset } = props;
   const [anchoring, setAnchoring] = useState(EventChainService.anchoring);
   const [showNoBalance, setShowNoBalance] = useState(false);
-  const address = LTOService.address;
   const [balance, setBalance] = useState<number>();
 
   const loadBalance = () => {
@@ -79,23 +79,7 @@ export default function Sidebar(props: SidebarProps) {
           </Box>
 
           <Box component="div" sx={{ mt: 2 }}>
-            <Typography sx={{ fontSize: 12 }} color="text.secondary">
-              LTO Network address
-            </Typography>
-            <Typography sx={{ fontSize: 14, fontWeight: 600 }} component="div">
-              {address}
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              balance: {balance !== undefined ? balance + " LTO" : ""}
-            </Typography>
-            <Button
-              variant="contained"
-              fullWidth
-              sx={{ mt: 2 }}
-              onClick={onLogout}
-            >
-              Logout
-            </Button>
+            <WalletConnectControls />
           </Box>
 
           <Box component="div" sx={{ mt: 4 }}>
@@ -109,39 +93,6 @@ export default function Sidebar(props: SidebarProps) {
               label="Anchor events"
               sx={{ mb: 1 }}
             />
-
-            <Typography sx={{ fontSize: 14 }} gutterBottom>
-              <Link
-                href={process.env.REACT_APP_LTO_EXPLORER_URL}
-                target="_blank"
-                underline="none"
-                color="inherit"
-                style={{ display: "block" }}
-              >
-                <img
-                  src={ltoExplorerIcon}
-                  style={{ width: 20, marginRight: 3, verticalAlign: -3 }}
-                  alt="Explorer icon"
-                />{" "}
-                LTO Testnet Explorer
-              </Link>
-            </Typography>
-            <Typography sx={{ fontSize: 14 }} gutterBottom>
-              <Link
-                href={process.env.REACT_APP_LTO_WALLET_URL}
-                target="_blank"
-                underline="none"
-                color="inherit"
-                style={{ display: "block" }}
-              >
-                <img
-                  src={ltoWalletIcon}
-                  style={{ width: 20, marginRight: 3, verticalAlign: -3 }}
-                  alt="Wallet icon"
-                />{" "}
-                LTO Testnet Wallet
-              </Link>
-            </Typography>
           </Box>
         </Box>
 

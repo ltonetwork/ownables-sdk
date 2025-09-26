@@ -3,10 +3,13 @@ import axios from "axios";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
+
 import { sign } from "@ltonetwork/http-message-signatures";
 import LTOService from "./LTO.service";
 import PackageService from "./Package.service";
 import { IMessageMeta } from "@ltonetwork/lto/interfaces";
+
+const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
 
 export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
 
@@ -260,7 +263,7 @@ export class RelayService {
         .filter(([filename]) => !filename.startsWith("."))
         .map(async ([filename, file]) => {
           const blob = await file.async("blob");
-          const type = mime.getType(filename) || "application/octet-stream";
+          const type = getMimeType(filename) || "application/octet-stream";
           return new File([blob], filename, { type });
         })
     );

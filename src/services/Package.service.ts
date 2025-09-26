@@ -16,6 +16,8 @@ import { EventChain } from "@ltonetwork/lto";
 import OwnableService from "./Ownable.service";
 import { MessageExt } from "../interfaces/MessageInfo";
 
+const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
+
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
   ? [
@@ -168,7 +170,7 @@ export default class PackageService {
           .filter(([filename]) => !filename.startsWith("."))
           .map(async ([filename, file]) => {
             const blob = await file.async("blob");
-            const type = mime.getType(filename) || "application/octet-stream";
+            const type = getMimeType(filename) || "application/octet-stream";
             return new File([blob], filename, { type });
           })
       );
@@ -182,7 +184,7 @@ export default class PackageService {
         )
         .map(async ([filename, file]) => {
           const blob = await file.async("blob");
-          const type = mime.getType(filename) || "application/octet-stream";
+          const type = getMimeType(filename) || "application/octet-stream";
           return new File([blob], filename, { type });
         })
     );
