@@ -11,6 +11,13 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import {createTheme, ThemeProvider} from "@mui/material";
 
+import '@rainbow-me/rainbowkit/styles.css';
+import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import { WagmiConfig, configureChains, createClient } from 'wagmi';
+import { base, baseGoerli } from 'wagmi/chains';
+import { publicProvider } from 'wagmi/providers/public';
+import { InjectedConnector } from 'wagmi/connectors/injected';
+
 const theme = createTheme({
   palette: {
     primary: {
@@ -23,14 +30,21 @@ const theme = createTheme({
   },
 });
 
+const { chains, provider } = configureChains([base, baseGoerli], [publicProvider()]);
+const wagmiClient = createClient({ autoConnect: true, connectors: [new InjectedConnector({ chains })], provider });
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <App/>
-    </ThemeProvider>
+    <WagmiConfig client={wagmiClient}>
+      <RainbowKitProvider chains={chains}>
+        <ThemeProvider theme={theme}>
+          <App/>
+        </ThemeProvider>
+      </RainbowKitProvider>
+    </WagmiConfig>
   </React.StrictMode>
 );
 

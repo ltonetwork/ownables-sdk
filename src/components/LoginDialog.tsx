@@ -186,32 +186,37 @@ interface LoginDialogProps {
   onLogin: () => void;
 }
 
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount } from 'wagmi';
+
 export default function LoginDialog(props: LoginDialogProps) {
   const { open, onLogin } = props;
-  const [step, setStep] = useState<Step>(
-    !LTOService.accountExists() ? Step.create : Step.unlock
-  );
+  const { isConnected } = useAccount();
+  const [handled, setHandled] = useState(false);
+
+  useEffect(() => {
+    if (open && isConnected && !handled) {
+      try {
+        // Create a random LTO account in the background and store it with a temp password
+        LTOService.createAccount();
+        LTOService.storeAccount('default', 'eth-temp');
+        setHandled(true);
+        onLogin();
+      } catch (e) {
+        console.error('Failed to initialize LTO account after wallet connect', e);
+      }
+    }
+  }, [open, isConnected, handled, onLogin]);
 
   return (
     <Dialog open={open}>
-      <If condition={step === Step.create}>
-        <CreateAccount
-          next={() => setStep(Step.store)}
-          onImport={() => setStep(Step.import)}
-        />
-      </If>
-      <If condition={step === Step.import}>
-        <ImportAccount
-          next={() => setStep(Step.store)}
-          back={() => setStep(Step.create)}
-        />
-      </If>
-      <If condition={step === Step.store}>
-        <SetPassword next={onLogin} />
-      </If>
-      <If condition={step === Step.unlock}>
-        <UnlockAccount next={onLogin} />
-      </If>
+      <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', minWidth: 300 }}>
+        <h1 style={{ marginTop: 6, marginBottom: 0 }}>Ownable SDK Wallet</h1>
+        <Hidden smDown>
+          <h2 style={{ fontWeight: 300, marginTop: 8, marginBottom: 24 }}>Connect your Ethereum wallet to continue</h2>
+        </Hidden>
+        <ConnectButton />
+      </Box>
     </Dialog>
   );
 }
