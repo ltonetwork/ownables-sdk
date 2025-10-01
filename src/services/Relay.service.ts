@@ -63,7 +63,7 @@ export class RelayService {
     content: Uint8Array,
     meta: Partial<IMessageMeta>
   ) {
-    const sender = LTOService.account;
+    const signer = await (await import('./EQTY.service')).default.signer();
 
     if (!recipient) {
       console.error("Recipient not provided");
@@ -71,18 +71,16 @@ export class RelayService {
     }
 
     try {
-      if (sender) {
+      if (signer) {
         const messageContent = Binary.from(content);
 
-        //const recipientAccount = await lto.resolveAccount(recipient);
-
-        const message = new Message(
+        const message = await new Message(
           messageContent,
           "application/octet-stream",
           meta
         )
           .to(recipient)
-          .signWith(sender);
+          .signWith(signer as any);
 
         await this.relay.send(message);
         return message.hash.base58;
@@ -111,8 +109,9 @@ export class RelayService {
       if (response?.data) {
         const message = Message.from(response.data);
 
-        if (message.isEncrypted()) {
-          message.decryptWith(sender);
+        const m: any = message as any;
+        if (typeof m.isEncrypted === 'function' ? m.isEncrypted() : false) {
+          if (typeof m.decryptWith === 'function') m.decryptWith(sender as any);
         }
 
         return await PackageService.processPackage(message, hash, true);
@@ -166,7 +165,8 @@ export class RelayService {
               return null;
             }
 
-            const message = Message.from(infoResponse.data).decryptWith(sender);
+            const maybeMsg: any = Message.from(infoResponse.data) as any;
+            const message = typeof maybeMsg.decryptWith === 'function' ? maybeMsg.decryptWith(sender as any) : maybeMsg;
 
             return { message, messageHash: infoResponse.data.hash };
           } catch (error) {

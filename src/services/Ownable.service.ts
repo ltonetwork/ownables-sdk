@@ -1,5 +1,6 @@
 import { EventChain, Event, Binary } from "eqty-core";
 import LTOService from "./LTO.service";
+import EQTYService from "./EQTY.service";
 import IDBService from "./IDB.service";
 import TypedDict from "../interfaces/TypedDict";
 import PackageService from "./Package.service";
@@ -108,19 +109,21 @@ export default class OwnableService {
   }
 
   static async create(pkg: TypedPackage): Promise<EventChain> {
-    const account = LTOService.account;
-    const chain = EventChain.create(account);
-    const anchors: Array<{ key: Binary; value: Binary }> = [];
+    const address = await EQTYService.address();
+    const networkId = await EQTYService.networkId();
+    const chain = EventChain.create(address, networkId);
+    const anchors: Array<any> = [];
 
     if (pkg.isDynamic || this.anchoring) {
       const msg = {
         "@context": "instantiate_msg.json",
         ownable_id: chain.id,
         package: pkg.cid,
-        network_id: LTOService.networkId,
-        keywords: pkg.keywords,
+        network_id: networkId,
+        keywords: pkg.keywords ?? [],
       };
-      new Event(msg).addTo(chain).signWith(account);
+      const signer = await EQTYService.signer();
+      new Event(msg).addTo(chain).signWith(signer);
     }
 
     if (this.anchoring) {
@@ -129,7 +132,7 @@ export default class OwnableService {
     }
 
     if (anchors.length > 0) {
-      await LTOService.anchor(...anchors);
+      await EQTYService.anchor(...anchors);
     }
 
     return chain;
@@ -308,12 +311,19 @@ export default class OwnableService {
     chain: EventChain,
     eventIndex: number
   ): Promise<{ result?: TypedDict; state: StateDump }> {
+    // eqty-core Event does not expose signKey; use best-effort sender resolution.
+    // Prefer the chain issuer/creator for instantiate, else fallback to empty/current address.
+    let sender = '';
+    try {
+      // Many chains embed creator/issuer as the first event's address
+      sender = (chain as any).address || (await EQTYService.address());
+    } catch {
+      sender = '';
+    }
     const info = {
-      sender: event.signKey!.publicKey.base58
-        ? event.signKey!.publicKey.base58
-        : event.signKey!.publicKey.toString(),
+      sender,
       funds: [],
-    };
+    } as MessageInfo;
     const { "@context": context, ...msg } = event.parsedData;
 
     let result;
@@ -467,7 +477,7 @@ export default class OwnableService {
     msg: TypedDict,
     stateDump: StateDump
   ): Promise<StateDump> {
-    const info = { sender: LTOService.account.publicKey, funds: [] };
+    const info = { sender: await EQTYService.address(), funds: [] } as MessageInfo;
     const { state: newStateDump } = await this.rpc(chain.id).execute(
       msg,
       info,
@@ -475,9 +485,10 @@ export default class OwnableService {
     );
 
     delete msg["@context"]; // Shouldn't be set
+    const signer = await EQTYService.signer();
     new Event({ "@context": "execute_msg.json", ...msg })
       .addTo(chain)
-      .signWith(LTOService.account);
+      .signWith(signer);
 
     await this.store(chain, newStateDump);
 
@@ -504,17 +515,17 @@ export default class OwnableService {
     consumable: EventChain
   ): Promise<void> {
     const info: MessageInfo = {
-      sender: LTOService.account.publicKey,
+      sender: await EQTYService.address(),
       funds: [],
     };
     const consumeMessage = { consume: {} };
     const consumerState = await EventChainService.getStateDump(
       consumer.id,
-      consumer.state
+      consumer.state.hex
     );
     const consumableState = await EventChainService.getStateDump(
       consumable.id,
-      consumable.state
+      consumable.state.hex
     );
     if (!consumerState || !consumableState)
       throw Error("State mismatch for consume");
@@ -541,12 +552,13 @@ export default class OwnableService {
       consumer.id
     ).externalEvent(externalEventMsg, info, consumerState);
 
+    const signer = await EQTYService.signer();
     new Event({ "@context": "execute_msg.json", ...consumeMessage })
       .addTo(consumable)
-      .signWith(LTOService.account);
+      .signWith(signer);
     new Event({ "@context": "external_event_msg.json", ...consumeEvent })
       .addTo(consumer)
-      .signWith(LTOService.account);
+      .signWith(signer);
 
     await EventChainService.store(
       { chain: consumable, stateDump: consumableStateDump },
@@ -655,7 +667,7 @@ export default class OwnableService {
   }
 
   static async store(chain: EventChain, stateDump: StateDump): Promise<void> {
-    const anchors: Array<{ key: Binary; value: Binary }> = [];
+    const anchors: Array<any> = [];
     const storeId = `ownable:${chain.id}`;
     const stateStoreId = `${storeId}.state`;
 
@@ -684,7 +696,7 @@ export default class OwnableService {
 
       //anchor
       if (anchors.length > 0) {
-        await LTOService.anchor(...anchors);
+        await EQTYService.anchor(...anchors);
       }
 
       await IDBService.setAll(data);

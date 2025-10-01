@@ -1,6 +1,5 @@
 import { Binary, EventChain, IEventChainJSON } from "eqty-core";
-import { Binary as LTOBinary } from "@ltonetwork/lto";
-import LTOService from "./LTO.service";
+import EQTYService from "./EQTY.service";
 import IDBService from "./IDB.service";
 import { StateDump } from "./Ownable.service";
 import LocalStorageService from "./LocalStorage.service";
@@ -161,7 +160,7 @@ export default class EventChainService {
       uniqueMessageHash?: string;
     }>
   ): Promise<void> {
-    const anchors: Array<{ key: LTOBinary; value: LTOBinary }> = [];
+    const anchors: Array<any> = [];
     const data: TypedDict<TypedDict | Map<any, any>> = {};
 
     for (const { chain, stateDump } of chains) {
@@ -176,13 +175,7 @@ export default class EventChainService {
         const newAnchors = previousHash
           ? chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
           : chain.anchorMap;
-        // Convert IBinary to Binary for LTOService compatibility
-        anchors.push(
-          ...newAnchors.map(({ key, value }) => ({
-            key: LTOBinary.fromHex(key.hex),
-            value: LTOBinary.fromHex(value.hex),
-          }))
-        );
+        anchors.push(...newAnchors);
       }
 
       data[`ownable:${chain.id}`] = {
@@ -194,7 +187,7 @@ export default class EventChainService {
     }
 
     if (anchors.length > 0) {
-      await LTOService.anchor(...anchors);
+      await EQTYService.anchor(...anchors);
     }
 
     // Only perform storage operation if there are changes
@@ -230,10 +223,7 @@ export default class EventChainService {
   }
 
   public static async verify(chain: EventChain) {
-    const anchors = chain.anchorMap.map(({ key, value }) => ({
-      key: LTOBinary.fromHex(key.hex),
-      value: LTOBinary.fromHex(value.hex),
-    }));
-    return await LTOService.verifyAnchors(...anchors);
+    const anchors = chain.anchorMap;
+    return await EQTYService.verifyAnchors(...anchors);
   }
 }
