@@ -17,6 +17,7 @@ import { metaMaskWallet, walletConnectWallet, coinbaseWallet, ledgerWallet, safe
 import { WagmiConfig, configureChains, createConfig } from 'wagmi';
 import { base, baseSepolia } from 'wagmi/chains';
 import { publicProvider } from 'wagmi/providers/public';
+import { ServicesProvider } from "./contexts/Services.context"
 
 const theme = createTheme({
   palette: {
@@ -60,9 +61,11 @@ root.render(
   <React.StrictMode>
     <WagmiConfig config={wagmiConfig}>
       <RainbowKitProvider chains={chains}>
-        <ThemeProvider theme={theme}>
-          <App/>
-        </ThemeProvider>
+        <ServicesProvider>
+          <ThemeProvider theme={theme}>
+            <App/>
+          </ThemeProvider>
+        </ServicesProvider>
       </RainbowKitProvider>
     </WagmiConfig>
   </React.StrictMode>

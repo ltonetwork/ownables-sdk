@@ -1,5 +1,4 @@
 import { EventChain, Message, Relay, Binary, IMessageMeta } from "eqty-core";
-import { LTO } from "@ltonetwork/lto";
 import axios from "axios";
 import JSZip from "jszip";
 import mime from "mime/lite";
@@ -11,16 +10,19 @@ import PackageService from "./Package.service";
 
 const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
 
-export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
-
 export class RelayService {
-  static relayURL = process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
-  private static relay = new Relay(`${this.relayURL}`);
+  public static readonly URL = process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
+
+  private relay: Relay;
+
+  constructor() {
+    this.relay = new Relay(`${RelayService.URL}`);
+  }
 
   /*
    * Handle All Signed Requests
    */
-  static async handleSignedRequest(
+  async handleSignedRequest(
     method: string,
     url: string,
     options: { headers?: Record<string, string> } = {}
@@ -58,12 +60,12 @@ export class RelayService {
   /**
    * Send ownable to a recipient.
    */
-  static async sendOwnable(
+  async sendOwnable(
     recipient: string,
     content: Uint8Array,
     meta: Partial<IMessageMeta>
   ) {
-    const signer = await (await import('./EQTY.service')).default.signer();
+    const signer = LTOService.account;
 
     if (!recipient) {
       console.error("Recipient not provided");
@@ -93,15 +95,15 @@ export class RelayService {
   /**
    * Read a single message by its hash.
    */
-  static async readMessage(hash: string) {
+  async readMessage(hash: string): Promise<{ message?: any; hash?: string }> {
     const sender = LTOService.account;
     if (!sender) {
       console.error("Account not initialized");
-      return null;
+      return {};
     }
 
     const address = sender.address;
-    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
+    const url = `${RelayService.URL}/inboxes/${address}/${hash}`;
 
     try {
       const response = await this.handleSignedRequest("GET", url);
@@ -114,20 +116,20 @@ export class RelayService {
           if (typeof m.decryptWith === 'function') m.decryptWith(sender as any);
         }
 
-        return await PackageService.processPackage(message, hash, true);
+        return { message, hash };
       }
 
-      return null;
+      return {};
     } catch (error) {
       console.error("Error reading single message:", error);
-      return null;
+      return {};
     }
   }
 
   /**
    * Read relay data for the current sender.
    */
-  static async readRelayData() {
+  async readRelayData() {
     const sender = LTOService.account;
 
     if (!sender) {
@@ -139,7 +141,7 @@ export class RelayService {
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
 
-    const url = `${this.relayURL}/v2/inboxes/${address}`;
+    const url = `${RelayService.URL}/v2/inboxes/${address}`;
 
     try {
       const responses = await this.handleSignedRequest("GET", url);
@@ -153,7 +155,7 @@ export class RelayService {
             return null;
           }
 
-          const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
+          const messageUrl = `${RelayService.URL}/inboxes/${address}/${response.hash}`;
           try {
             const infoResponse = await this.handleSignedRequest(
               "GET",
@@ -188,14 +190,14 @@ export class RelayService {
   /**
    * Remove an ownable by its hash.
    */
-  static async removeOwnable(hash: string): Promise<string> {
+  async removeOwnable(hash: string): Promise<string> {
     const sender = LTOService.account;
     if (!sender) {
       throw new Error("Sender not initialized");
     }
 
     const address = sender.address;
-    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
+    const url = `${RelayService.URL}/inboxes/${address}/${hash}`;
 
     try {
       const response = await this.handleSignedRequest("DELETE", url);
@@ -214,10 +216,10 @@ export class RelayService {
   /**
    * Check if relay service is up.
    */
-  static async isRelayUp(): Promise<boolean> {
-    if (!this.relayURL) return false;
+  async isRelayUp(): Promise<boolean> {
+    if (!RelayService.URL) return false;
     try {
-      const response = await this.handleSignedRequest("HEAD", this.relayURL);
+      const response = await this.handleSignedRequest("HEAD", RelayService.URL);
       if (response.status === 200) {
         return true;
       } else {
@@ -229,7 +231,7 @@ export class RelayService {
     }
   }
 
-  static async list(offset: number, limit: number) {
+  async list(offset: number, limit: number) {
     const sender = await LTOService.getAccount();
 
     if (!sender) {
@@ -241,7 +243,7 @@ export class RelayService {
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
 
-    const url = `${this.relayURL}/v2/inboxes/${address}?limit=${limit}&offset=${offset}`;
+    const url = `${RelayService.URL}/v2/inboxes/${address}?limit=${limit}&offset=${offset}`;
 
     try {
       const response = await this.handleSignedRequest("GET", url);
@@ -255,7 +257,7 @@ export class RelayService {
   /**
    * Extract assets from a zip file.
    */
-  static async extractAssets(zipFile: File | JSZip): Promise<File[]> {
+  async extractAssets(zipFile: File | JSZip): Promise<File[]> {
     const zip =
       zipFile instanceof JSZip ? zipFile : await JSZip.loadAsync(zipFile);
     const assetFiles = await Promise.all(
@@ -273,7 +275,7 @@ export class RelayService {
   /**
    * Get chain.json from a list of files.
    */
-  private static async getChainJson(
+  private async getChainJson(
     filename: string,
     files: File[]
   ): Promise<EventChain> {
@@ -285,7 +287,7 @@ export class RelayService {
   /**
    * Check and return unique messages, avoiding duplicates.
    */
-  static async checkDuplicateMessage(messages: MessageExt[]) {
+  async checkDuplicateMessage(messages: MessageExt[]) {
     const uniqueItems = new Map<
       string,
       { message: Message; eventsLength: number; messageHash: string }

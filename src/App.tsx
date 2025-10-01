@@ -30,6 +30,7 @@ import { RelayService } from "./services/Relay.service";
 import { PollingService } from "./services/Polling.service";
 import { usePackageManager } from "./hooks/usePackageManager";
 import { useAccount, useNetwork } from 'wagmi';
+import useIDB from "./hooks/useIDB";
 
 export default function App() {
   // Reload app UI when wallet account or chain changes (RainbowKit/wagmi)
@@ -85,12 +86,14 @@ export default function App() {
     setShowViewMessagesBar(true);
   };
 
+  const { ready: idbReady, error: idbError } = useIDB();
+
   useEffect(() => {
-    IDBService.open()
-      .then(() => OwnableService.loadAll())
+    if (!idbReady) return;
+    OwnableService.loadAll()
       .then((ownables) => setOwnables(ownables))
       .then(() => setLoaded(true));
-  }, []);
+  }, [idbReady]);
 
   useEffect(() => {
     if (!showLogin && address.length > 1) {

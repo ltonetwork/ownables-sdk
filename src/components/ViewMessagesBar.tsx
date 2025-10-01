@@ -18,6 +18,7 @@ import { EventChain } from "eqty-core";
 import { enqueueSnackbar } from "notistack";
 import LocalStorageService from "../services/LocalStorage.service";
 import placeholderImage from "../assets/cube.png";
+import PackageService from "../services/Package.service"
 
 interface ViewMessagesBarProps {
   open: boolean;
@@ -137,7 +138,8 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
 
   const handleImportMessage = async (hash: string) => {
     try {
-      const importedPackage = await RelayService.readMessage(hash);
+      const { message, hash } = await RelayService.readMessage(hash);
+      const importedPackage = message ? await PackageService.processPackage(message, hash, true) : null;
 
       if (importedPackage) {
         const chain = importedPackage.chain ? importedPackage.chain : null;

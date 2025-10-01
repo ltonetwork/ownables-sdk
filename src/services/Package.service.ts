@@ -13,7 +13,6 @@ import TypedDict from "../interfaces/TypedDict";
 import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
 import { EventChain } from "eqty-core";
-import OwnableService from "./Ownable.service";
 import { MessageExt } from "../interfaces/MessageInfo";
 
 const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
@@ -77,8 +76,10 @@ const capabilitiesStaticOwnable = {
 };
 
 export default class PackageService {
-  static list(): Array<TypedPackage | TypedPackageStub> {
-    const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
+  constructor(private relay: RelayService, private localStorage: LocalStorageService) {}
+
+  list(): Array<TypedPackage | TypedPackageStub> {
+    const local = (this.localStorage.get("packages") || []) as TypedPackage[];
     for (const pkg of local) {
       pkg.versions = pkg.versions.map(({ date, cid }) => ({
         date: new Date(date),
@@ -93,8 +94,8 @@ export default class PackageService {
     return Array.from(set).sort((a, b) => (a.title >= b.title ? 1 : -1));
   }
 
-  static info(nameOrCid: string, uniqueMessageHash?: string): TypedPackage {
-    const packages = (LocalStorageService.get("packages") ||
+  info(nameOrCid: string, uniqueMessageHash?: string): TypedPackage {
+    const packages = (this.localStorage.get("packages") ||
       []) as TypedPackage[];
 
     const found = packages.find(
@@ -109,7 +110,7 @@ export default class PackageService {
     return found;
   }
 
-  private static storePackageInfo(
+  private storePackageInfo(
     title: string,
     name: string,
     description: string | undefined,
@@ -119,7 +120,7 @@ export default class PackageService {
     isNotLocal?: boolean,
     uniqueMessageHash?: string
   ): TypedPackage {
-    const packages = (LocalStorageService.get("packages") ||
+    const packages = (this.localStorage.get("packages") ||
       []) as TypedPackage[];
 
     // Locate the package with matching cid and uniqueMessageHash
@@ -156,12 +157,12 @@ export default class PackageService {
     }
 
     // Save all packages back to LocalStorage under the single "packages" key
-    LocalStorageService.set("packages", packages);
+    this.localStorage.set("packages", packages);
 
     return pkg;
   }
 
-  static async extractAssets(zipFile: File, chain?: boolean): Promise<File[]> {
+  async extractAssets(zipFile: File, chain?: boolean): Promise<File[]> {
     const zip = await JSZip.loadAsync(zipFile);
 
     if (chain) {
@@ -191,7 +192,7 @@ export default class PackageService {
     return assetFiles;
   }
 
-  private static async storeAssets(cid: string, files: File[]): Promise<void> {
+  private async storeAssets(cid: string, files: File[]): Promise<void> {
     if (!(await IDBService.hasStore(`package:${cid}`))) {
       await IDBService.createStore(`package:${cid}`);
     }
@@ -202,19 +203,19 @@ export default class PackageService {
     );
   }
 
-  static stringToBuffer(str: string): Buffer {
+  stringToBuffer(str: string): Buffer {
     return Buffer.from(str, "utf8");
   }
 
-  static base64ToBuffer(base64: string): Buffer {
+  base64ToBuffer(base64: string): Buffer {
     return Buffer.from(base64, "base64");
   }
 
-  static bufferToString(buffer: Buffer): string {
+  bufferToString(buffer: Buffer): string {
     return buffer.toString("utf8");
   }
 
-  static async getChainJson(filename: string, files: any): Promise<any> {
+  async getChainJson(filename: string, files: any): Promise<any> {
     const extractedFile = await this.extractAssets(files, true);
     const file = extractedFile.find((file: any) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
@@ -239,7 +240,7 @@ export default class PackageService {
     return json;
   }
 
-  private static async getPackageJson(
+  private async getPackageJson(
     filename: string,
     files: File[]
   ): Promise<any> {
@@ -248,7 +249,7 @@ export default class PackageService {
     return JSON.parse(await file.text());
   }
 
-  private static async getCapabilities(
+  private async getCapabilities(
     files: File[]
   ): Promise<TypedPackageCapabilities> {
     if (files.findIndex((file) => file.name === "package.json") < 0)
@@ -282,7 +283,7 @@ export default class PackageService {
     };
   }
 
-  static async processPackage(
+  async processPackage(
     message: any,
     uniqueMessageHash?: string,
     isNotLocal = false
@@ -367,7 +368,7 @@ export default class PackageService {
     }
   }
 
-  static async import(zipFile: File): Promise<TypedPackage> {
+  async import(zipFile: File): Promise<TypedPackage> {
     const files = await this.extractAssets(zipFile);
     const pkg = await this.processPackage(files);
 
@@ -380,15 +381,15 @@ export default class PackageService {
     return pkg;
   }
 
-  static async importFromRelay() {
+  async importFromRelay() {
     try {
-      const relayData = await RelayService.readRelayData();
+      const relayData = await this.relay.readRelayData();
 
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         return null;
       }
 
-      const filteredMessages = await RelayService.checkDuplicateMessage(
+      const filteredMessages = await this.relay.checkDuplicateMessage(
         relayData
       );
 
@@ -427,7 +428,7 @@ export default class PackageService {
     }
   }
 
-  static async isCurrentEvent(chainJson: EventChain) {
+  async isCurrentEvent(chainJson: EventChain) {
     let existingChain;
     if (await IDBService.hasStore(`ownable:${chainJson.id}`)) {
       existingChain = await IDBService.get(`ownable:${chainJson.id}`, "chain");
@@ -445,11 +446,7 @@ export default class PackageService {
     }
   }
 
-  static async removeOlderPackage(id: string) {
-    await OwnableService.delete(id);
-  }
-
-  static async downloadExample(key: string): Promise<TypedPackage> {
+  async downloadExample(key: string): Promise<TypedPackage> {
     if (!exampleUrl)
       throw new Error("Unable to download example ownable: URL not configured");
 
@@ -472,7 +469,7 @@ export default class PackageService {
     return this.import(zipFile);
   }
 
-  static async getAsset(
+  async getAsset(
     cid: string,
     name: string,
     read: (fr: FileReader, contents: Blob | File) => void
@@ -496,19 +493,19 @@ export default class PackageService {
     });
   }
 
-  static getAssetAsText(cid: string, name: string): Promise<string> {
+  getAssetAsText(cid: string, name: string): Promise<string> {
     const read = (fr: FileReader, mediaFile: Blob | File) =>
       fr.readAsText(mediaFile);
     return this.getAsset(cid, name, read) as Promise<string>;
   }
 
-  static getAssetAsDataUri(cid: string, name: string): Promise<string> {
+  getAssetAsDataUri(cid: string, name: string): Promise<string> {
     const read = (fr: FileReader, mediaFile: Blob | File) =>
       fr.readAsDataURL(mediaFile);
     return this.getAsset(cid, name, read) as Promise<string>;
   }
 
-  static async zip(cid: string): Promise<JSZip> {
+  async zip(cid: string): Promise<JSZip> {
     const zip = new JSZip();
     const files = await IDBService.getAll(`package:${cid}`);
 

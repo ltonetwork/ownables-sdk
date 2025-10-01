@@ -1,18 +1,16 @@
 import { EventChain, Event, Binary } from "eqty-core";
-import LTOService from "./LTO.service";
 import EQTYService from "./EQTY.service";
 import IDBService from "./IDB.service";
 import TypedDict from "../interfaces/TypedDict";
 import PackageService from "./Package.service";
 import { Cancelled } from "simple-iframe-rpc";
-
-// @ts-ignore - Loaded as string, see `craco.config.js`
-import workerJsSource from "../assets/worker.js";
 import JSZip from "jszip";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import { TypedOwnableInfo } from "../interfaces/TypedOwnableInfo";
 import EventChainService from "./EventChain.service";
-import LocalStorageService from "./LocalStorage.service";
+
+// @ts-ignore - Loaded as string, see `craco.config.js`
+import workerJsSource from "../assets/worker.js";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -64,20 +62,21 @@ interface StateSnapshot {
 }
 
 export default class OwnableService {
-  private static _anchoring = !!LocalStorageService.get("anchoring");
-  private static readonly SNAPSHOT_INTERVAL = 50;
+  private readonly SNAPSHOT_INTERVAL = 50;
 
-  static get anchoring(): boolean {
-    return this._anchoring;
+  constructor(
+    private readonly eventChains: EventChainService,
+    private readonly eqty: EQTYService,
+    private readonly packages: PackageService,
+  ) {}
+
+  private readonly _rpc = new Map<string, OwnableRPC>();
+
+  get anchoring(): boolean {
+    return this.eventChains.anchoring;
   }
-  static set anchoring(enabled: boolean) {
-    LocalStorageService.set("anchoring", enabled);
-    this._anchoring = enabled;
-  }
 
-  private static readonly _rpc = new Map<string, OwnableRPC>();
-
-  static async loadAll(): Promise<
+  async loadAll(): Promise<
     Array<{
       chain: EventChain;
       package: string;
@@ -86,16 +85,16 @@ export default class OwnableService {
       uniqueMessageHash?: string;
     }>
   > {
-    return EventChainService.loadAll();
+    return this.eventChains.loadAll();
   }
 
-  static rpc(id: string): OwnableRPC {
+  rpc(id: string): OwnableRPC {
     const rpc = this._rpc.get(id);
     if (!rpc) throw new Error(`No RPC for ownable ${id}`);
     return rpc;
   }
 
-  static clearRpc(id: string) {
+  clearRpc(id: string) {
     const rpc = this._rpc.get(id);
     if (!rpc) return;
 
@@ -108,9 +107,9 @@ export default class OwnableService {
     this._rpc.delete(id);
   }
 
-  static async create(pkg: TypedPackage): Promise<EventChain> {
-    const address = await EQTYService.address();
-    const networkId = await EQTYService.networkId();
+  async create(pkg: TypedPackage): Promise<EventChain> {
+    const address = this.eqty.address;
+    const networkId = this.eqty.chainId;
     const chain = EventChain.create(address, networkId);
     const anchors: Array<any> = [];
 
@@ -122,8 +121,8 @@ export default class OwnableService {
         network_id: networkId,
         keywords: pkg.keywords ?? [],
       };
-      const signer = await EQTYService.signer();
-      new Event(msg).addTo(chain).signWith(signer);
+      const signer = this.eqty.signer;
+      await new Event(msg).addTo(chain).signWith(signer);
     }
 
     if (this.anchoring) {
@@ -132,13 +131,13 @@ export default class OwnableService {
     }
 
     if (anchors.length > 0) {
-      await EQTYService.anchor(...anchors);
+      await this.eqty.anchor(...anchors);
     }
 
     return chain;
   }
 
-  static async init(
+  async init(
     chain: any,
     cid: string,
     rpc: OwnableRPC,
@@ -151,10 +150,10 @@ export default class OwnableService {
     }
 
     this._rpc.set(chain.id, rpc);
-    const moduleJs = await PackageService.getAssetAsText(cid, "ownable.js");
+    const moduleJs = await this.packages.getAssetAsText(cid, "ownable.js");
     const js = workerJsSource + moduleJs;
 
-    const wasm = (await PackageService.getAsset(
+    const wasm = (await this.packages.getAsset(
       cid,
       "ownable_bg.wasm",
       (fr, file) => fr.readAsArrayBuffer(file)
@@ -165,7 +164,7 @@ export default class OwnableService {
     await this.initStore(chain, cid, uniqueMessageHash, stateDump);
   }
 
-  // private static async createSnapshot(
+  // private async createSnapshot(
   //   chain: EventChain,
   //   stateDump: StateDump,
   //   eventIndex: number
@@ -208,7 +207,7 @@ export default class OwnableService {
   //   }
   // }
 
-  private static async createSnapshot(
+  private async createSnapshot(
     chain: EventChain,
     stateDump: StateDump,
     eventIndex: number
@@ -252,7 +251,7 @@ export default class OwnableService {
     }
   }
 
-  private static async getLatestSnapshot(
+  private async getLatestSnapshot(
     chainId: string
   ): Promise<StateSnapshot | null> {
     const storeId = `ownable:${chainId}`;
@@ -275,7 +274,7 @@ export default class OwnableService {
     return await IDBService.get(snapshotStoreId, `snapshot_${latestKey}`);
   }
 
-  static async listSnapshots(chainId: string): Promise<StateSnapshot[]> {
+  async listSnapshots(chainId: string): Promise<StateSnapshot[]> {
     const storeId = `ownable:${chainId}`;
     const snapshotStoreId = `${storeId}.snapshots`;
 
@@ -295,7 +294,7 @@ export default class OwnableService {
     );
   }
 
-  static async deleteSnapshots(chainId: string): Promise<void> {
+  async deleteSnapshots(chainId: string): Promise<void> {
     const storeId = `ownable:${chainId}`;
     const snapshotStoreId = `${storeId}.snapshots`;
 
@@ -304,24 +303,15 @@ export default class OwnableService {
     }
   }
 
-  private static async applyEvent(
+  private async applyEvent(
     rpc: OwnableRPC,
     event: Event,
     stateDump: StateDump,
     chain: EventChain,
     eventIndex: number
   ): Promise<{ result?: TypedDict; state: StateDump }> {
-    // eqty-core Event does not expose signKey; use best-effort sender resolution.
-    // Prefer the chain issuer/creator for instantiate, else fallback to empty/current address.
-    let sender = '';
-    try {
-      // Many chains embed creator/issuer as the first event's address
-      sender = (chain as any).address || (await EQTYService.address());
-    } catch {
-      sender = '';
-    }
     const info = {
-      sender,
+      sender: this.eqty.address,
       funds: [],
     } as MessageInfo;
     const { "@context": context, ...msg } = event.parsedData;
@@ -357,56 +347,7 @@ export default class OwnableService {
     return result;
   }
 
-  // static async apply(
-  //   partialChain: EventChain,
-  //   stateDump: StateDump
-  // ): Promise<StateDump> {
-  //   const rpc = this.rpc(partialChain.id);
-
-  //   // attempt load of snapshot
-  //   const snapshot = await this.getLatestSnapshot(partialChain.id);
-  //   let startIndex = 0;
-  //   console.log(partialChain.id);
-
-  //   if (snapshot) {
-  //     const snapshotEventIndex = partialChain.events.findIndex(
-  //       (e) => e.hash?.hex === snapshot.blockHash
-  //     );
-  //     if (snapshotEventIndex !== -1) {
-  //       console.log(`Using snapshot at event ${snapshotEventIndex}`);
-  //       stateDump = snapshot.stateDump;
-  //       startIndex = snapshotEventIndex + 1;
-  //     } else {
-  //       console.log(
-  //         "Snapshot found but no matching event hash, starting from beginning"
-  //       );
-  //     }
-  //   } else {
-  //     console.log("No snapshot found, starting from beginning");
-  //   }
-
-  //   // Process remaining events
-  //   for (let i = startIndex; i < partialChain.events.length; i++) {
-  //     const event = partialChain.events[i];
-  //     try {
-  //       const result = await this.applyEvent(
-  //         rpc,
-  //         event,
-  //         stateDump,
-  //         partialChain,
-  //         i
-  //       );
-  //       stateDump = result.state;
-  //     } catch (error) {
-  //       console.error(`Error applying event at index ${i}:`, error);
-  //       throw error;
-  //     }
-  //   }
-
-  //   return stateDump;
-  // }
-
-  static async apply(
+  async apply(
     partialChain: EventChain,
     stateDump: StateDump
   ): Promise<StateDump> {
@@ -472,12 +413,12 @@ export default class OwnableService {
     return stateDump;
   }
 
-  static async execute(
+  async execute(
     chain: EventChain,
     msg: TypedDict,
     stateDump: StateDump
   ): Promise<StateDump> {
-    const info = { sender: await EQTYService.address(), funds: [] } as MessageInfo;
+    const info = { sender: this.eqty.address, funds: [] } as MessageInfo;
     const { state: newStateDump } = await this.rpc(chain.id).execute(
       msg,
       info,
@@ -485,45 +426,44 @@ export default class OwnableService {
     );
 
     delete msg["@context"]; // Shouldn't be set
-    const signer = await EQTYService.signer();
-    new Event({ "@context": "execute_msg.json", ...msg })
+    await new Event({ "@context": "execute_msg.json", ...msg })
       .addTo(chain)
-      .signWith(signer);
+      .signWith(this.eqty.signer);
 
     await this.store(chain, newStateDump);
 
     return newStateDump;
   }
 
-  static async canConsume(
+  async canConsume(
     consumer: { chain: EventChain; package: string },
     info: TypedOwnableInfo
   ): Promise<boolean> {
-    if (!PackageService.info(consumer.package).isConsumer) return false;
+    if (!this.packages.info(consumer.package).isConsumer) return false;
 
     return true; // TODO: The check below is not working
 
-    /*const state = await EventChainService.getStateDump(consumer.chain.id, consumer.chain.state);
+    /*const state = await this.eventChains.getStateDump(consumer.chain.id, consumer.chain.state);
     if (!state) return false;
 
     return await this.rpc(consumer.chain.id)
       .query({is_consumer_of: {consumable_type: info.ownable_type, issuer: info.issuer}}, state!);*/
   }
 
-  static async consume(
+  async consume(
     consumer: EventChain,
     consumable: EventChain
   ): Promise<void> {
     const info: MessageInfo = {
-      sender: await EQTYService.address(),
+      sender: this.eqty.address,
       funds: [],
     };
     const consumeMessage = { consume: {} };
-    const consumerState = await EventChainService.getStateDump(
+    const consumerState = await this.eventChains.getStateDump(
       consumer.id,
       consumer.state.hex
     );
-    const consumableState = await EventChainService.getStateDump(
+    const consumableState = await this.eventChains.getStateDump(
       consumable.id,
       consumable.state.hex
     );
@@ -552,21 +492,22 @@ export default class OwnableService {
       consumer.id
     ).externalEvent(externalEventMsg, info, consumerState);
 
-    const signer = await EQTYService.signer();
-    new Event({ "@context": "execute_msg.json", ...consumeMessage })
-      .addTo(consumable)
-      .signWith(signer);
-    new Event({ "@context": "external_event_msg.json", ...consumeEvent })
-      .addTo(consumer)
-      .signWith(signer);
+    await Promise.all([
+      new Event({ "@context": "execute_msg.json", ...consumeMessage })
+        .addTo(consumable)
+        .signWith(this.eqty.signer),
+      new Event({ "@context": "external_event_msg.json", ...consumeEvent })
+        .addTo(consumer)
+        .signWith(this.eqty.signer),
+    ]);
 
-    await EventChainService.store(
+    await this.eventChains.store(
       { chain: consumable, stateDump: consumableStateDump },
       { chain: consumer, stateDump: consumerStateDump }
     );
   }
 
-  private static async ensureDBConnection(): Promise<void> {
+  private async ensureDBConnection(): Promise<void> {
     try {
       await IDBService.listStores();
     } catch (e) {
@@ -575,7 +516,7 @@ export default class OwnableService {
     }
   }
 
-  private static async retryOperation<T>(
+  private async retryOperation<T>(
     operation: () => Promise<T>,
     maxRetries: number = 3,
     delay: number = 1000
@@ -598,7 +539,7 @@ export default class OwnableService {
     );
   }
 
-  static async initStore(
+  async initStore(
     chain: EventChain,
     pkg: string,
     uniqueMessageHash?: string,
@@ -613,8 +554,8 @@ export default class OwnableService {
       package: pkg,
       created: new Date(),
       latestHash: chain.latestHash.hex,
-      keywords: PackageService.info(pkg).keywords,
-      uniqueMessageHash: PackageService.info(pkg, uniqueMessageHash)
+      keywords: this.packages.info(pkg).keywords,
+      uniqueMessageHash: this.packages.info(pkg, uniqueMessageHash)
         .uniqueMessageHash,
     };
 
@@ -666,7 +607,7 @@ export default class OwnableService {
     });
   }
 
-  static async store(chain: EventChain, stateDump: StateDump): Promise<void> {
+  async store(chain: EventChain, stateDump: StateDump): Promise<void> {
     const anchors: Array<any> = [];
     const storeId = `ownable:${chain.id}`;
     const stateStoreId = `${storeId}.state`;
@@ -696,7 +637,7 @@ export default class OwnableService {
 
       //anchor
       if (anchors.length > 0) {
-        await EQTYService.anchor(...anchors);
+        await this.eqty.anchor(...anchors);
       }
 
       await IDBService.setAll(data);
@@ -716,18 +657,18 @@ export default class OwnableService {
     });
   }
 
-  static async delete(id: string): Promise<void> {
-    await EventChainService.delete(id);
+  async delete(id: string): Promise<void> {
+    await this.eventChains.delete(id);
   }
 
-  static async deleteAll(): Promise<void> {
-    await EventChainService.deleteAll();
+  async deleteAll(): Promise<void> {
+    await this.eventChains.deleteAll();
   }
 
-  static async zip(chain: EventChain): Promise<JSZip> {
+  async zip(chain: EventChain): Promise<JSZip> {
     const packageCid: string = chain.events[0].parsedData.package;
 
-    const zip = await PackageService.zip(packageCid);
+    const zip = await this.packages.zip(packageCid);
     zip.file("chain.json", JSON.stringify(chain.toJSON()));
 
     return zip;
