@@ -1,10 +1,10 @@
-import { Binary, EventChain } from "@ltonetwork/lto";
+import { Binary, EventChain, IEventChainJSON } from "eqty-core";
+import { Binary as LTOBinary } from "@ltonetwork/lto";
 import LTOService from "./LTO.service";
 import IDBService from "./IDB.service";
 import { StateDump } from "./Ownable.service";
 import LocalStorageService from "./LocalStorage.service";
 import TypedDict from "../interfaces/TypedDict";
-import { IEventChainJSON } from "@ltonetwork/lto/interfaces";
 
 interface StoredChainInfo {
   chain: IEventChainJSON;
@@ -161,7 +161,7 @@ export default class EventChainService {
       uniqueMessageHash?: string;
     }>
   ): Promise<void> {
-    const anchors: Array<{ key: Binary; value: Binary }> = [];
+    const anchors: Array<{ key: LTOBinary; value: LTOBinary }> = [];
     const data: TypedDict<TypedDict | Map<any, any>> = {};
 
     for (const { chain, stateDump } of chains) {
@@ -173,8 +173,15 @@ export default class EventChainService {
           `ownable:${chain.id}`,
           "latestHash"
         );
+        const newAnchors = previousHash
+          ? chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
+          : chain.anchorMap;
+        // Convert IBinary to Binary for LTOService compatibility
         anchors.push(
-          ...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
+          ...newAnchors.map(({ key, value }) => ({
+            key: LTOBinary.fromHex(key.hex),
+            value: LTOBinary.fromHex(value.hex),
+          }))
         );
       }
 
@@ -223,6 +230,10 @@ export default class EventChainService {
   }
 
   public static async verify(chain: EventChain) {
-    return await LTOService.verifyAnchors(...chain.anchorMap);
+    const anchors = chain.anchorMap.map(({ key, value }) => ({
+      key: LTOBinary.fromHex(key.hex),
+      value: LTOBinary.fromHex(value.hex),
+    }));
+    return await LTOService.verifyAnchors(...anchors);
   }
 }

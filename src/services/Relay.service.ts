@@ -1,4 +1,5 @@
-import { EventChain, LTO, Message, Relay, Binary } from "@ltonetwork/lto";
+import { EventChain, Message, Relay, Binary, IMessageMeta } from "eqty-core";
+import { LTO } from "@ltonetwork/lto";
 import axios from "axios";
 import JSZip from "jszip";
 import mime from "mime/lite";
@@ -7,7 +8,6 @@ import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 import { sign } from "@ltonetwork/http-message-signatures";
 import LTOService from "./LTO.service";
 import PackageService from "./Package.service";
-import { IMessageMeta } from "@ltonetwork/lto/interfaces";
 
 const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
 

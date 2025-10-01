@@ -16,7 +16,7 @@ import PackageService, { HAS_EXAMPLES } from "./services/Package.service";
 import Grid from "@mui/material/Unstable_Grid2";
 import * as React from "react";
 import Ownable from "./components/Ownable";
-import { EventChain } from "@ltonetwork/lto";
+import { EventChain } from "eqty-core";
 import HelpDrawer from "./components/HelpDrawer";
 import AppToolbar from "./components/AppToolbar";
 import AlertDialog from "./components/AlertDialog";

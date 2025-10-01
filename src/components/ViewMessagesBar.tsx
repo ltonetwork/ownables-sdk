@@ -14,7 +14,7 @@ import {
 import { ArrowBack } from "@mui/icons-material";
 import { RelayService } from "../services/Relay.service";
 import axios from "axios";
-import { EventChain } from "@ltonetwork/lto";
+import { EventChain } from "eqty-core";
 import { enqueueSnackbar } from "notistack";
 import LocalStorageService from "../services/LocalStorage.service";
 import placeholderImage from "../assets/cube.png";

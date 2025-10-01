@@ -12,7 +12,7 @@ import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
-import { EventChain } from "@ltonetwork/lto";
+import { EventChain } from "eqty-core";
 import OwnableService from "./Ownable.service";
 import { MessageExt } from "../interfaces/MessageInfo";
 

@@ -1,4 +1,4 @@
-import { EventChain, Event, Binary } from "@ltonetwork/lto";
+import { EventChain, Event, Binary } from "eqty-core";
 import LTOService from "./LTO.service";
 import IDBService from "./IDB.service";
 import TypedDict from "../interfaces/TypedDict";

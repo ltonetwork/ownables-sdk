@@ -3,7 +3,7 @@ import { Paper, Tooltip } from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import { Cancelled, connect as rpcConnect } from "simple-iframe-rpc";
 import PackageService from "../services/Package.service";
-import { Binary, EventChain } from "@ltonetwork/lto";
+import { Binary, EventChain, IMessageMeta } from "eqty-core";
 import OwnableActions from "./OwnableActions";
 import OwnableInfo from "./OwnableInfo";
 import OwnableService, {
@@ -26,7 +26,6 @@ import { enqueueSnackbar } from "notistack";
 //import LocalStorageService from "../services/LocalStorage.service";
 import { PACKAGE_TYPE } from "../constants";
 import IDBService from "../services/IDB.service";
-import { IMessageMeta } from "@ltonetwork/lto/interfaces";
 import EventChainService from "../services/EventChain.service";
 
 interface OwnableProps {
@@ -43,7 +42,8 @@ interface OwnableProps {
 
 interface OwnableState {
   initialized: boolean;
-  applied: Binary;
+  // TODO: eqty-core exposes latestHash as IBinary (not exported). Use any-compatible type for now.
+  applied: any;
   stateDump: StateDump;
   info?: TypedOwnableInfo;
   metadata: TypedMetadata;
@@ -148,7 +148,8 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       type,
       title,
       description,
-      thumbnail,
+      // eqty-core expects thumbnail as string; provide base64 if available
+      thumbnail: thumbnail?.base64,
     };
   }
 
@@ -229,7 +230,7 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
       const stateDump =
         (await EventChainService.getStateDump(
           this.chain.id,
-          partialChain.state
+          partialChain.state.hex
         )) || // Use stored state dump if available
         (await OwnableService.apply(partialChain, this.state.stateDump));
 
