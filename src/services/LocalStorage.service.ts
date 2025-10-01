@@ -29,7 +29,7 @@ export default class LocalStorageService {
     localStorage.removeItem(`${this.prefix}${key}`);
   }
 
-  clear(): void {
+  static clear(): void {
     localStorage.clear();
   }
 

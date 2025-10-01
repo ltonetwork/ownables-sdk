@@ -126,7 +126,7 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
 
   const fetchImportedHashes = async () => {
     try {
-      const pkgs = LocalStorageService.get("packages") || [];
+      const pkgs = PackageService.list() || [];
       const hashes = pkgs.map((msg: any) => {
         return msg.uniqueMessageHash;
       });

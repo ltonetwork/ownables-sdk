@@ -1,5 +1,4 @@
 import IDBService from './IDB.service';
-import { EventChain } from "eqty-core"
 import EventChainService from "./EventChain.service"
 import OwnableService from "./Ownable.service"
 import PackageService from "./Package.service"

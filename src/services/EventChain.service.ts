@@ -16,15 +16,19 @@ interface StoredChainInfo {
 }
 
 export default class EventChainService {
-  constructor(private idb: IDBService, private eqty: EQTYService) {}
+  constructor(
+    private idb: IDBService,
+    private eqty: EQTYService,
+  ) {}
 
-  private static _anchoring = !!LocalStorageService.get("anchoring");
+  private static _localStorage = new LocalStorageService();
+  private static _anchoring = !!this._localStorage.get("anchoring");
 
   static get anchoring(): boolean {
     return this._anchoring;
   }
   static set anchoring(enabled: boolean) {
-    LocalStorageService.set("anchoring", enabled);
+    this._localStorage.set("anchoring", enabled);
     this._anchoring = enabled;
   }
 
