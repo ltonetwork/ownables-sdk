@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Button, Link, Typography } from "@mui/material";
 import PackagesFab from "./components/PackagesFab";
 import IDBService from "./services/IDB.service";
@@ -29,9 +29,28 @@ import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import { RelayService } from "./services/Relay.service";
 import { PollingService } from "./services/Polling.service";
 import { usePackageManager } from "./hooks/usePackageManager";
-import { useAccount } from 'wagmi';
+import { useAccount, useNetwork } from 'wagmi';
 
 export default function App() {
+  // Reload app UI when wallet account or chain changes (RainbowKit/wagmi)
+  const handleWalletContextChanged = () => {
+    // Close all menus and modals
+    setShowSidebar(false);
+    setShowViewMessagesBar(false);
+    setShowPackages(false);
+    setConsuming(null);
+    setAlert(null);
+    setConfirm(null);
+    // Force a full reload to reinitialize event chains and ownables
+    try {
+      // Small timeout to ensure UI state updates flush before reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 0);
+    } catch (_) {
+      window.location.reload();
+    }
+  };
   const [loaded, setLoaded] = useState(false);
   const [showLogin, setShowLogin] = useState(!LTOService.isUnlocked());
   const [showSidebar, setShowSidebar] = useState(false);
@@ -102,11 +121,52 @@ export default function App() {
   };
 
   // When the wallet disconnects (from WalletConnectControls or elsewhere), log out of the app.
-  useAccount({
+  const account = useAccount({
     onDisconnect() {
       logout();
     },
   });
+  const wagmiAddress = account.address;
+  const { chain } = useNetwork();
+
+  // Detect account/chain changes (RainbowKit/wagmi) and reload the app UI
+  const prevAddressRef = useRef<string | undefined>(wagmiAddress);
+  const prevChainIdRef = useRef<number | undefined>(chain?.id);
+
+  useEffect(() => {
+    if (prevAddressRef.current !== undefined && wagmiAddress !== prevAddressRef.current) {
+      handleWalletContextChanged();
+    }
+    prevAddressRef.current = wagmiAddress;
+  }, [wagmiAddress]);
+
+  useEffect(() => {
+    if (prevChainIdRef.current !== undefined && chain?.id !== prevChainIdRef.current) {
+      handleWalletContextChanged();
+    }
+    prevChainIdRef.current = chain?.id;
+  }, [chain?.id]);
+
+  // Also subscribe to provider-level events for maximal compatibility (e.g., injected provider)
+  useEffect(() => {
+    const eth: any = (window as any).ethereum;
+    if (!eth || !eth.on) return;
+
+    const onAccountsChanged = () => handleWalletContextChanged();
+    const onChainChanged = () => handleWalletContextChanged();
+
+    eth.on('accountsChanged', onAccountsChanged);
+    eth.on('chainChanged', onChainChanged);
+
+    return () => {
+      try {
+        eth.removeListener && eth.removeListener('accountsChanged', onAccountsChanged);
+        eth.removeListener && eth.removeListener('chainChanged', onChainChanged);
+      } catch (_) {
+        // no-op
+      }
+    };
+  }, []);
 
   const removeOwnable = (ownableId: string) => {
     setOwnables((prevOwnables) =>
