@@ -5,11 +5,8 @@ const DEFAULT_DB_NAME = "ownables";
 
 export default class IDBService {
   // Instance members
-  private dbPromise: Promise<IDBDatabase> | null = null;
+  private _db: IDBDatabase | null = null;
   private readonly dbName: string;
-
-  // Optional singleton to keep backward compatibility for existing static calls
-  private static defaultInstance: IDBService | null = null;
 
   constructor(suffix?: string) {
     const suffixClean = (suffix || "").trim().toLowerCase();
@@ -18,42 +15,38 @@ export default class IDBService {
 
   // Open the DB connection for this instance
   async open(): Promise<void> {
-    if (this.dbPromise) return;
+    if (this._db) return;
 
-    this.dbPromise = new Promise((resolve, reject) => {
+    this._db = await new Promise((resolve, reject) => {
       const request = window.indexedDB.open(this.dbName);
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject((e.target as IDBTransaction).error);
     });
-
-    await this.dbPromise;
   }
 
   // Close the DB connection for this instance
   async close(): Promise<void> {
-    if (!this.dbPromise) return;
+    if (!this._db) return;
     try {
-      (await this.dbPromise).close();
+      this._db.close();
     } finally {
-      this.dbPromise = null;
+      this._db = null;
     }
+  }
+
+  private get db(): IDBDatabase {
+    if (!this._db) throw new Error("DB not opened");
+    return this._db;
   }
 
   private error(event: Event): Error {
     return (event.target as IDBRequest)?.error || new Error("Unknown error");
   }
 
-  private async requireOpen(): Promise<IDBDatabase> {
-    if (!this.dbPromise) {
-      await this.open();
-    }
-    return this.dbPromise as Promise<IDBDatabase>;
-  }
 
   async get(store: string, key: string): Promise<any> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db).transaction(store, "readonly");
+      const tx = this.db.transaction(store, "readonly");
       const request = tx.objectStore(store).get(key);
 
       request.onsuccess = () => resolve(request.result);
@@ -63,8 +56,7 @@ export default class IDBService {
 
   async getAll(store: string): Promise<Array<any>> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db).transaction(store, "readonly");
+      const tx = this.db.transaction(store, "readonly");
       const request = tx.objectStore(store).getAll();
 
       request.onsuccess = () => resolve(request.result);
@@ -74,8 +66,7 @@ export default class IDBService {
 
   async getMap(store: string): Promise<Map<any, any>> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db).transaction(store, "readonly");
+      const tx = this.db.transaction(store, "readonly");
       const request = tx.objectStore(store).openCursor();
       const map = new Map();
 
@@ -94,8 +85,7 @@ export default class IDBService {
 
   async keys(store: string): Promise<string[]> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db)
+      const tx = this.db
         .transaction(store, "readonly")
         .objectStore(store)
         .getAllKeys();
@@ -107,8 +97,7 @@ export default class IDBService {
 
   async set(store: string, key: string, value: any): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db).transaction(store, "readwrite");
+      const tx = this.db.transaction(store, "readwrite");
       const request = tx.objectStore(store).put(value, key);
 
       request.onsuccess = () => resolve();
@@ -128,8 +117,7 @@ export default class IDBService {
     const data: { [_: string]: TypedDict | Map<any, any> } = b ? { [a]: b } : a;
 
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db).transaction(storeNames, "readwrite");
+      const tx = this.db.transaction(storeNames, "readwrite");
 
       tx.oncomplete = () => resolve();
       tx.onerror = (event) => reject(this.error(event));
@@ -154,8 +142,7 @@ export default class IDBService {
 
   async clear(store: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db).transaction(store, "readwrite");
+      const tx = this.db.transaction(store, "readwrite");
       const request = tx.objectStore(store).clear();
 
       request.onsuccess = () => resolve();
@@ -164,32 +151,24 @@ export default class IDBService {
   }
 
   private async upgrade(action: (db: IDBDatabase) => void): Promise<void> {
-    const db = await this.requireOpen();
-    const version = (await db).version; // Get version before closing DB
-    (await db).close();
+    const version = this.db.version; // Get version before closing DB
+    this.db.close();
 
-    this.dbPromise = new Promise(async (resolve, reject) => {
+    this._db = await new Promise(async (resolve, reject) => {
       const request = window.indexedDB.open(this.dbName, version + 1);
 
       request.onupgradeneeded = () => action(request.result);
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     });
-
-    try {
-      await this.dbPromise;
-    } catch (e) {
-      await this.open();
-      throw e;
-    }
   }
 
   async listStores(): Promise<string[]> {
-    return Array.from((await this.requireOpen()).objectStoreNames);
+    return Array.from(this.db.objectStoreNames);
   }
 
   async hasStore(store: string): Promise<boolean> {
-    return (await this.requireOpen()).objectStoreNames.contains(store);
+    return this.db.objectStoreNames.contains(store);
   }
 
   async createStore(...stores: string[]): Promise<void> {
@@ -202,22 +181,18 @@ export default class IDBService {
     });
 
     // Verify
-    const db = await this.requireOpen();
     for (const store of stores) {
-      if (!db.objectStoreNames.contains(store)) {
+      if (!this.db.objectStoreNames.contains(store)) {
         throw new Error(`Failed to create store ${store}.`);
       }
     }
   }
 
   async deleteStore(store: string | RegExp): Promise<void> {
-    const db = await this.requireOpen();
     const stores =
       store instanceof RegExp
-        ? Array.from(db.objectStoreNames).filter((name) => name.match(store))
-        : db.objectStoreNames.contains(store)
-        ? [store]
-        : [];
+        ? Array.from(this.db.objectStoreNames).filter((name) => name.match(store))
+        : this.db.objectStoreNames.contains(store) ? [store] : [];
 
     if (stores.length === 0) return;
 
@@ -229,9 +204,7 @@ export default class IDBService {
   }
 
   async deleteDatabase(): Promise<void> {
-    const db = await this.requireOpen();
-    (await db).close();
-    this.dbPromise = Promise.reject("Database deleted. Reload application.");
+    await this.close();
 
     await new Promise<void>((resolve, reject) => {
       const request = window.indexedDB.deleteDatabase(this.dbName);
@@ -242,84 +215,11 @@ export default class IDBService {
 
   async delete(store: string, key: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.requireOpen();
-      const tx = (await db).transaction(store, "readwrite");
+      const tx = this.db.transaction(store, "readwrite");
       const request = tx.objectStore(store).delete(key);
 
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(this.error(event));
     });
-  }
-
-  // ---- Static proxy API (backward compatibility) ----
-  static getDefault(): IDBService {
-    if (!this.defaultInstance) this.defaultInstance = new IDBService();
-    return this.defaultInstance;
-  }
-
-  static setDefault(instance: IDBService): void {
-    this.defaultInstance = instance;
-  }
-
-  static async open(): Promise<void> {
-    return this.getDefault().open();
-  }
-
-  static async close(): Promise<void> {
-    return this.getDefault().close();
-  }
-
-  static async get(store: string, key: string): Promise<any> {
-    return this.getDefault().get(store, key);
-  }
-
-  static async getAll(store: string): Promise<Array<any>> {
-    return this.getDefault().getAll(store);
-  }
-
-  static async getMap(store: string): Promise<Map<any, any>> {
-    return this.getDefault().getMap(store);
-  }
-
-  static async keys(store: string): Promise<string[]> {
-    return this.getDefault().keys(store);
-  }
-
-  static async set(store: string, key: string, value: any): Promise<void> {
-    return this.getDefault().set(store, key, value);
-  }
-
-  static async setAll(a: any, b?: any): Promise<void> {
-    // Overload preserved
-    // @ts-ignore
-    return this.getDefault().setAll(a, b);
-  }
-
-  static async clear(store: string): Promise<void> {
-    return this.getDefault().clear(store);
-  }
-
-  static async listStores(): Promise<string[]> {
-    return this.getDefault().listStores();
-  }
-
-  static async hasStore(store: string): Promise<boolean> {
-    return this.getDefault().hasStore(store);
-  }
-
-  static async createStore(...stores: string[]): Promise<void> {
-    return this.getDefault().createStore(...stores);
-  }
-
-  static async deleteStore(store: string | RegExp): Promise<void> {
-    return this.getDefault().deleteStore(store);
-  }
-
-  static async deleteDatabase(): Promise<void> {
-    return this.getDefault().deleteDatabase();
-  }
-
-  static async delete(store: string, key: string): Promise<void> {
-    return this.getDefault().delete(store, key);
   }
 }

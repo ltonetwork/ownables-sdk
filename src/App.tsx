@@ -30,7 +30,6 @@ import { RelayService } from "./services/Relay.service";
 import { PollingService } from "./services/Polling.service";
 import { usePackageManager } from "./hooks/usePackageManager";
 import { useAccount, useNetwork } from 'wagmi';
-import useIDB from "./hooks/useIDB";
 import { useMessageCount } from "./hooks/useMessageCount";
 
 export default function App() {
@@ -87,11 +86,9 @@ export default function App() {
     setShowViewMessagesBar(true);
   };
 
-  const { ready: idbReady, error: idbError } = useIDB();
   const { setMessageCount } = useMessageCount();
 
   useEffect(() => {
-    if (!idbReady) return;
     OwnableService.loadAll()
       .then((ownables) => setOwnables(ownables))
       .then(() => setLoaded(true));
