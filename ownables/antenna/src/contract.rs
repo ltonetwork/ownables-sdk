@@ -1,6 +1,6 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{NFT_ITEM, Config, CONFIG, METADATA, LOCKED, PACKAGE_CID, OWNABLE_INFO, NETWORK_ID};
-use cosmwasm_std::{to_binary, Binary, Attribute, Event};
+use cosmwasm_std::{to_json_binary, Binary, Attribute, Event};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
@@ -307,18 +307,18 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 fn query_ownable_widget_state(deps: Deps) -> StdResult<Binary> {
     let widget_config = CONFIG.load(deps.storage)?;
-    to_binary(&widget_config)
+    to_json_binary(&widget_config)
 }
 
 fn query_lock_state(deps: Deps) -> StdResult<Binary> {
     let is_locked = LOCKED.load(deps.storage)?;
-    to_binary(&is_locked)
+    to_json_binary(&is_locked)
 }
 
 fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
     let nft = NFT_ITEM.may_load(deps.storage)?;
     let ownable_info = OWNABLE_INFO.load(deps.storage)?;
-    to_binary(&InfoResponse {
+    to_json_binary(&InfoResponse {
         owner: ownable_info.owner,
         issuer: ownable_info.issuer,
         nft,
@@ -328,5 +328,5 @@ fn query_ownable_info(deps: Deps) -> StdResult<Binary> {
 
 fn query_ownable_metadata(deps: Deps) -> StdResult<Binary> {
     let meta = METADATA.load(deps.storage)?;
-    to_binary(&meta)
+    to_json_binary(&meta)
 }

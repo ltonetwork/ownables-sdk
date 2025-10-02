@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{OwnedDeps, MemoryStorage, Response, MessageInfo, Addr, Binary, from_binary, Uint128};
-use crate::{create_lto_env, ExecuteMsg, instantiate, InstantiateMsg};
+use crate::{create_env, ExecuteMsg, instantiate, InstantiateMsg};
 use crate::contract::{execute, query, register_external_event};
 use crate::error::ContractError;
 use crate::msg::{ExternalEvent, OwnershipResponse, QueryMsg};
@@ -126,7 +126,7 @@ fn test_drink_locked() {
     // lock the ownable
     execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info.clone(),
         ExecuteMsg::Lock {},
     ).unwrap();
@@ -134,7 +134,7 @@ fn test_drink_locked() {
     // attempt to drink a locked ownable
     let err = execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         mock_info(LTO_USER, &[]),
         ExecuteMsg::Consume {
             amount: 10,
@@ -189,7 +189,7 @@ fn test_transfer_locked() {
     // lock the ownable
     execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info.clone(),
         ExecuteMsg::Lock {},
     ).unwrap();
@@ -197,7 +197,7 @@ fn test_transfer_locked() {
     // attempt to transfer a locked ownable
     let err = execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         mock_info("sender-1", &[]),
         ExecuteMsg::Transfer {
             to: Addr::unchecked(LTO_USER)
@@ -236,7 +236,7 @@ fn test_query_config() {
     } = setup_test("eip155:1".to_string());
 
     let msg = QueryMsg::GetOwnableConfig {};
-    let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
+    let resp: Binary = query(deps.as_ref(), create_env(), msg).unwrap();
     let json: String = "{\"current_amount\":100,\"max_capacity\":100,\"color\":\"#11D539\"}".to_string();
     let expected_binary = Binary::from(json.as_bytes());
 
@@ -252,7 +252,7 @@ fn test_query_ownership() {
     } = setup_test("eip155:1".to_string());
 
     let msg = QueryMsg::GetOwnership {};
-    let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
+    let resp: Binary = query(deps.as_ref(), create_env(), msg).unwrap();
     let json: String = "{\"owner\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\",\"issuer\":\"3NBd71MErsjwmStnj8PQECHP1JL2jvuY2HW\"}".to_string();
     let expected_binary = Binary::from(json.as_bytes());
 
@@ -268,7 +268,7 @@ fn test_query_metadata() {
     } = setup_test("eip155:1".to_string());
 
     let msg = QueryMsg::GetOwnableMetadata {};
-    let resp: Binary = query(deps.as_ref(), create_lto_env(), msg).unwrap();
+    let resp: Binary = query(deps.as_ref(), create_env(), msg).unwrap();
     let json: String = "{\"image\":null,\"image_data\":null,\"external_url\":null,\"description\":\"Ownable potion that can be drinkd\",\"name\":\"Potion\",\"background_color\":null,\"animation_url\":null,\"youtube_url\":null}".to_string();
     let expected_binary = Binary::from(json.as_bytes());
 
@@ -286,14 +286,14 @@ fn test_lock() {
     // lock the ownable
     execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info,
         ExecuteMsg::Lock {},
     ).unwrap();
 
     let resp = query(
         deps.as_ref(),
-        create_lto_env(),
+        create_env(),
         QueryMsg::IsLocked {}
     ).unwrap();
 
@@ -312,7 +312,7 @@ fn test_lock_unauthorized() {
     // attempt to lock the ownable
     let err = execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         mock_info(LTO_PUBLIC_KEY_ALT, &[]),
         ExecuteMsg::Lock {},
     ).unwrap_err();
@@ -334,7 +334,7 @@ fn test_lock_already_locked() {
     // lock the ownable
     execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info.clone(),
         ExecuteMsg::Lock {},
     ).unwrap();
@@ -342,7 +342,7 @@ fn test_lock_already_locked() {
     // attempt to lock the ownable again
     let err: ContractError = execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info,
         ExecuteMsg::Lock {},
     ).unwrap_err();
@@ -445,7 +445,7 @@ fn test_release_ownable_lto_address() {
     // lock the ownable
     execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info.clone(),
         ExecuteMsg::Lock {},
     ).unwrap();
@@ -470,7 +470,7 @@ fn test_release_ownable_lto_address() {
 
     let resp = query(
         deps.as_ref(),
-        create_lto_env(),
+        create_env(),
         QueryMsg::GetOwnership {},
     ).unwrap();
 
@@ -481,7 +481,7 @@ fn test_release_ownable_lto_address() {
 
     let resp = query(
         deps.as_ref(),
-        create_lto_env(),
+        create_env(),
         QueryMsg::IsLocked {},
     ).unwrap();
     // validate that ownable is no longer locked
@@ -501,7 +501,7 @@ fn test_release_unauthorized() {
     // lock the ownable
     execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info.clone(),
         ExecuteMsg::Lock {},
     ).unwrap();
@@ -518,7 +518,7 @@ fn test_release_ownable_eth_address() {
     // lock the ownable
     execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info.clone(),
         ExecuteMsg::Lock {},
     ).unwrap();
@@ -543,7 +543,7 @@ fn test_release_ownable_eth_address() {
 
     let resp = query(
         deps.as_ref(),
-        create_lto_env(),
+        create_env(),
         QueryMsg::GetOwnership {},
     ).unwrap();
     // validate that the owner is eip155:1 representation of pub key used
@@ -553,7 +553,7 @@ fn test_release_ownable_eth_address() {
 
     let resp = query(
         deps.as_ref(),
-        create_lto_env(),
+        create_env(),
         QueryMsg::IsLocked {},
     ).unwrap();
     // validate that ownable is no longer locked
