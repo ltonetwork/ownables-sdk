@@ -1,19 +1,12 @@
-import { Component, createRef, ReactNode, RefObject } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Paper, Tooltip } from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import { Cancelled, connect as rpcConnect } from "simple-iframe-rpc";
-import PackageService from "../services/Package.service";
 import { Binary, EventChain, IMessageMeta } from "eqty-core";
 import OwnableActions from "./OwnableActions";
 import OwnableInfo from "./OwnableInfo";
-import OwnableService, {
-  OwnableRPC,
-  StateDump,
-} from "../services/Ownable.service";
-import {
-  TypedMetadata,
-  TypedOwnableInfo,
-} from "../interfaces/TypedOwnableInfo";
+import { OwnableRPC, StateDump } from "../services/Ownable.service";
+import { TypedMetadata, TypedOwnableInfo } from "../interfaces/TypedOwnableInfo";
 import isObject from "../utils/isObject";
 import ownableErrorMessage from "../utils/ownableErrorMessage";
 import TypedDict from "../interfaces/TypedDict";
@@ -21,12 +14,9 @@ import { TypedPackage } from "../interfaces/TypedPackage";
 import Overlay, { OverlayBanner } from "./Overlay";
 import LTOService from "../services/LTO.service";
 import If from "./If";
-import { RelayService } from "../services/Relay.service";
 import { enqueueSnackbar } from "notistack";
-//import LocalStorageService from "../services/LocalStorage.service";
 import { PACKAGE_TYPE } from "../constants";
-import IDBService from "../services/IDB.service";
-import EventChainService from "../services/EventChain.service";
+import { useService } from "../hooks/useService";
 
 interface OwnableProps {
   chain: EventChain;
@@ -40,60 +30,46 @@ interface OwnableProps {
   children?: ReactNode;
 }
 
-interface OwnableState {
-  initialized: boolean;
-  // TODO: eqty-core exposes latestHash as IBinary (not exported). Use any-compatible type for now.
-  applied: any;
-  stateDump: StateDump;
-  info?: TypedOwnableInfo;
-  metadata: TypedMetadata;
-  isRedeemable: boolean;
-  redeemAddress?: string;
-  isApplying: boolean;
-  error?: string;
-}
+export default function Ownable(props: OwnableProps) {
+  const { chain, packageCid, uniqueMessageHash, selected, children } = props;
 
-export default class Ownable extends Component<OwnableProps, OwnableState> {
-  private readonly pkg: TypedPackage;
-  private readonly iframeRef: RefObject<HTMLIFrameElement>;
-  private busy = false;
+  const ownables = useService('ownables');
+  const packages = useService('packages');
+  const idb = useService('idb');
+  const eventChains = useService('eventChains');
+  const relay = useService('relay');
 
-  constructor(props: OwnableProps) {
-    super(props);
-    this.pkg = PackageService.info(props.packageCid, props?.uniqueMessageHash);
-    this.iframeRef = createRef();
-    this.state = {
-      initialized: false,
-      applied: new EventChain(this.chain.id).latestHash,
-      stateDump: [],
-      metadata: { name: this.pkg.title, description: this.pkg.description },
-      isRedeemable: false,
-      isApplying: false,
-    };
-  }
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const busyRef = useRef(false);
 
-  get chain(): EventChain {
-    return this.props.chain;
-  }
+  const pkg: TypedPackage | undefined = useMemo(() => {
+    if (!packages) return undefined;
+    return packages.info(packageCid, uniqueMessageHash);
+  }, [packages, packageCid, uniqueMessageHash]);
 
-  get isTransferred(): boolean {
-    return (
-      !!this.state.info &&
-      this.state.info.owner !== LTOService.address &&
-      this.state.info.owner !== undefined
-    );
-  }
+  const [initialized, setInitialized] = useState(false);
+  const [applied, setApplied] = useState<any>(
+    new EventChain(chain.id).latestHash
+  );
+  const [stateDump, setStateDump] = useState<StateDump>([]);
+  const [info, setInfo] = useState<TypedOwnableInfo | undefined>(undefined);
+  const [metadata, setMetadata] = useState<TypedMetadata>({
+    name: pkg?.title ?? '',
+    description: pkg?.description,
+  });
+  const [isApplying, setIsApplying] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
 
-  get hasNFT(): boolean {
-    return this.pkg.keywords?.includes("hasNFT") ?? false;
-  }
+  // Keep metadata in sync once pkg becomes available
+  useEffect(() => {
+    if (pkg) {
+      setMetadata({ name: pkg.title, description: pkg.description });
+    }
+  }, [pkg]);
 
-  get nftNetwork(): string {
-    const nftNetwork = this.state.info?.nft?.network;
-    return nftNetwork || "";
-  }
+  const isTransferred = !!info && info.owner !== LTOService.address && info.owner !== undefined;
 
-  private async resizeToThumbnail(file: File): Promise<Blob> {
+  const resizeToThumbnail = useCallback(async (file: File): Promise<Blob> => {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
@@ -110,304 +86,229 @@ export default class Ownable extends Component<OwnableProps, OwnableState> {
 
     ctx.drawImage(img, 0, 0, 50, 50);
 
-    const quality = 0.8; // adjustment
+    const quality = 0.8;
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/webp", quality)
     );
 
-    if (!blob) {
-      throw new Error("Failed to create thumbnail blob");
-    }
-
-    if (blob.size > 256 * 1024) {
-      throw new Error("Compressed thumbnail still exceeds 256KB");
-    }
-
+    if (!blob) throw new Error("Failed to create thumbnail blob");
+    if (blob.size > 256 * 1024) throw new Error("Compressed thumbnail still exceeds 256KB");
     return blob;
-  }
+  }, []);
 
-  private async constructMeta(): Promise<Partial<IMessageMeta>> {
-    const title = this.pkg.title;
-    const description = this.pkg.description ?? "";
+  const constructMeta = useCallback(async (): Promise<Partial<IMessageMeta>> => {
+    if (!pkg || !idb) return {};
+    const title = pkg.title;
+    const description = pkg.description ?? "";
     const type = PACKAGE_TYPE;
 
     let thumbnail: Binary | undefined;
 
-    const thumbnailFile = await IDBService.get(
-      `package:${this.pkg.cid}`,
+    const thumbnailFile = await idb.get(
+      `package:${pkg.cid}`,
       "thumbnail.webp"
     );
 
     if (thumbnailFile) {
-      const resizedFile = await this.resizeToThumbnail(thumbnailFile);
+      const resizedFile = await resizeToThumbnail(thumbnailFile);
       const buffer = await resizedFile.arrayBuffer();
       thumbnail = Binary.from(new Uint8Array(buffer));
     }
 
-    return {
-      type,
-      title,
-      description,
-      // eqty-core expects thumbnail as string; provide base64 if available
-      thumbnail: thumbnail?.base64,
-    };
-  }
+    return { type, title, description, thumbnail: thumbnail?.base64 };
+  }, [idb, pkg, resizeToThumbnail]);
 
-  private async transfer(to: string): Promise<void> {
+  const refresh = useCallback(async (sd?: StateDump): Promise<void> => {
+    if (!ownables || !pkg) return;
+    let effective = sd ?? stateDump;
+
+    if (pkg.hasWidgetState) await ownables.rpc(chain.id).refresh(effective);
+
+    const infoResp = (await ownables.rpc(chain.id).query(
+      { get_info: {} },
+      effective
+    )) as TypedOwnableInfo;
+
+    const metadataResp = pkg.hasMetadata
+      ? ((await ownables.rpc(chain.id).query(
+          { get_metadata: {} },
+          effective
+        )) as TypedMetadata)
+      : metadata;
+
+    setInfo(infoResp);
+    setMetadata(metadataResp);
+  }, [chain.id, metadata, ownables, pkg, stateDump]);
+
+  const apply = useCallback(async (partialChain: EventChain): Promise<void> => {
+    if (!ownables || !eventChains) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setIsApplying(true);
+
     try {
-      const value = await RelayService.isRelayUp();
+      const sd =
+        (await eventChains.getStateDump(chain.id, partialChain.state.hex)) ||
+        (await ownables.apply(partialChain, stateDump));
+
+      await refresh(sd);
+      setApplied(chain.latestHash);
+      setStateDump(sd);
+    } catch (e) {
+      console.error("Error applying chain:", e);
+      props.onError("Failed to apply chain", ownableErrorMessage(e as Error));
+    } finally {
+      busyRef.current = false;
+      setIsApplying(false);
+    }
+  }, [chain.id, chain.latestHash, eventChains, ownables, props, refresh, stateDump]);
+
+  const execute = useCallback(async (msg: TypedDict): Promise<void> => {
+    if (!ownables) return;
+    try {
+      const sd = await ownables.execute(chain, msg, stateDump);
+      await ownables.store(chain, sd);
+      await refresh(sd);
+      setApplied(chain.latestHash);
+      setStateDump(sd);
+    } catch (e) {
+      props.onError("The Ownable returned an error", ownableErrorMessage(e));
+    }
+  }, [chain, ownables, props, refresh, stateDump]);
+
+  const onLoad = useCallback(async (): Promise<void> => {
+    if (!ownables || !pkg) return;
+
+    if (!pkg.isDynamic) {
+      await ownables.initStore(chain, pkg.cid, pkg.uniqueMessageHash);
+      return;
+    }
+
+    const iframeWindow = iframeRef.current!.contentWindow!;
+    const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", { timeout: 5000 });
+
+    try {
+      await ownables.init(chain, pkg.cid, rpc, uniqueMessageHash);
+      setInitialized(true);
+    } catch (e) {
+      if (e instanceof Cancelled) return;
+      props.onError("Failed to forge Ownable", ownableErrorMessage(e));
+    }
+  }, [chain, ownables, pkg, props, uniqueMessageHash]);
+
+  const windowMessageHandler = useCallback(async (event: MessageEvent) => {
+    if (!isObject(event.data) || !("ownable_id" in event.data) || event.data.ownable_id !== chain.id) return;
+    if (iframeRef.current?.contentWindow !== event.source) throw Error("Not allowed to execute msg on other Ownable");
+    await execute(event.data.msg);
+  }, [chain.id, execute]);
+
+  // Lifecycle: subscribe to window messages
+  useEffect(() => {
+    window.addEventListener("message", windowMessageHandler);
+    return () => window.removeEventListener("message", windowMessageHandler);
+  }, [windowMessageHandler]);
+
+  // Cleanup rpc on unmount when service ready
+  useEffect(() => {
+    return () => {
+      ownables?.clearRpc(chain.id);
+    };
+  }, [chain.id, ownables]);
+
+  // Effect for applying partial chains and refreshing
+  const prev = useRef({ initialized, appliedHex: applied.hex });
+  useEffect(() => {
+    if (isApplying || error) return;
+
+    const partial = chain.startingAfter(applied);
+    if (partial.events.length > 0) {
+      apply(partial).catch((e) => {
+        console.error("Error applying chain:", e);
+        setError(ownableErrorMessage(e as Error));
+      });
+    } else if (initialized !== prev.current.initialized || applied.hex !== prev.current.appliedHex) {
+      refresh().then();
+    }
+    prev.current = { initialized, appliedHex: applied.hex };
+  }, [apply, applied, chain, error, initialized, isApplying, refresh]);
+
+  // If services or package not ready yet, don't render
+  if (!ownables || !packages || !idb || !eventChains || !relay || !pkg) return <></>;
+
+  return (
+    <Paper
+      elevation={selected ? 8 : 1}
+      sx={{
+        aspectRatio: "1/1",
+        position: "relative",
+        animation: selected ? "bounce .4s ease infinite alternate" : "",
+      }}
+    >
+      <OwnableFrame
+        id={chain.id}
+        packageCid={pkg.cid}
+        isDynamic={pkg.isDynamic}
+        iframeRef={iframeRef}
+        onLoad={() => onLoad()}
+      />
+      <OwnableInfo
+        sx={{ position: "absolute", left: 5, top: 5, zIndex: 10 }}
+        chain={chain}
+        metadata={metadata}
+      />
+      <OwnableActions
+        sx={{ position: "absolute", right: 5, top: 5, zIndex: 10 }}
+        title={pkg.title}
+        isConsumable={pkg.isConsumable && !isTransferred}
+        isTransferable={pkg.isTransferable && !isTransferred}
+        onDelete={props.onDelete}
+        chain={chain}
+        onConsume={() => !!info && props.onConsume(info)}
+        onTransfer={(address) => transfer(address)}
+      />
+      {children}
+
+      <If condition={isApplying}>
+        <Overlay>
+          <OverlayBanner>Applying state...</OverlayBanner>
+        </Overlay>
+      </If>
+      <If condition={isTransferred}>
+        <Tooltip
+          title="You're unable to interact with this Ownable, because it has been transferred to a different account."
+          followCursor
+        >
+          <Overlay sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)" }}>
+            <OverlayBanner>Transferred</OverlayBanner>
+          </Overlay>
+        </Tooltip>
+      </If>
+    </Paper>
+  );
+
+  async function transfer(to: string): Promise<void> {
+    try {
+      if (!relay || !ownables || !pkg) return;
+      const value = await relay.isRelayUp();
 
       if (value) {
-        await this.execute({ transfer: { to: to } });
-        const zip = await OwnableService.zip(this.chain);
-        const content = await zip.generateAsync({
-          type: "uint8array",
-        });
+        await execute({ transfer: { to } });
+        const zip = await ownables.zip(chain);
+        const content = await zip.generateAsync({ type: "uint8array" });
 
-        //construct Metadata
-        const meta = await this.constructMeta();
+        const meta = await constructMeta();
+        await relay.sendOwnable(to, content, meta);
+        enqueueSnackbar(`Ownable sent Successfully!!`, { variant: "success" });
 
-        await RelayService.sendOwnable(to, content, meta);
-        enqueueSnackbar(`Ownable sent Successfully!!`, {
-          variant: "success",
-        });
-
-        if (this.pkg.uniqueMessageHash) {
-          //remove from relay
-          await RelayService.removeOwnable(this.pkg.uniqueMessageHash);
-
-          //remove from IDB
-          await OwnableService.delete(this.chain.id);
-
-          //remove from LS
-          // await LocalStorageService.removeByField(
-          //   "packages",
-          //   "uniqueMessageHash",
-          //   this.pkg.uniqueMessageHash
-          // );
+        if (pkg.uniqueMessageHash) {
+          await relay.removeOwnable(pkg.uniqueMessageHash);
+          await ownables.delete(chain.id);
         }
       } else {
         enqueueSnackbar("Server is down", { variant: "error" });
       }
-
-      // const filename = `ownable.${shortId(this.chain.id, 12, "")}.${shortId(
-      //   this.chain.state?.base58,
-      //   8,
-      //   ""
-      // )}.zip`;
-      // asDownload(content, filename);
     } catch (error) {
       console.error("Error during transfer:", error);
     }
-  }
-
-  private async refresh(stateDump?: StateDump): Promise<void> {
-    if (!stateDump) stateDump = this.state.stateDump;
-
-    if (this.pkg.hasWidgetState)
-      await OwnableService.rpc(this.chain.id).refresh(stateDump);
-
-    const info = (await OwnableService.rpc(this.chain.id).query(
-      { get_info: {} },
-      stateDump
-    )) as TypedOwnableInfo;
-    const metadata = this.pkg.hasMetadata
-      ? ((await OwnableService.rpc(this.chain.id).query(
-          { get_metadata: {} },
-          stateDump
-        )) as TypedMetadata)
-      : this.state.metadata;
-
-    this.setState({ info, metadata });
-  }
-
-  private async apply(partialChain: EventChain): Promise<void> {
-    if (this.busy) return;
-    this.busy = true;
-    this.setState({ isApplying: true });
-
-    try {
-      const stateDump =
-        (await EventChainService.getStateDump(
-          this.chain.id,
-          partialChain.state.hex
-        )) || // Use stored state dump if available
-        (await OwnableService.apply(partialChain, this.state.stateDump));
-
-      await this.refresh(stateDump);
-      this.setState({ applied: this.chain.latestHash, stateDump });
-    } catch (error) {
-      console.error("Error applying chain:", error);
-      this.props.onError(
-        "Failed to apply chain",
-        ownableErrorMessage(error as Error)
-      );
-    } finally {
-      this.busy = false;
-      this.setState({ isApplying: false });
-    }
-  }
-
-  async onLoad(): Promise<void> {
-    if (!this.pkg.isDynamic) {
-      await OwnableService.initStore(
-        this.chain,
-        this.pkg.cid,
-        this.pkg.uniqueMessageHash
-      );
-      return;
-    }
-
-    const iframeWindow = this.iframeRef.current!.contentWindow;
-    const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", {
-      timeout: 5000,
-    });
-
-    try {
-      await OwnableService.init(
-        this.chain,
-        this.pkg.cid,
-        rpc,
-        this.props.uniqueMessageHash
-      );
-      this.setState({ initialized: true });
-    } catch (e) {
-      if (e instanceof Cancelled) return;
-      this.props.onError("Failed to forge Ownable", ownableErrorMessage(e));
-    }
-  }
-
-  private async execute(msg: TypedDict): Promise<void> {
-    let stateDump: StateDump;
-
-    try {
-      stateDump = await OwnableService.execute(
-        this.chain,
-        msg,
-        this.state.stateDump
-      );
-
-      await OwnableService.store(this.chain, stateDump);
-      await this.refresh(stateDump);
-      this.setState({ applied: this.chain.latestHash, stateDump });
-    } catch (error) {
-      this.props.onError(
-        "The Ownable returned an error",
-        ownableErrorMessage(error)
-      );
-      return;
-    }
-  }
-
-  private windowMessageHandler = async (event: MessageEvent) => {
-    if (
-      !isObject(event.data) ||
-      !("ownable_id" in event.data) ||
-      event.data.ownable_id !== this.chain.id
-    )
-      return;
-    if (this.iframeRef.current!.contentWindow !== event.source)
-      throw Error("Not allowed to execute msg on other Ownable");
-
-    await this.execute(event.data.msg);
-  };
-
-  async componentDidMount() {
-    window.addEventListener("message", this.windowMessageHandler);
-
-    try {
-    } catch (error) {
-      console.error("Error during initialization:", error);
-    }
-  }
-
-  shouldComponentUpdate(
-    nextProps: OwnableProps,
-    nextState: OwnableState
-  ): boolean {
-    return nextState.initialized;
-  }
-
-  async componentDidUpdate(_: OwnableProps, prev: OwnableState): Promise<void> {
-    // Don't try to apply if we're already applying or if there was an error
-    if (this.state.isApplying || this.state.error) return;
-
-    const partial = this.chain.startingAfter(this.state.applied);
-    if (partial.events.length > 0) {
-      try {
-        await this.apply(partial);
-      } catch (error) {
-        console.error("Error applying chain:", error);
-        this.setState({ error: ownableErrorMessage(error as Error) });
-      }
-    } else if (
-      this.state.initialized !== prev.initialized ||
-      this.state.applied.hex !== prev.applied.hex
-    ) {
-      await this.refresh();
-    }
-  }
-
-  componentWillUnmount() {
-    OwnableService.clearRpc(this.chain.id);
-    window.removeEventListener("message", this.windowMessageHandler);
-  }
-
-  render() {
-    const { selected, children } = this.props;
-    const { isApplying } = this.state;
-
-    return (
-      <Paper
-        elevation={selected ? 8 : 1}
-        sx={{
-          aspectRatio: "1/1",
-          position: "relative",
-          animation: selected ? "bounce .4s ease infinite alternate" : "",
-        }}
-      >
-        <OwnableFrame
-          id={this.chain.id}
-          packageCid={this.pkg.cid}
-          isDynamic={this.pkg.isDynamic}
-          iframeRef={this.iframeRef}
-          onLoad={() => this.onLoad()}
-        />
-        <OwnableInfo
-          sx={{ position: "absolute", left: 5, top: 5, zIndex: 10 }}
-          chain={this.chain}
-          metadata={this.state.metadata}
-        />
-        <OwnableActions
-          sx={{ position: "absolute", right: 5, top: 5, zIndex: 10 }}
-          title={this.pkg.title}
-          isConsumable={this.pkg.isConsumable && !this.isTransferred}
-          isTransferable={this.pkg.isTransferable && !this.isTransferred}
-          onDelete={this.props.onDelete}
-          chain={this.chain}
-          onConsume={() =>
-            !!this.state.info && this.props.onConsume(this.state.info)
-          }
-          onTransfer={(address) => this.transfer(address)}
-        />
-        {children}
-
-        <If condition={isApplying}>
-          <Overlay>
-            <OverlayBanner>Applying state...</OverlayBanner>
-          </Overlay>
-        </If>
-        <If condition={this.isTransferred}>
-          <Tooltip
-            title="You're unable to interact with this Ownable, because it has been transferred to a different account."
-            followCursor
-          >
-            <Overlay sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)" }}>
-              <OverlayBanner>Transferred</OverlayBanner>
-            </Overlay>
-          </Tooltip>
-        </If>
-      </Paper>
-    );
   }
 }

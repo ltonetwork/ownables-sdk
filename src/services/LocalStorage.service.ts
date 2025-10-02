@@ -29,8 +29,19 @@ export default class LocalStorageService {
     localStorage.removeItem(`${this.prefix}${key}`);
   }
 
-  static clear(): void {
-    localStorage.clear();
+  clear(): void {
+    const keys: string[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(this.prefix)) {
+        keys.push(key);
+      }
+    }
+
+    for (const key of keys) {
+      localStorage.removeItem(key);
+    }
   }
 
   removeItem(key: string, value: any): void {

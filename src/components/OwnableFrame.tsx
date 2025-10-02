@@ -1,15 +1,16 @@
 import allInline from "all-inline";
 import PackageService from "../services/Package.service";
-import { Component, RefObject } from "react";
+import { RefObject, useEffect, useLayoutEffect } from "react";
+import { useService } from "../hooks/useService";
 
 const baseUrl = window.location.href.replace(/\/*$/, "");
 const trustedUrls = [`${baseUrl}/ownable.js`];
 
 async function generateWidgetHTML(
-  id: string,
+  packageService: PackageService,
   packageCid: string
 ): Promise<string> {
-  const html = await PackageService.getAssetAsText(packageCid, "index.html");
+  const html = await packageService.getAssetAsText(packageCid, "index.html");
   const doc = new DOMParser().parseFromString(html, "text/html");
 
   await allInline(
@@ -18,8 +19,8 @@ async function generateWidgetHTML(
       filename = filename.replace(/^.\//, "");
 
       return encoding === "data-uri"
-        ? PackageService.getAssetAsDataUri(packageCid, filename)
-        : PackageService.getAssetAsText(packageCid, filename);
+        ? packageService.getAssetAsDataUri(packageCid, filename)
+        : packageService.getAssetAsText(packageCid, filename);
     }
   );
 
@@ -27,7 +28,7 @@ async function generateWidgetHTML(
 }
 
 async function generate(
-  id: string,
+  packageService: PackageService,
   packageCid: string,
   isDynamic: boolean
 ): Promise<string> {
@@ -54,7 +55,7 @@ async function generate(
 
   const widget = doc.createElement("iframe");
   widget.setAttribute("sandbox", "allow-scripts");
-  widget.srcdoc = await generateWidgetHTML(id, packageCid);
+  widget.srcdoc = await generateWidgetHTML(packageService, packageCid);
   body.appendChild(widget);
 
   if (isDynamic) {
@@ -74,33 +75,34 @@ export interface OwnableFrameProps {
   onLoad: () => void;
 }
 
-export default class OwnableFrame extends Component<OwnableFrameProps> {
-  async componentDidMount(): Promise<void> {
-    this.props.iframeRef.current!.srcdoc = await generate(
-      this.props.id,
-      this.props.packageCid,
-      this.props.isDynamic
-    );
-  }
+export default function OwnableFrame(props: OwnableFrameProps) {
+  const packages = useService('packages');
 
-  shouldComponentUpdate(): boolean {
-    return false; // Never update this component. We rely on the iframe not to be replaced.
-  }
+  useLayoutEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!packages || !props.iframeRef.current) return;
+      const html = await generate(packages, props.packageCid, props.isDynamic);
+      if (!cancelled && props.iframeRef.current) {
+        props.iframeRef.current.srcdoc = html;
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packages, props.id, props.packageCid, props.isDynamic]);
 
-  render() {
-    return (
-      <iframe
-        id={this.props.id}
-        title={`Ownable ${this.props.id}`}
-        ref={this.props.iframeRef}
-        onLoad={() => this.props.onLoad()}
-        style={{
-          display: "block",
-          width: "100%",
-          height: "100%",
-          border: "none",
-        }}
-      />
-    );
-  }
+  return (
+    <iframe
+      id={props.id}
+      title={`Ownable ${props.id}`}
+      ref={props.iframeRef}
+      onLoad={() => props.onLoad()}
+      style={{
+        display: "block",
+        width: "100%",
+        height: "100%",
+        border: "none",
+      }}
+    />
+  );
 }

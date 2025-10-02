@@ -11,15 +11,12 @@ import {
   IconButton,
   Link,
   Switch,
-  Typography,
 } from "@mui/material";
 import LTOService from "../services/LTO.service";
 import { useEffect, useState } from "react";
 import useInterval from "../utils/useInterval";
 import { ArrowBack } from "@mui/icons-material";
 import ltoLogo from "../assets/ltonetwork.png";
-import ltoExplorerIcon from "../assets/explorer-icon.png";
-import ltoWalletIcon from "../assets/wallet-icon.png";
 import Dialog from "@mui/material/Dialog";
 import EventChainService from "../services/EventChain.service";
 import WalletConnectControls from "./WalletConnectControls"
@@ -27,13 +24,12 @@ import WalletConnectControls from "./WalletConnectControls"
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
-  onLogout: () => void;
   onReset: () => void;
   onFactoryReset: () => void;
 }
 
 export default function Sidebar(props: SidebarProps) {
-  const { open, onClose, onLogout, onReset, onFactoryReset } = props;
+  const { open, onClose, onReset, onFactoryReset } = props;
   const [anchoring, setAnchoring] = useState(EventChainService.anchoring);
   const [showNoBalance, setShowNoBalance] = useState(false);
   const [balance, setBalance] = useState<number>();

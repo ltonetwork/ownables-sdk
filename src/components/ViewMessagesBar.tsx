@@ -12,14 +12,12 @@ import {
   Skeleton,
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
-import { RelayService } from "../services/Relay.service";
 import axios from "axios";
 import { EventChain } from "eqty-core";
 import { enqueueSnackbar } from "notistack";
-import LocalStorageService from "../services/LocalStorage.service";
 import placeholderImage from "../assets/cube.png";
-import PackageService from "../services/Package.service";
 import { useMessageCount } from "../hooks/useMessageCount";
+import { useService } from "../hooks/useService"
 
 interface ViewMessagesBarProps {
   open: boolean;
@@ -82,6 +80,9 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   const [totalCount, setTotalCount] = useState(0);
   const { decrementMessageCount } = useMessageCount();
 
+  const relayService = useService('relay');
+  const packageService = useService('packages');
+
   const fetchBuilderAddress = async () => {
     try {
       const response = await axios.get(
@@ -105,11 +106,12 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   };
 
   const fetchMessages = useCallback(async () => {
+    if (!relayService) return;
+
     setLoading(true);
     try {
       const offset = (currentPage - 1) * itemsPerPage;
-      const limit = itemsPerPage;
-      const relayData = await RelayService.list(offset, limit);
+      const relayData = await relayService.list(offset, itemsPerPage);
 
       if (relayData && Array.isArray(relayData.messages)) {
         setTotalCount(relayData.total);
@@ -124,11 +126,11 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
       setMessages([]);
     }
     setLoading(false);
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, relayService]);
 
   const fetchImportedHashes = async () => {
     try {
-      const pkgs = PackageService.list() || [];
+      const pkgs = packageService?.list() || [];
       const hashes = pkgs.map((msg: any) => {
         return msg.uniqueMessageHash;
       });
@@ -140,8 +142,8 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
 
   const handleImportMessage = async (hash: string) => {
     try {
-      const { message, hash } = await RelayService.readMessage(hash);
-      const importedPackage = message ? await PackageService.processPackage(message, hash, true) : null;
+      const { message } = await relayService?.readMessage(hash) ?? { };
+      const importedPackage = message ? await packageService?.processPackage(message, hash, true) : null;
 
       if (importedPackage) {
         const chain = importedPackage.chain ? importedPackage.chain : null;

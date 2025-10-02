@@ -1,18 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, Link, Typography } from "@mui/material";
 import PackagesFab from "./components/PackagesFab";
-import IDBService from "./services/IDB.service";
 import { TypedPackage } from "./interfaces/TypedPackage";
 import LoginDialog from "./components/LoginDialog";
 import Loading from "./components/Loading";
 import LTOService from "./services/LTO.service";
 import Sidebar from "./components/Sidebar";
 import { ViewMessagesBar } from "./components/ViewMessagesBar";
-import LocalStorageService from "./services/LocalStorage.service";
-import SessionStorageService from "./services/SessionStorage.service";
-import OwnableService from "./services/Ownable.service";
 import If from "./components/If";
-import PackageService, { HAS_EXAMPLES } from "./services/Package.service";
+import { HAS_EXAMPLES } from "./services/Package.service";
 import Grid from "@mui/material/Unstable_Grid2";
 import * as React from "react";
 import Ownable from "./components/Ownable";
@@ -26,11 +22,10 @@ import Overlay from "./components/Overlay";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
-import { RelayService } from "./services/Relay.service";
-import { PollingService } from "./services/Polling.service";
 import { usePackageManager } from "./hooks/usePackageManager";
 import { useAccount, useNetwork } from 'wagmi';
 import { useMessageCount } from "./hooks/useMessageCount";
+import { useService } from "./hooks/useService"
 
 export default function App() {
   // Reload app UI when wallet account or chain changes (RainbowKit/wagmi)
@@ -80,6 +75,12 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
+  const ownableService = useService('ownables');
+  const pollingService = useService('polling');
+  const packageService = useService('packages');
+  const relayService = useService('relay');
+  const storage = useService('localStorage');
+  const idb = useService('idb');
   const { isLoading: isPackageManagerLoading } = usePackageManager();
 
   const handleNotificationClick = () => {
@@ -89,14 +90,16 @@ export default function App() {
   const { setMessageCount } = useMessageCount();
 
   useEffect(() => {
-    OwnableService.loadAll()
+    if (!ownableService) return;
+
+    ownableService.loadAll()
       .then((ownables) => setOwnables(ownables))
       .then(() => setLoaded(true));
-  }, [idbReady]);
+  }, [ownableService]);
 
   useEffect(() => {
-    if (!showLogin && address.length > 1) {
-      const stopPolling = PollingService.startPolling(
+    if (pollingService && !showLogin && address.length > 1) {
+      const stopPolling = pollingService.startPolling(
         address,
         (newCount: any) => {
           setMessages(newCount);
@@ -105,7 +108,7 @@ export default function App() {
       );
       return () => stopPolling();
     }
-  }, [address, showLogin]);
+  }, [address, showLogin, pollingService]);
 
   const showError = (title: string, message: string) => {
     setAlert({ severity: "error", title, message });
@@ -177,8 +180,10 @@ export default function App() {
   };
 
   const forge = async (pkg: TypedPackage) => {
+    if (!ownableService) throw new Error("Ownable service not ready");
+
     try {
-      const chain = await OwnableService.create(pkg);
+      const chain = await ownableService.create(pkg);
       setOwnables([...ownables, { chain, package: pkg.cid }]);
       setShowPackages(false);
       enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
@@ -237,7 +242,8 @@ export default function App() {
     packageCid: string,
     uniqueMessageHash?: string
   ) => {
-    const pkg = PackageService.info(packageCid);
+    if (!packageService) throw new Error("Package service not ready");
+    const pkg = packageService.info(packageCid);
 
     setConfirm({
       severity: "error",
@@ -249,18 +255,20 @@ export default function App() {
       ),
       ok: "Delete",
       onConfirm: async () => {
+        if (!ownableService) throw new Error("Ownable service not ready");
+
         setOwnables((current) =>
           current.filter((ownable) => ownable.chain.id !== id)
         );
         //Delete ownable
-        await OwnableService.delete(id);
+        await ownableService.delete(id);
 
         //delete ownable from relay
         const uniqueMessageHash = pkg.uniqueMessageHash;
 
         //delete package
-        if (pkg.isNotLocal) {
-          await LocalStorageService.removeByField(
+        if (pkg.isNotLocal && storage) {
+          storage.removeByField(
             "packages",
             "uniqueMessageHash",
             uniqueMessageHash
@@ -268,7 +276,7 @@ export default function App() {
         }
 
         if (uniqueMessageHash) {
-          await RelayService.removeOwnable(uniqueMessageHash);
+          await relayService?.removeOwnable(uniqueMessageHash);
         }
       },
     });
@@ -279,9 +287,9 @@ export default function App() {
     package: string;
   }): Promise<boolean> => {
     try {
-      return (
-        !!consuming?.info &&
-        (await OwnableService.canConsume(consumer, consuming!.info))
+      return Boolean(
+        consuming?.info &&
+        (await ownableService?.canConsume(consumer, consuming!.info))
       );
     } catch (e) {
       console.error(e, (e as any).cause);
@@ -291,8 +299,9 @@ export default function App() {
 
   const consume = (consumer: EventChain, consumable: EventChain) => {
     if (consumer.id === consumable.id) return;
+    if (!ownableService) throw new Error("Ownable service not ready");
 
-    OwnableService.consume(consumer, consumable)
+    ownableService.consume(consumer, consumable)
       .then(() => {
         setConsuming(null);
         setOwnables((ownables) => [...ownables]);
@@ -318,7 +327,7 @@ export default function App() {
       ok: "Delete all",
       onConfirm: async () => {
         setOwnables([]);
-        await OwnableService.deleteAll();
+        await ownableService?.deleteAll();
         enqueueSnackbar("All Ownables are deleted");
       },
     });
@@ -340,9 +349,8 @@ export default function App() {
       onConfirm: async () => {
         setLoaded(false);
 
-        LocalStorageService.clear();
-        SessionStorageService.clear();
-        await IDBService.deleteDatabase();
+        storage?.clear();
+        await idb?.deleteDatabase();
 
         window.location.reload();
       },
@@ -489,7 +497,7 @@ export default function App() {
         <Typography component="span" sx={{ fontWeight: 700 }}>
           Select which Ownable should consume this{" "}
           <em>
-            {consuming ? PackageService.info(consuming.package).title : ""}
+            {consuming && packageService ? packageService.info(consuming.package).title : ""}
           </em>
         </Typography>
         <Box>
