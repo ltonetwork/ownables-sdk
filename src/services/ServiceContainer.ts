@@ -20,11 +20,15 @@ export default class ServiceContainer {
 
   constructor(public readonly address?: string, public readonly chainId?: number) {
     this.register('relay', (c) => new RelayService());
+    this.register('localStorage', (c) => {
+      if (c.address && c.chainId) return new LocalStorageService(`${c.chainId}:${c.address}`);
+      if (c.address) return new LocalStorageService(`${c.address}`);
+      return new LocalStorageService();
+    });
 
     if (address && chainId) {
       this.register('eqty', (c) => new EQTYService(c.address!, c.chainId!));
       this.register('idb', (c) => new IDBService(`${c.chainId}:${c.address}`));
-      this.register('localStorage', (c) => new LocalStorageService(`${c.chainId}:${c.address}`));
       this.register('eventChains', (c) => new EventChainService(c.get('idb'), c.get('eqty')));
       this.register('packages', (c) => new PackageService(c.get('relay'), c.get('localStorage')));
       this.register('ownables', (c) => new OwnableService(c.get('eventChains'), c.get('eqty'), c.get('packages')));

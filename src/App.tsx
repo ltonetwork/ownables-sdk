@@ -31,6 +31,7 @@ import { PollingService } from "./services/Polling.service";
 import { usePackageManager } from "./hooks/usePackageManager";
 import { useAccount, useNetwork } from 'wagmi';
 import useIDB from "./hooks/useIDB";
+import { useMessageCount } from "./hooks/useMessageCount";
 
 export default function App() {
   // Reload app UI when wallet account or chain changes (RainbowKit/wagmi)
@@ -87,6 +88,7 @@ export default function App() {
   };
 
   const { ready: idbReady, error: idbError } = useIDB();
+  const { setMessageCount } = useMessageCount();
 
   useEffect(() => {
     if (!idbReady) return;
@@ -213,7 +215,7 @@ export default function App() {
       ]);
 
       enqueueSnackbar(`Ownable successfully loaded`, { variant: "success" });
-      LocalStorageService.remove("messageCount");
+      await setMessageCount(0);
       setMessages(0);
 
       // Trigger a refresh only for updated ownables

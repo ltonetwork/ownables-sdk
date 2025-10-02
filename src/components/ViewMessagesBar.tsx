@@ -18,7 +18,8 @@ import { EventChain } from "eqty-core";
 import { enqueueSnackbar } from "notistack";
 import LocalStorageService from "../services/LocalStorage.service";
 import placeholderImage from "../assets/cube.png";
-import PackageService from "../services/Package.service"
+import PackageService from "../services/Package.service";
+import { useMessageCount } from "../hooks/useMessageCount";
 
 interface ViewMessagesBarProps {
   open: boolean;
@@ -79,6 +80,7 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
+  const { decrementMessageCount } = useMessageCount();
 
   const fetchBuilderAddress = async () => {
     try {
@@ -156,9 +158,7 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
 
           // Update imported hashes
           setImportedHashes((prev) => new Set(prev).add(hash));
-          const messageCount = await LocalStorageService.get("messageCount");
-          const newCount = Math.max(0, parseInt(messageCount || "0", 10) - 1);
-          await LocalStorageService.set("messageCount", newCount);
+          await decrementMessageCount();
           enqueueSnackbar(`Ownable imported successfully!`, {
             variant: "success",
           });
