@@ -1,6 +1,6 @@
 import allInline from "all-inline";
 import PackageService from "../services/Package.service";
-import { RefObject, useEffect, useLayoutEffect } from "react";
+import { RefObject, useLayoutEffect } from "react";
 import { useService } from "../hooks/useService";
 
 const baseUrl = window.location.href.replace(/\/*$/, "");

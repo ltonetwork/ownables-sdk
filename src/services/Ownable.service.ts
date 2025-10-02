@@ -65,6 +65,7 @@ export default class OwnableService {
   private readonly SNAPSHOT_INTERVAL = 50;
 
   constructor(
+    private readonly idb: IDBService,
     private readonly eventChains: EventChainService,
     private readonly eqty: EQTYService,
     private readonly packages: PackageService,
@@ -181,14 +182,14 @@ export default class OwnableService {
   //     const snapshotStoreId = `${storeId}.snapshots`;
 
   //     // Ensure snapshot store exists
-  //     if (!(await IDBService.hasStore(snapshotStoreId))) {
-  //       await IDBService.createStore(snapshotStoreId);
+  //     if (!(await this.idb.hasStore(snapshotStoreId))) {
+  //       await this.idb.createStore(snapshotStoreId);
   //     }
 
-  //     await IDBService.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
+  //     await this.idb.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
 
   //     // Cleanup old snapshots (keep only last 3)
-  //     const snapshots = await IDBService.keys(snapshotStoreId);
+  //     const snapshots = await this.idb.keys(snapshotStoreId);
   //     if (snapshots.length > 3) {
   //       const sortedKeys = snapshots
   //         .map((key) => parseInt(key.replace("snapshot_", "")))
@@ -199,7 +200,7 @@ export default class OwnableService {
   //         .slice(3)
   //         .map((index) => `snapshot_${index}`);
   //       for (const key of keysToDelete) {
-  //         await IDBService.delete(snapshotStoreId, key);
+  //         await this.idb.delete(snapshotStoreId, key);
   //       }
   //     }
   //   } catch (error) {
@@ -224,14 +225,14 @@ export default class OwnableService {
         timestamp: new Date(),
       };
 
-      if (!(await IDBService.hasStore(snapshotStoreId))) {
-        await IDBService.createStore(snapshotStoreId);
+      if (!(await this.idb.hasStore(snapshotStoreId))) {
+        await this.idb.createStore(snapshotStoreId);
       }
 
-      await IDBService.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
+      await this.idb.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
 
       // Cleanup old snapshots (keep only last 3)
-      const keys = await IDBService.keys(snapshotStoreId);
+      const keys = await this.idb.keys(snapshotStoreId);
       if (keys.length > 3) {
         const sortedKeys = keys
           .map((key) => parseInt(key.replace("snapshot_", "")))
@@ -243,7 +244,7 @@ export default class OwnableService {
           .map((index) => `snapshot_${index}`);
 
         for (const key of keysToDelete) {
-          await IDBService.delete(snapshotStoreId, key);
+          await this.idb.delete(snapshotStoreId, key);
         }
       }
     } catch (error) {
@@ -256,13 +257,13 @@ export default class OwnableService {
   ): Promise<StateSnapshot | null> {
     const storeId = `ownable:${chainId}`;
     const snapshotStoreId = `${storeId}.snapshots`;
-    const exist = await IDBService.hasStore(snapshotStoreId);
+    const exist = await this.idb.hasStore(snapshotStoreId);
 
     if (!exist) {
       return null;
     }
 
-    const snapshots = await IDBService.keys(snapshotStoreId);
+    const snapshots = await this.idb.keys(snapshotStoreId);
     if (snapshots.length === 0) return null;
 
     const latestKey = snapshots
@@ -271,25 +272,25 @@ export default class OwnableService {
 
     console.log("Latest snapshot key:", latestKey);
 
-    return await IDBService.get(snapshotStoreId, `snapshot_${latestKey}`);
+    return await this.idb.get(snapshotStoreId, `snapshot_${latestKey}`);
   }
 
   async listSnapshots(chainId: string): Promise<StateSnapshot[]> {
     const storeId = `ownable:${chainId}`;
     const snapshotStoreId = `${storeId}.snapshots`;
 
-    if (!(await IDBService.hasStore(snapshotStoreId))) {
+    if (!(await this.idb.hasStore(snapshotStoreId))) {
       return [];
     }
 
-    const snapshots = await IDBService.keys(snapshotStoreId);
+    const snapshots = await this.idb.keys(snapshotStoreId);
     const sortedKeys = snapshots
       .map((key) => parseInt(key.replace("snapshot_", "")))
       .sort((a, b) => a - b);
 
     return Promise.all(
       sortedKeys.map((index) =>
-        IDBService.get(snapshotStoreId, `snapshot_${index}`)
+        this.idb.get(snapshotStoreId, `snapshot_${index}`)
       )
     );
   }
@@ -298,8 +299,8 @@ export default class OwnableService {
     const storeId = `ownable:${chainId}`;
     const snapshotStoreId = `${storeId}.snapshots`;
 
-    if (await IDBService.hasStore(snapshotStoreId)) {
-      await IDBService.deleteStore(snapshotStoreId);
+    if (await this.idb.hasStore(snapshotStoreId)) {
+      await this.idb.deleteStore(snapshotStoreId);
     }
   }
 
@@ -509,10 +510,10 @@ export default class OwnableService {
 
   private async ensureDBConnection(): Promise<void> {
     try {
-      await IDBService.listStores();
+      await this.idb.listStores();
     } catch (e) {
       console.warn("IDB connection lost, attempting to reconnect...");
-      await IDBService.open();
+      await this.idb.open();
     }
   }
 
@@ -563,12 +564,12 @@ export default class OwnableService {
     if (stateDump) stores.push(stateStoreId);
 
     await this.retryOperation(async () => {
-      const hasStore = await IDBService.hasStore(storeId);
+      const hasStore = await this.idb.hasStore(storeId);
       if (hasStore) {
         return;
       }
 
-      await IDBService.createStore(...stores);
+      await this.idb.createStore(...stores);
 
       const data: TypedDict = {
         [storeId]: chainData,
@@ -579,13 +580,13 @@ export default class OwnableService {
       }
 
       try {
-        await IDBService.setAll(data);
+        await this.idb.setAll(data);
       } catch (error) {
         // If setAll fails, attempt to clean up
         console.error("Failed to set data, cleaning up stores...");
         await Promise.all(
           stores.map((store) =>
-            IDBService.deleteStore(store).catch((e) =>
+            this.idb.deleteStore(store).catch((e) =>
               console.warn(`Failed to clean up store ${store}:`, e)
             )
           )
@@ -594,8 +595,8 @@ export default class OwnableService {
       }
 
       const verifyData = await Promise.all([
-        IDBService.get(storeId, "state"),
-        stateDump ? IDBService.getAll(stateStoreId) : Promise.resolve(null),
+        this.idb.get(storeId, "state"),
+        stateDump ? this.idb.getAll(stateStoreId) : Promise.resolve(null),
       ]);
 
       if (
@@ -613,7 +614,7 @@ export default class OwnableService {
     const stateStoreId = `${storeId}.state`;
 
     await this.retryOperation(async () => {
-      const storedState = await IDBService.get(storeId, "state");
+      const storedState = await this.idb.get(storeId, "state");
       if (storedState === chain.state) return;
 
       const data = {
@@ -626,7 +627,7 @@ export default class OwnableService {
       };
 
       if (this.anchoring) {
-        const previousHash = await IDBService.get(
+        const previousHash = await this.idb.get(
           `ownable:${chain.id}`,
           "latestHash"
         );
@@ -640,7 +641,7 @@ export default class OwnableService {
         await this.eqty.anchor(...anchors);
       }
 
-      await IDBService.setAll(data);
+      await this.idb.setAll(data);
 
       // Check if we need to create a snapshot
       const eventCount = chain.events.length;
@@ -650,7 +651,7 @@ export default class OwnableService {
       }
 
       // Verify the write
-      const verifyState = await IDBService.get(storeId, "state");
+      const verifyState = await this.idb.get(storeId, "state");
       if (verifyState !== chain.state.hex) {
         throw new Error("State verification failed after write");
       }

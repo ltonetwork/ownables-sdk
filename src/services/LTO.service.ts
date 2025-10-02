@@ -1,216 +1,111 @@
-import { Account, Binary, LTO, Transaction, getNetwork } from "@ltonetwork/lto";
-import LocalStorageService from "./LocalStorage.service";
-import SessionStorageService from "./SessionStorage.service";
-import CryptoJS from "crypto-js";
+// Dummy LTOService: intentionally does nothing. Always "unlocked" and never touches storage.
+// This stub is temporary and will be removed later.
 
-export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
-if (process.env.REACT_APP_LTO_API_URL)
-  lto.nodeAddress = process.env.REACT_APP_LTO_API_URL;
-
-const SECURE_KEY = process.env.REACT_APP_SECURE_KEY;
-
-const encryptData = (data: string, key: string): string => {
-  return CryptoJS.AES.encrypt(data, key).toString();
-};
-
-const decryptData = (encryptedData: string, key: string): string => {
-  const bytes = CryptoJS.AES.decrypt(encryptedData, key);
-  return bytes.toString(CryptoJS.enc.Utf8);
-};
+// Local placeholder types to keep the public API shape intact without importing @ltonetwork/lto
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Account = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Binary = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Transaction = any;
 
 export default class LTOService {
-  public static readonly networkId = lto.networkId;
+  public static readonly networkId: string = "";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private static _account?: Account;
 
   public static accountExists(): boolean {
-    return !!LocalStorageService.get("@accountData");
+    return false;
   }
 
   public static isUnlocked(): boolean {
-    return !!SessionStorageService.get("@pass");
+    return true;
   }
 
-  public static unlock(password: string): void {
-    const [encryptedAccount] = LocalStorageService.get("@accountData") || [];
-    const encryptedSeed = encryptedAccount.seed;
-    const decryptedSeed = decryptData(encryptedSeed, password + SECURE_KEY);
-    this._account = lto.account({ seed: decryptedSeed });
-    SessionStorageService.set("@pass", password);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static unlock(_password: string): void {
+    // no-op
   }
 
   public static lock(): void {
-    delete this._account;
-    SessionStorageService.remove("@pass");
+    // no-op
   }
 
   public static get account(): Account {
-    if (!this._account) {
-      const password = SessionStorageService.get("@pass");
-      if (!password) {
-        throw new Error("Not logged in");
-      }
-      const [encryptedAccount] = LocalStorageService.get("@accountData") || [];
-      const encryptedSeed = encryptedAccount.seed;
-      const decryptedSeed = decryptData(encryptedSeed, password + SECURE_KEY);
-      this._account = lto.account({ seed: decryptedSeed });
-    }
-    return this._account;
+    throw new Error("LTOService is a dummy service");
   }
 
   public static get address(): string {
-    if (this._account) return this._account.address;
-
-    const [encryptedAccount] = LocalStorageService.get("@accountData") || [];
-    if (encryptedAccount) return encryptedAccount.address;
-
     return "";
   }
 
-  public static storeAccount(nickname: string, password: string): void {
-    if (!this._account) {
-      throw new Error("Account not created");
-    }
-
-    if (!this._account.seed) {
-      throw new Error("Account not created");
-    }
-
-    const encryptedSeed = encryptData(
-      this._account.seed,
-      password + SECURE_KEY
-    );
-
-    LocalStorageService.set("@accountData", [
-      {
-        nickname: nickname,
-        address: this._account.address,
-        seed: encryptedSeed,
-      },
-    ]);
-
-    SessionStorageService.set("@pass", password);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static storeAccount(_nickname: string, _password: string): void {
+    throw new Error("LTOService is a dummy service");
   }
 
   public static createAccount(): void {
-    try {
-      this._account = lto.account();
-    } catch (error) {
-      throw new Error("Error creating account");
-    }
+    throw new Error("LTOService is a dummy service");
   }
 
-  public static importAccount(seed: string): void {
-    try {
-      this._account = lto.account({ seed: seed });
-    } catch (error) {
-      throw new Error("Error importing account from seeds");
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static importAccount(_seed: string): void {
+    throw new Error("LTOService is a dummy service");
   }
 
-  private static apiUrl(path: string): string {
-    return lto.nodeAddress.replace(/\/$/g, "") + path;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private static apiUrl(_path: string): string {
+    throw new Error("LTOService is a dummy service");
   }
 
-  public static async getBalance(address?: string) {
-    if (!address) address = this.account.address;
-
-    try {
-      const url = this.apiUrl(`/addresses/balance/details/${address}`);
-      const response = await fetch(url);
-      return response.json();
-    } catch (error) {
-      throw new Error("Error fetching account details");
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static async getBalance(_address?: string): Promise<never> {
+    throw new Error("LTOService is a dummy service");
   }
 
-  public static async broadcast(transaction: Transaction): Promise<any> {
-    const url = this.apiUrl("/transactions/broadcast");
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(transaction),
-    });
-
-    if (response.status >= 400) {
-      throw new Error(
-        "Broadcast transaction failed: " + (await response.text())
-      );
-    }
-    return await response.json();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static async broadcast(_transaction: Transaction): Promise<never> {
+    throw new Error("LTOService is a dummy service");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public static async anchor(
-    ...anchors: Array<{ key: Binary; value: Binary }> | Array<Binary>
-  ): Promise<void> {
-    if (anchors[0] instanceof Uint8Array) {
-      await lto.anchor(this.account, ...(anchors as Array<Binary>));
-    } else {
-      await lto.anchor(
-        this.account,
-        ...(anchors as Array<{ key: Binary; value: Binary }>)
-      );
-    }
+    ..._anchors: Array<{ key: Binary; value: Binary }> | Array<Binary>
+  ): Promise<never> {
+    throw new Error("LTOService is a dummy service");
   }
 
-  public static async transfer(recipient: string, amount: number | null) {
-    try {
-      if (!amount) {
-        return;
-      }
-      const tx = await lto.transfer(this.account, recipient, amount);
-      return tx.id;
-    } catch {
-      return "failed";
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static async transfer(
+    _recipient: string,
+    _amount: number | null
+  ): Promise<never> {
+    throw new Error("LTOService is a dummy service");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public static async verifyAnchors(
-    ...anchors: Array<{ key: Binary; value: Binary }> | Array<Binary>
-  ): Promise<any> {
-    const data =
-      anchors[0] instanceof Uint8Array
-        ? (anchors as Array<Binary>).map((anchor) => anchor.hex)
-        : Object.fromEntries(
-            (anchors as Array<{ key: Binary; value: Binary }>).map(
-              ({ key, value }) => [key.hex, value.hex]
-            )
-          );
-    const url = this.apiUrl("/index/hash/verify?encoding=hex");
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-    return await response.json();
+    ..._anchors: Array<{ key: Binary; value: Binary }> | Array<Binary>
+  ): Promise<never> {
+    throw new Error("LTOService is a dummy service");
   }
 
-  public static isValidAddress(address: string): boolean {
-    try {
-      return lto.isValidAddress(address);
-    } catch (e) {
-      return false;
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static isValidAddress(_address: string): boolean {
+    return false;
   }
 
-  public static accountOf(publicKey: Binary | string): string {
-    return lto.account({
-      publicKey: publicKey instanceof Binary ? publicKey.base58 : publicKey,
-    }).address;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static accountOf(_publicKey: Binary | string): string {
+    throw new Error("LTOService is a dummy service");
   }
 
-  public static getNetwork(ltoAddress: string): string {
-    return getNetwork(ltoAddress);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static getNetwork(_ltoAddress: string): string {
+    return "";
   }
 
   public static getAccount = async (): Promise<Account> => {
-    if (!this.account) {
-      throw new Error("Not logged in");
-    }
-
-    return this.account;
+    throw new Error("LTOService is a dummy service");
   };
 }

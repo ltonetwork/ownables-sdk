@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import PackageService from "../services/Package.service";
+import { useState, useEffect, useCallback } from "react";
 import { TypedPackage, TypedPackageStub } from "../interfaces/TypedPackage";
+import { useService } from "./useService"
 
 export const usePackageManager = () => {
   const [packages, setPackages] = useState<
@@ -8,26 +8,29 @@ export const usePackageManager = () => {
   >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const packageService = useService('packages');
 
-  const updatePackages = () => {
+  const updatePackages = useCallback(() => {
     try {
-      setPackages(PackageService.list());
+      setPackages(packageService?.list() ?? []);
     } catch (err) {
       setError(
         err instanceof Error ? err : new Error("Failed to update packages")
       );
     }
-  };
+  }, [packageService]);
 
   useEffect(() => {
     updatePackages();
-  }, []);
+  }, [updatePackages]);
 
   const importPackage = async (file: File) => {
+    if (!packageService) throw new Error("Package service not ready");
+
     setIsLoading(true);
     setError(null);
     try {
-      const result = await PackageService.import(file);
+      const result = await packageService.import(file);
       updatePackages();
       return result;
     } catch (err) {
@@ -41,10 +44,12 @@ export const usePackageManager = () => {
   };
 
   const importInbox = async () => {
+    if (!packageService) throw new Error("Package service not ready");
+
     setIsLoading(true);
     setError(null);
     try {
-      const result = await PackageService.importFromRelay();
+      const result = await packageService.importFromRelay();
       updatePackages();
       return result;
     } catch (err) {
@@ -58,10 +63,12 @@ export const usePackageManager = () => {
   };
 
   const downloadExample = async (name: string) => {
+    if (!packageService) throw new Error("Package service not ready");
+
     setIsLoading(true);
     setError(null);
     try {
-      const result = await PackageService.downloadExample(name);
+      const result = await packageService.downloadExample(name);
       updatePackages();
       return result;
     } catch (err) {

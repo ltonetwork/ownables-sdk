@@ -76,7 +76,11 @@ const capabilitiesStaticOwnable = {
 };
 
 export default class PackageService {
-  constructor(private relay: RelayService, private localStorage: LocalStorageService) {}
+  constructor(
+    private idb: IDBService,
+    private relay: RelayService,
+    private localStorage: LocalStorageService,
+  ) {}
 
   list(): Array<TypedPackage | TypedPackageStub> {
     const local = (this.localStorage.get("packages") || []) as TypedPackage[];
@@ -193,11 +197,11 @@ export default class PackageService {
   }
 
   private async storeAssets(cid: string, files: File[]): Promise<void> {
-    if (!(await IDBService.hasStore(`package:${cid}`))) {
-      await IDBService.createStore(`package:${cid}`);
+    if (!(await this.idb.hasStore(`package:${cid}`))) {
+      await this.idb.createStore(`package:${cid}`);
     }
 
-    await IDBService.setAll(
+    await this.idb.setAll(
       `package:${cid}`,
       Object.fromEntries(files.map((file) => [file.name, file]))
     );
@@ -315,7 +319,7 @@ export default class PackageService {
       const cid = await calculateCid(files);
 
       //Check for duplicates
-      if (await IDBService.hasStore(`package:${cid}`)) {
+      if (await this.idb.hasStore(`package:${cid}`)) {
         if (
           isNotLocal &&
           chainJson &&
@@ -408,7 +412,7 @@ export default class PackageService {
 
             if (!pkg) return;
 
-            if (await IDBService.hasStore(`package:${pkg.cid}`)) {
+            if (await this.idb.hasStore(`package:${pkg.cid}`)) {
               triggerRefresh = true;
             }
 
@@ -430,8 +434,8 @@ export default class PackageService {
 
   async isCurrentEvent(chainJson: EventChain) {
     let existingChain;
-    if (await IDBService.hasStore(`ownable:${chainJson.id}`)) {
-      existingChain = await IDBService.get(`ownable:${chainJson.id}`, "chain");
+    if (await this.idb.hasStore(`ownable:${chainJson.id}`)) {
+      existingChain = await this.idb.get(`ownable:${chainJson.id}`, "chain");
     }
 
     if (existingChain === undefined || existingChain.events === undefined) {
@@ -476,7 +480,7 @@ export default class PackageService {
   ): Promise<string | ArrayBuffer> {
     return new Promise((resolve, reject) => {
       const fileReader = new FileReader();
-      IDBService.get(`package:${cid}`, name).then(
+      this.idb.get(`package:${cid}`, name).then(
         (mediaFile: File) => {
           if (!mediaFile) {
             reject(`Asset "${name}" is not in package ${cid}`);
@@ -507,7 +511,7 @@ export default class PackageService {
 
   async zip(cid: string): Promise<JSZip> {
     const zip = new JSZip();
-    const files = await IDBService.getAll(`package:${cid}`);
+    const files = await this.idb.getAll(`package:${cid}`);
 
     for (const file of files) {
       zip.file(file.name, file);

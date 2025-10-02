@@ -479,7 +479,6 @@ export default function App() {
       <Sidebar
         open={showSidebar}
         onClose={() => setShowSidebar(false)}
-        onLogout={logout}
         onReset={reset}
         onFactoryReset={factoryReset}
       />

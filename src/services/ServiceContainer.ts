@@ -47,12 +47,15 @@ export default class ServiceContainer {
       );
 
       this.register('packages', async (c) =>
-        new PackageService(await c.get('relay'), await c.get('localStorage')),
+        new PackageService(await c.get('idb'), await c.get('relay'), await c.get('localStorage')),
       );
 
-      this.register('ownables', async (c) =>
-        new OwnableService(await c.get('eventChains'), await c.get('eqty'), await c.get('packages')),
-      );
+      this.register('ownables', async (c) => new OwnableService(
+        await c.get('idb'),
+        await c.get('eventChains'),
+        await c.get('eqty'),
+        await c.get('packages'),
+      ));
 
       this.register('polling', async (c) =>
         new PollingService(await c.get('relay'), await c.get('localStorage')),

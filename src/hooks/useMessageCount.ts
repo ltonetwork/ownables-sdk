@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useContainer } from "../contexts/Services.context";
 import LocalStorageService from "../services/LocalStorage.service";
+import { useService } from "./useService"
 
 const MESSAGE_COUNT_KEY = "messageCount";
 
@@ -24,28 +25,22 @@ export interface UseMessageCountResult {
 }
 
 export const useMessageCount = (): UseMessageCountResult => {
-  const container = useContainer();
-  const localStorageService = useMemo(
-    () => container.get<LocalStorageService>("localStorage"),
-    [container]
-  );
+  const storage = useService('localStorage');
 
   const getMessageCount = useCallback(async (): Promise<number> => {
     const stored = await Promise.resolve(
-      localStorageService.get(MESSAGE_COUNT_KEY)
+      storage?.get(MESSAGE_COUNT_KEY)
     );
 
     return normalizeCount(stored);
-  }, [localStorageService]);
+  }, [storage]);
 
   const setMessageCount = useCallback(
     async (count: number): Promise<void> => {
       const normalized = normalizeCount(count);
-      await Promise.resolve(
-        localStorageService.set(MESSAGE_COUNT_KEY, normalized)
-      );
+      storage?.set(MESSAGE_COUNT_KEY, normalized);
     },
-    [localStorageService]
+    [storage]
   );
 
   const decrementMessageCount = useCallback(async (): Promise<number> => {
