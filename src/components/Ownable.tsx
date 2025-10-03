@@ -12,11 +12,11 @@ import ownableErrorMessage from "../utils/ownableErrorMessage";
 import TypedDict from "../interfaces/TypedDict";
 import { TypedPackage } from "../interfaces/TypedPackage";
 import Overlay, { OverlayBanner } from "./Overlay";
-import LTOService from "../services/LTO.service";
 import If from "./If";
 import { enqueueSnackbar } from "notistack";
 import { PACKAGE_TYPE } from "../constants";
 import { useService } from "../hooks/useService";
+import { useAccount } from "wagmi"
 
 interface OwnableProps {
   chain: EventChain;
@@ -38,6 +38,7 @@ export default function Ownable(props: OwnableProps) {
   const idb = useService('idb');
   const eventChains = useService('eventChains');
   const relay = useService('relay');
+  const { address } = useAccount();
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const busyRef = useRef(false);
@@ -67,7 +68,7 @@ export default function Ownable(props: OwnableProps) {
     }
   }, [pkg]);
 
-  const isTransferred = !!info && info.owner !== LTOService.address && info.owner !== undefined;
+  const isTransferred = !!info && info.owner !== address && info.owner !== undefined;
 
   const resizeToThumbnail = useCallback(async (file: File): Promise<Blob> => {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {

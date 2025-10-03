@@ -4,7 +4,7 @@ import MoreVert from "@mui/icons-material/MoreVert";
 import { useState, MouseEvent } from "react";
 import { Delete, PrecisionManufacturing, SwapHoriz } from "@mui/icons-material";
 import PromptDialog from "./PromptDialog";
-import LTOService from "../services/LTO.service";
+import { useAccount } from "wagmi"
 
 interface OwnableActionsProps {
   sx?: SxProps<Theme>;
@@ -22,6 +22,7 @@ export default function OwnableActions(props: OwnableActionsProps) {
     props;
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const { address } = useAccount();
 
   const open = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -105,10 +106,8 @@ export default function OwnableActions(props: OwnableActionsProps) {
         open={showTransferDialog}
         onClose={() => setShowTransferDialog(false)}
         onSubmit={onTransfer}
-        validate={(address) => {
-          if (!LTOService.isValidAddress(address)) return "Invalid address";
-          if (LTOService.address === address)
-            return "Can't transfer to own account";
+        validate={(recipient) => {
+          if (address === recipient) return "Can't transfer to own account";
           return "";
         }}
         TextFieldProps={{
