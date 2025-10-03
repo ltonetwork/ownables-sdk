@@ -1,4 +1,3 @@
-import LTOService from "../services/LTO.service";
 import {
   Dialog,
   Card,
@@ -9,8 +8,6 @@ import {
   Box,
 } from "@mui/material";
 import bgImage from "../assets/login-bg.jpg";
-import { useEffect, useState } from "react";
-import { useAccount } from 'wagmi';
 import WalletConnectControls from './WalletConnectControls';
 
 const cardStyle = {
@@ -20,27 +17,10 @@ const cardStyle = {
 
 interface LoginDialogProps {
   open: boolean;
-  onLogin: () => void;
 }
 
 export default function LoginDialog(props: LoginDialogProps) {
-  const { open, onLogin } = props;
-  const { isConnected } = useAccount();
-  const [handled, setHandled] = useState(false);
-
-  useEffect(() => {
-    if (open && isConnected && !handled) {
-      try {
-        // Create a random LTO account in the background and store it with a temp password
-        LTOService.createAccount();
-        LTOService.storeAccount('default', 'eth-temp');
-        setHandled(true);
-        onLogin();
-      } catch (e) {
-        console.error('Failed to initialize LTO account after wallet connect', e);
-      }
-    }
-  }, [open, isConnected, handled, onLogin]);
+  const { open } = props;
 
   return (
     <Dialog open={open}>

@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Button, Link, Typography } from "@mui/material";
 import PackagesFab from "./components/PackagesFab";
 import { TypedPackage } from "./interfaces/TypedPackage";
 import LoginDialog from "./components/LoginDialog";
 import Loading from "./components/Loading";
-import LTOService from "./services/LTO.service";
 import Sidebar from "./components/Sidebar";
 import { ViewMessagesBar } from "./components/ViewMessagesBar";
 import If from "./components/If";
@@ -23,27 +22,17 @@ import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import { usePackageManager } from "./hooks/usePackageManager";
-import { useAccount, useNetwork } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
 import { useMessageCount } from "./hooks/useMessageCount";
 import { useService } from "./hooks/useService"
+import { usePolling } from "./hooks/usePolling"
 
 export default function App() {
-  const handleWalletContextChanged = () => {
-    // Close all menus and modals
-    setShowSidebar(false);
-    setShowViewMessagesBar(false);
-    setShowPackages(false);
-    setConsuming(null);
-    setAlert(null);
-    setConfirm(null);
-  };
-
   const [loaded, setLoaded] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showViewMessagesBar, setShowViewMessagesBar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
-  const [address, setAddress] = useState(LTOService.address);
   const [message, setMessages] = useState(0);
   const [ownables, setOwnables] = useState<
     Array<{ chain: EventChain; package: string; uniqueMessageHash?: string }>
@@ -67,12 +56,13 @@ export default function App() {
   } | null>(null);
 
   const ownableService = useService('ownables');
-  const pollingService = useService('polling');
   const packageService = useService('packages');
   const relayService = useService('relay');
   const storage = useService('localStorage');
   const idb = useService('idb');
   const { isLoading: isPackageManagerLoading } = usePackageManager();
+
+  usePolling();
 
   const handleNotificationClick = () => {
     setShowViewMessagesBar(true);
@@ -88,85 +78,23 @@ export default function App() {
       .then(() => setLoaded(true));
   }, [ownableService]);
 
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+
   useEffect(() => {
-    if (pollingService && !showLogin && address.length > 1) {
-      const stopPolling = pollingService.startPolling(
-        address,
-        (newCount: any) => {
-          setMessages(newCount);
-        },
-        5000
-      );
-      return () => stopPolling();
-    }
-  }, [address, showLogin, pollingService]);
+    setShowLogin(!isConnected);
+
+    setShowSidebar(false);
+    setShowViewMessagesBar(false);
+    setShowPackages(false);
+    setConsuming(null);
+    setAlert(null);
+    setConfirm(null);
+  }, [address, isConnected, chainId]);
 
   const showError = (title: string, message: string) => {
     setAlert({ severity: "error", title, message });
   };
-
-  const onLogin = () => {
-    setShowLogin(false);
-    setAddress(LTOService.address);
-  };
-
-  const logout = () => {
-    setShowSidebar(false);
-    LTOService.lock();
-    setShowLogin(true);
-  };
-
-  // When the wallet disconnects (from WalletConnectControls or elsewhere), log out of the app.
-  const account = useAccount({
-    onDisconnect() {
-      logout();
-    },
-  });
-  const wagmiAddress = account.address;
-  const { chain } = useNetwork();
-
-  useEffect(() => {
-    setShowLogin(!account?.isConnected);
-  }, [account]);
-
-  // Detect account/chain changes (RainbowKit/wagmi) and reload the app UI
-  const prevAddressRef = useRef<string | undefined>(wagmiAddress);
-  const prevChainIdRef = useRef<number | undefined>(chain?.id);
-
-  useEffect(() => {
-    if (prevAddressRef.current !== undefined && wagmiAddress !== prevAddressRef.current) {
-      handleWalletContextChanged();
-    }
-    prevAddressRef.current = wagmiAddress;
-  }, [wagmiAddress]);
-
-  useEffect(() => {
-    if (prevChainIdRef.current !== undefined && chain?.id !== prevChainIdRef.current) {
-      handleWalletContextChanged();
-    }
-    prevChainIdRef.current = chain?.id;
-  }, [chain?.id]);
-
-  // Also subscribe to provider-level events for maximal compatibility (e.g., injected provider)
-  useEffect(() => {
-    const eth: any = (window as any).ethereum;
-    if (!eth || !eth.on) return;
-
-    const onAccountsChanged = () => handleWalletContextChanged();
-    const onChainChanged = () => handleWalletContextChanged();
-
-    eth.on('accountsChanged', onAccountsChanged);
-    eth.on('chainChanged', onChainChanged);
-
-    return () => {
-      try {
-        eth.removeListener && eth.removeListener('accountsChanged', onAccountsChanged);
-        eth.removeListener && eth.removeListener('chainChanged', onChainChanged);
-      } catch (_) {
-        // no-op
-      }
-    };
-  }, []);
 
   const removeOwnable = (ownableId: string) => {
     setOwnables((prevOwnables) =>
@@ -232,11 +160,7 @@ export default function App() {
     }
   };
 
-  const deleteOwnable = (
-    id: string,
-    packageCid: string,
-    uniqueMessageHash?: string
-  ) => {
+  const deleteOwnable = (id: string, packageCid: string) => {
     if (!packageService) throw new Error("Package service not ready");
     const pkg = packageService.info(packageCid);
 
@@ -431,7 +355,7 @@ export default function App() {
               uniqueMessageHash={uniqueMessageHash}
               selected={consuming?.chain.id === chain.id}
               onDelete={() =>
-                deleteOwnable(chain.id, packageCid, uniqueMessageHash)
+                deleteOwnable(chain.id, packageCid)
               }
               onRemove={() => removeOwnable(chain.id)}
               onConsume={(info) =>
@@ -485,7 +409,7 @@ export default function App() {
         setOwnables={setOwnables}
       />
 
-      <LoginDialog key={address} open={showLogin} onLogin={onLogin} />
+      <LoginDialog key={address} open={showLogin} />
 
       <HelpDrawer open={consuming !== null}>
         <Typography component="span" sx={{ fontWeight: 700 }}>

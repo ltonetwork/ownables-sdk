@@ -2,6 +2,9 @@ import { RelayService } from "./Relay.service";
 import LocalStorageService from "./LocalStorage.service";
 
 export class PollingService {
+  private tries = 3;
+  private intervalId?: ReturnType<typeof setInterval>;
+
   constructor(private readonly relay: RelayService, private readonly localStorage: LocalStorageService) {}
 
   /**
@@ -26,7 +29,7 @@ export class PollingService {
       }
 
       const requestOptions = Object.keys(headers).length > 0 ? { headers } : {};
-      const response = await this.relay.handleSignedRequest(
+      const response = await this.relay.fetch(
         "GET",
         url,
         requestOptions
@@ -53,12 +56,16 @@ export class PollingService {
 
         return newHashes.length;
       }
-
-      return 0;
     } catch (error) {
       console.error("Error fetching message hashes:", error);
-      return 0;
+
+      if (this.tries-- <= 0) {
+        this.tries = 3;
+        this.stopPolling();
+      }
     }
+
+    return 0;
   }
 
   /**
@@ -80,12 +87,18 @@ export class PollingService {
       }
     };
 
-    const intervalId = setInterval(fetchHashes, interval);
+    this.intervalId = setInterval(fetchHashes, interval);
 
     //cleanup
     return () => {
-      clearInterval(intervalId);
+      clearInterval(this.intervalId);
     };
+  }
+
+  stopPolling(): void {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
   }
 
   /**

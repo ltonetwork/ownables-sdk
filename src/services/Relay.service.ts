@@ -4,9 +4,7 @@ import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
 
-import { sign } from "@ltonetwork/http-message-signatures";
-import LTOService from "./LTO.service";
-import PackageService from "./Package.service";
+import EQTYService from "./EQTY.service"
 
 const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
 
@@ -15,44 +13,31 @@ export class RelayService {
 
   private relay: Relay;
 
-  constructor() {
+  constructor(private readonly eqty: EQTYService) {
     this.relay = new Relay(`${RelayService.URL}`);
   }
 
   /*
-   * Handle All Signed Requests
+   * Handle all Requests
    */
-  async handleSignedRequest(
+  private async fetch(
     method: string,
     url: string,
     options: { headers?: Record<string, string> } = {}
   ) {
     try {
-      const sender = LTOService.account;
-      const request = {
+      return await axios({
         method,
         url,
         headers: {
-          ...options.headers, // Include optional headers in the request
-        },
-      };
-
-      const signedRequest = await sign(request, { signer: sender });
-
-      const response = await axios({
-        method: signedRequest.method,
-        url: signedRequest.url,
-        headers: {
-          ...signedRequest.headers,
+          ...options.headers,
         },
         validateStatus: (status) => {
           return (status >= 200 && status < 300) || status === 304;
         },
       });
-
-      return response;
     } catch (error) {
-      console.error("Error in handleSignedRequest:", error);
+      console.error("Error in Relay fetch:", error);
       throw error;
     }
   }
@@ -65,28 +50,24 @@ export class RelayService {
     content: Uint8Array,
     meta: Partial<IMessageMeta>
   ) {
-    const signer = LTOService.account;
-
     if (!recipient) {
       console.error("Recipient not provided");
       return;
     }
 
     try {
-      if (signer) {
-        const messageContent = Binary.from(content);
+      const messageContent = Binary.from(content);
 
-        const message = await new Message(
-          messageContent,
-          "application/octet-stream",
-          meta
-        )
-          .to(recipient)
-          .signWith(signer as any);
+      const message = await new Message(
+        messageContent,
+        "application/octet-stream",
+        meta
+      )
+        .to(recipient)
+        .signWith(this.eqty.signer)
 
-        await this.relay.send(message);
-        return message.hash.base58;
-      }
+      await this.relay.send(message);
+      return message.hash.base58;
     } catch (error) {
       console.error("Error sending message:", error);
     }
@@ -96,120 +77,40 @@ export class RelayService {
    * Read a single message by its hash.
    */
   async readMessage(hash: string): Promise<{ message?: any; hash?: string }> {
-    const sender = LTOService.account;
-    if (!sender) {
-      console.error("Account not initialized");
-      return {};
+    const url = `${RelayService.URL}/inboxes/${this.eqty.address}/${hash}`;
+
+    const response = await this.fetch("GET", url);
+
+    if (!response?.data) {
+      throw new Error("Invalid response");
     }
 
-    const address = sender.address;
-    const url = `${RelayService.URL}/inboxes/${address}/${hash}`;
-
-    try {
-      const response = await this.handleSignedRequest("GET", url);
-
-      if (response?.data) {
-        const message = Message.from(response.data);
-
-        const m: any = message as any;
-        if (typeof m.isEncrypted === 'function' ? m.isEncrypted() : false) {
-          if (typeof m.decryptWith === 'function') m.decryptWith(sender as any);
-        }
-
-        return { message, hash };
-      }
-
-      return {};
-    } catch (error) {
-      console.error("Error reading single message:", error);
-      return {};
-    }
+    const message = Message.from(response.data);
+    return { message, hash };
   }
 
   /**
-   * Read relay data for the current sender.
+   * Read relay all messages for the current sender.
    */
-  async readRelayData() {
-    const sender = LTOService.account;
+  async readAll() {
+    const list = await this.list();
 
-    if (!sender) {
-      console.error("Account not initialized");
-      return null;
-    }
+    const ownableData = await Promise.all(
+      list.map(async (response: MessageInfo) => this.readMessage(response.hash).catch(() => null)),
+    );
 
-    const address = sender.address;
-    const isRelayAvailable = await this.isRelayUp();
-    if (!isRelayAvailable) return null;
-
-    const url = `${RelayService.URL}/v2/inboxes/${address}`;
-
-    try {
-      const responses = await this.handleSignedRequest("GET", url);
-
-      if (!responses.data.messages?.length) return null;
-
-      const ownableData = await Promise.all(
-        responses.data.messages.map(async (response: MessageInfo) => {
-          if (!response.hash) {
-            console.warn("Skipping response without a hash:", response);
-            return null;
-          }
-
-          const messageUrl = `${RelayService.URL}/inboxes/${address}/${response.hash}`;
-          try {
-            const infoResponse = await this.handleSignedRequest(
-              "GET",
-              messageUrl
-            );
-
-            if (!infoResponse.data.sender) {
-              console.warn("Skipping response without a sender:", infoResponse);
-              return null;
-            }
-
-            const maybeMsg: any = Message.from(infoResponse.data) as any;
-            const message = typeof maybeMsg.decryptWith === 'function' ? maybeMsg.decryptWith(sender as any) : maybeMsg;
-
-            return { message, messageHash: infoResponse.data.hash };
-          } catch (error) {
-            console.error(
-              `Failed to process message with hash ${response.hash}:`,
-              error
-            );
-            return null;
-          }
-        })
-      );
-      return ownableData.filter((data) => data !== null);
-    } catch (error) {
-      console.error("Failed to read relay data:", error);
-      return null;
-    }
+    return ownableData.filter((data) => data !== null);
   }
 
   /**
    * Remove an ownable by its hash.
    */
-  async removeOwnable(hash: string): Promise<string> {
-    const sender = LTOService.account;
-    if (!sender) {
-      throw new Error("Sender not initialized");
-    }
+  async removeOwnable(hash: string): Promise<void> {
+    const url = `${RelayService.URL}/inboxes/${this.eqty.address}/${hash}`;
+    const response = await this.fetch("DELETE", url);
 
-    const address = sender.address;
-    const url = `${RelayService.URL}/inboxes/${address}/${hash}`;
-
-    try {
-      const response = await this.handleSignedRequest("DELETE", url);
-
-      if (response?.status === 204) {
-        return "Successfully cleared ownable";
-      } else {
-        throw new Error(`${response}`);
-      }
-    } catch (error) {
-      console.error("Failed to remove ownable:", error);
-      throw new Error("Failed to clear: " + error);
+    if (response?.status !== 204) {
+      throw new Error(`Failed to remove ownanble from Relay: Server responded with ${response}`);
     }
   }
 
@@ -218,35 +119,24 @@ export class RelayService {
    */
   async isRelayUp(): Promise<boolean> {
     if (!RelayService.URL) return false;
+
     try {
-      const response = await this.handleSignedRequest("HEAD", RelayService.URL);
-      if (response.status === 200) {
-        return true;
-      } else {
-        return false;
-      }
+      const response = await this.fetch("HEAD", RelayService.URL);
+      return response.status === 200;
     } catch (error) {
       console.error("Relay service is down:", error);
       return false;
     }
   }
 
-  async list(offset: number, limit: number) {
-    const sender = await LTOService.getAccount();
-
-    if (!sender) {
-      console.error("Account not initialized");
-      return null;
-    }
-
-    const address = sender.address;
+  async list(offset: number = 0, limit: number = 0) {
     const isRelayAvailable = await this.isRelayUp();
     if (!isRelayAvailable) return null;
 
-    const url = `${RelayService.URL}/v2/inboxes/${address}?limit=${limit}&offset=${offset}`;
+    const url = `${RelayService.URL}/v2/inboxes/${this.eqty.address}?limit=${limit}&offset=${offset}`;
 
     try {
-      const response = await this.handleSignedRequest("GET", url);
+      const response = await this.fetch("GET", url);
       return response.data || null;
     } catch (error) {
       console.error("Failed to read relay metadata:", error);

@@ -387,7 +387,7 @@ export default class PackageService {
 
   async importFromRelay() {
     try {
-      const relayData = await this.relay.readRelayData();
+      const relayData = await this.relay.readAll();
 
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         return null;

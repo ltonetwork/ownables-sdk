@@ -8,7 +8,9 @@ import {
   Skeleton,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import ArrowBack from "@mui/icons-material/ArrowBack";
+import DriveFolderUploadIcon from '@mui/icons-material/DriveFolderUpload';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import CloseIcon from '@mui/icons-material/Close';
 import Dialog from "@mui/material/Dialog";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -72,7 +74,7 @@ function PackagesDialog(props: PackagesDialogProps) {
             Packages
           </Typography>
           <IconButton onClick={onClose}>
-            <ArrowBack />
+            <CloseIcon />
           </IconButton>
         </Box>
         <List sx={{ pt: 2 }} disablePadding>
@@ -119,19 +121,6 @@ function PackagesDialog(props: PackagesDialogProps) {
           <Divider />
         </If>
         <List sx={{ pt: 0 }} disablePadding>
-          <ListItem disablePadding disableGutters key="add-local">
-            <ListItemButton
-              autoFocus
-              onClick={onImport}
-              style={{ textAlign: "center" }}
-            >
-              <ListItemIcon>
-                <AddIcon />
-              </ListItemIcon>
-              <ListItemText primary="Import from local" />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
           <ListItem disablePadding disableGutters key="create-ownable">
             <ListItemButton
               autoFocus
@@ -139,9 +128,21 @@ function PackagesDialog(props: PackagesDialogProps) {
               style={{ textAlign: "center" }}
             >
               <ListItemIcon>
-                <AddIcon />
+                <AutoAwesomeIcon />
               </ListItemIcon>
               <ListItemText primary="Create ownable" />
+            </ListItemButton>
+          </ListItem>
+          <ListItem disablePadding disableGutters key="add-local">
+            <ListItemButton
+              autoFocus
+              onClick={onImport}
+              style={{ textAlign: "center" }}
+            >
+              <ListItemIcon>
+                <DriveFolderUploadIcon />
+              </ListItemIcon>
+              <ListItemText primary="Import package" />
             </ListItemButton>
           </ListItem>
         </List>
