@@ -20,7 +20,7 @@ export class RelayService {
   /*
    * Handle all Requests
    */
-  private async fetch(
+  async fetch(
     method: string,
     url: string,
     options: { headers?: Record<string, string> } = {}

@@ -3,8 +3,9 @@ import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
 import CachedIcon from '@mui/icons-material/Cached';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useDisconnect } from 'wagmi';
+import { PropsWithChildren } from "react"
 
-export default function WalletConnectControls() {
+export default function WalletConnectControls({ children }: PropsWithChildren) {
   const { disconnect, isLoading } = useDisconnect();
 
   return (
@@ -46,9 +47,7 @@ export default function WalletConnectControls() {
             <Typography sx={{ fontSize: 14, fontWeight: 600, cursor: 'pointer' }} component="div" onClick={openAccountModal}>
               {account?.displayName} <InfoOutlineIcon sx={{ fontSize: 14 }} />
             </Typography>
-            <Typography variant="body2" sx={{ mt: 1, mb: 2 }}>
-              balance: {account?.displayBalance}
-            </Typography>
+            {children}
             <Button variant="contained" fullWidth onClick={() => disconnect()} disabled={isLoading}>
               {isLoading ? 'Disconnecting…' : 'Disconnect'}
             </Button>

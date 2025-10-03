@@ -27,40 +27,44 @@ export default class ServiceContainer {
   private readonly factories = new Map<ServiceKey, ServiceFactory>();
 
   constructor(public readonly address: string | undefined, public readonly chainId: number | undefined) {
-    this.register('relay', async (c) => new RelayService());
-
-    if (address && chainId) {
-      this.register('eqty', async (c) => new EQTYService(c.address!, c.chainId!));
-
-      this.register('idb', async (c) => {
-        const s = new IDBService(`${c.chainId}:${c.address}`);
-        await s.open();
-        return s;
-      });
-
-      this.register('localStorage', async (c) =>
-        new LocalStorageService(`${c.chainId}:${c.address}`),
-      );
-
-      this.register('eventChains', async (c) =>
-        new EventChainService(await c.get('idb'), await c.get('eqty')),
-      );
-
-      this.register('packages', async (c) =>
-        new PackageService(await c.get('idb'), await c.get('relay'), await c.get('localStorage')),
-      );
-
-      this.register('ownables', async (c) => new OwnableService(
-        await c.get('idb'),
-        await c.get('eventChains'),
-        await c.get('eqty'),
-        await c.get('packages'),
-      ));
-
-      this.register('polling', async (c) =>
-        new PollingService(await c.get('relay'), await c.get('localStorage')),
-      );
+    if (!address || !chainId) {
+      return;
     }
+
+    this.register('eqty', async (c) => new EQTYService(c.address!, c.chainId!));
+
+    this.register('idb', async (c) => {
+      const s = new IDBService(`${c.chainId}:${c.address}`);
+      await s.open();
+      return s;
+    });
+
+    this.register('localStorage', async (c) =>
+      new LocalStorageService(`${c.chainId}:${c.address}`),
+    );
+
+    this.register('relay', async (c) =>
+      new RelayService(await c.get('eqty')),
+    );
+
+    this.register('eventChains', async (c) =>
+      new EventChainService(await c.get('idb'), await c.get('eqty')),
+    );
+
+    this.register('packages', async (c) =>
+      new PackageService(await c.get('idb'), await c.get('relay'), await c.get('localStorage')),
+    );
+
+    this.register('ownables', async (c) => new OwnableService(
+      await c.get('idb'),
+      await c.get('eventChains'),
+      await c.get('eqty'),
+      await c.get('packages'),
+    ));
+
+    this.register('polling', async (c) =>
+      new PollingService(await c.get('relay'), await c.get('localStorage')),
+    );
   }
 
   private register<K extends ServiceKey>(key: K, factory: ServiceFactory<ServiceMap[K]>): void {

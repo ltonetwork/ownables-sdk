@@ -1,25 +1,21 @@
 import {
-  Alert,
-  AlertTitle,
   Box,
   Button,
-  DialogActions,
   Drawer,
   FormControlLabel,
   FormGroup,
   Hidden,
   IconButton,
   Link,
-  Switch,
+  Switch, Typography,
 } from "@mui/material";
-import LTOService from "../services/LTO.service";
 import { useEffect, useState } from "react";
-import useInterval from "../utils/useInterval";
 import { ArrowBack } from "@mui/icons-material";
 import ltoLogo from "../assets/ltonetwork.png";
-import Dialog from "@mui/material/Dialog";
 import EventChainService from "../services/EventChain.service";
-import WalletConnectControls from "./WalletConnectControls"
+import WalletConnectControls from "./WalletConnectControls";
+import { useAccount, useBalance } from "wagmi"
+import useEqtyToken from "../hooks/useEqtyToken"
 
 interface SidebarProps {
   open: boolean;
@@ -31,29 +27,13 @@ interface SidebarProps {
 export default function Sidebar(props: SidebarProps) {
   const { open, onClose, onReset, onFactoryReset } = props;
   const [anchoring, setAnchoring] = useState(EventChainService.anchoring);
-  const [showNoBalance, setShowNoBalance] = useState(false);
-  const [balance, setBalance] = useState<number>();
-
-  const loadBalance = () => {
-    if (!LTOService.isUnlocked()) return;
-
-    LTOService.getBalance().then(({ regular }) =>
-      setBalance(parseFloat((regular / 100000000).toFixed(2)))
-    );
-  };
-
-  useEffect(() => loadBalance(), []);
-  useInterval(() => loadBalance(), 5 * 1000);
+  const { address } = useAccount();
+  const { data: ethBalance } = useBalance({ address, formatUnits: 'ether', watch: true });
+  const { balance: eqtyBalance } = useEqtyToken({ address, watch: true });
 
   useEffect(() => {
-    if (anchoring && balance !== undefined && balance < 0.1) {
-      setShowNoBalance(true);
-      setAnchoring(false);
-      return;
-    }
-
     EventChainService.anchoring = anchoring;
-  }, [anchoring, balance]);
+  }, [anchoring]);
 
   return (
     <>
@@ -75,7 +55,13 @@ export default function Sidebar(props: SidebarProps) {
           </Box>
 
           <Box component="div" sx={{ mt: 2 }}>
-            <WalletConnectControls />
+            <WalletConnectControls>
+              <Typography variant="body2" sx={{ mt: 1, mb: 4 }}>
+                <div><strong>Balance</strong></div>
+                <div>{Number(ethBalance?.formatted).toFixed(4)} {ethBalance?.symbol}</div>
+                { eqtyBalance !== undefined && <div>{Number(eqtyBalance?.formatted).toFixed(4)} {eqtyBalance?.symbol}</div> }
+              </Typography>
+            </WalletConnectControls>
           </Box>
 
           <Box component="div" sx={{ mt: 4 }}>
@@ -117,29 +103,6 @@ export default function Sidebar(props: SidebarProps) {
           </FormGroup>
         </Box>
       </Drawer>
-
-      <Dialog
-        open={showNoBalance}
-        hideBackdrop
-        onClose={() => setShowNoBalance(false)}
-      >
-        <Alert variant="outlined" severity="warning">
-          <AlertTitle>Your balance is zero</AlertTitle>
-          Anchoring on testnet requires LTO tokens. Please join{" "}
-          <strong>LTO Tech Lab</strong> on Telegram and ask for testnet tokens.{" "}
-          <em>They will be supplied to you for free.</em>
-          <DialogActions sx={{ pb: 0 }}>
-            <Button
-              variant="text"
-              size="small"
-              href="https://t.me/ltotech"
-              target="_blank"
-            >
-              Join Telegram Group
-            </Button>
-          </DialogActions>
-        </Alert>
-      </Dialog>
     </>
   );
 }
