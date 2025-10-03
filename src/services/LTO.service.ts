@@ -59,8 +59,15 @@ export default class LTOService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public static async getBalance(_address?: string): Promise<never> {
-    throw new Error("LTOService is a dummy service");
+  public static async getBalance(_address?: string) {
+    return {
+      regular: 0,
+      available: 0,
+      leasing: 0,
+      unbonding: 0,
+      effective: 0,
+      generating: 0,
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

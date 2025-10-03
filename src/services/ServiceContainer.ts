@@ -26,7 +26,7 @@ export default class ServiceContainer {
   private readonly cache = new Map<ServiceKey, any>();
   private readonly factories = new Map<ServiceKey, ServiceFactory>();
 
-  constructor(public readonly address?: string, public readonly chainId?: number) {
+  constructor(public readonly address: string | undefined, public readonly chainId: number | undefined) {
     this.register('relay', async (c) => new RelayService());
 
     if (address && chainId) {

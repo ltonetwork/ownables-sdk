@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import ServiceContainer from '../services/ServiceContainer';
-import { useAccount } from "wagmi"
+import { useAccount, useChainId } from "wagmi"
 
 export interface ServicesContextValue {
   container: ServiceContainer | null;
@@ -15,8 +15,9 @@ interface ServicesProviderProps {
 
 export const ServicesProvider: React.FC<ServicesProviderProps> = ({ children }) => {
   const account = useAccount();
+  const chainId = useChainId();
 
-  const container = useMemo(() => new ServiceContainer(account.address), [account]);
+  const container = useMemo(() => new ServiceContainer(account?.address, chainId), [account, chainId]);
 
   // Dispose previous container on address change/unmount
   useEffect(() => {

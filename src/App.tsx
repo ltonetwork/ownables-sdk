@@ -28,7 +28,6 @@ import { useMessageCount } from "./hooks/useMessageCount";
 import { useService } from "./hooks/useService"
 
 export default function App() {
-  // Reload app UI when wallet account or chain changes (RainbowKit/wagmi)
   const handleWalletContextChanged = () => {
     // Close all menus and modals
     setShowSidebar(false);
@@ -37,18 +36,10 @@ export default function App() {
     setConsuming(null);
     setAlert(null);
     setConfirm(null);
-    // Force a full reload to reinitialize event chains and ownables
-    try {
-      // Small timeout to ensure UI state updates flush before reload
-      setTimeout(() => {
-        window.location.reload();
-      }, 0);
-    } catch (_) {
-      window.location.reload();
-    }
   };
+
   const [loaded, setLoaded] = useState(false);
-  const [showLogin, setShowLogin] = useState(!LTOService.isUnlocked());
+  const [showLogin, setShowLogin] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showViewMessagesBar, setShowViewMessagesBar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
@@ -133,6 +124,10 @@ export default function App() {
   });
   const wagmiAddress = account.address;
   const { chain } = useNetwork();
+
+  useEffect(() => {
+    setShowLogin(!account?.isConnected);
+  }, [account]);
 
   // Detect account/chain changes (RainbowKit/wagmi) and reload the app UI
   const prevAddressRef = useRef<string | undefined>(wagmiAddress);
@@ -490,7 +485,7 @@ export default function App() {
         setOwnables={setOwnables}
       />
 
-      <LoginDialog key={address} open={loaded && showLogin} onLogin={onLogin} />
+      <LoginDialog key={address} open={showLogin} onLogin={onLogin} />
 
       <HelpDrawer open={consuming !== null}>
         <Typography component="span" sx={{ fontWeight: 700 }}>
@@ -524,7 +519,7 @@ export default function App() {
       >
         {confirm?.message}
       </ConfirmDialog>
-      <Loading show={!loaded || isPackageManagerLoading} />
+      <Loading show={(!loaded || isPackageManagerLoading) && !showLogin} />
     </>
   );
 }
