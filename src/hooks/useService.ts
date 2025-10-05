@@ -7,7 +7,7 @@ export function useService<K extends ServiceKey>(key: K): ServiceMap[K] | null {
   const [service, setService] = useState<ServiceMap[K] | null>(null);
 
   useEffect(() => {
-    if (!container.has(key)) return;
+    if (!container?.has(key)) return;
 
     let alive = true;
     container.get(key).then(s => {

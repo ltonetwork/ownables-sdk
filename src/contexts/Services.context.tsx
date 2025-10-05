@@ -79,9 +79,6 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => { ref.current?.dispose().catch(() => {}); ref.current = null; };
   }, []);
 
-  // Gate children until we have a live container
-  if (!ctx) return null; // or a tiny loader
-
   return (
     <ServicesContext.Provider value={ctx}>
       {children}
@@ -89,10 +86,9 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
-export function useContainer(): ServiceContainer {
+export function useContainer(): ServiceContainer | undefined {
   const ctx = useContext(ServicesContext);
-  if (!ctx) throw new Error('useContainer must be used within ServicesProvider');
-  return ctx.container;
+  return ctx?.container;
 }
 
 export default ServicesContext;

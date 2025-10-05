@@ -28,11 +28,7 @@ export default class ServiceContainer {
   private readonly cache = new Map<ServiceKey, Promise<any>>();
   private readonly factories = new Map<ServiceKey, ServiceFactory>();
 
-  constructor(public readonly address: string | undefined, public readonly chainId: number | undefined) {
-    if (!address || !chainId) {
-      return;
-    }
-
+  constructor(public readonly address: string, public readonly chainId: number) {
     this.register('eqty', async (c) => new EQTYService(c.address!, c.chainId!));
 
     this.register('idb', async (c) =>
