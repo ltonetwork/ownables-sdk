@@ -508,15 +508,6 @@ export default class OwnableService {
     );
   }
 
-  private async ensureDBConnection(): Promise<void> {
-    try {
-      await this.idb.listStores();
-    } catch (e) {
-      console.warn("IDB connection lost, attempting to reconnect...");
-      await this.idb.open();
-    }
-  }
-
   private async retryOperation<T>(
     operation: () => Promise<T>,
     maxRetries: number = 3,
@@ -524,7 +515,6 @@ export default class OwnableService {
   ): Promise<T> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await this.ensureDBConnection();
         return await operation();
       } catch (error) {
         console.warn(`Attempt ${attempt} failed:`, error);

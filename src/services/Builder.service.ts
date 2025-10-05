@@ -6,8 +6,12 @@ export default class BuilderService {
 
   constructor(private chainId: number) {}
 
+  public static isAvailable(): boolean {
+    return !!BuilderService.URL;
+  }
+
   public async getAddress() {
-    if (!BuilderService.URL) {
+    if (!BuilderService.isAvailable()) {
       return null;
     }
 

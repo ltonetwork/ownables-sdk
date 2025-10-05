@@ -24,6 +24,25 @@ export const usePackageManager = () => {
     updatePackages();
   }, [updatePackages]);
 
+  const importPackages = async (files: FileList) => {
+    if (!packageService) throw new Error("Package service not ready");
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      return await Promise.all(Array.from(files).map(async (file) => {
+        return await packageService.import(file);
+      }));
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error("Failed to import package");
+      setError(error);
+      throw error;
+    } finally {
+      updatePackages();
+      setIsLoading(false);
+    }
+  }
+
   const importPackage = async (file: File) => {
     if (!packageService) throw new Error("Package service not ready");
 
@@ -85,6 +104,7 @@ export const usePackageManager = () => {
     error,
     updatePackages,
     importPackage,
+    importPackages,
     importInbox,
     downloadExample,
   };

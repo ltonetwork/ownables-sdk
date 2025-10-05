@@ -25,7 +25,7 @@ export type ServiceKey = keyof ServiceMap;
 type ServiceFactory<T = any> = (container: ServiceContainer) => Promise<T> | T;
 
 export default class ServiceContainer {
-  private readonly cache = new Map<ServiceKey, any>();
+  private readonly cache = new Map<ServiceKey, Promise<any>>();
   private readonly factories = new Map<ServiceKey, ServiceFactory>();
 
   constructor(public readonly address: string | undefined, public readonly chainId: number | undefined) {
@@ -35,11 +35,9 @@ export default class ServiceContainer {
 
     this.register('eqty', async (c) => new EQTYService(c.address!, c.chainId!));
 
-    this.register('idb', async (c) => {
-      const s = new IDBService(`${c.chainId}:${c.address}`);
-      await s.open();
-      return s;
-    });
+    this.register('idb', async (c) =>
+      IDBService.open(`${c.chainId}:${c.address}`),
+    );
 
     this.register('localStorage', async (c) =>
       new LocalStorageService(`${c.chainId}:${c.address}`),
@@ -83,14 +81,15 @@ export default class ServiceContainer {
     if (!this.factories.has(key)) throw new Error(`No service factory registered for key: ${key}`);
     if (this.cache.has(key)) return this.cache.get(key)!;
 
-    const instance = await this.factories.get(key)!(this);
-    this.cache.set(key, instance);
-    return instance;
+    const promise = this.factories.get(key)!(this);
+    this.cache.set(key, promise);
+
+    return await promise;
   }
 
   async dispose(): Promise<void> {
     if (this.cache.has('idb')) {
-      this.cache.get('idb').close();
+      (await this.cache.get('idb')).close();
     }
   }
 }

@@ -170,7 +170,7 @@ export default class PackageService {
     const zip = await JSZip.loadAsync(zipFile);
 
     if (chain) {
-      const chainFiles = await Promise.all(
+      return await Promise.all(
         Array.from(Object.entries(zip.files))
           .filter(([filename]) => !filename.startsWith("."))
           .map(async ([filename, file]) => {
@@ -179,10 +179,9 @@ export default class PackageService {
             return new File([blob], filename, { type });
           })
       );
-      return chainFiles;
     }
 
-    const assetFiles = await Promise.all(
+    return await Promise.all(
       Array.from(Object.entries(zip.files))
         .filter(
           ([filename]) => !filename.startsWith(".") && filename !== "chain.json"
@@ -193,7 +192,6 @@ export default class PackageService {
           return new File([blob], filename, { type });
         })
     );
-    return assetFiles;
   }
 
   private async storeAssets(cid: string, files: File[]): Promise<void> {
@@ -283,89 +281,91 @@ export default class PackageService {
     uniqueMessageHash?: string,
     isNotLocal = false
   ) {
-    try {
-      let chainJson: any;
-      let files: File[];
-      let packageJson: TypedDict;
+    let chainJson: any;
+    let files: File[];
+    let packageJson: TypedDict;
 
-      //Extract files
-      if (isNotLocal) {
-        files = await this.extractAssets(message.data.buffer, false);
-        packageJson = await this.getPackageJson("package.json", files);
-        chainJson = await this.getChainJson("chain.json", message.data.buffer);
-      } else {
-        files = message; // Local files
-        packageJson = await this.getPackageJson("package.json", files);
-      }
-
-      //Check for required JSON files
-      if (!packageJson) {
-        throw new Error("Missing package.json in extracted assets");
-      }
-      if (isNotLocal && !chainJson) {
-        throw new Error("Missing chain.json for relay package");
-      }
-
-      //Calculate CID
-      const cid = await calculateCid(files);
-
-      //Check for duplicates
-      if (await this.idb.hasStore(`package:${cid}`)) {
-        if (
-          isNotLocal &&
-          chainJson &&
-          !(await this.isCurrentEvent(chainJson))
-        ) {
-          console.warn(`Package with CID ${cid} is already current or newer.`);
-          return null;
-        }
-      }
-
-      //Prepare metadata
-      const name = packageJson.name || "Unnamed Package";
-      const title = name
-        .replace(/^ownable-|-ownable$/, "")
-        .replace(/[-_]+/, " ")
-        .replace(/\b\w/, (c: string) => c.toUpperCase());
-      const description = packageJson.description;
-      const keywords: string[] = packageJson.keywords || [];
-      const capabilities = await this.getCapabilities(files);
-
-      //Store assets
-      await this.storeAssets(cid, files);
-
-      //Store package info
-      const pkg = this.storePackageInfo(
-        title,
-        name,
-        description,
-        cid,
-        keywords,
-        capabilities,
-        isNotLocal,
-        uniqueMessageHash
-      );
-
-      //Attach chain if needed
-      if (isNotLocal && chainJson) {
-        const chain = EventChain.from(chainJson);
-        pkg.chain = chain;
-      }
-
-      if (uniqueMessageHash) {
-        pkg.uniqueMessageHash = uniqueMessageHash;
-      }
-
-      return pkg;
-    } catch (error) {
-      console.error("Error processing package:", error);
-      throw error;
+    //Extract files
+    if (isNotLocal) {
+      files = await this.extractAssets(message.data.buffer, false);
+      packageJson = await this.getPackageJson("package.json", files);
+      chainJson = await this.getChainJson("chain.json", message.data.buffer);
+    } else {
+      files = message; // Local files
+      packageJson = await this.getPackageJson("package.json", files);
     }
+
+    //Check for required JSON files
+    if (!packageJson) {
+      throw new Error("Missing package.json in extracted assets");
+    }
+    if (isNotLocal && !chainJson) {
+      throw new Error("Missing chain.json for relay package");
+    }
+
+    //Calculate CID
+    const cid = await calculateCid(files);
+
+    //Check for duplicates
+    if (await this.idb.hasStore(`package:${cid}`)) {
+      if (
+        isNotLocal &&
+        chainJson &&
+        !(await this.isCurrentEvent(chainJson))
+      ) {
+        console.warn(`Package with CID ${cid} is already current or newer.`);
+        return null;
+      }
+    }
+
+    //Prepare metadata
+    const name = packageJson.name || "Unnamed Package";
+    const title = name
+      .replace(/^ownable-|-ownable$/, "")
+      .replace(/[-_]+/, " ")
+      .replace(/\b\w/, (c: string) => c.toUpperCase());
+    const description = packageJson.description;
+    const keywords: string[] = packageJson.keywords || [];
+    const capabilities = await this.getCapabilities(files);
+
+    console.log('before store');
+
+    //Store assets
+    await this.storeAssets(cid, files);
+
+    console.log('stored');
+
+    //Store package info
+    const pkg = this.storePackageInfo(
+      title,
+      name,
+      description,
+      cid,
+      keywords,
+      capabilities,
+      isNotLocal,
+      uniqueMessageHash
+    );
+
+    console.log('stored package info', pkg)
+
+    //Attach chain if needed
+    if (isNotLocal && chainJson) {
+      pkg.chain = EventChain.from(chainJson);
+    }
+
+    if (uniqueMessageHash) {
+      pkg.uniqueMessageHash = uniqueMessageHash;
+    }
+
+    return pkg;
   }
 
   async import(zipFile: File): Promise<TypedPackage> {
     const files = await this.extractAssets(zipFile);
+    console.log(files);
     const pkg = await this.processPackage(files);
+    console.log(pkg);
 
     if (!pkg) {
       throw new Error(

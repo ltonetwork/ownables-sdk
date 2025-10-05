@@ -4,39 +4,27 @@ import TypedDict from "../interfaces/TypedDict";
 const DEFAULT_DB_NAME = "ownables";
 
 export default class IDBService {
-  // Instance members
-  private _db: IDBDatabase | null = null;
-  private readonly dbName: string;
+  constructor(
+    private db: IDBDatabase,
+    private readonly dbName: string,
+  ) {}
 
-  constructor(suffix?: string) {
+  static async open(suffix: string): Promise<IDBService> {
     const suffixClean = (suffix || "").trim().toLowerCase();
-    this.dbName = suffixClean ? `${DEFAULT_DB_NAME}:${suffixClean}` : DEFAULT_DB_NAME;
-  }
+    const dbName = suffixClean ? `${DEFAULT_DB_NAME}:${suffixClean}` : DEFAULT_DB_NAME;
 
-  // Open the DB connection for this instance
-  async open(): Promise<void> {
-    if (this._db) return;
-
-    this._db = await new Promise((resolve, reject) => {
-      const request = window.indexedDB.open(this.dbName);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = window.indexedDB.open(dbName);
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject((e.target as IDBTransaction).error);
     });
+
+    return new IDBService(db, dbName);
   }
 
   // Close the DB connection for this instance
   async close(): Promise<void> {
-    if (!this._db) return;
-    try {
-      this._db.close();
-    } finally {
-      this._db = null;
-    }
-  }
-
-  private get db(): IDBDatabase {
-    if (!this._db) throw new Error("DB not opened");
-    return this._db;
+    this.db.close();
   }
 
   private error(event: Event): Error {
@@ -154,7 +142,7 @@ export default class IDBService {
     const version = this.db.version; // Get version before closing DB
     this.db.close();
 
-    this._db = await new Promise(async (resolve, reject) => {
+    this.db = await new Promise(async (resolve, reject) => {
       const request = window.indexedDB.open(this.dbName, version + 1);
 
       request.onupgradeneeded = () => action(request.result);
