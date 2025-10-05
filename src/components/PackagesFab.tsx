@@ -170,8 +170,7 @@ export default function PackagesFab(props: PackagesFabProps) {
     right: 20,
   };
 
-  const { open, onOpen, onClose, onSelect, onImportFR, onError, message } =
-    props;
+  const { open, onOpen, onClose, onSelect, onImportFR, onError, message } = props;
   const { packages, isLoading, importPackage, importInbox, downloadExample } =
     usePackageManager();
 

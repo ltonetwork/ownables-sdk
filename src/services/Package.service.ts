@@ -207,10 +207,6 @@ export default class PackageService {
     );
   }
 
-  stringToBuffer(str: string): Buffer {
-    return Buffer.from(str, "utf8");
-  }
-
   base64ToBuffer(base64: string): Buffer {
     return Buffer.from(base64, "base64");
   }
@@ -228,15 +224,10 @@ export default class PackageService {
     const json = JSON.parse(fileContent);
 
     json.events = json.events.map((event: MessageExt) => {
-      //event.previous = this.stringToBuffer(event.previous);
-      //event.signature = this.stringToBuffer(event.signature);
-      //event.hash = this.stringToBuffer(event.hash);
-      //event.signKey.publicKey = this.stringToBuffer(event.signKey.publicKey);
       if (event.data.startsWith("base64:")) {
         const base64Data = event.data.slice(7);
         const bufferData = this.base64ToBuffer(base64Data);
-        const data = JSON.parse(this.bufferToString(bufferData));
-        event.parsedData = data;
+        event.parsedData = JSON.parse(this.bufferToString(bufferData));
       }
       return event;
     });

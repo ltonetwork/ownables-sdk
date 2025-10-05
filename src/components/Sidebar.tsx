@@ -56,11 +56,11 @@ export default function Sidebar(props: SidebarProps) {
 
           <Box component="div" sx={{ mt: 2 }}>
             <WalletConnectControls>
-              <Typography variant="body2" sx={{ mt: 1, mb: 4 }}>
-                <div><strong>Balance</strong></div>
-                <div>{Number(ethBalance?.formatted).toFixed(4)} {ethBalance?.symbol}</div>
-                { eqtyBalance !== undefined && <div>{Number(eqtyBalance?.formatted).toFixed(4)} {eqtyBalance?.symbol}</div> }
-              </Typography>
+              <Box sx={{ mt: 1, mb: 4 }}>
+                <Typography variant="body2" fontWeight="strong">Balance</Typography>
+                <Typography variant="body2">{Number(ethBalance?.formatted).toFixed(4)} {ethBalance?.symbol}</Typography>
+                { eqtyBalance !== undefined && <Typography variant="body2">{Number(eqtyBalance?.formatted).toFixed(4)} {eqtyBalance?.symbol}</Typography> }
+              </Box>
             </WalletConnectControls>
           </Box>
 

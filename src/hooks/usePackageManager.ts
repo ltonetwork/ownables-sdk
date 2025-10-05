@@ -34,8 +34,7 @@ export const usePackageManager = () => {
       updatePackages();
       return result;
     } catch (err) {
-      const error =
-        err instanceof Error ? err : new Error("Failed to import package");
+      const error = err instanceof Error ? err : new Error("Failed to import package");
       setError(error);
       throw error;
     } finally {
@@ -53,8 +52,7 @@ export const usePackageManager = () => {
       updatePackages();
       return result;
     } catch (err) {
-      const error =
-        err instanceof Error ? err : new Error("Failed to import from inbox");
+      const error = err instanceof Error ? err : new Error("Failed to import from inbox");
       setError(error);
       throw error;
     } finally {

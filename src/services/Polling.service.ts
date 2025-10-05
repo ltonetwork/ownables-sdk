@@ -76,6 +76,10 @@ export class PollingService {
     onUpdate: (count: number) => void,
     interval = 15000
   ): () => void {
+    if (this.intervalId || !RelayService.URL) {
+      return () => {};
+    }
+
     this.checkForNewHashes(address).then(onUpdate);
 
     const fetchHashes = async () => {

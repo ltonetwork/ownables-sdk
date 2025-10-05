@@ -12,7 +12,6 @@ import {
   Skeleton,
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
-import axios from "axios";
 import { EventChain } from "eqty-core";
 import { enqueueSnackbar } from "notistack";
 import placeholderImage from "../assets/cube.png";
@@ -82,31 +81,10 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
 
   const relayService = useService('relay');
   const packageService = useService('packages');
-
-  const fetchBuilderAddress = async () => {
-    try {
-      const response = await axios.get(
-        `${process.env.REACT_APP_OBUILDER}/api/v1/GetServerInfo`,
-        {
-          headers: {
-            "X-API-Key": `${process.env.REACT_APP_OBUILDER_API_SECRET_KEY}`,
-            Accept: "*/*",
-          },
-        }
-      );
-      const serverAddress =
-        network === "T"
-          ? response.data.serverLtoWalletAddress_T
-          : response.data.serverLtoWalletAddress_L;
-      setBuilderAddress(serverAddress);
-    } catch (error) {
-      console.error("Failed to fetch builder address:", error);
-      setBuilderAddress(null);
-    }
-  };
+  const builderService = useService('builder');
 
   const fetchMessages = useCallback(async () => {
-    if (!relayService) return;
+    if (!relayService || !await relayService.isAvailable()) return;
 
     setLoading(true);
     try {
@@ -128,17 +106,15 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
     setLoading(false);
   }, [currentPage, itemsPerPage, relayService]);
 
-  const fetchImportedHashes = async () => {
+  const fetchImportedHashes = useCallback(async () => {
     try {
-      const pkgs = packageService?.list() || [];
-      const hashes = pkgs.map((msg: any) => {
-        return msg.uniqueMessageHash;
-      });
+      const packages = packageService?.list() || [];
+      const hashes = packages.map((msg: any) => msg.uniqueMessageHash);
       setImportedHashes(new Set(hashes));
     } catch (error) {
       console.error("Failed to fetch imported hashes:", error);
     }
-  };
+  }, [packageService]);
 
   const handleImportMessage = async (hash: string) => {
     try {
@@ -161,37 +137,31 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
           // Update imported hashes
           setImportedHashes((prev) => new Set(prev).add(hash));
           await decrementMessageCount();
-          enqueueSnackbar(`Ownable imported successfully!`, {
-            variant: "success",
-          });
+          enqueueSnackbar(`Ownable imported successfully!`, { variant: "success" });
         } else {
-          enqueueSnackbar(`Failed to parse import`, {
-            variant: "error",
-          });
+          enqueueSnackbar(`Failed to parse import`, { variant: "error" });
         }
       } else {
-        enqueueSnackbar(`Ownable already imported!`, {
-          variant: "error",
-        });
+        enqueueSnackbar(`Ownable already imported!`, { variant: "error" });
       }
     } catch (error) {
       console.error("Error importing message:", error);
-      enqueueSnackbar(`Failed to import ownable`, {
-        variant: "error",
-      });
+      enqueueSnackbar(`Failed to import ownable`, { variant: "error" });
     }
   };
 
   useEffect(() => {
-    fetchBuilderAddress();
-  }, []);
+    builderService?.getAddress().then((serverAddress) => {
+      setBuilderAddress(serverAddress);
+    });
+  }, [builderService]);
 
   useEffect(() => {
     if (open) {
-      fetchMessages();
-      fetchImportedHashes();
+      fetchMessages().then();
+      fetchImportedHashes().then();
     }
-  }, [open, fetchMessages]);
+  }, [open, fetchMessages, fetchImportedHashes]);
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>

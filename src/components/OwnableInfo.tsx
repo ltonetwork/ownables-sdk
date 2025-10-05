@@ -17,7 +17,6 @@ import shortId from "../utils/shortId";
 import Tooltip from "./Tooltip";
 import backgroundImage from "../assets/background.svg";
 import If from "./If";
-import EventChainService from "../services/EventChain.service";
 import useInterval from "../utils/useInterval";
 import { useService } from "../hooks/useService"
 

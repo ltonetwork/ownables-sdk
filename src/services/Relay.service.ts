@@ -117,7 +117,7 @@ export class RelayService {
   /**
    * Check if relay service is up.
    */
-  async isRelayUp(): Promise<boolean> {
+  async isAvailable(): Promise<boolean> {
     if (!RelayService.URL) return false;
 
     try {
@@ -130,7 +130,7 @@ export class RelayService {
   }
 
   async list(offset: number = 0, limit: number = 0) {
-    const isRelayAvailable = await this.isRelayUp();
+    const isRelayAvailable = await this.isAvailable();
     if (!isRelayAvailable) return null;
 
     const url = `${RelayService.URL}/v2/inboxes/${this.eqty.address}?limit=${limit}&offset=${offset}`;

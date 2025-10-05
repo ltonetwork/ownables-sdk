@@ -1,6 +1,4 @@
-import { useCallback, useMemo } from "react";
-import { useContainer } from "../contexts/Services.context";
-import LocalStorageService from "../services/LocalStorage.service";
+import { useCallback } from "react";
 import { useService } from "./useService"
 
 const MESSAGE_COUNT_KEY = "messageCount";

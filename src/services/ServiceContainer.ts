@@ -6,6 +6,7 @@ import LocalStorageService from "./LocalStorage.service"
 import { PollingService } from "./Polling.service"
 import { RelayService } from "./Relay.service"
 import EQTYService from "./EQTY.service"
+import BuilderService from "./Builder.service"
 
 export interface ServiceMap {
   relay: RelayService;
@@ -16,6 +17,7 @@ export interface ServiceMap {
   packages: PackageService;
   ownables: OwnableService;
   polling: PollingService;
+  builder: BuilderService;
 }
 
 export type ServiceKey = keyof ServiceMap;
@@ -65,6 +67,8 @@ export default class ServiceContainer {
     this.register('polling', async (c) =>
       new PollingService(await c.get('relay'), await c.get('localStorage')),
     );
+
+    this.register('builder', async (c) => new BuilderService(c.chainId!));
   }
 
   private register<K extends ServiceKey>(key: K, factory: ServiceFactory<ServiceMap[K]>): void {

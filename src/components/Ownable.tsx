@@ -290,7 +290,7 @@ export default function Ownable(props: OwnableProps) {
   async function transfer(to: string): Promise<void> {
     try {
       if (!relay || !ownables || !pkg) return;
-      const value = await relay.isRelayUp();
+      const value = await relay.isAvailable();
 
       if (value) {
         await execute({ transfer: { to } });
