@@ -1,5 +1,5 @@
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Paper, Tooltip } from "@mui/material";
+import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CircularProgress, Grid, Paper, Tooltip } from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import { Cancelled, connect as rpcConnect } from "simple-iframe-rpc";
 import { Binary, EventChain, IMessageMeta } from "eqty-core";
@@ -120,7 +120,7 @@ export default function Ownable(props: OwnableProps) {
   }, [idb, pkg, resizeToThumbnail]);
 
   const refresh = useCallback(async (sd?: StateDump): Promise<void> => {
-    if (!ownables || !pkg) return;
+    if (!ownables || !pkg || !ownables.isReady(chain.id)) return;
     let effective = sd ?? stateDump;
 
     if (pkg.hasWidgetState) await ownables.rpc(chain.id).refresh(effective);
@@ -142,8 +142,8 @@ export default function Ownable(props: OwnableProps) {
   }, [chain.id, metadata, ownables, pkg, stateDump]);
 
   const apply = useCallback(async (partialChain: EventChain): Promise<void> => {
-    if (!ownables || !eventChains) return;
-    if (busyRef.current) return;
+    if (!ownables || !eventChains || busyRef.current || !ownables.isReady(chain.id)) return;
+
     busyRef.current = true;
     setIsApplying(true);
 
@@ -271,7 +271,11 @@ export default function Ownable(props: OwnableProps) {
 
       <If condition={isApplying}>
         <Overlay>
-          <OverlayBanner>Applying state...</OverlayBanner>
+          <Grid container justifyContent="center" alignItems="center" height="100%" width="100%" overflow="hidden" padding={0} margin={0}>
+            <Grid width="100%" padding={0} textAlign="center">
+              <CircularProgress color="primary" size={80} />
+            </Grid>
+          </Grid>
         </Overlay>
       </If>
       <If condition={isTransferred}>

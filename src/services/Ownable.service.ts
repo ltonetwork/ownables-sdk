@@ -89,6 +89,10 @@ export default class OwnableService {
     return this.eventChains.loadAll();
   }
 
+  isReady(id: string): boolean {
+    return this._rpc.has(id);
+  }
+
   rpc(id: string): OwnableRPC {
     const rpc = this._rpc.get(id);
     if (!rpc) throw new Error(`No RPC for ownable ${id}`);

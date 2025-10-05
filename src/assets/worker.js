@@ -21,7 +21,7 @@ addEventListener('message', (e) => {
     case "instantiate":
       e.data.msg.nft = (!e.data.msg.nft) ? undefined : e.data.msg.nft;
       e.data.msg.ownable_type = (!e.data.msg.ownable_type) ? undefined : e.data.msg.ownable_type;
-      e.data.msg.network_id = e.data.msg.network_id.charCodeAt(0);
+      e.data.msg.network_id = 0;
       instantiate_contract(e.data.msg, e.data.info)
         .then(resp => self.postMessage(resp))
         .catch(err => self.postMessage({err}));

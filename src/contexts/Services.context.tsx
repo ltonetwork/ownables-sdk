@@ -1,42 +1,98 @@
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ServiceContainer from '../services/ServiceContainer';
-import { useAccount, useChainId } from "wagmi"
+import { useAccount, useChainId } from 'wagmi';
 
-export interface ServicesContextValue {
-  container: ServiceContainer | null;
-}
+type Ctx = { container: ServiceContainer };
+const ServicesContext = createContext<Ctx | undefined>(undefined);
 
-const ServicesContext = createContext<ServicesContextValue>({ container: null });
-
-interface ServicesProviderProps {
-  address?: string;
-  children: React.ReactNode;
-}
-
-export const ServicesProvider: React.FC<ServicesProviderProps> = ({ children }) => {
-  const account = useAccount();
+export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { address } = useAccount();
   const chainId = useChainId();
 
-  const container = useMemo(() => new ServiceContainer(account?.address, chainId), [account, chainId]);
+  // Build a stable key only when both are known
+  const key = address && chainId ? `${address}:${chainId}` : null;
 
-  // Dispose previous container on address change/unmount
+  // Hold the live instance
+  const ref = useRef<ServiceContainer | null>(null);
+  const [ready, setReady] = useState(false); // gates children
+
+  // Create/replace exactly once per key
   useEffect(() => {
-    return () => {
-      container.dispose().catch(() => void 0);
-    };
-  }, [container]);
+    let cancelled = false;
+
+    async function make() {
+      // Wait until we have a key
+      if (!key) {
+        // no identity yet, ensure no instance and keep children gated
+        if (ref.current) {
+          await ref.current.dispose().catch(() => {});
+          ref.current = null;
+        }
+        setReady(false);
+        return;
+      }
+
+      // If same key, do nothing
+      if ((ref.current as any)?.__key === key) {
+        setReady(true);
+        return;
+      }
+
+      // Replace previous
+      if (ref.current) {
+        await ref.current.dispose().catch(() => {});
+        ref.current = null;
+        setReady(false);
+      }
+
+      // Create once for this key
+      const instance = new ServiceContainer(address!, chainId);
+      (instance as any).__key = key; // tag for identity
+      if (!cancelled) {
+        ref.current = instance;
+        setReady(true);
+      } else {
+        // if unmounted mid-create, dispose
+        await instance.dispose().catch(() => {});
+      }
+    }
+
+    make();
+    return () => { cancelled = true; };
+  }, [key, address, chainId]);
+
+  // Stable context value, identity only changes when we actually swapped instance
+  const ctx = useMemo<Ctx | undefined>(
+    () => (ref.current ? { container: ref.current } : undefined),
+    [ready] // flips to true when instance is set
+  );
+
+  // Dispose on unmount
+  useEffect(() => {
+    return () => { ref.current?.dispose().catch(() => {}); ref.current = null; };
+  }, []);
+
+  // Gate children until we have a live container
+  if (!ctx) return null; // or a tiny loader
 
   return (
-    <ServicesContext.Provider value={{ container }}>
+    <ServicesContext.Provider value={ctx}>
       {children}
     </ServicesContext.Provider>
   );
 };
 
 export function useContainer(): ServiceContainer {
-  const { container } = useContext(ServicesContext);
-  if (!container) throw new Error('useContainer must be used within ServicesProvider');
-  return container;
+  const ctx = useContext(ServicesContext);
+  if (!ctx) throw new Error('useContainer must be used within ServicesProvider');
+  return ctx.container;
 }
 
 export default ServicesContext;
