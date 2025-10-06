@@ -1,10 +1,9 @@
-import { Event } from "@ltonetwork/lto";
+import { Event } from "eqty-core";
 import { Box, Card, CardContent, Link, Paper, styled } from "@mui/material";
 import AntSwitch from "./AntSwitch";
 import { useState } from "react";
 import If from "./If";
 import ReactJson from "react-json-view";
-import LTOService from "../services/LTO.service";
 import { Cancel, CheckCircle } from "@mui/icons-material";
 
 interface EventCardProps {
@@ -57,36 +56,23 @@ export default function EventCard(props: EventCardProps) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
-      <If condition={!props.isFirst}>
+      {/* TODO: Restore previous-hash top label once JSX typing issue is resolved after eqty-core migration. */}
+      {/* <If condition={!props.isFirst}>
         <CardTopLabel sx={{ display: { xs: "none", md: "block" } }}>
           <div className="truncate">
             <strong>Previous: </strong>
             {event.previous?.base58 ? event.previous?.base58 : event.previous}
           </div>
         </CardTopLabel>
-      </If>
+      </If> */}
       <Card key={event.hash.base58} sx={cardStyle}>
         <CardContent sx={{ fontSize: 12, pb: "12px !important" }}>
           <div>
             <strong>Timestamp: </strong>
             {event.timestamp ? new Date(event.timestamp).toString() : ""}
           </div>
-          <div className="truncate">
-            <strong>Signed by: </strong>
-            {event.signKey ? LTOService.accountOf(event.signKey.publicKey) : ""}
-          </div>
-          <div className="truncate">
-            <strong>Public key: </strong>
-            {event.signKey?.publicKey.base58
-              ? event.signKey.publicKey.base58
-              : event.signKey?.publicKey}
-          </div>
-          <div className="truncate">
-            <strong>Signature: </strong>
-            {event.signature?.base58
-              ? event.signature?.base58
-              : event.signature}
-          </div>
+          <div className="truncate"><strong>Signed by:</strong> {event.signerAddress ?? ""}</div>
+          <div className="truncate"><strong>Signature:</strong> {event.signature?.hex ?? ""}</div>
           <If condition={anchorTx !== null}>
             <div style={{ marginTop: 10 }}>
               <strong>Anchor tx: </strong>
@@ -115,10 +101,7 @@ export default function EventCard(props: EventCardProps) {
               </If>
             </div>
           </If>
-          <div style={{ marginTop: 10 }}>
-            <strong>Media type: </strong>
-            {event.mediaType}
-          </div>
+          <div style={{ marginTop: 10 }}><strong>Media type:</strong> {event.mediaType}</div>
           <div>
             <strong>Data: </strong>
             <span style={{ marginRight: 5 }}>base64</span>
@@ -149,16 +132,14 @@ export default function EventCard(props: EventCardProps) {
             sx={{ display: { xs: "block", md: "none" }, pt: 2 }}
             className="truncate"
           >
-            <strong>Hash: </strong>
-            {event.hash.base58 ? event.hash.base58 : event.hash}
+            {`Hash: ${event.hash.base58 ?? String(event.hash ?? "")}`}
           </Box>
         </CardContent>
       </Card>
       <CardBottomLabel sx={{ display: { xs: "none", md: "block" } }}>
-        <div className="truncate">
-          <strong>Hash: </strong>
-          {event.hash.base58 ? event.hash.base58 : event.hash}
-        </div>
+        <div className="truncate">{`Hash: ${
+          event.hash.base58 ?? String(event.hash ?? "")
+        }`}</div>
       </CardBottomLabel>
     </Box>
   );

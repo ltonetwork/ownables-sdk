@@ -10,8 +10,9 @@
     "@fontsource/montserrat": "^4.5.14",
     "@ltonetwork/http-message-signatures": "^0.1.12",
     "@ltonetwork/lto": "^0.15.17",
-    "@mui/icons-material": "^5.11.9",
+    "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.11.10",
+    "@rainbow-me/rainbowkit": "^1.3.2",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -25,7 +26,7 @@
     "buffer": "^6.0.3",
     "craco": "^0.0.3",
     "crypto-js": "^4.2.0",
-    "fs": "^0.0.1-security",
+    "eqty-core": "^1.0.0",
     "heic2any": "^0.0.4",
     "ipfs-unixfs-importer": "^15.1.0",
     "jszip": "^3.10.0",
@@ -42,7 +43,10 @@
     "tuai": "^1.0.8",
     "typescript": "^4.9.5",
     "util": "^0.12.5",
+    "viem": "^1.21.4",
+    "wagmi": "^1.4.13",
     "web-vitals": "^2.1.4",
+    "webpack": "^5.89.0",
     "webpack-cli": "^5.0.1"
   },
   "overrides": {
@@ -91,6 +95,8 @@
     ]
   },
   "devDependencies": {
-    "@types/crypto-js": "^4.2.2"
+    "@types/crypto-js": "^4.2.2",
+    "ajv": "^8.17.1",
+    "ajv-keywords": "^5.1.0"
   }
 }

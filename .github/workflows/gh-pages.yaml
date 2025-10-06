@@ -36,7 +36,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 22
           cache: "npm"
       - name: Setup wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
@@ -59,7 +59,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 22
           cache: "npm"
       - name: NPM Install
         run: npm ci
@@ -74,6 +74,7 @@ jobs:
       - name: Build
         env:
           REACT_APP_OWNABLE_EXAMPLES_URL: /ownables
+          REACT_APP_WALLETCONNECT_PROJECT_ID: ${{ vars.WALLETCONNECT_PROJECT_ID }}
         run: npm run build
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4

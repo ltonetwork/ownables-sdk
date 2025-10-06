@@ -1,53 +1,43 @@
-import { EventChain, LTO, Message, Relay, Binary } from "@ltonetwork/lto";
+import { EventChain, Message, Relay, Binary, IMessageMeta } from "eqty-core";
 import axios from "axios";
 import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt, MessageInfo } from "../interfaces/MessageInfo";
-import { sign } from "@ltonetwork/http-message-signatures";
-import LTOService from "./LTO.service";
-import PackageService from "./Package.service";
-import { IMessageMeta } from "@ltonetwork/lto/interfaces";
 
-export const lto = new LTO(process.env.REACT_APP_LTO_NETWORK_ID);
+import EQTYService from "./EQTY.service"
+
+const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
 
 export class RelayService {
-  static relayURL = process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
-  private static relay = new Relay(`${this.relayURL}`);
+  public static readonly URL = process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
+
+  private relay: Relay;
+
+  constructor(private readonly eqty: EQTYService) {
+    this.relay = new Relay(`${RelayService.URL}`);
+  }
 
   /*
-   * Handle All Signed Requests
+   * Handle all Requests
    */
-  static async handleSignedRequest(
+  async fetch(
     method: string,
     url: string,
     options: { headers?: Record<string, string> } = {}
   ) {
     try {
-      const sender = LTOService.account;
-      const request = {
+      return await axios({
         method,
         url,
         headers: {
-          ...options.headers, // Include optional headers in the request
-        },
-      };
-
-      const signedRequest = await sign(request, { signer: sender });
-
-      const response = await axios({
-        method: signedRequest.method,
-        url: signedRequest.url,
-        headers: {
-          ...signedRequest.headers,
+          ...options.headers,
         },
         validateStatus: (status) => {
           return (status >= 200 && status < 300) || status === 304;
         },
       });
-
-      return response;
     } catch (error) {
-      console.error("Error in handleSignedRequest:", error);
+      console.error("Error in Relay fetch:", error);
       throw error;
     }
   }
@@ -55,35 +45,29 @@ export class RelayService {
   /**
    * Send ownable to a recipient.
    */
-  static async sendOwnable(
+  async sendOwnable(
     recipient: string,
     content: Uint8Array,
     meta: Partial<IMessageMeta>
   ) {
-    const sender = LTOService.account;
-
     if (!recipient) {
       console.error("Recipient not provided");
       return;
     }
 
     try {
-      if (sender) {
-        const messageContent = Binary.from(content);
+      const messageContent = Binary.from(content);
 
-        //const recipientAccount = await lto.resolveAccount(recipient);
+      const message = await new Message(
+        messageContent,
+        "application/octet-stream",
+        meta
+      )
+        .to(recipient)
+        .signWith(this.eqty.signer)
 
-        const message = new Message(
-          messageContent,
-          "application/octet-stream",
-          meta
-        )
-          .to(recipient)
-          .signWith(sender);
-
-        await this.relay.send(message);
-        return message.hash.base58;
-      }
+      await this.relay.send(message);
+      return message.hash.base58;
     } catch (error) {
       console.error("Error sending message:", error);
     }
@@ -92,156 +76,67 @@ export class RelayService {
   /**
    * Read a single message by its hash.
    */
-  static async readMessage(hash: string) {
-    const sender = LTOService.account;
-    if (!sender) {
-      console.error("Account not initialized");
-      return null;
+  async readMessage(hash: string): Promise<{ message?: any; hash?: string }> {
+    const url = `${RelayService.URL}/inboxes/${this.eqty.address}/${hash}`;
+
+    const response = await this.fetch("GET", url);
+
+    if (!response?.data) {
+      throw new Error("Invalid response");
     }
 
-    const address = sender.address;
-    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
-
-    try {
-      const response = await this.handleSignedRequest("GET", url);
-
-      if (response?.data) {
-        const message = Message.from(response.data);
-
-        if (message.isEncrypted()) {
-          message.decryptWith(sender);
-        }
-
-        return await PackageService.processPackage(message, hash, true);
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error reading single message:", error);
-      return null;
-    }
+    const message = Message.from(response.data);
+    return { message, hash };
   }
 
   /**
-   * Read relay data for the current sender.
+   * Read relay all messages for the current sender.
    */
-  static async readRelayData() {
-    const sender = LTOService.account;
+  async readAll() {
+    const list = await this.list();
 
-    if (!sender) {
-      console.error("Account not initialized");
-      return null;
-    }
+    const ownableData = await Promise.all(
+      list.map(async (response: MessageInfo) => this.readMessage(response.hash).catch(() => null)),
+    );
 
-    const address = sender.address;
-    const isRelayAvailable = await this.isRelayUp();
-    if (!isRelayAvailable) return null;
-
-    const url = `${this.relayURL}/v2/inboxes/${address}`;
-
-    try {
-      const responses = await this.handleSignedRequest("GET", url);
-
-      if (!responses.data.messages?.length) return null;
-
-      const ownableData = await Promise.all(
-        responses.data.messages.map(async (response: MessageInfo) => {
-          if (!response.hash) {
-            console.warn("Skipping response without a hash:", response);
-            return null;
-          }
-
-          const messageUrl = `${this.relayURL}/inboxes/${address}/${response.hash}`;
-          try {
-            const infoResponse = await this.handleSignedRequest(
-              "GET",
-              messageUrl
-            );
-
-            if (!infoResponse.data.sender) {
-              console.warn("Skipping response without a sender:", infoResponse);
-              return null;
-            }
-
-            const message = Message.from(infoResponse.data).decryptWith(sender);
-
-            return { message, messageHash: infoResponse.data.hash };
-          } catch (error) {
-            console.error(
-              `Failed to process message with hash ${response.hash}:`,
-              error
-            );
-            return null;
-          }
-        })
-      );
-      return ownableData.filter((data) => data !== null);
-    } catch (error) {
-      console.error("Failed to read relay data:", error);
-      return null;
-    }
+    return ownableData.filter((data) => data !== null);
   }
 
   /**
    * Remove an ownable by its hash.
    */
-  static async removeOwnable(hash: string): Promise<string> {
-    const sender = LTOService.account;
-    if (!sender) {
-      throw new Error("Sender not initialized");
-    }
+  async removeOwnable(hash: string): Promise<void> {
+    const url = `${RelayService.URL}/inboxes/${this.eqty.address}/${hash}`;
+    const response = await this.fetch("DELETE", url);
 
-    const address = sender.address;
-    const url = `${this.relayURL}/inboxes/${address}/${hash}`;
-
-    try {
-      const response = await this.handleSignedRequest("DELETE", url);
-
-      if (response?.status === 204) {
-        return "Successfully cleared ownable";
-      } else {
-        throw new Error(`${response}`);
-      }
-    } catch (error) {
-      console.error("Failed to remove ownable:", error);
-      throw new Error("Failed to clear: " + error);
+    if (response?.status !== 204) {
+      throw new Error(`Failed to remove ownanble from Relay: Server responded with ${response}`);
     }
   }
 
   /**
    * Check if relay service is up.
    */
-  static async isRelayUp(): Promise<boolean> {
-    if (!this.relayURL) return false;
+  async isAvailable(): Promise<boolean> {
+    if (!RelayService.URL) return false;
+
     try {
-      const response = await this.handleSignedRequest("HEAD", this.relayURL);
-      if (response.status === 200) {
-        return true;
-      } else {
-        return false;
-      }
+      const response = await this.fetch("HEAD", RelayService.URL);
+      return response.status === 200;
     } catch (error) {
       console.error("Relay service is down:", error);
       return false;
     }
   }
 
-  static async list(offset: number, limit: number) {
-    const sender = await LTOService.getAccount();
-
-    if (!sender) {
-      console.error("Account not initialized");
-      return null;
-    }
-
-    const address = sender.address;
-    const isRelayAvailable = await this.isRelayUp();
+  async list(offset: number = 0, limit: number = 0) {
+    const isRelayAvailable = await this.isAvailable();
     if (!isRelayAvailable) return null;
 
-    const url = `${this.relayURL}/v2/inboxes/${address}?limit=${limit}&offset=${offset}`;
+    const url = `${RelayService.URL}/v2/inboxes/${this.eqty.address}?limit=${limit}&offset=${offset}`;
 
     try {
-      const response = await this.handleSignedRequest("GET", url);
+      const response = await this.fetch("GET", url);
       return response.data || null;
     } catch (error) {
       console.error("Failed to read relay metadata:", error);
@@ -252,7 +147,7 @@ export class RelayService {
   /**
    * Extract assets from a zip file.
    */
-  static async extractAssets(zipFile: File | JSZip): Promise<File[]> {
+  async extractAssets(zipFile: File | JSZip): Promise<File[]> {
     const zip =
       zipFile instanceof JSZip ? zipFile : await JSZip.loadAsync(zipFile);
     const assetFiles = await Promise.all(
@@ -260,7 +155,7 @@ export class RelayService {
         .filter(([filename]) => !filename.startsWith("."))
         .map(async ([filename, file]) => {
           const blob = await file.async("blob");
-          const type = mime.getType(filename) || "application/octet-stream";
+          const type = getMimeType(filename) || "application/octet-stream";
           return new File([blob], filename, { type });
         })
     );
@@ -270,7 +165,7 @@ export class RelayService {
   /**
    * Get chain.json from a list of files.
    */
-  private static async getChainJson(
+  private async getChainJson(
     filename: string,
     files: File[]
   ): Promise<EventChain> {
@@ -282,7 +177,7 @@ export class RelayService {
   /**
    * Check and return unique messages, avoiding duplicates.
    */
-  static async checkDuplicateMessage(messages: MessageExt[]) {
+  async checkDuplicateMessage(messages: MessageExt[]) {
     const uniqueItems = new Map<
       string,
       { message: Message; eventsLength: number; messageHash: string }

@@ -1,29 +1,49 @@
 import TypedDict from "../interfaces/TypedDict";
 
-const DB_NAME = "ownables";
+// Default base DB name; per-address DBs will suffix this with the address
+const DEFAULT_DB_NAME = "ownables";
 
 export default class IDBService {
-  private static db: Promise<IDBDatabase>;
+  private static mainInstance: IDBService;
 
-  static async open(): Promise<void> {
-    this.db = new Promise((resolve, reject) => {
-      const request = window.indexedDB.open(DB_NAME);
+  constructor(
+    private db: IDBDatabase,
+    private readonly dbName: string,
+  ) {}
 
+  static async main(): Promise<IDBService> {
+    if (this.mainInstance) return this.mainInstance;
+
+    this.mainInstance = await this.open('');
+    return this.mainInstance;
+  }
+
+  static async open(suffix: string): Promise<IDBService> {
+    const suffixClean = (suffix || "").trim().toLowerCase();
+    const dbName = suffixClean ? `${DEFAULT_DB_NAME}:${suffixClean}` : DEFAULT_DB_NAME;
+
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = window.indexedDB.open(dbName);
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject((e.target as IDBTransaction).error);
     });
 
-    await this.db;
+    return new IDBService(db, dbName);
   }
 
-  private static error(event: Event): Error {
+  // Close the DB connection for this instance
+  async close(): Promise<void> {
+    this.db.close();
+  }
+
+  private error(event: Event): Error {
     return (event.target as IDBRequest)?.error || new Error("Unknown error");
   }
 
-  static async get(store: string, key: string): Promise<any> {
+
+  async get(store: string, key: string): Promise<any> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.db;
-      const tx = db.transaction(store, "readonly");
+      const tx = this.db.transaction(store, "readonly");
       const request = tx.objectStore(store).get(key);
 
       request.onsuccess = () => resolve(request.result);
@@ -31,10 +51,9 @@ export default class IDBService {
     });
   }
 
-  static async getAll(store: string): Promise<Array<any>> {
+  async getAll(store: string): Promise<Array<any>> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.db;
-      const tx = db.transaction(store, "readonly");
+      const tx = this.db.transaction(store, "readonly");
       const request = tx.objectStore(store).getAll();
 
       request.onsuccess = () => resolve(request.result);
@@ -42,10 +61,9 @@ export default class IDBService {
     });
   }
 
-  static async getMap(store: string): Promise<Map<any, any>> {
+  async getMap(store: string): Promise<Map<any, any>> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.db;
-      const tx = db.transaction(store, "readonly");
+      const tx = this.db.transaction(store, "readonly");
       const request = tx.objectStore(store).openCursor();
       const map = new Map();
 
@@ -62,9 +80,9 @@ export default class IDBService {
     });
   }
 
-  static async keys(store: string): Promise<string[]> {
+  async keys(store: string): Promise<string[]> {
     return new Promise(async (resolve, reject) => {
-      const tx = (await this.db)
+      const tx = this.db
         .transaction(store, "readonly")
         .objectStore(store)
         .getAllKeys();
@@ -74,10 +92,9 @@ export default class IDBService {
     });
   }
 
-  static async set(store: string, key: string, value: any): Promise<void> {
+  async set(store: string, key: string, value: any): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.db;
-      const tx = db.transaction(store, "readwrite");
+      const tx = this.db.transaction(store, "readwrite");
       const request = tx.objectStore(store).put(value, key);
 
       request.onsuccess = () => resolve();
@@ -85,20 +102,19 @@ export default class IDBService {
     });
   }
 
-  static async setAll(
+  async setAll(
     store: string,
     map: TypedDict | Map<any, any>
   ): Promise<void>;
-  static async setAll(
+  async setAll(
     data: TypedDict<TypedDict | Map<any, any>>
   ): Promise<void>;
-  static async setAll(a: any, b?: any): Promise<void> {
+  async setAll(a: any, b?: any): Promise<void> {
     const storeNames: string | string[] = b ? [a] : Object.keys(a);
     const data: { [_: string]: TypedDict | Map<any, any> } = b ? { [a]: b } : a;
 
     return new Promise(async (resolve, reject) => {
-      const db = await this.db;
-      const tx = db.transaction(storeNames, "readwrite");
+      const tx = this.db.transaction(storeNames, "readwrite");
 
       tx.oncomplete = () => resolve();
       tx.onerror = (event) => reject(this.error(event));
@@ -121,10 +137,9 @@ export default class IDBService {
     });
   }
 
-  static async clear(store: string): Promise<void> {
+  async clear(store: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.db;
-      const tx = db.transaction(store, "readwrite");
+      const tx = this.db.transaction(store, "readwrite");
       const request = tx.objectStore(store).clear();
 
       request.onsuccess = () => resolve();
@@ -132,45 +147,28 @@ export default class IDBService {
     });
   }
 
-  private static async upgrade(
-    action: (db: IDBDatabase) => void
-  ): Promise<void> {
-    const version = (await this.db).version; // Get version before closing DB
-    (await this.db).close();
+  private async upgrade(action: (db: IDBDatabase) => void): Promise<void> {
+    const version = this.db.version; // Get version before closing DB
+    this.db.close();
 
-    this.db = new Promise(async (resolve, reject) => {
-      const request = window.indexedDB.open(DB_NAME, version + 1);
+    this.db = await new Promise(async (resolve, reject) => {
+      const request = window.indexedDB.open(this.dbName, version + 1);
 
       request.onupgradeneeded = () => action(request.result);
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     });
-
-    try {
-      await this.db;
-    } catch (e) {
-      await this.open();
-      throw e;
-    }
   }
 
-  static async listStores(): Promise<string[]> {
-    return Array.from((await this.db).objectStoreNames);
+  async listStores(): Promise<string[]> {
+    return Array.from(this.db.objectStoreNames);
   }
 
-  static async hasStore(store: string): Promise<boolean> {
-    return (await this.db).objectStoreNames.contains(store);
+  async hasStore(store: string): Promise<boolean> {
+    return this.db.objectStoreNames.contains(store);
   }
 
-  // static async createStore(...stores: string[]): Promise<void> {
-  //   await this.upgrade((db) => {
-  //     for (const store of stores) {
-  //       db.createObjectStore(store);
-  //     }
-  //   });
-  // }
-
-  static async createStore(...stores: string[]): Promise<void> {
+  async createStore(...stores: string[]): Promise<void> {
     await this.upgrade((db) => {
       for (const store of stores) {
         if (!db.objectStoreNames.contains(store)) {
@@ -179,49 +177,66 @@ export default class IDBService {
       }
     });
 
-    // Check that the store(s) now exist
-    const db = await this.db;
+    // Verify
     for (const store of stores) {
-      if (!db.objectStoreNames.contains(store)) {
+      if (!this.db.objectStoreNames.contains(store)) {
         throw new Error(`Failed to create store ${store}.`);
       }
     }
   }
 
-  public static async deleteStore(store: string | RegExp): Promise<void> {
+  async deleteStore(store: string | RegExp): Promise<void> {
     const stores =
       store instanceof RegExp
-        ? Array.from((await this.db).objectStoreNames).filter((name) =>
-            name.match(store)
-          )
-        : (await this.db).objectStoreNames.contains(store)
-        ? [store]
-        : [];
+        ? Array.from(this.db.objectStoreNames).filter((name) => name.match(store))
+        : this.db.objectStoreNames.contains(store) ? [store] : [];
 
     if (stores.length === 0) return;
 
-    await this.upgrade((db) => {
-      for (const store of stores) {
-        db.deleteObjectStore(store);
+    await this.upgrade((db2) => {
+      for (const s of stores) {
+        db2.deleteObjectStore(s);
       }
     });
   }
 
-  static async deleteDatabase(): Promise<void> {
-    (await this.db).close();
-    this.db = Promise.reject("Database deleted. Reload application.");
+  async deleteDatabase(): Promise<void> {
+    await this.close();
 
     await new Promise<void>((resolve, reject) => {
-      const request = window.indexedDB.deleteDatabase(DB_NAME);
+      const request = window.indexedDB.deleteDatabase(this.dbName);
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(this.error(event));
     });
   }
 
-  static async delete(store: string, key: string): Promise<void> {
+  async deleteAllDatabases(): Promise<void> {
+    await this.close();
+
+    const dbs = await window.indexedDB.databases();
+
+    await Promise.all(
+      dbs
+        .map((d: any) => d.name)
+        .filter(
+          (name: string | undefined) =>
+            name && (name === DEFAULT_DB_NAME || name.startsWith(`${DEFAULT_DB_NAME}:`))
+        )
+        .map(
+          (name: string) =>
+            new Promise<void>((resolve, reject) => {
+              const req = indexedDB.deleteDatabase(name);
+              req.onsuccess = () => resolve();
+              req.onerror = (ev) => reject(ev);
+              req.onblocked = () => resolve(); // tolerate blocked
+            })
+        )
+    );
+  }
+
+  async delete(store: string, key: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const db = await this.db;
-      const tx = db.transaction(store, "readwrite");
+      const tx = this.db.transaction(store, "readwrite");
       const request = tx.objectStore(store).delete(key);
 
       request.onsuccess = () => resolve();

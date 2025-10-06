@@ -4,7 +4,7 @@ use std::str;
 
 use contract::instantiate;
 use cosmwasm_std::{MessageInfo};
-use ownable_std::{create_lto_env, ExternalEventMsg, get_json_response, IdbStateDump, load_lto_deps};
+use ownable_std::{create_env, ExternalEventMsg, get_json_response, IdbStateDump, load_owned_deps};
 use msg::{ExecuteMsg, InstantiateMsg};
 use serde_json::{to_string};
 use wasm_bindgen::prelude::*;
@@ -30,9 +30,9 @@ pub async fn instantiate_contract(
 
     let msg: InstantiateMsg = serde_wasm_bindgen::from_value(msg)?;
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
-    let mut deps = load_lto_deps(None);
+    let mut deps = load_owned_deps(None);
 
-    let res = instantiate(deps.as_mut(), create_lto_env(), info, msg);
+    let res = instantiate(deps.as_mut(), create_env(), info, msg);
 
     match res {
         Ok(response) => {
@@ -52,11 +52,11 @@ pub async fn execute_contract(
     let message: ExecuteMsg = serde_wasm_bindgen::from_value(msg.clone())?;
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
-    let mut deps = load_lto_deps(Some(state_dump));
+    let mut deps = load_owned_deps(Some(state_dump));
 
     let result = contract::execute(
         deps.as_mut(),
-        create_lto_env(),
+        create_env(),
         info,
         message
     );
@@ -81,7 +81,7 @@ pub async fn register_external_event(
     let external_event: ExternalEventMsg = serde_wasm_bindgen::from_value(msg.clone())?;
     let info: MessageInfo = serde_wasm_bindgen::from_value(info)?;
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
-    let mut deps = load_lto_deps(Some(state_dump));
+    let mut deps = load_owned_deps(Some(state_dump));
 
     let result = contract::register_external_event(
         info,
@@ -105,11 +105,11 @@ pub async fn query_contract_state(
     idb: JsValue,
 ) -> Result<JsValue, JsError> {
     let state_dump: IdbStateDump = serde_wasm_bindgen::from_value(idb)?;
-    let deps = load_lto_deps(Some(state_dump));
+    let deps = load_owned_deps(Some(state_dump));
 
     let query_result = contract::query(
         deps.as_ref(),
-        create_lto_env(),
+        create_env(),
         serde_wasm_bindgen::from_value(msg)?
     );
 

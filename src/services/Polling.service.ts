@@ -2,37 +2,41 @@ import { RelayService } from "./Relay.service";
 import LocalStorageService from "./LocalStorage.service";
 
 export class PollingService {
+  private tries = 3;
+  private intervalId?: ReturnType<typeof setInterval>;
+
+  constructor(private readonly relay: RelayService, private readonly localStorage: LocalStorageService) {}
+
   /**
    * Fetch new message hashes from the server and compare with client hashes.
    */
-  static async checkForNewHashes(address: string) {
-    const pkgs = LocalStorageService.get("packages") || [];
+  async checkForNewHashes(address: string) {
+    const pkgs = this.localStorage.get("packages") || [];
     const clientHashes = pkgs.map((msg: any) => {
       return msg.uniqueMessageHash;
     });
 
     try {
-      const url = `${RelayService.relayURL}/inboxes/${encodeURIComponent(
+      const url = `${RelayService.URL}/inboxes/${encodeURIComponent(
         address
       )}`;
 
       const headers: Record<string, string> = {};
-      const lastModified = LocalStorageService.get("lastModified");
+      const lastModified = this.localStorage.get("lastModified");
 
       if (lastModified) {
         headers["If-Modified-Since"] = lastModified;
       }
 
       const requestOptions = Object.keys(headers).length > 0 ? { headers } : {};
-      const response = await RelayService.handleSignedRequest(
+      const response = await this.relay.fetch(
         "GET",
         url,
         requestOptions
       );
 
       if (response.status === 304) {
-        const messageCount = LocalStorageService.get("messageCount") || 0;
-        return messageCount;
+        return this.localStorage.get("messageCount") || 0;
       }
 
       if (response.status === 200) {
@@ -42,32 +46,40 @@ export class PollingService {
 
         const newLastModified = response.headers?.["last-modified"];
         if (newLastModified) {
-          LocalStorageService.set("lastModified", newLastModified);
+          this.localStorage.set("lastModified", newLastModified);
         }
         const newHashes = serverHashes.filter(
           (hash: string) => !clientHashes.includes(hash)
         );
 
-        LocalStorageService.set("messageCount", newHashes.length);
+        this.localStorage.set("messageCount", newHashes.length);
 
         return newHashes.length;
       }
-
-      return 0;
     } catch (error) {
       console.error("Error fetching message hashes:", error);
-      return 0;
+
+      if (this.tries-- <= 0) {
+        this.tries = 3;
+        this.stopPolling();
+      }
     }
+
+    return 0;
   }
 
   /**
    * Start polling for message hash updates.
    */
-  static startPolling(
+  startPolling(
     address: string,
     onUpdate: (count: number) => void,
     interval = 15000
   ): () => void {
+    if (this.intervalId || !RelayService.URL) {
+      return () => {};
+    }
+
     this.checkForNewHashes(address).then(onUpdate);
 
     const fetchHashes = async () => {
@@ -79,18 +91,24 @@ export class PollingService {
       }
     };
 
-    const intervalId = setInterval(fetchHashes, interval);
+    this.intervalId = setInterval(fetchHashes, interval);
 
     //cleanup
     return () => {
-      clearInterval(intervalId);
+      clearInterval(this.intervalId);
     };
+  }
+
+  stopPolling(): void {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
   }
 
   /**
    * Clear cached headers and hashes
    */
-  static clearCache() {
-    LocalStorageService.remove("lastModified");
+  clearCache() {
+    this.localStorage.remove("lastModified");
   }
 }

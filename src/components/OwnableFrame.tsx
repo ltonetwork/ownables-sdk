@@ -1,65 +1,64 @@
-import allInline from "all-inline";
-import PackageService from "../services/Package.service";
-import { Component, RefObject } from "react";
+import allInline from 'all-inline';
+import React, { RefObject, useLayoutEffect, useRef } from 'react';
+import { useService } from '../hooks/useService';
+import PackageService from '../services/Package.service';
 
-const baseUrl = window.location.href.replace(/\/*$/, "");
+const baseUrl = window.location.href.replace(/\/*$/, '');
 const trustedUrls = [`${baseUrl}/ownable.js`];
 
 async function generateWidgetHTML(
-  id: string,
+  packageService: PackageService,
   packageCid: string
 ): Promise<string> {
-  const html = await PackageService.getAssetAsText(packageCid, "index.html");
-  const doc = new DOMParser().parseFromString(html, "text/html");
+  const html = await packageService.getAssetAsText(packageCid, 'index.html');
+  const doc = new DOMParser().parseFromString(html, 'text/html');
 
   await allInline(
     doc,
-    async (filename: string, encoding: "data-uri" | "text") => {
-      filename = filename.replace(/^.\//, "");
-
-      return encoding === "data-uri"
-        ? PackageService.getAssetAsDataUri(packageCid, filename)
-        : PackageService.getAssetAsText(packageCid, filename);
+    async (filename: string, encoding: 'data-uri' | 'text') => {
+      filename = filename.replace(/^.\//, '');
+      return encoding === 'data-uri'
+        ? packageService.getAssetAsDataUri(packageCid, filename)
+        : packageService.getAssetAsText(packageCid, filename);
     }
   );
 
   return doc.documentElement.outerHTML;
 }
 
-async function generate(
-  id: string,
+async function generateOuterHTML(
+  packageService: PackageService,
   packageCid: string,
   isDynamic: boolean
 ): Promise<string> {
   const doc = new DOMParser().parseFromString(
-    "<html><head></head><body></body></html>",
-    "text/html"
+    '<html><head></head><body></body></html>',
+    'text/html'
   );
-  const head = doc.head;
-  const body = doc.body;
+  const { head, body } = doc;
 
-  const meta = doc.createElement("meta");
-  meta.httpEquiv = "Content-Security-Policy";
+  const meta = doc.createElement('meta');
+  meta.httpEquiv = 'Content-Security-Policy';
   meta.content = `default-src ${trustedUrls.join(
-    " "
+    ' '
   )} data: blob: 'unsafe-inline' 'unsafe-eval'`;
   head.appendChild(meta);
 
-  const style = doc.createElement("style");
+  const style = doc.createElement('style');
   style.textContent = `
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
     iframe { height: 100%; width: 100%; border: none; }
   `;
   head.appendChild(style);
 
-  const widget = doc.createElement("iframe");
-  widget.setAttribute("sandbox", "allow-scripts");
-  widget.srcdoc = await generateWidgetHTML(id, packageCid);
+  const widget = doc.createElement('iframe');
+  widget.setAttribute('sandbox', 'allow-scripts');
+  widget.srcdoc = await generateWidgetHTML(packageService, packageCid);
   body.appendChild(widget);
 
   if (isDynamic) {
-    const script = doc.createElement("script");
-    script.src = "./ownable.js";
+    const script = doc.createElement('script');
+    script.src = './ownable.js';
     body.appendChild(script);
   }
 
@@ -67,40 +66,61 @@ async function generate(
 }
 
 export interface OwnableFrameProps {
-  id: string;
-  packageCid: string;
-  isDynamic: boolean;
+  id: string;                 // stable per ownable
+  packageCid: string;         // read only at mount
+  isDynamic: boolean;         // read only at mount
   iframeRef: RefObject<HTMLIFrameElement>;
-  onLoad: () => void;
+  onLoad: () => void;         // can be stable or not, does not trigger re-render
 }
 
-export default class OwnableFrame extends Component<OwnableFrameProps> {
-  async componentDidMount(): Promise<void> {
-    this.props.iframeRef.current!.srcdoc = await generate(
-      this.props.id,
-      this.props.packageCid,
-      this.props.isDynamic
-    );
-  }
+function OwnableFrameInner(props: OwnableFrameProps) {
+  const packages = useService('packages');
 
-  shouldComponentUpdate(): boolean {
-    return false; // Never update this component. We rely on the iframe not to be replaced.
-  }
+  // Freeze initial values so later prop changes are ignored
+  const init = useRef({
+    packageCid: props.packageCid,
+    isDynamic: props.isDynamic,
+  });
 
-  render() {
-    return (
-      <iframe
-        id={this.props.id}
-        title={`Ownable ${this.props.id}`}
-        ref={this.props.iframeRef}
-        onLoad={() => this.props.onLoad()}
-        style={{
-          display: "block",
-          width: "100%",
-          height: "100%",
-          border: "none",
-        }}
-      />
-    );
-  }
+  // Set srcdoc exactly once on mount
+  useLayoutEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!packages || !props.iframeRef.current) return;
+      const html = await generateOuterHTML(
+        packages,
+        init.current.packageCid,
+        init.current.isDynamic
+      );
+      if (!cancelled && props.iframeRef.current) {
+        props.iframeRef.current.srcdoc = html;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // empty deps, intentional one-time init
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packages]);
+
+  return (
+    <iframe
+      id={props.id}
+      title={`Ownable ${props.id}`}
+      ref={props.iframeRef}
+      onLoad={props.onLoad}
+      style={{
+        display: 'block',
+        width: '100%',
+        height: '100%',
+        border: 'none',
+      }}
+    />
+  );
 }
+
+// Never re-render after first mount for a given id.
+// If you need a fresh frame, change the React key or the id.
+const OwnableFrame = React.memo(OwnableFrameInner, (prev, next) => prev.id === next.id);
+
+export default OwnableFrame;

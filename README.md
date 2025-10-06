@@ -126,3 +126,31 @@ Adds speakers to the robot. Only one set of speakers can be added.
 Adds armor to the robot. Only one shield can be added.
 
 ![Armor Ownable](https://user-images.githubusercontent.com/100821/221386885-7fa3d0f4-8a15-44c6-80a4-c76d71120ab7.png)
+
+
+## Environment variables
+
+Create a .env file in the project root (or use your existing one) and ensure the following variables are set:
+
+- REACT_APP_LTO_API_URL
+- REACT_APP_LTO_NETWORK_ID
+- REACT_APP_LTO_EXPLORER_URL
+- REACT_APP_LTO_WALLET_URL
+- REACT_APP_RELAY
+- REACT_APP_SECURE_KEY
+- REACT_APP_OBUILDER
+- REACT_APP_OBUILDER_API_SECRET_KEY
+- REACT_APP_WALLETCONNECT_PROJECT_ID
+
+RainbowKit requires a WalletConnect Cloud Project ID to enable WalletConnect and to display the full list of popular wallets in the connect modal (MetaMask, Coinbase, Ledger, etc.).
+
+1) Go to https://cloud.walletconnect.com/ and create a project.
+2) Copy the Project ID and set it in your .env:
+
+```
+REACT_APP_WALLETCONNECT_PROJECT_ID=your-project-id-here
+```
+
+Notes:
+- This is a Create React App project. Environment variables must be prefixed with REACT_APP_ to be available in the browser.
+- If you change .env while the dev server is running, you may need to restart npm start to pick up the changes.

@@ -12,9 +12,10 @@ import { TypedCosmWasmMsg } from "../interfaces/TypedCosmWasmMsg";
 import TypedDict from "../interfaces/TypedDict";
 import { RelayService } from "./Relay.service";
 import { Buffer } from "buffer";
-import { EventChain } from "@ltonetwork/lto";
-import OwnableService from "./Ownable.service";
+import { EventChain } from "eqty-core";
 import { MessageExt } from "../interfaces/MessageInfo";
+
+const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -75,8 +76,14 @@ const capabilitiesStaticOwnable = {
 };
 
 export default class PackageService {
-  static list(): Array<TypedPackage | TypedPackageStub> {
-    const local = (LocalStorageService.get("packages") || []) as TypedPackage[];
+  constructor(
+    private idb: IDBService,
+    private relay: RelayService,
+    private localStorage: LocalStorageService,
+  ) {}
+
+  list(): Array<TypedPackage | TypedPackageStub> {
+    const local = (this.localStorage.get("packages") || []) as TypedPackage[];
     for (const pkg of local) {
       pkg.versions = pkg.versions.map(({ date, cid }) => ({
         date: new Date(date),
@@ -91,8 +98,8 @@ export default class PackageService {
     return Array.from(set).sort((a, b) => (a.title >= b.title ? 1 : -1));
   }
 
-  static info(nameOrCid: string, uniqueMessageHash?: string): TypedPackage {
-    const packages = (LocalStorageService.get("packages") ||
+  info(nameOrCid: string, uniqueMessageHash?: string): TypedPackage {
+    const packages = (this.localStorage.get("packages") ||
       []) as TypedPackage[];
 
     const found = packages.find(
@@ -107,7 +114,7 @@ export default class PackageService {
     return found;
   }
 
-  private static storePackageInfo(
+  private storePackageInfo(
     title: string,
     name: string,
     description: string | undefined,
@@ -117,7 +124,7 @@ export default class PackageService {
     isNotLocal?: boolean,
     uniqueMessageHash?: string
   ): TypedPackage {
-    const packages = (LocalStorageService.get("packages") ||
+    const packages = (this.localStorage.get("packages") ||
       []) as TypedPackage[];
 
     // Locate the package with matching cid and uniqueMessageHash
@@ -154,65 +161,59 @@ export default class PackageService {
     }
 
     // Save all packages back to LocalStorage under the single "packages" key
-    LocalStorageService.set("packages", packages);
+    this.localStorage.set("packages", packages);
 
     return pkg;
   }
 
-  static async extractAssets(zipFile: File, chain?: boolean): Promise<File[]> {
+  async extractAssets(zipFile: File, chain?: boolean): Promise<File[]> {
     const zip = await JSZip.loadAsync(zipFile);
 
     if (chain) {
-      const chainFiles = await Promise.all(
+      return await Promise.all(
         Array.from(Object.entries(zip.files))
           .filter(([filename]) => !filename.startsWith("."))
           .map(async ([filename, file]) => {
             const blob = await file.async("blob");
-            const type = mime.getType(filename) || "application/octet-stream";
+            const type = getMimeType(filename) || "application/octet-stream";
             return new File([blob], filename, { type });
           })
       );
-      return chainFiles;
     }
 
-    const assetFiles = await Promise.all(
+    return await Promise.all(
       Array.from(Object.entries(zip.files))
         .filter(
           ([filename]) => !filename.startsWith(".") && filename !== "chain.json"
         )
         .map(async ([filename, file]) => {
           const blob = await file.async("blob");
-          const type = mime.getType(filename) || "application/octet-stream";
+          const type = getMimeType(filename) || "application/octet-stream";
           return new File([blob], filename, { type });
         })
     );
-    return assetFiles;
   }
 
-  private static async storeAssets(cid: string, files: File[]): Promise<void> {
-    if (!(await IDBService.hasStore(`package:${cid}`))) {
-      await IDBService.createStore(`package:${cid}`);
+  private async storeAssets(cid: string, files: File[]): Promise<void> {
+    if (!(await this.idb.hasStore(`package:${cid}`))) {
+      await this.idb.createStore(`package:${cid}`);
     }
 
-    await IDBService.setAll(
+    await this.idb.setAll(
       `package:${cid}`,
       Object.fromEntries(files.map((file) => [file.name, file]))
     );
   }
 
-  static stringToBuffer(str: string): Buffer {
-    return Buffer.from(str, "utf8");
-  }
-
-  static base64ToBuffer(base64: string): Buffer {
+  base64ToBuffer(base64: string): Buffer {
     return Buffer.from(base64, "base64");
   }
 
-  static bufferToString(buffer: Buffer): string {
+  bufferToString(buffer: Buffer): string {
     return buffer.toString("utf8");
   }
 
-  static async getChainJson(filename: string, files: any): Promise<any> {
+  async getChainJson(filename: string, files: any): Promise<any> {
     const extractedFile = await this.extractAssets(files, true);
     const file = extractedFile.find((file: any) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
@@ -221,15 +222,10 @@ export default class PackageService {
     const json = JSON.parse(fileContent);
 
     json.events = json.events.map((event: MessageExt) => {
-      //event.previous = this.stringToBuffer(event.previous);
-      //event.signature = this.stringToBuffer(event.signature);
-      //event.hash = this.stringToBuffer(event.hash);
-      //event.signKey.publicKey = this.stringToBuffer(event.signKey.publicKey);
       if (event.data.startsWith("base64:")) {
         const base64Data = event.data.slice(7);
         const bufferData = this.base64ToBuffer(base64Data);
-        const data = JSON.parse(this.bufferToString(bufferData));
-        event.parsedData = data;
+        event.parsedData = JSON.parse(this.bufferToString(bufferData));
       }
       return event;
     });
@@ -237,7 +233,7 @@ export default class PackageService {
     return json;
   }
 
-  private static async getPackageJson(
+  private async getPackageJson(
     filename: string,
     files: File[]
   ): Promise<any> {
@@ -246,7 +242,7 @@ export default class PackageService {
     return JSON.parse(await file.text());
   }
 
-  private static async getCapabilities(
+  private async getCapabilities(
     files: File[]
   ): Promise<TypedPackageCapabilities> {
     if (files.findIndex((file) => file.name === "package.json") < 0)
@@ -280,92 +276,86 @@ export default class PackageService {
     };
   }
 
-  static async processPackage(
+  async processPackage(
     message: any,
     uniqueMessageHash?: string,
     isNotLocal = false
   ) {
-    try {
-      let chainJson: any;
-      let files: File[];
-      let packageJson: TypedDict;
+    let chainJson: any;
+    let files: File[];
+    let packageJson: TypedDict;
 
-      //Extract files
-      if (isNotLocal) {
-        files = await this.extractAssets(message.data.buffer, false);
-        packageJson = await this.getPackageJson("package.json", files);
-        chainJson = await this.getChainJson("chain.json", message.data.buffer);
-      } else {
-        files = message; // Local files
-        packageJson = await this.getPackageJson("package.json", files);
-      }
-
-      //Check for required JSON files
-      if (!packageJson) {
-        throw new Error("Missing package.json in extracted assets");
-      }
-      if (isNotLocal && !chainJson) {
-        throw new Error("Missing chain.json for relay package");
-      }
-
-      //Calculate CID
-      const cid = await calculateCid(files);
-
-      //Check for duplicates
-      if (await IDBService.hasStore(`package:${cid}`)) {
-        if (
-          isNotLocal &&
-          chainJson &&
-          !(await this.isCurrentEvent(chainJson))
-        ) {
-          console.warn(`Package with CID ${cid} is already current or newer.`);
-          return null;
-        }
-      }
-
-      //Prepare metadata
-      const name = packageJson.name || "Unnamed Package";
-      const title = name
-        .replace(/^ownable-|-ownable$/, "")
-        .replace(/[-_]+/, " ")
-        .replace(/\b\w/, (c: string) => c.toUpperCase());
-      const description = packageJson.description;
-      const keywords: string[] = packageJson.keywords || [];
-      const capabilities = await this.getCapabilities(files);
-
-      //Store assets
-      await this.storeAssets(cid, files);
-
-      //Store package info
-      const pkg = this.storePackageInfo(
-        title,
-        name,
-        description,
-        cid,
-        keywords,
-        capabilities,
-        isNotLocal,
-        uniqueMessageHash
-      );
-
-      //Attach chain if needed
-      if (isNotLocal && chainJson) {
-        const chain = EventChain.from(chainJson);
-        pkg.chain = chain;
-      }
-
-      if (uniqueMessageHash) {
-        pkg.uniqueMessageHash = uniqueMessageHash;
-      }
-
-      return pkg;
-    } catch (error) {
-      console.error("Error processing package:", error);
-      throw error;
+    //Extract files
+    if (isNotLocal) {
+      files = await this.extractAssets(message.data.buffer, false);
+      packageJson = await this.getPackageJson("package.json", files);
+      chainJson = await this.getChainJson("chain.json", message.data.buffer);
+    } else {
+      files = message; // Local files
+      packageJson = await this.getPackageJson("package.json", files);
     }
+
+    //Check for required JSON files
+    if (!packageJson) {
+      throw new Error("Missing package.json in extracted assets");
+    }
+    if (isNotLocal && !chainJson) {
+      throw new Error("Missing chain.json for relay package");
+    }
+
+    //Calculate CID
+    const cid = await calculateCid(files);
+
+    //Check for duplicates
+    if (await this.idb.hasStore(`package:${cid}`)) {
+      if (
+        isNotLocal &&
+        chainJson &&
+        !(await this.isCurrentEvent(chainJson))
+      ) {
+        console.warn(`Package with CID ${cid} is already current or newer.`);
+        return null;
+      }
+    }
+
+    //Prepare metadata
+    const name = packageJson.name || "Unnamed Package";
+    const title = name
+      .replace(/^ownable-|-ownable$/, "")
+      .replace(/[-_]+/, " ")
+      .replace(/\b\w/, (c: string) => c.toUpperCase());
+    const description = packageJson.description;
+    const keywords: string[] = packageJson.keywords || [];
+    const capabilities = await this.getCapabilities(files);
+
+    //Store assets
+    await this.storeAssets(cid, files);
+
+    //Store package info
+    const pkg = this.storePackageInfo(
+      title,
+      name,
+      description,
+      cid,
+      keywords,
+      capabilities,
+      isNotLocal,
+      uniqueMessageHash
+    );
+
+    //Attach chain if needed
+    if (isNotLocal && chainJson) {
+      pkg.chain = EventChain.from(chainJson);
+    }
+
+    if (uniqueMessageHash) {
+      pkg.uniqueMessageHash = uniqueMessageHash;
+    }
+
+    return pkg;
   }
 
-  static async import(zipFile: File): Promise<TypedPackage> {
+  async import(zipFile: File): Promise<TypedPackage> {
     const files = await this.extractAssets(zipFile);
     const pkg = await this.processPackage(files);
 
@@ -378,15 +368,15 @@ export default class PackageService {
     return pkg;
   }
 
-  static async importFromRelay() {
+  async importFromRelay() {
     try {
-      const relayData = await RelayService.readRelayData();
+      const relayData = await this.relay.readAll();
 
       if (!relayData || !Array.isArray(relayData) || relayData.length === 0) {
         return null;
       }
 
-      const filteredMessages = await RelayService.checkDuplicateMessage(
+      const filteredMessages = await this.relay.checkDuplicateMessage(
         relayData
       );
 
@@ -405,7 +395,7 @@ export default class PackageService {
 
             if (!pkg) return;
 
-            if (await IDBService.hasStore(`package:${pkg.cid}`)) {
+            if (await this.idb.hasStore(`package:${pkg.cid}`)) {
               triggerRefresh = true;
             }
 
@@ -425,10 +415,10 @@ export default class PackageService {
     }
   }
 
-  static async isCurrentEvent(chainJson: EventChain) {
+  async isCurrentEvent(chainJson: EventChain) {
     let existingChain;
-    if (await IDBService.hasStore(`ownable:${chainJson.id}`)) {
-      existingChain = await IDBService.get(`ownable:${chainJson.id}`, "chain");
+    if (await this.idb.hasStore(`ownable:${chainJson.id}`)) {
+      existingChain = await this.idb.get(`ownable:${chainJson.id}`, "chain");
     }
 
     if (existingChain === undefined || existingChain.events === undefined) {
@@ -443,11 +433,7 @@ export default class PackageService {
     }
   }
 
-  static async removeOlderPackage(id: string) {
-    await OwnableService.delete(id);
-  }
-
-  static async downloadExample(key: string): Promise<TypedPackage> {
+  async downloadExample(key: string): Promise<TypedPackage> {
     if (!exampleUrl)
       throw new Error("Unable to download example ownable: URL not configured");
 
@@ -470,14 +456,14 @@ export default class PackageService {
     return this.import(zipFile);
   }
 
-  static async getAsset(
+  async getAsset(
     cid: string,
     name: string,
     read: (fr: FileReader, contents: Blob | File) => void
   ): Promise<string | ArrayBuffer> {
     return new Promise((resolve, reject) => {
       const fileReader = new FileReader();
-      IDBService.get(`package:${cid}`, name).then(
+      this.idb.get(`package:${cid}`, name).then(
         (mediaFile: File) => {
           if (!mediaFile) {
             reject(`Asset "${name}" is not in package ${cid}`);
@@ -494,21 +480,21 @@ export default class PackageService {
     });
   }
 
-  static getAssetAsText(cid: string, name: string): Promise<string> {
+  getAssetAsText(cid: string, name: string): Promise<string> {
     const read = (fr: FileReader, mediaFile: Blob | File) =>
       fr.readAsText(mediaFile);
     return this.getAsset(cid, name, read) as Promise<string>;
   }
 
-  static getAssetAsDataUri(cid: string, name: string): Promise<string> {
+  getAssetAsDataUri(cid: string, name: string): Promise<string> {
     const read = (fr: FileReader, mediaFile: Blob | File) =>
       fr.readAsDataURL(mediaFile);
     return this.getAsset(cid, name, read) as Promise<string>;
   }
 
-  static async zip(cid: string): Promise<JSZip> {
+  async zip(cid: string): Promise<JSZip> {
     const zip = new JSZip();
-    const files = await IDBService.getAll(`package:${cid}`);
+    const files = await this.idb.getAll(`package:${cid}`);
 
     for (const file of files) {
       zip.file(file.name, file);

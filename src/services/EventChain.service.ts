@@ -1,10 +1,9 @@
-import { Binary, EventChain } from "@ltonetwork/lto";
-import LTOService from "./LTO.service";
+import { Binary, EventChain, IEventChainJSON } from "eqty-core";
+import EQTYService from "./EQTY.service";
 import IDBService from "./IDB.service";
 import { StateDump } from "./Ownable.service";
 import LocalStorageService from "./LocalStorage.service";
 import TypedDict from "../interfaces/TypedDict";
-import { IEventChainJSON } from "@ltonetwork/lto/interfaces";
 
 interface StoredChainInfo {
   chain: IEventChainJSON;
@@ -17,63 +16,27 @@ interface StoredChainInfo {
 }
 
 export default class EventChainService {
-  private static _anchoring = !!LocalStorageService.get("anchoring");
+  constructor(
+    private idb: IDBService,
+    private eqty: EQTYService,
+  ) {}
+
+  private static _localStorage = new LocalStorageService();
+  private static _anchoring = !!this._localStorage.get("anchoring");
 
   static get anchoring(): boolean {
     return this._anchoring;
   }
   static set anchoring(enabled: boolean) {
-    LocalStorageService.set("anchoring", enabled);
+    this._localStorage.set("anchoring", enabled);
     this._anchoring = enabled;
   }
 
-  // static async loadAll(): Promise<
-  //   Array<{
-  //     chain: EventChain;
-  //     package: string;
-  //     created: Date;
-  //     keywords: string[];
-  //     latestHash?: string;
-  //     uniqueMessageHash: string;
-  //   }>
-  // > {
-  //   const ids = (await IDBService.listStores())
-  //     .filter((name) => name.match(/^ownable:\w+$/))
-  //     .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
+  get anchoring(): boolean {
+    return EventChainService._anchoring;
+  }
 
-  //   const results = await Promise.all(
-  //     ids.map(async (id) => {
-  //       try {
-  //         const {
-  //           chain,
-  //           package: packageCid,
-  //           latestHash,
-  //           uniqueMessageHash,
-  //           created,
-  //           keywords,
-  //         } = await this.load(id);
-  //         return {
-  //           chain,
-  //           package: packageCid,
-  //           latestHash,
-  //           created,
-  //           keywords,
-  //           uniqueMessageHash,
-  //         };
-  //       } catch (error) {
-  //         console.error(`Failed to load chain with id ${id}:`, error);
-  //         return null;
-  //       }
-  //     })
-  //   );
-
-  //   // Filter out null
-  //   return results
-  //     .filter((result): result is NonNullable<typeof result> => result !== null)
-  //     .sort(({ created: a }, { created: b }) => a.getTime() - b.getTime());
-  // }
-
-  static async loadAll(): Promise<
+  async loadAll(): Promise<
     Array<{
       chain: EventChain;
       package: string;
@@ -83,7 +46,7 @@ export default class EventChainService {
       uniqueMessageHash: string;
     }>
   > {
-    const ids = (await IDBService.listStores())
+    const ids = (await this.idb.listStores())
       .filter((name) => name.match(/^ownable:\w+$/))
       .map((name) => name.replace(/^ownable:(\w+)$/, "$1"));
 
@@ -122,7 +85,7 @@ export default class EventChainService {
     );
   }
 
-  static async load(id: string): Promise<{
+  async load(id: string): Promise<{
     chain: EventChain;
     package: string;
     created: Date;
@@ -130,7 +93,7 @@ export default class EventChainService {
     uniqueMessageHash: string;
     latestHash?: string;
   }> {
-    const chainInfo = (await IDBService.getMap(`ownable:${id}`).then((map) =>
+    const chainInfo = (await this.idb.getMap(`ownable:${id}`).then((map) =>
       Object.fromEntries(map.entries())
     )) as StoredChainInfo;
 
@@ -153,7 +116,7 @@ export default class EventChainService {
     };
   }
 
-  static async store(
+  async store(
     ...chains: Array<{
       chain: EventChain;
       stateDump: StateDump;
@@ -161,21 +124,22 @@ export default class EventChainService {
       uniqueMessageHash?: string;
     }>
   ): Promise<void> {
-    const anchors: Array<{ key: Binary; value: Binary }> = [];
+    const anchors: Array<any> = [];
     const data: TypedDict<TypedDict | Map<any, any>> = {};
 
     for (const { chain, stateDump } of chains) {
-      const storedState = await IDBService.get(`ownable:${chain.id}`, "state");
+      const storedState = await this.idb.get(`ownable:${chain.id}`, "state");
       if (storedState === chain.state) continue;
 
-      if (this.anchoring) {
-        const previousHash = await IDBService.get(
+      if (EventChainService.anchoring) {
+        const previousHash = await this.idb.get(
           `ownable:${chain.id}`,
           "latestHash"
         );
-        anchors.push(
-          ...chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
-        );
+        const newAnchors = previousHash
+          ? chain.startingAfter(Binary.fromHex(previousHash)).anchorMap
+          : chain.anchorMap;
+        anchors.push(...newAnchors);
       }
 
       data[`ownable:${chain.id}`] = {
@@ -187,21 +151,21 @@ export default class EventChainService {
     }
 
     if (anchors.length > 0) {
-      await LTOService.anchor(...anchors);
+      await this.eqty.anchor(...anchors);
     }
 
     // Only perform storage operation if there are changes
     if (Object.keys(data).length > 0) {
-      await IDBService.setAll(data);
+      await this.idb.setAll(data);
     }
   }
 
-  static async getStateDump(
+  async getStateDump(
     id: string,
     state: string | Binary
   ): Promise<StateDump | null> {
-    const storedState = (await IDBService.hasStore(`ownable:${id}`))
-      ? await IDBService.get(`ownable:${id}`, "state")
+    const storedState = (await this.idb.hasStore(`ownable:${id}`))
+      ? await this.idb.get(`ownable:${id}`, "state")
       : undefined;
     if (storedState !== (state instanceof Binary ? state.hex : state))
       return null;
@@ -209,20 +173,21 @@ export default class EventChainService {
     return this.getCurrentStateDump(id);
   }
 
-  private static async getCurrentStateDump(id: string): Promise<StateDump> {
-    const map = await IDBService.getMap(`ownable:${id}.state`);
+  private async getCurrentStateDump(id: string): Promise<StateDump> {
+    const map = await this.idb.getMap(`ownable:${id}.state`);
     return Array.from(map.entries());
   }
 
-  static async delete(id: string): Promise<void> {
-    await IDBService.deleteStore(new RegExp(`^ownable:${id}(\\..+)?$`));
+  async delete(id: string): Promise<void> {
+    await this.idb.deleteStore(new RegExp(`^ownable:${id}(\\..+)?$`));
   }
 
-  static async deleteAll(): Promise<void> {
-    await IDBService.deleteStore(/^ownable:.+/);
+  async deleteAll(): Promise<void> {
+    await this.idb.deleteStore(/^ownable:.+/);
   }
 
-  public static async verify(chain: EventChain) {
-    return await LTOService.verifyAnchors(...chain.anchorMap);
+  public async verify(chain: EventChain) {
+    const anchors = chain.anchorMap;
+    return await this.eqty.verifyAnchors(...anchors);
   }
 }

@@ -7,18 +7,18 @@ import {
   Theme,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Fingerprint, InfoOutlined } from "@mui/icons-material";
 import { TypedMetadata } from "../interfaces/TypedOwnableInfo";
 import Dialog from "@mui/material/Dialog";
-import { EventChain } from "@ltonetwork/lto";
+import { EventChain } from "eqty-core";
 import EventCard from "./EventCard";
 import shortId from "../utils/shortId";
 import Tooltip from "./Tooltip";
 import backgroundImage from "../assets/background.svg";
 import If from "./If";
-import EventChainService from "../services/EventChain.service";
 import useInterval from "../utils/useInterval";
+import { useService } from "../hooks/useService"
 
 interface OwnableInfoProps {
   sx?: SxProps<Theme>;
@@ -40,11 +40,12 @@ export default function OwnableInfo(props: OwnableInfoProps) {
   const [anchors, setAnchors] = useState<
     Array<{ tx: string | undefined; verified: boolean } | null>
   >([]);
+  const eventChainService = useService('eventChains');
 
-  const verify = (chain: EventChain, open: boolean) => {
-    if (!open) return;
+  const verify = useCallback((chain: EventChain, open: boolean) => {
+    if (!open || !eventChainService) return;
 
-    EventChainService.verify(chain).then(({ verified, anchors, map }) => {
+    eventChainService.verify(chain).then(({ verified, anchors, map }) => {
       setVerified(verified);
       setAnchors(
         chain.anchorMap.map(({ key, value }) => ({
@@ -53,9 +54,9 @@ export default function OwnableInfo(props: OwnableInfoProps) {
         }))
       );
     });
-  };
+  }, [eventChainService]);
 
-  useEffect(() => verify(chain, open), [chain, open]);
+  useEffect(() => verify(chain, open), [chain, open, verify]);
   useInterval(() => verify(chain, open), 5 * 1000);
 
   return (
