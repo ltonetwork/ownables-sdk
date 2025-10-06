@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Drink a colorful potion"
 license = "MIT"
 authors = ["bekauz <bekauz@protonmail.com>"]
-edition = "2018"
+edition = "2024"
 
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
@@ -66,7 +66,7 @@ hex = "0.4.3"
 secp256k1 = "0.26.0"
 sha2 = "0.10.6"
 sha3 = "0.7.2"
-ownable-std = "0.2.3"
+ownable-std = { version = "0.3.0", path = "../../../ownable-std" }
 ownable-std-macros = "0.1.1"
 
 [dev-dependencies]
