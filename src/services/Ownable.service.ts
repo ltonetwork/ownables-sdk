@@ -644,7 +644,7 @@ export default class OwnableService {
         await this.createSnapshot(chain, stateDump, eventCount - 1);
       }
 
-      // Verify the write
+      // Verify write
       const verifyState = await this.idb.get(storeId, "state");
       if (verifyState !== chain.state.hex) {
         throw new Error("State verification failed after write");

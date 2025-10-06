@@ -3,81 +3,64 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import ServiceContainer from '../services/ServiceContainer';
 import { useAccount, useChainId } from 'wagmi';
 
-type Ctx = { container: ServiceContainer };
-const ServicesContext = createContext<Ctx | undefined>(undefined);
+type Ctx = { container: ServiceContainer | null };
+const ServicesContext = createContext<Ctx>({ container: null });
 
 export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { address } = useAccount();
   const chainId = useChainId();
 
-  // Build a stable key only when both are known
   const key = address && chainId ? `${address}:${chainId}` : null;
 
-  // Hold the live instance
-  const ref = useRef<ServiceContainer | null>(null);
-  const [ready, setReady] = useState(false); // gates children
+  const [container, setContainer] = useState<ServiceContainer | null>(null);
 
-  // Create/replace exactly once per key
   useEffect(() => {
     let cancelled = false;
 
-    async function make() {
-      // Wait until we have a key
+    (async () => {
+      // No identity yet, clear any existing container
       if (!key) {
-        // no identity yet, ensure no instance and keep children gated
-        if (ref.current) {
-          await ref.current.dispose().catch(() => {});
-          ref.current = null;
+        if (container) {
+          await container.dispose().catch(() => {});
         }
-        setReady(false);
+        if (!cancelled) setContainer(null);
         return;
       }
 
-      // If same key, do nothing
-      if ((ref.current as any)?.__key === key) {
-        setReady(true);
-        return;
-      }
+      // Same key, keep current
+      if (container?.key === key) return;
 
       // Replace previous
-      if (ref.current) {
-        await ref.current.dispose().catch(() => {});
-        ref.current = null;
-        setReady(false);
+      if (container) {
+        await container.dispose().catch(() => {});
       }
 
-      // Create once for this key
       const instance = new ServiceContainer(address!, chainId);
-      (instance as any).__key = key; // tag for identity
       if (!cancelled) {
-        ref.current = instance;
-        setReady(true);
+        setContainer(instance);
       } else {
-        // if unmounted mid-create, dispose
         await instance.dispose().catch(() => {});
       }
-    }
+    })();
 
-    make();
-    return () => { cancelled = true; };
-  }, [key, address, chainId]);
-
-  // Stable context value, identity only changes when we actually swapped instance
-  const ctx = useMemo<Ctx | undefined>(
-    () => (ref.current ? { container: ref.current } : undefined),
-    [ready] // flips to true when instance is set
-  );
+    return () => {
+      cancelled = true;
+    };
+  }, [key, address, chainId]); // depends on wallet identity
 
   // Dispose on unmount
   useEffect(() => {
-    return () => { ref.current?.dispose().catch(() => {}); ref.current = null; };
-  }, []);
+    return () => {
+      container?.dispose().catch(() => {});
+    };
+  }, [container]);
+
+  const ctx = useMemo<Ctx>(() => ({ container }), [container]);
 
   return (
     <ServicesContext.Provider value={ctx}>
@@ -86,9 +69,8 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
-export function useContainer(): ServiceContainer | undefined {
-  const ctx = useContext(ServicesContext);
-  return ctx?.container;
+export function useContainer(): ServiceContainer | null {
+  return useContext(ServicesContext).container;
 }
 
 export default ServicesContext;

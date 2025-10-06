@@ -38,7 +38,8 @@ export default function Ownable(props: OwnableProps) {
   const idb = useService('idb');
   const eventChains = useService('eventChains');
   const relay = useService('relay');
-  const { address } = useAccount();
+  const { address: liveAddress } = useAccount();
+  const [address] = useState(liveAddress);
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const busyRef = useRef(false);

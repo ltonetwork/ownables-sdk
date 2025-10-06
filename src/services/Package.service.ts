@@ -328,12 +328,8 @@ export default class PackageService {
     const keywords: string[] = packageJson.keywords || [];
     const capabilities = await this.getCapabilities(files);
 
-    console.log('before store');
-
     //Store assets
     await this.storeAssets(cid, files);
-
-    console.log('stored');
 
     //Store package info
     const pkg = this.storePackageInfo(
@@ -346,8 +342,6 @@ export default class PackageService {
       isNotLocal,
       uniqueMessageHash
     );
-
-    console.log('stored package info', pkg)
 
     //Attach chain if needed
     if (isNotLocal && chainJson) {

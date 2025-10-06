@@ -70,6 +70,9 @@ export default function App() {
 
   const { setMessageCount } = useMessageCount();
 
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+
   useEffect(() => {
     if (!ownableService) return;
 
@@ -77,9 +80,6 @@ export default function App() {
       .then((ownables) => setOwnables(ownables))
       .then(() => setLoaded(true));
   }, [ownableService]);
-
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
 
   useEffect(() => {
     setShowLogin(!isConnected);
@@ -90,6 +90,7 @@ export default function App() {
     setConsuming(null);
     setAlert(null);
     setConfirm(null);
+    setOwnables([]);
   }, [address, isConnected, chainId]);
 
   const showError = (title: string, message: string) => {

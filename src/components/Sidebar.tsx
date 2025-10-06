@@ -59,7 +59,7 @@ export default function Sidebar(props: SidebarProps) {
               <Box sx={{ mt: 1, mb: 4 }}>
                 <Typography variant="body2" fontWeight="strong">Balance</Typography>
                 <Typography variant="body2">{Number(ethBalance?.formatted).toFixed(4)} {ethBalance?.symbol}</Typography>
-                { eqtyBalance !== undefined && <Typography variant="body2">{Number(eqtyBalance?.formatted).toFixed(4)} {eqtyBalance?.symbol}</Typography> }
+                { eqtyBalance !== undefined && <Typography variant="body2">{Number(eqtyBalance?.formatted).toFixed(0)} {eqtyBalance?.symbol}</Typography> }
               </Box>
             </WalletConnectControls>
           </Box>

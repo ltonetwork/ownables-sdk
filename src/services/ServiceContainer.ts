@@ -65,6 +65,10 @@ export default class ServiceContainer {
     this.register('builder', async (c) => new BuilderService(c.chainId!));
   }
 
+  get key() {
+    return `${this.address}:${this.chainId}`;
+  }
+
   private register<K extends ServiceKey>(key: K, factory: ServiceFactory<ServiceMap[K]>): void {
     this.factories.set(key, factory as ServiceFactory);
   }
