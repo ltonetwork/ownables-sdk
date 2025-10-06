@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_ltonetwork_ownable_sdk=self.webpackChunk_ltonetwork_ownable_sdk||[]).push([[5062],{15062:(e,k,l)=>{l.r(k),l.d(k,{default:()=>n.n});var n=l(44727)}}]);
