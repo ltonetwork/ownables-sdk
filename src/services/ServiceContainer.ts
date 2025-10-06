@@ -47,9 +47,12 @@ export default class ServiceContainer {
       new EventChainService(await c.get('idb'), await c.get('eqty')),
     );
 
-    this.register('packages', async (c) =>
-      new PackageService(await c.get('idb'), await c.get('relay'), await c.get('localStorage')),
-    );
+    this.register('packages', async (c) => {
+      // Packages are stored globally and not per account
+      const idb = await IDBService.main();
+      const storage = new LocalStorageService();
+      return new PackageService(idb, await c.get('relay'), storage);
+    });
 
     this.register('ownables', async (c) => new OwnableService(
       await c.get('idb'),

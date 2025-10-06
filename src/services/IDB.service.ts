@@ -4,10 +4,19 @@ import TypedDict from "../interfaces/TypedDict";
 const DEFAULT_DB_NAME = "ownables";
 
 export default class IDBService {
+  private static mainInstance: IDBService;
+
   constructor(
     private db: IDBDatabase,
     private readonly dbName: string,
   ) {}
+
+  static async main(): Promise<IDBService> {
+    if (this.mainInstance) return this.mainInstance;
+
+    this.mainInstance = await this.open('');
+    return this.mainInstance;
+  }
 
   static async open(suffix: string): Promise<IDBService> {
     const suffixClean = (suffix || "").trim().toLowerCase();
@@ -199,6 +208,30 @@ export default class IDBService {
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(this.error(event));
     });
+  }
+
+  async deleteAllDatabases(): Promise<void> {
+    await this.close();
+
+    const dbs = await window.indexedDB.databases();
+
+    await Promise.all(
+      dbs
+        .map((d: any) => d.name)
+        .filter(
+          (name: string | undefined) =>
+            name && (name === DEFAULT_DB_NAME || name.startsWith(`${DEFAULT_DB_NAME}:`))
+        )
+        .map(
+          (name: string) =>
+            new Promise<void>((resolve, reject) => {
+              const req = indexedDB.deleteDatabase(name);
+              req.onsuccess = () => resolve();
+              req.onerror = (ev) => reject(ev);
+              req.onblocked = () => resolve(); // tolerate blocked
+            })
+        )
+    );
   }
 
   async delete(store: string, key: string): Promise<void> {

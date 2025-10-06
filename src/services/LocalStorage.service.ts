@@ -1,5 +1,5 @@
 export default class LocalStorageService {
-  private prefix: string;
+  private readonly prefix: string;
 
   constructor(group: string = '') {
     this.prefix = group ? `${group}:` : '';
@@ -42,6 +42,10 @@ export default class LocalStorageService {
     for (const key of keys) {
       localStorage.removeItem(key);
     }
+  }
+
+  static clearAll(): void {
+    localStorage.clear();
   }
 
   removeItem(key: string, value: any): void {

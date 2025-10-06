@@ -26,6 +26,7 @@ import { useAccount, useChainId } from 'wagmi';
 import { useMessageCount } from "./hooks/useMessageCount";
 import { useService } from "./hooks/useService"
 import { usePolling } from "./hooks/usePolling"
+import LocalStorageService from "./services/LocalStorage.service"
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -269,8 +270,8 @@ export default function App() {
       onConfirm: async () => {
         setLoaded(false);
 
-        storage?.clear();
-        await idb?.deleteDatabase();
+        LocalStorageService.clearAll();
+        await idb?.deleteAllDatabases();
 
         window.location.reload();
       },
