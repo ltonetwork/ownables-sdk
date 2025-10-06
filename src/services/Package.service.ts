@@ -444,7 +444,9 @@ export default class PackageService {
       throw new Error(
         `Failed to download example ownable: ${response.statusText}`
       );
-    if (response.headers.get("Content-Type") !== "application/zip")
+
+    const contentType = response.headers.get("Content-Type")?.trim();
+    if (contentType !== "application/zip" && contentType !== "application/x-zip-compressed")
       throw new Error(
         "Failed to download example ownable: invalid content type"
       );
