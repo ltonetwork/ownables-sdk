@@ -51,6 +51,7 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, address, chainId]); // depends on wallet identity
 
   // Dispose on unmount

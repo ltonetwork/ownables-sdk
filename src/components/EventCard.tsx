@@ -5,6 +5,7 @@ import { useState } from "react";
 import If from "./If";
 import ReactJson from "react-json-view";
 import { Cancel, CheckCircle } from "@mui/icons-material";
+import shortId from "../utils/shortId"
 
 interface EventCardProps {
   event: Event;
@@ -56,15 +57,13 @@ export default function EventCard(props: EventCardProps) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
-      {/* TODO: Restore previous-hash top label once JSX typing issue is resolved after eqty-core migration. */}
-      {/* <If condition={!props.isFirst}>
+      <If condition={!props.isFirst}>
         <CardTopLabel sx={{ display: { xs: "none", md: "block" } }}>
           <div className="truncate">
-            <strong>Previous: </strong>
-            {event.previous?.base58 ? event.previous?.base58 : event.previous}
+            <strong>Previous: </strong> {shortId(event.previous?.hex ?? '', 30)}
           </div>
         </CardTopLabel>
-      </If> */}
+      </If>
       <Card key={event.hash.base58} sx={cardStyle}>
         <CardContent sx={{ fontSize: 12, pb: "12px !important" }}>
           <div>
@@ -132,14 +131,14 @@ export default function EventCard(props: EventCardProps) {
             sx={{ display: { xs: "block", md: "none" }, pt: 2 }}
             className="truncate"
           >
-            {`Hash: ${event.hash.base58 ?? String(event.hash ?? "")}`}
+            <strong>Hash:</strong> {shortId(event.hash.hex, 30)}
           </Box>
         </CardContent>
       </Card>
       <CardBottomLabel sx={{ display: { xs: "none", md: "block" } }}>
-        <div className="truncate">{`Hash: ${
-          event.hash.base58 ?? String(event.hash ?? "")
-        }`}</div>
+        <div className="truncate">
+          <strong>Hash:</strong> {shortId(event.hash.hex, 30)}
+        </div>
       </CardBottomLabel>
     </Box>
   );
