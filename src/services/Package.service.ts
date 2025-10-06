@@ -357,9 +357,7 @@ export default class PackageService {
 
   async import(zipFile: File): Promise<TypedPackage> {
     const files = await this.extractAssets(zipFile);
-    console.log(files);
     const pkg = await this.processPackage(files);
-    console.log(pkg);
 
     if (!pkg) {
       throw new Error(

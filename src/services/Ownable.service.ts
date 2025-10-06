@@ -274,8 +274,6 @@ export default class OwnableService {
       .map((key) => parseInt(key.replace("snapshot_", "")))
       .sort((a, b) => b - a)[0];
 
-    console.log("Latest snapshot key:", latestKey);
-
     return await this.idb.get(snapshotStoreId, `snapshot_${latestKey}`);
   }
 
@@ -345,7 +343,6 @@ export default class OwnableService {
 
     // Check if we need to create a snapshot after this event
     if ((eventIndex + 1) % this.SNAPSHOT_INTERVAL === 0) {
-      console.log(`Creating snapshot at event ${eventIndex + 1}`);
       await this.createSnapshot(chain, result.state, eventIndex);
     }
 
@@ -400,9 +397,6 @@ export default class OwnableService {
 
           // Attempt recovery by creating a checkpoint
           if (globalIndex > startIndex) {
-            console.log(
-              `Creating recovery snapshot at event ${globalIndex - 1}`
-            );
             await this.createSnapshot(partialChain, stateDump, globalIndex - 1);
           }
           throw error;
@@ -640,7 +634,6 @@ export default class OwnableService {
       // Check if we need to create a snapshot
       const eventCount = chain.events.length;
       if (eventCount % this.SNAPSHOT_INTERVAL === 0) {
-        console.log(`Creating snapshot after ${eventCount} events`);
         await this.createSnapshot(chain, stateDump, eventCount - 1);
       }
 

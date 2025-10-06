@@ -4,7 +4,7 @@ use cosmwasm_std::{to_json_binary, Binary, Attribute, Event};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
-use ownable_std::{ExternalEventMsg, get_random_color, InfoResponse, Metadata, OwnableInfo};
+use ownable_std::{ExternalEventMsg, InfoResponse, Metadata, OwnableInfo};
 use crate::error::ContractError;
 
 // version info for migration info
@@ -38,7 +38,7 @@ pub fn instantiate(
 
     let config = Config {
         consumed_by: None,
-        color: get_random_color(msg.clone().ownable_id),
+        color: "".to_string(),
     };
 
     NETWORK_ID.save(deps.storage, &msg.network_id)?;

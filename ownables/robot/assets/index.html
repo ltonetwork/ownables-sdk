@@ -66,10 +66,7 @@
       let ownable_id;
 
       window.addEventListener("message", (event) => {
-        console.log("iframe picked up event: ", event);
-
         ownable_id = event.data.ownable_id;
-        console.log("drawing state from robot: ", event.data.state);
         drawRobot(event.data.state);
       });
 

@@ -71,11 +71,8 @@ export default function EventCard(props: EventCardProps) {
             <strong>Timestamp: </strong>
             {event.timestamp ? new Date(event.timestamp).toString() : ""}
           </div>
-          <div className="truncate">{`Signed by: ${event.signerAddress ?? ""}`}</div>
-          {/* TODO: eqty-core Event does not expose public key; signerAddress is shown instead. */}
-          <div className="truncate">{`Signature: ${
-            event.signature?.base58 ?? String(event.signature ?? "")
-          }`}</div>
+          <div className="truncate"><strong>Signed by:</strong> {event.signerAddress ?? ""}</div>
+          <div className="truncate"><strong>Signature:</strong> {event.signature?.hex ?? ""}</div>
           <If condition={anchorTx !== null}>
             <div style={{ marginTop: 10 }}>
               <strong>Anchor tx: </strong>
@@ -104,7 +101,7 @@ export default function EventCard(props: EventCardProps) {
               </If>
             </div>
           </If>
-          <div style={{ marginTop: 10 }}>{`Media type: ${event.mediaType}`}</div>
+          <div style={{ marginTop: 10 }}><strong>Media type:</strong> {event.mediaType}</div>
           <div>
             <strong>Data: </strong>
             <span style={{ marginRight: 5 }}>base64</span>
