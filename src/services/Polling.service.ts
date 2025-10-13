@@ -5,7 +5,10 @@ export class PollingService {
   private tries = 3;
   private intervalId?: ReturnType<typeof setInterval>;
 
-  constructor(private readonly relay: RelayService, private readonly localStorage: LocalStorageService) {}
+  constructor(
+    private readonly relay: RelayService,
+    private readonly localStorage: LocalStorageService
+  ) {}
 
   /**
    * Fetch new message hashes from the server and compare with client hashes.
@@ -17,10 +20,6 @@ export class PollingService {
     });
 
     try {
-      const url = `${RelayService.URL}/inboxes/${encodeURIComponent(
-        address
-      )}`;
-
       const headers: Record<string, string> = {};
       const lastModified = this.localStorage.get("lastModified");
 
@@ -28,23 +27,26 @@ export class PollingService {
         headers["If-Modified-Since"] = lastModified;
       }
 
-      const requestOptions = Object.keys(headers).length > 0 ? { headers } : {};
-      const response = await this.relay.fetch(
-        "GET",
-        url,
-        requestOptions
+      const response = await this.relay.relay.get(
+        `messages/${encodeURIComponent(address)}`,
+        headers
       );
 
-      if (response.status === 304) {
+      // Cast response to handle different response formats
+      const responseData = response as any;
+
+      if (responseData.status === 304) {
         return this.localStorage.get("messageCount") || 0;
       }
 
-      if (response.status === 200) {
-        const serverHashes = response.data
+      if (responseData.status === 200) {
+        const messages =
+          responseData.data?.messages || responseData.messages || [];
+        const serverHashes = messages
           .filter((message: any) => message.hash)
           .map((message: any) => message.hash);
 
-        const newLastModified = response.headers?.["last-modified"];
+        const newLastModified = responseData.headers?.["last-modified"];
         if (newLastModified) {
           this.localStorage.set("lastModified", newLastModified);
         }

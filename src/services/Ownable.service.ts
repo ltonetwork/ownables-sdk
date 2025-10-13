@@ -68,7 +68,7 @@ export default class OwnableService {
     private readonly idb: IDBService,
     private readonly eventChains: EventChainService,
     private readonly eqty: EQTYService,
-    private readonly packages: PackageService,
+    private readonly packages: PackageService
   ) {}
 
   private readonly _rpc = new Map<string, OwnableRPC>();
@@ -112,7 +112,9 @@ export default class OwnableService {
     this._rpc.delete(id);
   }
 
-  async create(pkg: TypedPackage): Promise<EventChain> {
+  async create(
+    pkg: TypedPackage
+  ): Promise<{ chain: EventChain; txHash?: string }> {
     const address = this.eqty.address;
     const networkId = this.eqty.chainId;
     const chain = EventChain.create(address, networkId);
@@ -136,10 +138,11 @@ export default class OwnableService {
     }
 
     if (anchors.length > 0) {
-      await this.eqty.anchor(...anchors);
+      const txHash = await this.eqty.anchor(...anchors);
+      return { chain, txHash };
     }
 
-    return chain;
+    return { chain };
   }
 
   async init(
@@ -314,7 +317,7 @@ export default class OwnableService {
     eventIndex: number
   ): Promise<{ result?: TypedDict; state: StateDump }> {
     const info = {
-      sender: this.eqty.address,
+      sender: event.signerAddress || this.eqty.address,
       funds: [],
     } as MessageInfo;
     const { "@context": context, ...msg } = event.parsedData;
@@ -449,10 +452,7 @@ export default class OwnableService {
       .query({is_consumer_of: {consumable_type: info.ownable_type, issuer: info.issuer}}, state!);*/
   }
 
-  async consume(
-    consumer: EventChain,
-    consumable: EventChain
-  ): Promise<void> {
+  async consume(consumer: EventChain, consumable: EventChain): Promise<void> {
     const info: MessageInfo = {
       sender: this.eqty.address,
       funds: [],
@@ -574,9 +574,11 @@ export default class OwnableService {
         console.error("Failed to set data, cleaning up stores...");
         await Promise.all(
           stores.map((store) =>
-            this.idb.deleteStore(store).catch((e) =>
-              console.warn(`Failed to clean up store ${store}:`, e)
-            )
+            this.idb
+              .deleteStore(store)
+              .catch((e) =>
+                console.warn(`Failed to clean up store ${store}:`, e)
+              )
           )
         );
         throw error;

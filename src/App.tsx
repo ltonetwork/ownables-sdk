@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Link, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Link, Typography } from "@mui/material";
 import PackagesFab from "./components/PackagesFab";
 import { TypedPackage } from "./interfaces/TypedPackage";
 import LoginDialog from "./components/LoginDialog";
@@ -22,11 +22,11 @@ import ConfirmDialog from "./components/ConfirmDialog";
 import { SnackbarProvider, enqueueSnackbar } from "notistack";
 import { TypedOwnableInfo } from "./interfaces/TypedOwnableInfo";
 import { usePackageManager } from "./hooks/usePackageManager";
-import { useAccount, useChainId } from 'wagmi';
+import { useAccount, useChainId, useConnect } from "wagmi";
 import { useMessageCount } from "./hooks/useMessageCount";
-import { useService } from "./hooks/useService"
-import { usePolling } from "./hooks/usePolling"
-import LocalStorageService from "./services/LocalStorage.service"
+import { useService } from "./hooks/useService";
+import { usePolling } from "./hooks/usePolling";
+import LocalStorageService from "./services/LocalStorage.service";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -56,11 +56,10 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
-  const ownableService = useService('ownables');
-  const packageService = useService('packages');
-  const relayService = useService('relay');
-  const storage = useService('localStorage');
-  const idb = useService('idb');
+  const ownableService = useService("ownables");
+  const packageService = useService("packages");
+  const relayService = useService("relay");
+  const idb = useService("idb");
   const { isLoading: isPackageManagerLoading } = usePackageManager();
 
   usePolling();
@@ -71,13 +70,15 @@ export default function App() {
 
   const { setMessageCount } = useMessageCount();
 
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, isConnecting } = useAccount();
   const chainId = useChainId();
+  const { error: connectError } = useConnect();
 
   useEffect(() => {
     if (!ownableService) return;
 
-    ownableService.loadAll()
+    ownableService
+      .loadAll()
       .then((ownables) => setOwnables(ownables))
       .then(() => setLoaded(true));
   }, [ownableService]);
@@ -91,8 +92,21 @@ export default function App() {
     setConsuming(null);
     setAlert(null);
     setConfirm(null);
-    setOwnables([]);
+
+    // Only clear ownables if wallet is disconnected, not on every change
+    if (!isConnected) {
+      setOwnables([]);
+    }
   }, [address, isConnected, chainId]);
+
+  // Handle connection errors
+  useEffect(() => {
+    if (connectError) {
+      if (connectError.name !== "ConnectorAlreadyConnectedError") {
+        showError("Connection Error", connectError.message);
+      }
+    }
+  }, [connectError]);
 
   const showError = (title: string, message: string) => {
     setAlert({ severity: "error", title, message });
@@ -104,14 +118,48 @@ export default function App() {
     );
   };
 
+  const getExplorerUrl = (txHash: string, chainId: number) => {
+    switch (chainId) {
+      case 84532: // Base Sepolia
+        return `https://sepolia.basescan.org/tx/${txHash}`;
+      case 8453: // Base Mainnet
+        return `https://basescan.org/tx/${txHash}`;
+      default:
+        return `https://sepolia.basescan.org/tx/${txHash}`;
+    }
+  };
+
   const forge = async (pkg: TypedPackage) => {
     if (!ownableService) throw new Error("Ownable service not ready");
 
     try {
-      const chain = await ownableService.create(pkg);
-      setOwnables([...ownables, { chain, package: pkg.cid }]);
+      const result = await ownableService.create(pkg);
+      setOwnables([...ownables, { chain: result.chain, package: pkg.cid }]);
       setShowPackages(false);
-      enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
+
+      if (result.txHash) {
+        const explorerUrl = getExplorerUrl(result.txHash, chainId);
+        enqueueSnackbar(
+          `${pkg.title} forged and anchored! TX: ${result.txHash.slice(
+            0,
+            10
+          )}...`,
+          {
+            variant: "success",
+            action: (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => window.open(explorerUrl, "_blank")}
+              >
+                View TX
+              </Button>
+            ),
+          }
+        );
+      } else {
+        enqueueSnackbar(`${pkg.title} forged`, { variant: "success" });
+      }
     } catch (error) {
       showError("Failed to forge ownable", ownableErrorMessage(error));
     }
@@ -188,8 +236,10 @@ export default function App() {
         const uniqueMessageHash = pkg.uniqueMessageHash;
 
         //delete package
-        if (pkg.isNotLocal && storage) {
-          storage.removeByField(
+        if (pkg.isNotLocal && packageService) {
+          // Packages are stored globally, not per-account
+          const globalStorage = new LocalStorageService();
+          globalStorage.removeByField(
             "packages",
             "uniqueMessageHash",
             uniqueMessageHash
@@ -210,7 +260,7 @@ export default function App() {
     try {
       return Boolean(
         consuming?.info &&
-        (await ownableService?.canConsume(consumer, consuming!.info))
+          (await ownableService?.canConsume(consumer, consuming!.info))
       );
     } catch (e) {
       console.error(e, (e as any).cause);
@@ -222,7 +272,8 @@ export default function App() {
     if (consumer.id === consumable.id) return;
     if (!ownableService) throw new Error("Ownable service not ready");
 
-    ownableService.consume(consumer, consumable)
+    ownableService
+      .consume(consumer, consumable)
       .then(() => {
         setConsuming(null);
         setOwnables((ownables) => [...ownables]);
@@ -277,6 +328,20 @@ export default function App() {
       },
     });
   };
+
+  // Show loading state while connecting
+  if (isConnecting) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <>
@@ -356,9 +421,7 @@ export default function App() {
               packageCid={packageCid}
               uniqueMessageHash={uniqueMessageHash}
               selected={consuming?.chain.id === chain.id}
-              onDelete={() =>
-                deleteOwnable(chain.id, packageCid)
-              }
+              onDelete={() => deleteOwnable(chain.id, packageCid)}
               onRemove={() => removeOwnable(chain.id)}
               onConsume={(info) =>
                 setConsuming({ chain, package: packageCid, info })
@@ -417,7 +480,9 @@ export default function App() {
         <Typography component="span" sx={{ fontWeight: 700 }}>
           Select which Ownable should consume this{" "}
           <em>
-            {consuming && packageService ? packageService.info(consuming.package).title : ""}
+            {consuming && packageService
+              ? packageService.info(consuming.package).title
+              : ""}
           </em>
         </Typography>
         <Box>

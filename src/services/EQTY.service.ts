@@ -1,6 +1,12 @@
-import { AnchorClient, Binary, ViemContract, ViemSigner } from 'eqty-core';
-import type { PublicClient, WalletClient } from 'viem';
-import { createPublicClient, createWalletClient, custom, getAddress } from 'viem';
+import { AnchorClient, Binary, ViemContract, ViemSigner } from "eqty-core";
+import type { PublicClient, WalletClient } from "viem";
+import {
+  createPublicClient,
+  createWalletClient,
+  custom,
+  getAddress,
+} from "viem";
+import { base, baseSepolia } from "viem/chains";
 
 const BRIDGE_URL = process.env.REACT_APP_BRIDGE;
 
@@ -16,21 +22,43 @@ export default class EQTYService {
   private anchorClient: AnchorClient<any>;
   public readonly signer: ViemSigner;
 
+  private getChain() {
+    switch (this.chainId) {
+      case base.id:
+        return base;
+      case baseSepolia.id:
+        return baseSepolia;
+      default:
+        throw new Error(`Unsupported chain ID: ${this.chainId}`);
+    }
+  }
+
   public constructor(
     public readonly address: string,
     public readonly chainId: number,
+    walletClient?: WalletClient,
+    publicClient?: PublicClient
   ) {
     const eth = EQTYService.ethereum;
-    if (!eth) throw new Error('No Ethereum provider found. Connect a wallet.');
+    if (!eth) throw new Error("No Ethereum provider found. Connect a wallet.");
 
-    this.walletClient = createWalletClient({
-      account: getAddress(address),
-      transport: custom(eth),
-    });
+    const chain = this.getChain();
 
-    this.publicClient = createPublicClient({
-      transport: custom(eth),
-    });
+    // Use provided clients or create new ones
+    this.walletClient =
+      walletClient ||
+      (createWalletClient({
+        account: getAddress(address),
+        chain,
+        transport: custom(eth),
+      }) as WalletClient);
+
+    this.publicClient =
+      publicClient ||
+      (createPublicClient({
+        chain,
+        transport: custom(eth),
+      }) as PublicClient);
 
     const contract = new ViemContract(
       this.publicClient,
@@ -49,46 +77,53 @@ export default class EQTYService {
   /**
    * Anchor one or multiple entries to Base (or Base Sepolia) using eqty-core.
    * Accepts an array of Binary values or key/value pairs of Binaries.
+   * Returns the transaction hash.
    */
   async anchor(
-    ...anchors: Array<{ key: { hex: string } | Binary; value: { hex: string } | Binary }> | Array<{ hex: string } | Binary>
-  ): Promise<void> {
-    if (anchors.length === 0) return;
+    ...anchors:
+      | Array<{
+          key: { hex: string } | Binary;
+          value: { hex: string } | Binary;
+        }>
+      | Array<{ hex: string } | Binary>
+  ): Promise<string> {
+    if (anchors.length === 0) throw new Error("No anchors provided");
 
     const first = anchors[0] as any;
 
-    const toBinary = (b: any) => (b instanceof Binary ? b : Binary.fromHex(b.hex));
+    const toBinary = (b: any) =>
+      b instanceof Binary ? b : Binary.fromHex(b.hex);
 
     if (first instanceof Binary || (first && (first as any).hex)) {
       // list of Binary or IBinary
       const list = (anchors as Array<any>).map((b) => toBinary(b));
-      await this.anchorClient.anchor(list);
+      const txHash = await this.anchorClient.anchor(list);
+      return txHash;
     } else {
       // list of { key, value }
       const list = (anchors as Array<any>).map(({ key, value }) => ({
         key: toBinary(key),
         value: toBinary(value),
       }));
-      await this.anchorClient.anchor(list);
+      const txHash = await this.anchorClient.anchor(list);
+      return txHash;
     }
   }
 
   /**
    * Verifies anchors via Ownable bridge
    */
-  async verifyAnchors(
-    ...anchors: any[]
-  ): Promise<any> {
+  async verifyAnchors(...anchors: any[]): Promise<any> {
     if (!BRIDGE_URL) return { verified: false, anchors: {}, map: {} };
 
     const data =
       anchors[0] instanceof Uint8Array
         ? (anchors as Array<Binary>).map((anchor) => anchor.hex)
         : Object.fromEntries(
-          (anchors as Array<{ key: Binary; value: Binary }>).map(
-            ({ key, value }) => [key.hex, value.hex]
-          )
-        );
+            (anchors as Array<{ key: Binary; value: Binary }>).map(
+              ({ key, value }) => [key.hex, value.hex]
+            )
+          );
     const url = `${BRIDGE_URL}/verify`;
     const response = await fetch(url, {
       method: "POST",

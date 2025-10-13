@@ -4,16 +4,25 @@ import React, {
   useEffect,
   useMemo,
   useState,
-} from 'react';
-import ServiceContainer from '../services/ServiceContainer';
-import { useAccount, useChainId } from 'wagmi';
+} from "react";
+import ServiceContainer from "../services/ServiceContainer";
+import {
+  useAccount,
+  useChainId,
+  useWalletClient,
+  usePublicClient,
+} from "wagmi";
 
 type Ctx = { container: ServiceContainer | null };
 const ServicesContext = createContext<Ctx>({ container: null });
 
-export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { address } = useAccount();
   const chainId = useChainId();
+  const walletClient = useWalletClient();
+  const publicClient = usePublicClient();
 
   const key = address && chainId ? `${address}:${chainId}` : null;
 
@@ -40,7 +49,12 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await container.dispose().catch(() => {});
       }
 
-      const instance = new ServiceContainer(address!, chainId);
+      const instance = new ServiceContainer(
+        address!,
+        chainId,
+        walletClient.data || undefined,
+        publicClient || undefined
+      );
       if (!cancelled) {
         setContainer(instance);
       } else {
@@ -52,7 +66,7 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, address, chainId]); // depends on wallet identity
+  }, [key, address, chainId, walletClient.data, publicClient]); // depends on wallet identity
 
   // Dispose on unmount
   useEffect(() => {
@@ -64,9 +78,7 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const ctx = useMemo<Ctx>(() => ({ container }), [container]);
 
   return (
-    <ServicesContext.Provider value={ctx}>
-      {children}
-    </ServicesContext.Provider>
+    <ServicesContext.Provider value={ctx}>{children}</ServicesContext.Provider>
   );
 };
 

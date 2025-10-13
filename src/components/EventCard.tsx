@@ -5,7 +5,8 @@ import { useState } from "react";
 import If from "./If";
 import ReactJson from "react-json-view";
 import { Cancel, CheckCircle } from "@mui/icons-material";
-import shortId from "../utils/shortId"
+import shortId from "../utils/shortId";
+import { useChainId } from "wagmi";
 
 interface EventCardProps {
   event: Event;
@@ -54,13 +55,25 @@ export default function EventCard(props: EventCardProps) {
       : DataView.BASE64
   );
   const { event, anchorTx, verified } = props;
+  const chainId = useChainId();
+
+  const getExplorerUrl = (txHash: string, chainId: number) => {
+    switch (chainId) {
+      case 84532: // Base Sepolia
+        return `https://sepolia.basescan.org/tx/${txHash}`;
+      case 8453: // Base Mainnet
+        return `https://basescan.org/tx/${txHash}`;
+      default:
+        return `https://sepolia.basescan.org/tx/${txHash}`;
+    }
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
       <If condition={!props.isFirst}>
         <CardTopLabel sx={{ display: { xs: "none", md: "block" } }}>
           <div className="truncate">
-            <strong>Previous: </strong> {shortId(event.previous?.hex ?? '', 30)}
+            <strong>Previous: </strong> {shortId(event.previous?.hex ?? "", 30)}
           </div>
         </CardTopLabel>
       </If>
@@ -70,19 +83,21 @@ export default function EventCard(props: EventCardProps) {
             <strong>Timestamp: </strong>
             {event.timestamp ? new Date(event.timestamp).toString() : ""}
           </div>
-          <div className="truncate"><strong>Signed by:</strong> {event.signerAddress ?? ""}</div>
-          <div className="truncate"><strong>Signature:</strong> {event.signature?.hex ?? ""}</div>
+          <div className="truncate">
+            <strong>Signed by:</strong> {event.signerAddress ?? ""}
+          </div>
+          <div className="truncate">
+            <strong>Signature:</strong> {event.signature?.hex ?? ""}
+          </div>
           <If condition={anchorTx !== null}>
             <div style={{ marginTop: 10 }}>
               <strong>Anchor tx: </strong>
               <Link
-                href={
-                  process.env.REACT_APP_LTO_EXPLORER_URL +
-                  "/transaction/" +
-                  anchorTx
-                }
+                href={anchorTx ? getExplorerUrl(anchorTx, chainId) : "#"}
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                {anchorTx}
+                {anchorTx ? shortId(anchorTx, 10) : "Not anchored"}
               </Link>
               <If condition={verified}>
                 <CheckCircle
@@ -100,7 +115,9 @@ export default function EventCard(props: EventCardProps) {
               </If>
             </div>
           </If>
-          <div style={{ marginTop: 10 }}><strong>Media type:</strong> {event.mediaType}</div>
+          <div style={{ marginTop: 10 }}>
+            <strong>Media type:</strong> {event.mediaType}
+          </div>
           <div>
             <strong>Data: </strong>
             <span style={{ marginRight: 5 }}>base64</span>

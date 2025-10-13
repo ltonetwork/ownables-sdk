@@ -1,4 +1,11 @@
-import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { CircularProgress, Grid, Paper, Tooltip } from "@mui/material";
 import OwnableFrame from "./OwnableFrame";
 import { Cancelled, connect as rpcConnect } from "simple-iframe-rpc";
@@ -6,7 +13,10 @@ import { Binary, EventChain, IMessageMeta } from "eqty-core";
 import OwnableActions from "./OwnableActions";
 import OwnableInfo from "./OwnableInfo";
 import { OwnableRPC, StateDump } from "../services/Ownable.service";
-import { TypedMetadata, TypedOwnableInfo } from "../interfaces/TypedOwnableInfo";
+import {
+  TypedMetadata,
+  TypedOwnableInfo,
+} from "../interfaces/TypedOwnableInfo";
 import isObject from "../utils/isObject";
 import ownableErrorMessage from "../utils/ownableErrorMessage";
 import TypedDict from "../interfaces/TypedDict";
@@ -16,7 +26,7 @@ import If from "./If";
 import { enqueueSnackbar } from "notistack";
 import { PACKAGE_TYPE } from "../constants";
 import { useService } from "../hooks/useService";
-import { useAccount } from "wagmi"
+import { useAccount } from "wagmi";
 
 interface OwnableProps {
   chain: EventChain;
@@ -33,11 +43,11 @@ interface OwnableProps {
 export default function Ownable(props: OwnableProps) {
   const { chain, packageCid, uniqueMessageHash, selected, children } = props;
 
-  const ownables = useService('ownables');
-  const packages = useService('packages');
-  const idb = useService('idb');
-  const eventChains = useService('eventChains');
-  const relay = useService('relay');
+  const ownables = useService("ownables");
+  const packages = useService("packages");
+  const idb = useService("idb");
+  const eventChains = useService("eventChains");
+  const relay = useService("relay");
   const { address: liveAddress } = useAccount();
   const [address] = useState(liveAddress);
 
@@ -56,7 +66,7 @@ export default function Ownable(props: OwnableProps) {
   const [stateDump, setStateDump] = useState<StateDump>([]);
   const [info, setInfo] = useState<TypedOwnableInfo | undefined>(undefined);
   const [metadata, setMetadata] = useState<TypedMetadata>({
-    name: pkg?.title ?? '',
+    name: pkg?.title ?? "",
     description: pkg?.description,
   });
   const [isApplying, setIsApplying] = useState(false);
@@ -69,7 +79,8 @@ export default function Ownable(props: OwnableProps) {
     }
   }, [pkg]);
 
-  const isTransferred = !!info && info.owner !== address && info.owner !== undefined;
+  const isTransferred =
+    !!info && info.owner !== address && info.owner !== undefined;
 
   const resizeToThumbnail = useCallback(async (file: File): Promise<Blob> => {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -94,89 +105,122 @@ export default function Ownable(props: OwnableProps) {
     );
 
     if (!blob) throw new Error("Failed to create thumbnail blob");
-    if (blob.size > 256 * 1024) throw new Error("Compressed thumbnail still exceeds 256KB");
+    if (blob.size > 256 * 1024)
+      throw new Error("Compressed thumbnail still exceeds 256KB");
     return blob;
   }, []);
 
-  const constructMeta = useCallback(async (): Promise<Partial<IMessageMeta>> => {
-    if (!pkg || !idb) return {};
+  const constructMeta = useCallback(async (): Promise<
+    Partial<IMessageMeta>
+  > => {
+    if (!pkg) return {};
     const title = pkg.title;
     const description = pkg.description ?? "";
     const type = PACKAGE_TYPE;
 
     let thumbnail: Binary | undefined;
 
-    const thumbnailFile = await idb.get(
-      `package:${pkg.cid}`,
-      "thumbnail.webp"
-    );
+    try {
+      // Access the global IDB database where packages are stored
+      const globalIdb = await import("../services/IDB.service").then((m) =>
+        m.default.main()
+      );
+      const thumbnailFile = await globalIdb.get(
+        `package:${pkg.cid}`,
+        "thumbnail.webp"
+      );
 
-    if (thumbnailFile) {
-      const resizedFile = await resizeToThumbnail(thumbnailFile);
-      const buffer = await resizedFile.arrayBuffer();
-      thumbnail = Binary.from(new Uint8Array(buffer));
+      if (thumbnailFile) {
+        const resizedFile = await resizeToThumbnail(thumbnailFile);
+        const buffer = await resizedFile.arrayBuffer();
+        thumbnail = Binary.from(new Uint8Array(buffer));
+      }
+    } catch (error) {
+      console.warn("Failed to get thumbnail for package:", error);
+      // Continue without thumbnail
     }
 
     return { type, title, description, thumbnail: thumbnail?.base64 };
-  }, [idb, pkg, resizeToThumbnail]);
+  }, [pkg, resizeToThumbnail]);
 
-  const refresh = useCallback(async (sd?: StateDump): Promise<void> => {
-    if (!ownables || !pkg || !ownables.isReady(chain.id)) return;
-    let effective = sd ?? stateDump;
+  const refresh = useCallback(
+    async (sd?: StateDump): Promise<void> => {
+      if (!ownables || !pkg || !ownables.isReady(chain.id)) return;
+      let effective = sd ?? stateDump;
 
-    if (pkg.hasWidgetState) await ownables.rpc(chain.id).refresh(effective);
+      if (pkg.hasWidgetState) await ownables.rpc(chain.id).refresh(effective);
 
-    const infoResp = (await ownables.rpc(chain.id).query(
-      { get_info: {} },
-      effective
-    )) as TypedOwnableInfo;
+      const infoResp = (await ownables
+        .rpc(chain.id)
+        .query({ get_info: {} }, effective)) as TypedOwnableInfo;
 
-    const metadataResp = pkg.hasMetadata
-      ? ((await ownables.rpc(chain.id).query(
-          { get_metadata: {} },
-          effective
-        )) as TypedMetadata)
-      : metadata;
+      const metadataResp = pkg.hasMetadata
+        ? ((await ownables
+            .rpc(chain.id)
+            .query({ get_metadata: {} }, effective)) as TypedMetadata)
+        : metadata;
 
-    setInfo(infoResp);
-    setMetadata(metadataResp);
-  }, [chain.id, metadata, ownables, pkg, stateDump]);
+      setInfo(infoResp);
+      setMetadata(metadataResp);
+    },
+    [chain.id, metadata, ownables, pkg, stateDump]
+  );
 
-  const apply = useCallback(async (partialChain: EventChain): Promise<void> => {
-    if (!ownables || !eventChains || busyRef.current || !ownables.isReady(chain.id)) return;
+  const apply = useCallback(
+    async (partialChain: EventChain): Promise<void> => {
+      if (
+        !ownables ||
+        !eventChains ||
+        busyRef.current ||
+        !ownables.isReady(chain.id)
+      )
+        return;
 
-    busyRef.current = true;
-    setIsApplying(true);
+      busyRef.current = true;
+      setIsApplying(true);
 
-    try {
-      const sd =
-        (await eventChains.getStateDump(chain.id, partialChain.state.hex)) ||
-        (await ownables.apply(partialChain, stateDump));
+      try {
+        const sd =
+          (await eventChains.getStateDump(chain.id, partialChain.state.hex)) ||
+          (await ownables.apply(partialChain, stateDump));
 
-      await refresh(sd);
-      setApplied(chain.latestHash);
-      setStateDump(sd);
-    } catch (e) {
-      console.error("Error applying chain:", e);
-      props.onError("Failed to apply chain", ownableErrorMessage(e as Error));
-    } finally {
-      busyRef.current = false;
-      setIsApplying(false);
-    }
-  }, [chain.id, chain.latestHash, eventChains, ownables, props, refresh, stateDump]);
+        await refresh(sd);
+        setApplied(chain.latestHash);
+        setStateDump(sd);
+      } catch (e) {
+        console.error("Error applying chain:", e);
+        props.onError("Failed to apply chain", ownableErrorMessage(e as Error));
+      } finally {
+        busyRef.current = false;
+        setIsApplying(false);
+      }
+    },
+    [
+      chain.id,
+      chain.latestHash,
+      eventChains,
+      ownables,
+      props,
+      refresh,
+      stateDump,
+    ]
+  );
 
-  const execute = useCallback(async (msg: TypedDict): Promise<void> => {
-    if (!ownables) return;
-    try {
-      const sd = await ownables.execute(chain, msg, stateDump);
-      await ownables.store(chain, sd);
-      await refresh(sd);
-      setApplied(chain.latestHash);
-      setStateDump(sd);
-    } catch (e) {
-      props.onError("The Ownable returned an error", ownableErrorMessage(e));
-    }
-  }, [chain, ownables, props, refresh, stateDump]);
+  const execute = useCallback(
+    async (msg: TypedDict): Promise<void> => {
+      if (!ownables) return;
+      try {
+        const sd = await ownables.execute(chain, msg, stateDump);
+        await ownables.store(chain, sd);
+        await refresh(sd);
+        setApplied(chain.latestHash);
+        setStateDump(sd);
+      } catch (e) {
+        props.onError("The Ownable returned an error", ownableErrorMessage(e));
+      }
+    },
+    [chain, ownables, props, refresh, stateDump]
+  );
 
   const onLoad = useCallback(async (): Promise<void> => {
     if (!ownables || !pkg) return;
@@ -187,7 +231,9 @@ export default function Ownable(props: OwnableProps) {
     }
 
     const iframeWindow = iframeRef.current!.contentWindow!;
-    const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", { timeout: 5000 });
+    const rpc = rpcConnect<Required<OwnableRPC>>(window, iframeWindow, "*", {
+      timeout: 5000,
+    });
 
     try {
       await ownables.init(chain, pkg.cid, rpc, uniqueMessageHash);
@@ -198,11 +244,20 @@ export default function Ownable(props: OwnableProps) {
     }
   }, [chain, ownables, pkg, props, uniqueMessageHash]);
 
-  const windowMessageHandler = useCallback(async (event: MessageEvent) => {
-    if (!isObject(event.data) || !("ownable_id" in event.data) || event.data.ownable_id !== chain.id) return;
-    if (iframeRef.current?.contentWindow !== event.source) throw Error("Not allowed to execute msg on other Ownable");
-    await execute(event.data.msg);
-  }, [chain.id, execute]);
+  const windowMessageHandler = useCallback(
+    async (event: MessageEvent) => {
+      if (
+        !isObject(event.data) ||
+        !("ownable_id" in event.data) ||
+        event.data.ownable_id !== chain.id
+      )
+        return;
+      if (iframeRef.current?.contentWindow !== event.source)
+        throw Error("Not allowed to execute msg on other Ownable");
+      await execute(event.data.msg);
+    },
+    [chain.id, execute]
+  );
 
   // Lifecycle: subscribe to window messages
   useEffect(() => {
@@ -228,14 +283,18 @@ export default function Ownable(props: OwnableProps) {
         console.error("Error applying chain:", e);
         setError(ownableErrorMessage(e as Error));
       });
-    } else if (initialized !== prev.current.initialized || applied.hex !== prev.current.appliedHex) {
+    } else if (
+      initialized !== prev.current.initialized ||
+      applied.hex !== prev.current.appliedHex
+    ) {
       refresh().then();
     }
     prev.current = { initialized, appliedHex: applied.hex };
   }, [apply, applied, chain, error, initialized, isApplying, refresh]);
 
   // If services or package not ready yet, don't render
-  if (!ownables || !packages || !idb || !eventChains || !relay || !pkg) return <></>;
+  if (!ownables || !packages || !idb || !eventChains || !relay || !pkg)
+    return <></>;
 
   return (
     <Paper
@@ -272,7 +331,16 @@ export default function Ownable(props: OwnableProps) {
 
       <If condition={isApplying}>
         <Overlay>
-          <Grid container justifyContent="center" alignItems="center" height="100%" width="100%" overflow="hidden" padding={0} margin={0}>
+          <Grid
+            container
+            justifyContent="center"
+            alignItems="center"
+            height="100%"
+            width="100%"
+            overflow="hidden"
+            padding={0}
+            margin={0}
+          >
             <Grid width="100%" padding={0} textAlign="center">
               <CircularProgress color="primary" size={80} />
             </Grid>
@@ -295,26 +363,43 @@ export default function Ownable(props: OwnableProps) {
   async function transfer(to: string): Promise<void> {
     try {
       if (!relay || !ownables || !pkg) return;
+
       const value = await relay.isAvailable();
 
       if (value) {
+        // Execute the transfer on the ownable
         await execute({ transfer: { to } });
+
+        // Create the zip package
         const zip = await ownables.zip(chain);
         const content = await zip.generateAsync({ type: "uint8array" });
 
+        // Construct metadata
         const meta = await constructMeta();
-        await relay.sendOwnable(to, content, meta);
-        enqueueSnackbar(`Ownable sent Successfully!!`, { variant: "success" });
 
+        // Send via relay with anchoring enabled
+        await relay.sendOwnable(to, content, meta, true); // true = anchor before send
+
+        enqueueSnackbar(`Ownable sent and anchored successfully!`, {
+          variant: "success",
+        });
+
+        // Clean up local ownable if it was imported from relay
         if (pkg.uniqueMessageHash) {
           await relay.removeOwnable(pkg.uniqueMessageHash);
           await ownables.delete(chain.id);
         }
       } else {
-        enqueueSnackbar("Server is down", { variant: "error" });
+        enqueueSnackbar("Relay server is down", { variant: "error" });
       }
     } catch (error) {
       console.error("Error during transfer:", error);
+      enqueueSnackbar(
+        `Transfer failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+        { variant: "error" }
+      );
     }
   }
 }
