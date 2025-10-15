@@ -20,7 +20,12 @@ export class PollingService {
     });
 
     try {
-      const headers: Record<string, string> = {};
+      // Ensure authentication for secure message access
+      await this.relay.ensureAuthenticated();
+
+      const headers: Record<string, string> = {
+        ...this.relay.getAuthHeaders(),
+      };
       const lastModified = this.localStorage.get("lastModified");
 
       if (lastModified) {

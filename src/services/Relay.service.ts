@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import mime from "mime/lite";
 import { MessageExt } from "../interfaces/MessageInfo";
 import EQTYService from "./EQTY.service";
+import { SIWEClient, SIWEAuthResult } from "./SIWE.service";
 
 const getMimeType = (filename: string): string | null | undefined =>
   (mime as any)?.getType?.(filename);
@@ -11,10 +12,110 @@ export class RelayService {
   public static readonly URL =
     process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
 
+  // Global token storage
+  private static globalAuthToken: string | null = null;
+  private static globalAuthExpiry: number | null = null;
+
   public readonly relay: Relay;
+  private readonly siweClient: SIWEClient;
+  private authToken: string | null = null;
+  private authExpiry: number | null = null;
 
   constructor(private readonly eqty: EQTYService) {
     this.relay = new Relay(`${RelayService.URL}`);
+    this.siweClient = new SIWEClient();
+
+    // Restore token from global storage
+    this.authToken = RelayService.globalAuthToken;
+    this.authExpiry = RelayService.globalAuthExpiry;
+  }
+
+  /**
+   * Clear global authentication token (call when wallet changes)
+   */
+  static clearGlobalAuth(): void {
+    RelayService.globalAuthToken = null;
+    RelayService.globalAuthExpiry = null;
+  }
+
+  /**
+   * Authenticate with the relay using SIWE
+   */
+  async authenticate(): Promise<SIWEAuthResult> {
+    try {
+      const result = await this.siweClient.authenticate(
+        this.eqty.signer,
+        RelayService.URL || "http://localhost:8000",
+        this.eqty.chainId
+      );
+
+      if (result.success && result.token) {
+        this.authToken = result.token;
+        // expiry time 24h
+        this.authExpiry = Date.now() + 24 * 60 * 60 * 1000;
+
+        // Store globally
+        RelayService.globalAuthToken = result.token;
+        RelayService.globalAuthExpiry = this.authExpiry;
+      }
+
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: `Authentication failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+  }
+
+  /**
+   * Check if authentication is valid and not expired
+   */
+  private isAuthenticated(): boolean {
+    const hasToken = this.authToken !== null;
+    const hasExpiry = this.authExpiry !== null;
+    const notExpired = this.authExpiry !== null && Date.now() < this.authExpiry;
+
+    // Clear global token if expired
+    if (
+      RelayService.globalAuthExpiry &&
+      Date.now() >= RelayService.globalAuthExpiry
+    ) {
+      RelayService.globalAuthToken = null;
+      RelayService.globalAuthExpiry = null;
+      this.authToken = null;
+      this.authExpiry = null;
+    }
+
+    return hasToken && hasExpiry && notExpired;
+  }
+
+  /**
+   * Get authentication headers for API requests
+   */
+  getAuthHeaders(): Record<string, string> {
+    if (!this.isAuthenticated()) {
+      return {};
+    }
+
+    return {
+      Authorization: `Bearer ${this.authToken}`,
+    };
+  }
+
+  /**
+   * Ensure authentication before making authenticated requests
+   */
+  async ensureAuthenticated(): Promise<boolean> {
+    if (this.isAuthenticated()) {
+      return true;
+    }
+
+    const result = await this.authenticate();
+
+    return result.success;
   }
 
   /**
@@ -41,13 +142,8 @@ export class RelayService {
         meta
       );
 
-      // Set recipient
       message.to(recipient);
-
-      // Sign message
       await message.signWith(this.eqty.signer);
-
-      // Anchor before sending if requested
       if (anchorBeforeSend) {
         try {
           await this.eqty.anchor(message.hash);
@@ -73,8 +169,12 @@ export class RelayService {
    */
   async readMessage(hash: string): Promise<{ message?: any; hash?: string }> {
     try {
+      // Ensure authentication for secure message access
+      await this.ensureAuthenticated();
+
       const response = await this.relay.get(
-        `messages/${this.eqty.address}/${hash}`
+        `messages/${this.eqty.address}/${hash}`,
+        this.getAuthHeaders()
       );
 
       // Handle different response formats from relay service
@@ -125,7 +225,13 @@ export class RelayService {
    */
   async removeOwnable(hash: string): Promise<void> {
     try {
-      await this.relay.delete(`messages/${this.eqty.address}/${hash}`);
+      // Ensure authentication for inbox access
+      await this.ensureAuthenticated();
+
+      await this.relay.delete(
+        `messages/${this.eqty.address}/${hash}`,
+        this.getAuthHeaders()
+      );
     } catch (error) {
       console.error("Error removing ownable:", error);
       throw new Error(`Failed to remove ownable from Relay: ${error}`);
@@ -155,8 +261,12 @@ export class RelayService {
     if (!isRelayAvailable) return null;
 
     try {
+      // Ensure authentication for secure message access
+      await this.ensureAuthenticated();
+
       const response = await this.relay.get(
-        `messages/${this.eqty.address}?limit=${limit}&offset=${offset}`
+        `messages/${this.eqty.address}?limit=${limit}&offset=${offset}`,
+        this.getAuthHeaders()
       );
       // Handle different response formats from relay
       const responseData = response as any;

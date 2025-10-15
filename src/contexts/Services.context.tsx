@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import ServiceContainer from "../services/ServiceContainer";
+import { RelayService } from "../services/Relay.service";
 import {
   useAccount,
   useChainId,
@@ -42,11 +43,21 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Same key, keep current
-      if (container?.key === key) return;
+      if (container?.key === key) {
+        console.log("ServicesProvider: Keeping existing container", { key });
+        return;
+      }
 
       // Replace previous
       if (container) {
+        console.log("ServicesProvider: Replacing container", {
+          oldKey: container.key,
+          newKey: key,
+          reason: "walletClient.data changed during transaction",
+        });
         await container.dispose().catch(() => {});
+        // Clear global SIWE auth when wallet changes
+        RelayService.clearGlobalAuth();
       }
 
       const instance = new ServiceContainer(
@@ -66,7 +77,7 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, address, chainId, walletClient.data, publicClient]); // depends on wallet identity
+  }, [key, address, chainId, publicClient]); // removed walletClient.data - it changes during transactions
 
   // Dispose on unmount
   useEffect(() => {
