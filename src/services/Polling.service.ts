@@ -4,6 +4,8 @@ import LocalStorageService from "./LocalStorage.service";
 export class PollingService {
   private tries = 3;
   private intervalId?: ReturnType<typeof setInterval>;
+  private consecutiveFailures = 0;
+  private maxConsecutiveFailures = 5;
 
   constructor(
     private readonly relay: RelayService,
@@ -20,7 +22,11 @@ export class PollingService {
     });
 
     try {
-      // Ensure authentication for secure message access
+      const isAvailable = await this.relay.isAvailable();
+      if (!isAvailable) {
+        return 0;
+      }
+
       await this.relay.ensureAuthenticated();
 
       const headers: Record<string, string> = {
@@ -63,8 +69,17 @@ export class PollingService {
 
         return newHashes.length;
       }
+
+      this.consecutiveFailures = 0;
     } catch (error) {
       console.error("Error fetching message hashes:", error);
+
+      this.consecutiveFailures++;
+
+      if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
+        this.stopPolling();
+        return 0;
+      }
 
       if (this.tries-- <= 0) {
         this.tries = 3;

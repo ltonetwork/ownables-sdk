@@ -107,7 +107,7 @@ export default class OwnableService {
       delete (rpc as any).handler;
     } catch (e) {
       if (e instanceof Cancelled) return;
-      throw e;
+      console.warn("Unexpected error clearing RPC:", e);
     }
     this._rpc.delete(id);
   }
@@ -152,9 +152,7 @@ export default class OwnableService {
     uniqueMessageHash?: string
   ): Promise<void> {
     if (this._rpc.has(chain.id)) {
-      try {
-        delete (this._rpc.get(chain.id) as any).handler;
-      } catch (e) {}
+      this.clearRpc(chain.id);
     }
 
     this._rpc.set(chain.id, rpc);

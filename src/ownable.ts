@@ -194,7 +194,17 @@ async function queryRaw(msg: Dict, state: StateDump): Promise<string> {
 
 async function query(msg: Dict, state: StateDump): Promise<any> {
   const resultB64 = await queryRaw(msg, state);
-  return JSON.parse(atob(resultB64)) as Dict;
+  try {
+    return JSON.parse(atob(resultB64)) as Dict;
+  } catch (error) {
+    console.error("Failed to decode base64 result:", error);
+    console.error("Raw result:", resultB64);
+    throw new Error(
+      `Invalid base64 data: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
 }
 
 async function refresh(state: StateDump): Promise<void> {

@@ -16,10 +16,7 @@ interface StoredChainInfo {
 }
 
 export default class EventChainService {
-  constructor(
-    private idb: IDBService,
-    private eqty: EQTYService,
-  ) {}
+  constructor(private idb: IDBService, private eqty: EQTYService) {}
 
   private static _localStorage = new LocalStorageService();
   private static _anchoring = !!this._localStorage.get("anchoring");
@@ -93,9 +90,9 @@ export default class EventChainService {
     uniqueMessageHash: string;
     latestHash?: string;
   }> {
-    const chainInfo = (await this.idb.getMap(`ownable:${id}`).then((map) =>
-      Object.fromEntries(map.entries())
-    )) as StoredChainInfo;
+    const chainInfo = (await this.idb
+      .getMap(`ownable:${id}`)
+      .then((map) => Object.fromEntries(map.entries()))) as StoredChainInfo;
 
     const {
       chain: chainJson,
