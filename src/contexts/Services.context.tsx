@@ -55,9 +55,11 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({
           newKey: key,
           reason: "walletClient.data changed during transaction",
         });
+        const [oldAddress, oldChainId] = container.key.split(":");
+        if (oldAddress && oldChainId) {
+          RelayService.clearWalletAuth(oldAddress, parseInt(oldChainId));
+        }
         await container.dispose().catch(() => {});
-        // Clear global SIWE auth when wallet changes
-        RelayService.clearGlobalAuth();
       }
 
       const instance = new ServiceContainer(

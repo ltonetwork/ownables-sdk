@@ -12,30 +12,37 @@ export class RelayService {
   public static readonly URL =
     process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
 
-  // Global token storage
-  private static globalAuthToken: string | null = null;
-  private static globalAuthExpiry: number | null = null;
+  private static tokenStorage = new Map<
+    string,
+    { token: string; expiry: number }
+  >();
 
   public readonly relay: Relay;
   private readonly siweClient: SIWEClient;
   private authToken: string | null = null;
   private authExpiry: number | null = null;
+  private readonly storageKey: string;
 
   constructor(private readonly eqty: EQTYService) {
     this.relay = new Relay(`${RelayService.URL}`);
     this.siweClient = new SIWEClient();
 
-    // Restore token from global storage
-    this.authToken = RelayService.globalAuthToken;
-    this.authExpiry = RelayService.globalAuthExpiry;
+    // Create unique storage key per wallet
+    this.storageKey = `${this.eqty.address}:${this.eqty.chainId}`;
+
+    const stored = RelayService.tokenStorage.get(this.storageKey);
+    if (stored) {
+      this.authToken = stored.token;
+      this.authExpiry = stored.expiry;
+    }
   }
 
   /**
-   * Clear global authentication token (call when wallet changes)
+   * Clear authentication token for specific wallet (call when wallet changes)
    */
-  static clearGlobalAuth(): void {
-    RelayService.globalAuthToken = null;
-    RelayService.globalAuthExpiry = null;
+  static clearWalletAuth(address: string, chainId: number): void {
+    const key = `${address}:${chainId}`;
+    RelayService.tokenStorage.delete(key);
   }
 
   /**
@@ -51,12 +58,12 @@ export class RelayService {
 
       if (result.success && result.token) {
         this.authToken = result.token;
-        // expiry time 24h
         this.authExpiry = Date.now() + 24 * 60 * 60 * 1000;
 
-        // Store globally
-        RelayService.globalAuthToken = result.token;
-        RelayService.globalAuthExpiry = this.authExpiry;
+        RelayService.tokenStorage.set(this.storageKey, {
+          token: result.token,
+          expiry: this.authExpiry,
+        });
       }
 
       return result;
@@ -78,13 +85,9 @@ export class RelayService {
     const hasExpiry = this.authExpiry !== null;
     const notExpired = this.authExpiry !== null && Date.now() < this.authExpiry;
 
-    // Clear global token if expired
-    if (
-      RelayService.globalAuthExpiry &&
-      Date.now() >= RelayService.globalAuthExpiry
-    ) {
-      RelayService.globalAuthToken = null;
-      RelayService.globalAuthExpiry = null;
+    const stored = RelayService.tokenStorage.get(this.storageKey);
+    if (stored && Date.now() >= stored.expiry) {
+      RelayService.tokenStorage.delete(this.storageKey);
       this.authToken = null;
       this.authExpiry = null;
     }
@@ -134,8 +137,6 @@ export class RelayService {
 
     try {
       const messageContent = Binary.from(content);
-
-      // Create message
       const message = new Message(
         messageContent,
         "application/octet-stream",
@@ -144,6 +145,7 @@ export class RelayService {
 
       message.to(recipient);
       await message.signWith(this.eqty.signer);
+
       if (anchorBeforeSend) {
         try {
           await this.eqty.anchor(message.hash);
@@ -152,7 +154,6 @@ export class RelayService {
             "RelayService: Failed to anchor message before sending:",
             error
           );
-          // Continue with sending even if anchoring fails
         }
       }
 
@@ -169,7 +170,6 @@ export class RelayService {
    */
   async readMessage(hash: string): Promise<{ message?: any; hash?: string }> {
     try {
-      // Ensure authentication for secure message access
       await this.ensureAuthenticated();
 
       const response = await this.relay.get(
@@ -177,14 +177,11 @@ export class RelayService {
         this.getAuthHeaders()
       );
 
-      // Handle different response formats from relay service
       let messageData;
       if (response && typeof response === "object") {
-        // If response has a 'message' property (IRelayResponse format)
         if ("message" in response) {
           messageData = response.message;
         } else {
-          // If response is the message object directly
           messageData = response;
         }
       } else {
@@ -261,14 +258,12 @@ export class RelayService {
     if (!isRelayAvailable) return null;
 
     try {
-      // Ensure authentication for secure message access
       await this.ensureAuthenticated();
 
       const response = await this.relay.get(
         `messages/${this.eqty.address}?limit=${limit}&offset=${offset}`,
         this.getAuthHeaders()
       );
-      // Handle different response formats from relay
       const responseData = response as any;
       if (responseData.messages) {
         return {
@@ -277,7 +272,6 @@ export class RelayService {
           hasMore: responseData.hasMore || false,
         };
       } else if (Array.isArray(responseData)) {
-        // Fallback for direct array response
         return {
           messages: responseData,
           total: responseData.length,

@@ -170,49 +170,6 @@ export default class OwnableService {
     await this.initStore(chain, cid, uniqueMessageHash, stateDump);
   }
 
-  // private async createSnapshot(
-  //   chain: EventChain,
-  //   stateDump: StateDump,
-  //   eventIndex: number
-  // ): Promise<void> {
-  //   try {
-  //     const snapshot: StateSnapshot = {
-  //       eventIndex,
-  //       blockHash: chain.latestHash.hex,
-  //       stateDump,
-  //       timestamp: new Date(),
-  //     };
-
-  //     const storeId = `ownable:${chain.id}`;
-  //     const snapshotStoreId = `${storeId}.snapshots`;
-
-  //     // Ensure snapshot store exists
-  //     if (!(await this.idb.hasStore(snapshotStoreId))) {
-  //       await this.idb.createStore(snapshotStoreId);
-  //     }
-
-  //     await this.idb.set(snapshotStoreId, `snapshot_${eventIndex}`, snapshot);
-
-  //     // Cleanup old snapshots (keep only last 3)
-  //     const snapshots = await this.idb.keys(snapshotStoreId);
-  //     if (snapshots.length > 3) {
-  //       const sortedKeys = snapshots
-  //         .map((key) => parseInt(key.replace("snapshot_", "")))
-  //         .sort((a, b) => b - a);
-
-  //       // Delete all but the 3 most recent snapshots
-  //       const keysToDelete = sortedKeys
-  //         .slice(3)
-  //         .map((index) => `snapshot_${index}`);
-  //       for (const key of keysToDelete) {
-  //         await this.idb.delete(snapshotStoreId, key);
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error("Error creating snapshot:", error);
-  //   }
-  // }
-
   private async createSnapshot(
     chain: EventChain,
     stateDump: StateDump,
@@ -241,11 +198,11 @@ export default class OwnableService {
       if (keys.length > 3) {
         const sortedKeys = keys
           .map((key) => parseInt(key.replace("snapshot_", "")))
-          .sort((a, b) => a - b); // Sort ascending by event index
+          .sort((a, b) => b - a);
 
         // Delete oldest snapshots, keep the 3 most recent
         const keysToDelete = sortedKeys
-          .slice(0, sortedKeys.length - 3)
+          .slice(3)
           .map((index) => `snapshot_${index}`);
 
         for (const key of keysToDelete) {
@@ -342,7 +299,6 @@ export default class OwnableService {
         throw new Error(`Unknown event type`);
     }
 
-    // Check if we need to create a snapshot after this event
     if ((eventIndex + 1) % this.SNAPSHOT_INTERVAL === 0) {
       await this.createSnapshot(chain, result.state, eventIndex);
     }
@@ -368,7 +324,6 @@ export default class OwnableService {
       }
     }
 
-    // Process events in batches for better performance
     const BATCH_SIZE = 10;
     const totalEvents = partialChain.events.length;
 
@@ -396,7 +351,6 @@ export default class OwnableService {
         } catch (error) {
           console.error(`Error applying event at index ${globalIndex}:`, error);
 
-          // Attempt recovery by creating a checkpoint
           if (globalIndex > startIndex) {
             await this.createSnapshot(partialChain, stateDump, globalIndex - 1);
           }
@@ -404,7 +358,6 @@ export default class OwnableService {
         }
       }
 
-      // to prevent blocking
       if (batchEnd < totalEvents) {
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
@@ -441,13 +394,28 @@ export default class OwnableService {
   ): Promise<boolean> {
     if (!this.packages.info(consumer.package).isConsumer) return false;
 
-    return true; // TODO: The check below is not working
+    try {
+      const state = await this.eventChains.getStateDump(
+        consumer.chain.id,
+        consumer.chain.state.hex
+      );
+      if (!state) return false;
 
-    /*const state = await this.eventChains.getStateDump(consumer.chain.id, consumer.chain.state);
-    if (!state) return false;
+      const result = await this.rpc(consumer.chain.id).query(
+        {
+          is_consumer_of: {
+            consumable_type: info.ownable_type,
+            issuer: info.issuer,
+          },
+        },
+        state
+      );
 
-    return await this.rpc(consumer.chain.id)
-      .query({is_consumer_of: {consumable_type: info.ownable_type, issuer: info.issuer}}, state!);*/
+      return result === true;
+    } catch (error) {
+      console.warn("Error checking canConsume:", error);
+      return false;
+    }
   }
 
   async consume(consumer: EventChain, consumable: EventChain): Promise<void> {
@@ -571,13 +539,7 @@ export default class OwnableService {
         // If setAll fails, attempt to clean up
         console.error("Failed to set data, cleaning up stores...");
         await Promise.all(
-          stores.map((store) =>
-            this.idb
-              .deleteStore(store)
-              .catch((e) =>
-                console.warn(`Failed to clean up store ${store}:`, e)
-              )
-          )
+          stores.map((store) => this.idb.deleteStore(store).catch(() => {}))
         );
         throw error;
       }
@@ -624,14 +586,12 @@ export default class OwnableService {
         );
       }
 
-      //anchor
       if (anchors.length > 0) {
         await this.eqty.anchor(...anchors);
       }
 
       await this.idb.setAll(data);
 
-      // Check if we need to create a snapshot
       const eventCount = chain.events.length;
       if (eventCount % this.SNAPSHOT_INTERVAL === 0) {
         await this.createSnapshot(chain, stateDump, eventCount - 1);
