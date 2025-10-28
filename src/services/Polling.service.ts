@@ -4,8 +4,13 @@ import LocalStorageService from "./LocalStorage.service";
 export class PollingService {
   private tries = 3;
   private intervalId?: ReturnType<typeof setInterval>;
+  private consecutiveFailures = 0;
+  private maxConsecutiveFailures = 5;
 
-  constructor(private readonly relay: RelayService, private readonly localStorage: LocalStorageService) {}
+  constructor(
+    private readonly relay: RelayService,
+    private readonly localStorage: LocalStorageService
+  ) {}
 
   /**
    * Fetch new message hashes from the server and compare with client hashes.
@@ -17,34 +22,42 @@ export class PollingService {
     });
 
     try {
-      const url = `${RelayService.URL}/inboxes/${encodeURIComponent(
-        address
-      )}`;
+      const isAvailable = await this.relay.isAvailable();
+      if (!isAvailable) {
+        return 0;
+      }
 
-      const headers: Record<string, string> = {};
+      await this.relay.ensureAuthenticated();
+
+      const headers: Record<string, string> = {
+        ...this.relay.getAuthHeaders(),
+      };
       const lastModified = this.localStorage.get("lastModified");
 
       if (lastModified) {
         headers["If-Modified-Since"] = lastModified;
       }
 
-      const requestOptions = Object.keys(headers).length > 0 ? { headers } : {};
-      const response = await this.relay.fetch(
-        "GET",
-        url,
-        requestOptions
+      const response = await this.relay.relay.get(
+        `messages/${encodeURIComponent(address)}`,
+        headers
       );
 
-      if (response.status === 304) {
+      // Cast response to handle different response formats
+      const responseData = response as any;
+
+      if (responseData.status === 304) {
         return this.localStorage.get("messageCount") || 0;
       }
 
-      if (response.status === 200) {
-        const serverHashes = response.data
+      if (responseData.status === 200) {
+        const messages =
+          responseData.data?.messages || responseData.messages || [];
+        const serverHashes = messages
           .filter((message: any) => message.hash)
           .map((message: any) => message.hash);
 
-        const newLastModified = response.headers?.["last-modified"];
+        const newLastModified = responseData.headers?.["last-modified"];
         if (newLastModified) {
           this.localStorage.set("lastModified", newLastModified);
         }
@@ -56,8 +69,17 @@ export class PollingService {
 
         return newHashes.length;
       }
+
+      this.consecutiveFailures = 0;
     } catch (error) {
       console.error("Error fetching message hashes:", error);
+
+      this.consecutiveFailures++;
+
+      if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
+        this.stopPolling();
+        return 0;
+      }
 
       if (this.tries-- <= 0) {
         this.tries = 3;

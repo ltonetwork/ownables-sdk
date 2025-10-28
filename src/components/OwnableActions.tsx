@@ -4,7 +4,7 @@ import MoreVert from "@mui/icons-material/MoreVert";
 import { useState, MouseEvent } from "react";
 import { Delete, PrecisionManufacturing, SwapHoriz } from "@mui/icons-material";
 import PromptDialog from "./PromptDialog";
-import { useAccount } from "wagmi"
+import { useAccount } from "wagmi";
 
 interface OwnableActionsProps {
   sx?: SxProps<Theme>;
@@ -108,6 +108,22 @@ export default function OwnableActions(props: OwnableActionsProps) {
         onSubmit={onTransfer}
         validate={(recipient) => {
           if (address === recipient) return "Can't transfer to own account";
+
+          // Basic Ethereum address validation
+          if (!recipient || recipient.length !== 42) {
+            return "Invalid Ethereum address length";
+          }
+
+          if (!recipient.startsWith("0x")) {
+            return "Ethereum address must start with 0x";
+          }
+
+          // Check if it's a valid hex string
+          const hexPattern = /^0x[a-fA-F0-9]{40}$/;
+          if (!hexPattern.test(recipient)) {
+            return "Invalid Ethereum address format";
+          }
+
           return "";
         }}
         TextFieldProps={{

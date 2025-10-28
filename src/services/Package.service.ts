@@ -15,7 +15,8 @@ import { Buffer } from "buffer";
 import { EventChain } from "eqty-core";
 import { MessageExt } from "../interfaces/MessageInfo";
 
-const getMimeType = (filename: string): string | null | undefined => (mime as any)?.getType?.(filename);
+const getMimeType = (filename: string): string | null | undefined =>
+  (mime as any)?.getType?.(filename);
 
 const exampleUrl = process.env.REACT_APP_OWNABLE_EXAMPLES_URL;
 const examples: TypedPackageStub[] = exampleUrl
@@ -79,7 +80,7 @@ export default class PackageService {
   constructor(
     private idb: IDBService,
     private relay: RelayService,
-    private localStorage: LocalStorageService,
+    private localStorage: LocalStorageService
   ) {}
 
   list(): Array<TypedPackage | TypedPackageStub> {
@@ -233,10 +234,7 @@ export default class PackageService {
     return json;
   }
 
-  private async getPackageJson(
-    filename: string,
-    files: File[]
-  ): Promise<any> {
+  private async getPackageJson(filename: string, files: File[]): Promise<any> {
     const file = files.find((file) => file.name === filename);
     if (!file) throw new Error(`Invalid package: missing ${filename}`);
     return JSON.parse(await file.text());
@@ -308,11 +306,7 @@ export default class PackageService {
 
     //Check for duplicates
     if (await this.idb.hasStore(`package:${cid}`)) {
-      if (
-        isNotLocal &&
-        chainJson &&
-        !(await this.isCurrentEvent(chainJson))
-      ) {
+      if (isNotLocal && chainJson && !(await this.isCurrentEvent(chainJson))) {
         console.warn(`Package with CID ${cid} is already current or newer.`);
         return null;
       }
@@ -376,8 +370,33 @@ export default class PackageService {
         return null;
       }
 
+      // Filter out null values and transform to MessageExt format
+      const validMessages = relayData
+        .filter(
+          (data): data is { message: any; hash: string } =>
+            data !== null && data.message && data.hash
+        )
+        .map((data) => ({
+          hash: data.hash,
+          recipient: data.message.recipient || "",
+          sender: data.message.sender || {},
+          size: data.message.data?.length || 0,
+          timestamp: new Date(data.message.timestamp || Date.now()),
+          type: data.message.meta?.type || "basic",
+          data: data.message.data,
+          signature: data.message.signature,
+          _hash: data.message.hash,
+          parsedData: data.message.parsedData || "",
+          messageHash: data.hash,
+          message: data.message,
+        }));
+
+      if (validMessages.length === 0) {
+        return null;
+      }
+
       const filteredMessages = await this.relay.checkDuplicateMessage(
-        relayData
+        validMessages
       );
 
       let triggerRefresh = false;
@@ -446,7 +465,10 @@ export default class PackageService {
       );
 
     const contentType = response.headers.get("Content-Type")?.trim();
-    if (contentType !== "application/zip" && contentType !== "application/x-zip-compressed")
+    if (
+      contentType !== "application/zip" &&
+      contentType !== "application/x-zip-compressed"
+    )
       throw new Error(
         "Failed to download example ownable: invalid content type"
       );

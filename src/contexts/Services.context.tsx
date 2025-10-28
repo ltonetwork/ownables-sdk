@@ -4,16 +4,26 @@ import React, {
   useEffect,
   useMemo,
   useState,
-} from 'react';
-import ServiceContainer from '../services/ServiceContainer';
-import { useAccount, useChainId } from 'wagmi';
+} from "react";
+import ServiceContainer from "../services/ServiceContainer";
+import { RelayService } from "../services/Relay.service";
+import {
+  useAccount,
+  useChainId,
+  useWalletClient,
+  usePublicClient,
+} from "wagmi";
 
 type Ctx = { container: ServiceContainer | null };
 const ServicesContext = createContext<Ctx>({ container: null });
 
-export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { address } = useAccount();
   const chainId = useChainId();
+  const walletClient = useWalletClient();
+  const publicClient = usePublicClient();
 
   const key = address && chainId ? `${address}:${chainId}` : null;
 
@@ -33,14 +43,31 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // Same key, keep current
-      if (container?.key === key) return;
+      if (container?.key === key) {
+        console.log("ServicesProvider: Keeping existing container", { key });
+        return;
+      }
 
       // Replace previous
       if (container) {
+        console.log("ServicesProvider: Replacing container", {
+          oldKey: container.key,
+          newKey: key,
+          reason: "walletClient.data changed during transaction",
+        });
+        const [oldAddress, oldChainId] = container.key.split(":");
+        if (oldAddress && oldChainId) {
+          RelayService.clearWalletAuth(oldAddress, parseInt(oldChainId));
+        }
         await container.dispose().catch(() => {});
       }
 
-      const instance = new ServiceContainer(address!, chainId);
+      const instance = new ServiceContainer(
+        address!,
+        chainId,
+        walletClient.data || undefined,
+        publicClient || undefined
+      );
       if (!cancelled) {
         setContainer(instance);
       } else {
@@ -52,7 +79,7 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, address, chainId]); // depends on wallet identity
+  }, [key, address, chainId, publicClient]); // removed walletClient.data - it changes during transactions
 
   // Dispose on unmount
   useEffect(() => {
@@ -64,9 +91,7 @@ export const ServicesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const ctx = useMemo<Ctx>(() => ({ container }), [container]);
 
   return (
-    <ServicesContext.Provider value={ctx}>
-      {children}
-    </ServicesContext.Provider>
+    <ServicesContext.Provider value={ctx}>{children}</ServicesContext.Provider>
   );
 };
 
