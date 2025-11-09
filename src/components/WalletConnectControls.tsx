@@ -25,9 +25,23 @@ export default function WalletConnectControls({ children }: PropsWithChildren) {
 
         if (!connected) {
           return (
-            <Button variant="contained" fullWidth onClick={openConnectModal}>
-              Connect to wallet
-            </Button>
+            <>
+              <Button variant="contained" fullWidth onClick={openConnectModal}>
+                Connect to wallet
+              </Button>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  mt: 1,
+                  display: "block",
+                  textAlign: "center",
+                  fontSize: "0.75rem",
+                }}
+              >
+                Ensure to connect on <strong>Base Sepolia</strong> testnet
+              </Typography>
+            </>
           );
         }
 
