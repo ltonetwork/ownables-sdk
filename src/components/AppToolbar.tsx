@@ -2,7 +2,7 @@ import React from "react";
 import { AppBar, Box, IconButton, Toolbar, Badge } from "@mui/material";
 import logo from "../assets/logo.svg";
 import MenuIcon from "@mui/icons-material/Menu";
-import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
+import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 
 interface AppToolbarProps {
   onMenuClick: () => void;
@@ -48,7 +48,7 @@ export default function AppToolbar({
             }}
             color="error"
           >
-            <NotificationsNoneIcon />
+            <MailOutlinedIcon />
           </Badge>
         </IconButton>
 

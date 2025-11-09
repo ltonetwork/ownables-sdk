@@ -1,16 +1,23 @@
-import { TypedPackage, TypedPackageStub } from "../interfaces/TypedPackage"
-import ListItem from "@mui/material/ListItem"
-import { Box, Divider, IconButton, ListItemIcon, Skeleton, Typography } from "@mui/material"
-import Dialog from "@mui/material/Dialog"
-import CloseIcon from "@mui/icons-material/Close"
-import List from "@mui/material/List"
-import Tooltip from "./Tooltip"
-import ListItemButton from "@mui/material/ListItemButton"
-import ListItemText from "@mui/material/ListItemText"
-import If from "./If"
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome"
-import DriveFolderUploadIcon from "@mui/icons-material/DriveFolderUpload"
-import BuilderService from "../services/Builder.service"
+import { TypedPackage, TypedPackageStub } from "../interfaces/TypedPackage";
+import ListItem from "@mui/material/ListItem";
+import {
+  Box,
+  Divider,
+  IconButton,
+  ListItemIcon,
+  Skeleton,
+  Typography,
+} from "@mui/material";
+import Dialog from "@mui/material/Dialog";
+import CloseIcon from "@mui/icons-material/Close";
+import List from "@mui/material/List";
+import Tooltip from "./Tooltip";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import If from "./If";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import DriveFolderUploadIcon from "@mui/icons-material/DriveFolderUpload";
+import { useService } from "../hooks/useService";
 
 function SkeletonPackageItem() {
   return (
@@ -24,7 +31,9 @@ function SkeletonPackageItem() {
         pb: 2,
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
+      <Box
+        sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}
+      >
         <Skeleton
           variant="rectangular"
           width={35}
@@ -32,8 +41,8 @@ function SkeletonPackageItem() {
           sx={{ borderRadius: "10%" }}
         />
         <Box sx={{ flex: 1 }}>
-          <Skeleton variant="text" width="80%" height={16}/>
-          <Skeleton variant="text" width="60%" height={14}/>
+          <Skeleton variant="text" width="80%" height={16} />
+          <Skeleton variant="text" width="60%" height={14} />
         </Box>
       </Box>
     </ListItem>
@@ -55,7 +64,8 @@ interface PackagesDialogProps {
 export function PackagesDialog(props: PackagesDialogProps) {
   const { onClose, onSelect, onImport, onCreate, open, isLoading } = props;
   const filteredPackages = props.packages.filter((pkg) => !pkg.isNotLocal);
-  const hasBuilder = BuilderService.isAvailable();
+  const builderService = useService("builder");
+  const hasBuilder = !!builderService;
 
   return (
     <Dialog onClose={onClose} open={open} maxWidth="sm" fullWidth>
@@ -65,15 +75,15 @@ export function PackagesDialog(props: PackagesDialogProps) {
             Packages
           </Typography>
           <IconButton onClick={onClose}>
-            <CloseIcon/>
+            <CloseIcon />
           </IconButton>
         </Box>
         <List sx={{ pt: 2 }} disablePadding>
           {isLoading ? (
             <>
-              <SkeletonPackageItem/>
-              <SkeletonPackageItem/>
-              <SkeletonPackageItem/>
+              <SkeletonPackageItem />
+              <SkeletonPackageItem />
+              <SkeletonPackageItem />
             </>
           ) : (
             filteredPackages.map((pkg) => (
@@ -109,7 +119,7 @@ export function PackagesDialog(props: PackagesDialogProps) {
           )}
         </List>
         <If condition={props.packages.length > 0}>
-          <Divider/>
+          <Divider />
         </If>
         <List sx={{ pt: 0 }} disablePadding>
           <ListItem disablePadding disableGutters key="create-ownable">
@@ -120,9 +130,9 @@ export function PackagesDialog(props: PackagesDialogProps) {
               disabled={!hasBuilder}
             >
               <ListItemIcon>
-                <AutoAwesomeIcon/>
+                <AutoAwesomeIcon />
               </ListItemIcon>
-              <ListItemText primary="Create ownable"/>
+              <ListItemText primary="Create ownable" />
             </ListItemButton>
           </ListItem>
           <ListItem disablePadding disableGutters key="add-local">
@@ -132,9 +142,9 @@ export function PackagesDialog(props: PackagesDialogProps) {
               style={{ textAlign: "center" }}
             >
               <ListItemIcon>
-                <DriveFolderUploadIcon/>
+                <DriveFolderUploadIcon />
               </ListItemIcon>
-              <ListItemText primary="Import package"/>
+              <ListItemText primary="Import package" />
             </ListItemButton>
           </ListItem>
         </List>

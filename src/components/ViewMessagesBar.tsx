@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   Drawer,
   Box,
@@ -16,7 +16,8 @@ import { EventChain } from "eqty-core";
 import { enqueueSnackbar } from "notistack";
 import placeholderImage from "../assets/cube.png";
 import { useMessageCount } from "../hooks/useMessageCount";
-import { useService } from "../hooks/useService"
+import { useService } from "../hooks/useService";
+import { useChainId } from "wagmi";
 
 interface ViewMessagesBarProps {
   open: boolean;
@@ -150,11 +151,33 @@ export const ViewMessagesBar: React.FC<ViewMessagesBarProps> = ({
     }
   };
 
+  const chainId = useChainId();
+  const hasFetchedRef = useRef<string | null>(null);
+
   useEffect(() => {
-    builderService?.getAddress().then((serverAddress) => {
-      setBuilderAddress(serverAddress);
+    if (!builderService) {
+      hasFetchedRef.current = null;
+      return;
+    }
+
+    // Only fetch once per chainId, not on every builderService reference change
+    if (hasFetchedRef.current === chainId.toString()) {
+      return;
+    }
+
+    hasFetchedRef.current = chainId.toString();
+    let cancelled = false;
+
+    builderService.getAddress().then((serverAddress) => {
+      if (!cancelled) {
+        setBuilderAddress(serverAddress);
+      }
     });
-  }, [builderService]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [builderService, chainId]); // Re-fetch only when chainId changes
 
   useEffect(() => {
     if (open) {

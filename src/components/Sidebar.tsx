@@ -28,8 +28,9 @@ export default function Sidebar(props: SidebarProps) {
   const { open, onClose, onReset, onFactoryReset } = props;
   const [anchoring, setAnchoring] = useState(EventChainService.anchoring);
   const { address } = useAccount();
-  const { data: ethBalance } = useBalance({ address, formatUnits: 'ether', watch: true });
-  const { balance: eqtyBalance } = useEqtyToken({ address, watch: true });
+  // Only poll balances when sidebar is open to avoid constant RPC calls
+  const { data: ethBalance } = useBalance({ address, formatUnits: 'ether', watch: open });
+  const { balance: eqtyBalance } = useEqtyToken({ address, watch: open });
 
   useEffect(() => {
     EventChainService.anchoring = anchoring;
