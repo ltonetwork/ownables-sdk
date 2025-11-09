@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useService } from './useService';
 
-export function usePolling(interval = 5000) {
+export function usePolling(interval = 5000, enabled = false) {
   const { address, isConnected } = useAccount();
   const pollingService = useService('polling');
   const [messages, setMessages] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!pollingService || !isConnected || !address) return;
+    // Only poll if enabled and all required conditions are met
+    if (!enabled || !pollingService || !isConnected || !address) {
+      return;
+    }
 
     let stopped = false;
     const stop = pollingService.startPolling(
@@ -23,7 +26,7 @@ export function usePolling(interval = 5000) {
       stopped = true;
       stop?.();
     };
-  }, [pollingService, isConnected, address, interval]);
+  }, [pollingService, isConnected, address, interval, enabled]);
 
   return messages;
 }

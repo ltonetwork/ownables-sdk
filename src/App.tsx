@@ -25,8 +25,8 @@ import { usePackageManager } from "./hooks/usePackageManager";
 import { useAccount, useChainId, useConnect } from "wagmi";
 import { useMessageCount } from "./hooks/useMessageCount";
 import { useService } from "./hooks/useService";
-import { usePolling } from "./hooks/usePolling";
 import LocalStorageService from "./services/LocalStorage.service";
+import CreateOwnableDialog from "./components/CreateOwnableDialog";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -34,6 +34,7 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showViewMessagesBar, setShowViewMessagesBar] = useState(false);
   const [showPackages, setShowPackages] = React.useState(false);
+  const [showCreateOwnable, setShowCreateOwnable] = React.useState(false);
   const [message, setMessages] = useState(0);
   const [ownables, setOwnables] = useState<
     Array<{ chain: EventChain; package: string; uniqueMessageHash?: string }>
@@ -62,9 +63,8 @@ export default function App() {
   const idb = useService("idb");
   const { isLoading: isPackageManagerLoading } = usePackageManager();
 
-  usePolling();
-
   const handleNotificationClick = () => {
+    // Open messages view - it will fetch messages when opened
     setShowViewMessagesBar(true);
   };
 
@@ -456,7 +456,7 @@ export default function App() {
         onSelect={forge}
         onImportFR={relayImport}
         onError={showError}
-        onCreate={() => null}
+        onCreate={() => setShowCreateOwnable(true)}
         message={message}
       />
 
@@ -465,6 +465,15 @@ export default function App() {
         onClose={() => setShowSidebar(false)}
         onReset={reset}
         onFactoryReset={factoryReset}
+      />
+
+      <CreateOwnableDialog
+        open={showCreateOwnable}
+        onClose={() => setShowCreateOwnable(false)}
+        onSuccess={() => {
+          setShowCreateOwnable(false);
+          setShowPackages(false);
+        }}
       />
 
       <ViewMessagesBar
