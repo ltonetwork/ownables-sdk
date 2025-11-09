@@ -349,6 +349,8 @@ export default function App() {
         onMenuClick={() => setShowSidebar(true)}
         onNotificationClick={handleNotificationClick}
         messagesCount={message}
+        chainId={chainId}
+        isConnected={isConnected}
       />
       <If condition={ownables.length === 0}>
         <Grid
