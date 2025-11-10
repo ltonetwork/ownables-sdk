@@ -121,13 +121,16 @@ export default class OwnableService {
     const anchors: Array<any> = [];
 
     if (pkg.isDynamic || this.anchoring) {
-      const msg = {
+      const msg: any = {
         "@context": "instantiate_msg.json",
         ownable_id: chain.id,
         package: pkg.cid,
         network_id: networkId,
         keywords: pkg.keywords ?? [],
       };
+      if (pkg.description) {
+        msg.description = pkg.description;
+      }
       const signer = this.eqty.signer;
       await new Event(msg).addTo(chain).signWith(signer);
     }

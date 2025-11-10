@@ -196,14 +196,82 @@ export default class PackageService {
   }
 
   private async storeAssets(cid: string, files: File[]): Promise<void> {
-    if (!(await this.idb.hasStore(`package:${cid}`))) {
-      await this.idb.createStore(`package:${cid}`);
+    const storeName = `package:${cid}`;
+    
+    try {
+      if (!(await this.idb.hasStore(storeName))) {
+        await this.idb.createStore(storeName);
+      }
+
+      await this.idb.setAll(
+        storeName,
+        Object.fromEntries(files.map((file) => [file.name, file]))
+      );
+
+      // Verify store exists and has data
+      await this.verifyStoreExists(storeName, files.length);
+    } catch (error) {
+      // Check for quota errors
+      if (error instanceof Error) {
+        if (error.name === 'QuotaExceededError' || 
+            error.message?.includes('quota') ||
+            error.message?.includes('QuotaExceeded')) {
+          throw new Error(
+            `Device storage quota exceeded. Please free up space on your device and try again.`
+          );
+        }
+      }
+      throw error;
+    }
+  }
+
+  private async verifyStoreExists(storeName: string, expectedFileCount: number): Promise<void> {
+    const hasStore = await this.idb.hasStore(storeName);
+    if (!hasStore) {
+      throw new Error(`Store ${storeName} was not created successfully`);
     }
 
-    await this.idb.setAll(
-      `package:${cid}`,
-      Object.fromEntries(files.map((file) => [file.name, file]))
-    );
+    // Verify data was written
+    try {
+      const keys = await this.idb.keys(storeName);
+      if (keys.length < expectedFileCount) {
+        throw new Error(
+          `Store verification failed: expected ${expectedFileCount} files, found ${keys.length}`
+        );
+      }
+    } catch (error) {
+      // Check if it's a quota error
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        throw new Error(
+          `Device storage quota exceeded. Please free up space and try again.`
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async retryStoreVerification(
+    storeName: string,
+    expectedFileCount: number,
+    maxRetries: number = 3,
+    delay: number = 1000
+  ): Promise<void> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.verifyStoreExists(storeName, expectedFileCount);
+        return; // Success
+      } catch (error) {
+        console.warn(`Store verification attempt ${attempt}/${maxRetries} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff)
+          await new Promise((resolve) => setTimeout(resolve, delay * attempt));
+        } else {
+          // Last attempt failed
+          throw error;
+        }
+      }
+    }
   }
 
   base64ToBuffer(base64: string): Buffer {
@@ -357,6 +425,34 @@ export default class PackageService {
       throw new Error(
         "Failed to process package: duplicate or invalid package."
       );
+    }
+
+    // Verify store exists after import
+    const storeName = `package:${pkg.cid}`;
+    const hasStore = await this.idb.hasStore(storeName);
+    
+    if (!hasStore) {
+      // Retry verification in background (non-blocking)
+      this.retryStoreVerification(storeName, files.length, 3, 1000)
+        .catch((error) => {
+          console.error(`Background store verification failed after retries:`, error);
+          // Optionally notify user or log to error tracking service
+        });
+      
+      // Still return the package even if verification is pending
+      // The background retry will handle it
+    } else {
+      // Store exists, verify data integrity
+      try {
+        await this.verifyStoreExists(storeName, files.length);
+      } catch (error) {
+        // If verification fails, start background retry
+        console.warn(`Initial store verification failed, retrying in background:`, error);
+        this.retryStoreVerification(storeName, files.length, 3, 1000)
+          .catch((retryError) => {
+            console.error(`Background store verification failed after retries:`, retryError);
+          });
+      }
     }
 
     return pkg;

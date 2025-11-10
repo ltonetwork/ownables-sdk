@@ -11,11 +11,7 @@ const getMimeType = (filename: string): string | null | undefined =>
 export class RelayService {
   public static readonly URL =
     process.env.REACT_APP_RELAY || process.env.REACT_APP_LOCAL;
-
-  private static tokenStorage = new Map<
-    string,
-    { token: string; expiry: number }
-  >();
+  private static readonly STORAGE_PREFIX = "relay_siwe_token:";
 
   public readonly relay: Relay;
   private readonly siweClient: SIWEClient;
@@ -30,24 +26,38 @@ export class RelayService {
     // Create unique storage key per wallet
     this.storageKey = `${this.eqty.address}:${this.eqty.chainId}`;
 
-    const stored = RelayService.tokenStorage.get(this.storageKey);
-    if (stored) {
-      this.authToken = stored.token;
-      this.authExpiry = stored.expiry;
-    }
+    // Load token from localStorage on initialization
+    this.loadTokenFromStorage();
   }
 
-  /**
-   * Clear authentication token for specific wallet (call when wallet changes)
-   */
+  private loadTokenFromStorage(): void {
+    try {
+      const storageKey = `${RelayService.STORAGE_PREFIX}${this.storageKey}`;
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.expiry && Date.now() < data.expiry) {
+          this.authToken = data.token;
+          this.authExpiry = data.expiry;
+        } else {
+          localStorage.removeItem(storageKey);
+        }
+      }
+    } catch (error) {}
+  }
+
+  private saveTokenToStorage(token: string, expiry: number): void {
+    try {
+      const storageKey = `${RelayService.STORAGE_PREFIX}${this.storageKey}`;
+      localStorage.setItem(storageKey, JSON.stringify({ token, expiry }));
+    } catch (error) {}
+  }
+
   static clearWalletAuth(address: string, chainId: number): void {
-    const key = `${address}:${chainId}`;
-    RelayService.tokenStorage.delete(key);
+    const key = `${RelayService.STORAGE_PREFIX}${address}:${chainId}`;
+    localStorage.removeItem(key);
   }
 
-  /**
-   * Authenticate with the relay using SIWE
-   */
   async authenticate(): Promise<SIWEAuthResult> {
     try {
       const result = await this.siweClient.authenticate(
@@ -58,12 +68,25 @@ export class RelayService {
 
       if (result.success && result.token) {
         this.authToken = result.token;
-        this.authExpiry = Date.now() + 24 * 60 * 60 * 1000;
+        let expiresIn: number;
+        if (result.expiresIn) {
+          const expiresInStr = String(result.expiresIn);
 
-        RelayService.tokenStorage.set(this.storageKey, {
-          token: result.token,
-          expiry: this.authExpiry,
-        });
+          if (expiresInStr.endsWith("h")) {
+            const hours = parseInt(expiresInStr);
+            expiresIn = hours * 60 * 60 * 1000;
+          } else if (expiresInStr.endsWith("m")) {
+            const minutes = parseInt(expiresInStr);
+            expiresIn = minutes * 60 * 1000;
+          } else {
+            expiresIn = parseInt(expiresInStr) * 1000;
+          }
+        } else {
+          expiresIn = 24 * 60 * 60 * 1000;
+        }
+        this.authExpiry = Date.now() + expiresIn;
+
+        this.saveTokenToStorage(this.authToken, this.authExpiry);
       }
 
       return result;
@@ -77,27 +100,26 @@ export class RelayService {
     }
   }
 
-  /**
-   * Check if authentication is valid and not expired
-   */
   private isAuthenticated(): boolean {
+    if (this.authToken === null || this.authExpiry === null) {
+      this.loadTokenFromStorage();
+    }
+
     const hasToken = this.authToken !== null;
     const hasExpiry = this.authExpiry !== null;
     const notExpired = this.authExpiry !== null && Date.now() < this.authExpiry;
 
-    const stored = RelayService.tokenStorage.get(this.storageKey);
-    if (stored && Date.now() >= stored.expiry) {
-      RelayService.tokenStorage.delete(this.storageKey);
+    if (hasExpiry && !notExpired) {
       this.authToken = null;
       this.authExpiry = null;
+      const storageKey = `${RelayService.STORAGE_PREFIX}${this.storageKey}`;
+      localStorage.removeItem(storageKey);
+      return false;
     }
 
     return hasToken && hasExpiry && notExpired;
   }
 
-  /**
-   * Get authentication headers for API requests
-   */
   getAuthHeaders(): Record<string, string> {
     if (!this.isAuthenticated()) {
       return {};
@@ -108,22 +130,15 @@ export class RelayService {
     };
   }
 
-  /**
-   * Ensure authentication before making authenticated requests
-   */
   async ensureAuthenticated(): Promise<boolean> {
     if (this.isAuthenticated()) {
       return true;
     }
 
     const result = await this.authenticate();
-
     return result.success;
   }
 
-  /**
-   * Send ownable to a recipient with optional anchoring.
-   */
   async sendOwnable(
     recipient: string,
     content: Uint8Array,
@@ -131,11 +146,12 @@ export class RelayService {
     anchorBeforeSend: boolean = false
   ) {
     if (!recipient) {
-      console.error("Recipient not provided");
-      return;
+      throw new Error("Recipient not provided");
     }
 
     try {
+      await this.ensureAuthenticated();
+
       const messageContent = Binary.from(content);
       const message = new Message(
         messageContent,
@@ -150,24 +166,22 @@ export class RelayService {
         try {
           await this.eqty.anchor(message.hash);
         } catch (error) {
-          console.warn(
-            "RelayService: Failed to anchor message before sending:",
-            error
-          );
+          // Continue even if anchoring fails
         }
       }
 
-      await this.relay.send(message);
+      const relayMessage = {
+        message: message.toJSON(),
+      };
+      const authHeaders = this.getAuthHeaders();
+      await this.relay.post("/messages", relayMessage, authHeaders);
+
       return message.hash.base58;
     } catch (error) {
-      console.error("Error sending message:", error);
       throw error;
     }
   }
 
-  /**
-   * Read a single message by its hash.
-   */
   async readMessage(hash: string): Promise<{ message?: any; hash?: string }> {
     try {
       await this.ensureAuthenticated();
@@ -195,14 +209,10 @@ export class RelayService {
       const message = Message.from(messageData);
       return { message, hash };
     } catch (error) {
-      console.error("Error reading message:", error);
       throw error;
     }
   }
 
-  /**
-   * Read relay all messages for the current sender.
-   */
   async readAll() {
     const list = await this.list();
 
@@ -217,12 +227,8 @@ export class RelayService {
     return ownableData.filter((data) => data !== null);
   }
 
-  /**
-   * Remove an ownable by its hash.
-   */
   async removeOwnable(hash: string): Promise<void> {
     try {
-      // Ensure authentication for inbox access
       await this.ensureAuthenticated();
 
       await this.relay.delete(
@@ -230,14 +236,10 @@ export class RelayService {
         this.getAuthHeaders()
       );
     } catch (error) {
-      console.error("Error removing ownable:", error);
       throw new Error(`Failed to remove ownable from Relay: ${error}`);
     }
   }
 
-  /**
-   * Check if relay service is up.
-   */
   async isAvailable(): Promise<boolean> {
     if (!RelayService.URL) return false;
 
@@ -245,7 +247,6 @@ export class RelayService {
       await this.relay.get("");
       return true;
     } catch (error) {
-      console.error("Relay service is down:", error);
       return false;
     }
   }
@@ -285,14 +286,10 @@ export class RelayService {
         };
       }
     } catch (error) {
-      console.error("Failed to read relay metadata:", error);
       return null;
     }
   }
 
-  /**
-   * Extract assets from a zip file.
-   */
   async extractAssets(zipFile: File | JSZip): Promise<File[]> {
     const zip =
       zipFile instanceof JSZip ? zipFile : await JSZip.loadAsync(zipFile);
@@ -308,9 +305,6 @@ export class RelayService {
     return assetFiles;
   }
 
-  /**
-   * Get chain.json from a list of files.
-   */
   private async getChainJson(
     filename: string,
     files: File[]
@@ -320,9 +314,6 @@ export class RelayService {
     return JSON.parse(await file.text());
   }
 
-  /**
-   * Check and return unique messages, avoiding duplicates.
-   */
   async checkDuplicateMessage(messages: MessageExt[]) {
     const uniqueItems = new Map<
       string,
@@ -333,13 +324,11 @@ export class RelayService {
       const { message, messageHash } = messageExt;
 
       if (!message || !messageHash) {
-        console.error("Message or messageHash is missing.");
         continue;
       }
 
       const data = message.data;
       if (!data) {
-        console.error("Message data is missing.");
         continue;
       }
 

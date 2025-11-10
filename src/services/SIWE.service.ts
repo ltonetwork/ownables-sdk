@@ -31,9 +31,6 @@ export class SIWEClient {
     this.domain = domain || "localhost:8000";
   }
 
-  /**
-   * Generates a nonce for SIWE authentication
-   */
   generateNonce(): string {
     return (
       Math.random().toString(36).substring(2, 15) +
@@ -41,9 +38,6 @@ export class SIWEClient {
     );
   }
 
-  /**
-   * Creates a SIWE message template
-   */
   createMessage(
     address: string,
     uri: string,
@@ -61,9 +55,6 @@ export class SIWEClient {
     };
   }
 
-  /**
-   * Signs a SIWE message with the connected wallet
-   */
   async signMessage(message: SIWEMessage, signer: ViemSigner): Promise<string> {
     const domain = {
       name: "Sign-In with Ethereum",
@@ -106,9 +97,6 @@ export class SIWEClient {
     return await signer.signTypedData(domain, types, value);
   }
 
-  /**
-   * Authenticates with the relay using SIWE
-   */
   async authenticate(
     signer: ViemSigner,
     relayUrl: string,
@@ -118,36 +106,9 @@ export class SIWEClient {
       const address = await signer.getAddress();
       const uri = `${relayUrl}/auth/verify`;
 
-      console.log("SIWEClient: Starting authentication", {
-        address,
-        relayUrl,
-        chainId,
-        uri,
-      });
-
-      // Create SIWE message
       const message = this.createMessage(address, uri, chainId);
-
-      console.log("SIWEClient: Created message", {
-        domain: message.domain,
-        address: message.address,
-        statement: message.statement,
-        uri: message.uri,
-        version: message.version,
-        chainId: message.chainId,
-        nonce: message.nonce,
-        issuedAt: message.issuedAt,
-      });
-
-      // Sign the message
       const signature = await this.signMessage(message, signer);
 
-      console.log("SIWEClient: Message signed", {
-        signature: signature.substring(0, 10) + "...",
-        signatureLength: signature.length,
-      });
-
-      // Send to relay for verification
       const response = await fetch(`${relayUrl}/auth/verify`, {
         method: "POST",
         headers: {
@@ -184,9 +145,6 @@ export class SIWEClient {
     }
   }
 
-  /**
-   * Gets a nonce from the relay
-   */
   async getNonce(relayUrl: string): Promise<string> {
     try {
       const response = await fetch(`${relayUrl}/auth/nonce`, {
