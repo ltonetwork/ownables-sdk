@@ -4,6 +4,7 @@ import mime from "mime/lite";
 import { MessageExt } from "../interfaces/MessageInfo";
 import EQTYService from "./EQTY.service";
 import { SIWEClient, SIWEAuthResult } from "./SIWE.service";
+import { LogProgress, withProgress } from "../contexts/Progress.context";
 
 const getMimeType = (filename: string): string | null | undefined =>
   (mime as any)?.getType?.(filename);
@@ -143,11 +144,14 @@ export class RelayService {
     recipient: string,
     content: Uint8Array,
     meta: Partial<IMessageMeta>,
-    anchorBeforeSend: boolean = false
+    anchorBeforeSend: boolean = false,
+    onProgress?: LogProgress
   ) {
     if (!recipient) {
       throw new Error("Recipient not provided");
     }
+
+    const step = withProgress(onProgress);
 
     try {
       await this.ensureAuthenticated();
@@ -159,22 +163,26 @@ export class RelayService {
         meta
       );
 
-      message.to(recipient);
-      await message.signWith(this.eqty.signer);
+      // Step: Sign relay message and send (will be represented as a single UI step)
+      await step(
+        "signMessage",
+        () => this.eqty.sign(message.to(recipient)),
+        () => ({ hash: message.hash.base58 })
+      );
 
       if (anchorBeforeSend) {
         try {
+          // Queue message hash; actual submission will include any previously queued event anchors
           await this.eqty.anchor(message.hash);
         } catch (error) {
-          // Continue even if anchoring fails
+          console.warn(
+            "RelayService: Failed during anchoring before sending:",
+            error
+          );
         }
       }
 
-      const relayMessage = {
-        message: message.toJSON(),
-      };
-      const authHeaders = this.getAuthHeaders();
-      await this.relay.post("/messages", relayMessage, authHeaders);
+      await this.relay.send(message);
 
       return message.hash.base58;
     } catch (error) {
@@ -293,7 +301,8 @@ export class RelayService {
   async extractAssets(zipFile: File | JSZip): Promise<File[]> {
     const zip =
       zipFile instanceof JSZip ? zipFile : await JSZip.loadAsync(zipFile);
-    const assetFiles = await Promise.all(
+
+    return await Promise.all(
       Object.entries(zip.files)
         .filter(([filename]) => !filename.startsWith("."))
         .map(async ([filename, file]) => {
@@ -302,7 +311,6 @@ export class RelayService {
           return new File([blob], filename, { type });
         })
     );
-    return assetFiles;
   }
 
   private async getChainJson(
