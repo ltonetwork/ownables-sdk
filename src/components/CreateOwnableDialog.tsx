@@ -367,6 +367,7 @@ export default function CreateOwnableDialog({
           {templateCost && (
             <Alert severity="info">
               Template cost: {formatEther(parseEther(templateCost.eth))} ETH
+              { templateCost.usd ? ` ($${templateCost.usd} USD)` : '' }
               {address && (
                 <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
                   Payment will be sent to the builder service wallet
