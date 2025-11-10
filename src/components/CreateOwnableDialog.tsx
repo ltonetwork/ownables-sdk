@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { enqueueSnackbar } from "notistack";
 import { useService } from "../hooks/useService";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { parseEther, formatEther } from "viem";
 
 interface CreateOwnableDialogProps {
@@ -38,13 +38,18 @@ export default function CreateOwnableDialog({
     usd?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const builderService = useService("builder");
   const { address } = useAccount();
+  const chainId = useChainId();
   const hasFetchedRef = useRef(false);
 
   const DEFAULT_TEMPLATE_ID = 1;
+  const BASE_SEPOLIA_CHAIN_ID = 84532;
+  const isTestnet = chainId === BASE_SEPOLIA_CHAIN_ID;
 
   // Load template cost when dialog opens (only once per open)
   useEffect(() => {
@@ -80,6 +85,39 @@ export default function CreateOwnableDialog({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]); // Only depend on open, not builderService to avoid multiple calls
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    // Only allow alphanumeric characters (a-z, A-Z, 0-9)
+    const sanitized = inputValue.replace(/[^a-zA-Z0-9]/g, "");
+    setName(sanitized);
+
+    // Show error if user tried to input invalid characters
+    if (inputValue !== sanitized) {
+      setNameError(
+        "Name can only contain letters and numbers (no spaces, emojis, or special characters)"
+      );
+    } else {
+      setNameError(null);
+    }
+  };
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    // Allow alphanumeric, spaces, and basic punctuation (periods, commas, hyphens, apostrophes, exclamation, question marks)
+    // Block emojis and other special characters
+    const sanitized = inputValue.replace(/[^\w\s.,!?'-]/g, "");
+    setDescription(sanitized);
+
+    // Show error if user tried to input invalid characters
+    if (inputValue !== sanitized) {
+      setDescriptionError(
+        "Description cannot contain emojis or special characters"
+      );
+    } else {
+      setDescriptionError(null);
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -140,23 +178,8 @@ export default function CreateOwnableDialog({
 
     try {
       setError(null);
-      setIsProcessingPayment(true);
 
-      // Step 1: Get server wallet address and template cost
-      const serverAddress = await builderService.getAddress();
-      if (!serverAddress) {
-        throw new Error("Failed to get server wallet address");
-      }
-
-      if (
-        !serverAddress ||
-        !serverAddress.startsWith("0x") ||
-        serverAddress.length !== 42
-      ) {
-        throw new Error(`Invalid server wallet address: ${serverAddress}`);
-      }
-
-      // Step 2: Switch to correct chain if needed
+      // Step 1: Switch to correct chain if needed
       const ltoNetworkId = builderService.getLtoNetworkId();
       const expectedChainId =
         ltoNetworkId === "L"
@@ -179,30 +202,58 @@ export default function CreateOwnableDialog({
         throw switchError;
       }
 
-      // Step 3: Send payment transaction
-      const cost = templateCost?.eth || "0.001";
-      const costWei = parseEther(cost);
-      const costHex = `0x${costWei.toString(16)}`;
+      let txHash: string | undefined;
 
-      enqueueSnackbar("Please confirm the transaction in MetaMask...", {
-        variant: "info",
-      });
+      // Step 2: Send payment transaction (skip on testnet)
+      if (!isTestnet) {
+        setIsProcessingPayment(true);
 
-      const transaction = {
-        from: address,
-        to: serverAddress,
-        value: costHex,
-        gas: "0x5208", // 21000 gas limit for simple ETH transfer
-      };
+        // Get server wallet address and template cost
+        const serverAddress = await builderService.getAddress();
+        if (!serverAddress) {
+          throw new Error("Failed to get server wallet address");
+        }
 
-      const txHash = await eth.request({
-        method: "eth_sendTransaction",
-        params: [transaction],
-      });
+        if (
+          !serverAddress ||
+          !serverAddress.startsWith("0x") ||
+          serverAddress.length !== 42
+        ) {
+          throw new Error(`Invalid server wallet address: ${serverAddress}`);
+        }
 
-      enqueueSnackbar(`Payment sent! TX: ${txHash.slice(0, 10)}...`, {
-        variant: "success",
-      });
+        // Send payment transaction
+        const cost = templateCost?.eth || "0.001";
+        const costWei = parseEther(cost);
+        const costHex = `0x${costWei.toString(16)}`;
+
+        enqueueSnackbar("Please confirm the transaction in MetaMask...", {
+          variant: "info",
+        });
+
+        const transaction = {
+          from: address,
+          to: serverAddress,
+          value: costHex,
+          gas: "0x5208", // 21000 gas limit for simple ETH transfer
+        };
+
+        txHash = (await eth.request({
+          method: "eth_sendTransaction",
+          params: [transaction],
+        })) as string;
+
+        enqueueSnackbar(`Payment sent! TX: ${txHash.slice(0, 10)}...`, {
+          variant: "success",
+        });
+      } else {
+        enqueueSnackbar(
+          "Payment not required on testnet. Creating ownable...",
+          {
+            variant: "info",
+          }
+        );
+      }
 
       setIsProcessingPayment(false);
       setIsUploading(true);
@@ -215,7 +266,7 @@ export default function CreateOwnableDialog({
 
       // Create ownableData.json
       const imageExtension = imageFile.name.split(".").pop()?.toLowerCase();
-      const ownableData = {
+      const ownableData: any = {
         PLACEHOLDER1_NAME: name.toLowerCase().replace(/[^a-z0-9]/g, ""),
         PLACEHOLDER1_DESCRIPTION: description || "",
         PLACEHOLDER1_VERSION: "1.0.0",
@@ -230,9 +281,13 @@ export default function CreateOwnableDialog({
         OWNABLE_THUMBNAIL: `image.${imageExtension}`,
         CREATE_NFT: "true",
         NFT_BLOCKCHAIN: "base",
-        OWNABLE_LTO_TRANSACTION_ID: txHash,
         generatedAt: new Date().toISOString(),
       };
+
+      // Only include transaction ID if payment was made (not on testnet)
+      if (txHash) {
+        ownableData.OWNABLE_LTO_TRANSACTION_ID = txHash;
+      }
 
       zip.file("ownableData.json", JSON.stringify([ownableData], null, 2));
 
@@ -254,12 +309,18 @@ export default function CreateOwnableDialog({
       // Step 5: Upload to builder
       enqueueSnackbar("Uploading to builder...", { variant: "info" });
 
-      const result = await builderService.upload(zipArray, {
+      const uploadOptions: any = {
         templateId: DEFAULT_TEMPLATE_ID,
         name: name,
         sender: address,
-        signedTransaction: txHash,
-      });
+      };
+
+      // Only include signedTransaction if payment was made (not on testnet)
+      if (txHash) {
+        uploadOptions.signedTransaction = txHash;
+      }
+
+      const result = await builderService.upload(zipArray, uploadOptions);
 
       enqueueSnackbar(
         `Ownable uploaded successfully! Request ID: ${result.requestId}`,
@@ -295,6 +356,8 @@ export default function CreateOwnableDialog({
       setImageFile(null);
       setImagePreview(null);
       setError(null);
+      setNameError(null);
+      setDescriptionError(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -316,20 +379,30 @@ export default function CreateOwnableDialog({
           <TextField
             label="Name *"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleNameChange}
             fullWidth
             required
             disabled={isUploading || isProcessingPayment}
+            helperText={
+              nameError ||
+              "Only letters and numbers allowed (no spaces, emojis, or special characters)"
+            }
+            error={!!nameError}
           />
 
           <TextField
             label="Description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={handleDescriptionChange}
             fullWidth
             multiline
             rows={3}
             disabled={isUploading || isProcessingPayment}
+            helperText={
+              descriptionError ||
+              "Letters, numbers, spaces, and basic punctuation only (no emojis)"
+            }
+            error={!!descriptionError}
           />
 
           <Box>
@@ -365,7 +438,7 @@ export default function CreateOwnableDialog({
             )}
           </Box>
 
-          {templateCost && (
+          {templateCost && !isTestnet && (
             <Alert severity="info">
               Template cost: {formatEther(parseEther(templateCost.eth))} ETH
               ($1.00 USD)
@@ -374,6 +447,11 @@ export default function CreateOwnableDialog({
                   Payment will be sent to the builder service wallet
                 </Typography>
               )}
+            </Alert>
+          )}
+          {isTestnet && (
+            <Alert severity="success">
+              Payment not required on testnet. You can create ownables for free!
             </Alert>
           )}
         </Box>
