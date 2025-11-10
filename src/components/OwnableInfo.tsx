@@ -50,7 +50,7 @@ export default function OwnableInfo(props: OwnableInfoProps) {
       setAnchors(
         chain.anchorMap.map(({ key, value }) => ({
           tx: anchors[key.hex],
-          verified: map[key.hex] === value.hex,
+          verified: map[key.hex]?.toLowerCase() === value.hex.toLowerCase(),
         }))
       );
     });
