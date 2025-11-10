@@ -11,6 +11,7 @@ import EventChainService from "./EventChain.service";
 
 // @ts-ignore - Loaded as string, see `craco.config.js`
 import workerJsSource from "../assets/worker.js";
+import { LogProgress, withProgress } from "../contexts/Progress.context";
 
 export type StateDump = Array<[ArrayLike<number>, ArrayLike<number>]>;
 
@@ -113,7 +114,8 @@ export default class OwnableService {
   }
 
   async create(
-    pkg: TypedPackage
+    pkg: TypedPackage,
+    onProgress?: LogProgress
   ): Promise<{ chain: EventChain; txHash?: string }> {
     const address = this.eqty.address;
     const networkId = this.eqty.chainId;
@@ -128,11 +130,10 @@ export default class OwnableService {
         network_id: networkId,
         keywords: pkg.keywords ?? [],
       };
-      if (pkg.description) {
-        msg.description = pkg.description;
-      }
-      const signer = this.eqty.signer;
-      await new Event(msg).addTo(chain).signWith(signer);
+
+      await withProgress(onProgress)("signEvent", () =>
+        this.eqty.sign(new Event(msg).addTo(chain))
+      );
     }
 
     if (this.anchoring) {
@@ -141,7 +142,11 @@ export default class OwnableService {
     }
 
     if (anchors.length > 0) {
-      const txHash = await this.eqty.anchor(...anchors);
+      // Queue anchors and submit as single tx
+      await this.eqty.anchor(...anchors);
+      const txHash = await withProgress(onProgress)("anchorEvent", () =>
+        this.eqty.submitAnchors()
+      );
       return { chain, txHash };
     }
 
@@ -372,7 +377,8 @@ export default class OwnableService {
   async execute(
     chain: EventChain,
     msg: TypedDict,
-    stateDump: StateDump
+    stateDump: StateDump,
+    onProgress?: LogProgress
   ): Promise<StateDump> {
     const info = { sender: this.eqty.address, funds: [] } as MessageInfo;
     const { state: newStateDump } = await this.rpc(chain.id).execute(
@@ -382,13 +388,24 @@ export default class OwnableService {
     );
 
     delete msg["@context"]; // Shouldn't be set
-    await new Event({ "@context": "execute_msg.json", ...msg })
-      .addTo(chain)
-      .signWith(this.eqty.signer);
 
+    await withProgress(onProgress)("signEvent", () =>
+      this.eqty.sign(
+        new Event({ "@context": "execute_msg.json", ...msg }).addTo(chain)
+      )
+    );
+
+    // Store without submitting anchors yet; submission is controlled by caller
     await this.store(chain, newStateDump);
 
     return newStateDump;
+  }
+
+  async submitAnchors(onProgress?: LogProgress): Promise<string | undefined> {
+    if (!this.anchoring) return undefined;
+    return await withProgress(onProgress)("anchor", () =>
+      this.eqty.submitAnchors()
+    );
   }
 
   async canConsume(
@@ -421,7 +438,11 @@ export default class OwnableService {
     }
   }
 
-  async consume(consumer: EventChain, consumable: EventChain): Promise<void> {
+  async consume(
+    consumer: EventChain,
+    consumable: EventChain,
+    onProgress?: LogProgress
+  ): Promise<void> {
     const info: MessageInfo = {
       sender: this.eqty.address,
       funds: [],
@@ -460,19 +481,30 @@ export default class OwnableService {
       consumer.id
     ).externalEvent(externalEventMsg, info, consumerState);
 
-    await Promise.all([
-      new Event({ "@context": "execute_msg.json", ...consumeMessage })
-        .addTo(consumable)
-        .signWith(this.eqty.signer),
-      new Event({ "@context": "external_event_msg.json", ...consumeEvent })
-        .addTo(consumer)
-        .signWith(this.eqty.signer),
-    ]);
-
-    await this.eventChains.store(
-      { chain: consumable, stateDump: consumableStateDump },
-      { chain: consumer, stateDump: consumerStateDump }
+    await withProgress(onProgress)("signConsumableEvent", () =>
+      this.eqty.sign(
+        new Event({ "@context": "execute_msg.json", ...consumeMessage }).addTo(
+          consumable
+        )
+      )
     );
+
+    await withProgress(onProgress)("signConsumerEvent", () =>
+      this.eqty.sign(
+        new Event({
+          "@context": "external_event_msg.json",
+          ...consumeEvent,
+        }).addTo(consumer)
+      )
+    );
+
+    // Store both chains; emit anchor progress only once to represent anchoring both
+    // Queue anchors for both chains without submitting yet
+    await this.store(consumable, consumableStateDump);
+    await this.store(consumer, consumerStateDump);
+
+    // Submit a single anchor tx for both
+    await this.submitAnchors(onProgress);
   }
 
   private async retryOperation<T>(
@@ -590,6 +622,7 @@ export default class OwnableService {
       }
 
       if (anchors.length > 0) {
+        // Queue anchors only; submission handled separately to allow batching
         await this.eqty.anchor(...anchors);
       }
 

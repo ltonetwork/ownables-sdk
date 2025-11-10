@@ -76,7 +76,6 @@ export default function CreateOwnableDialog({
       .catch((err) => {
         if (!cancelled) {
           console.error("Failed to load template cost:", err);
-          setTemplateCost({ eth: "0.001" }); // Default fallback
         }
       });
 
@@ -441,7 +440,7 @@ export default function CreateOwnableDialog({
           {templateCost && !isTestnet && (
             <Alert severity="info">
               Template cost: {formatEther(parseEther(templateCost.eth))} ETH
-              ($1.00 USD)
+              { templateCost.usd ? ` ($${templateCost.usd} USD)` : '' }
               {address && (
                 <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
                   Payment will be sent to the builder service wallet
