@@ -27,6 +27,7 @@ import { WagmiConfig, configureChains, createConfig } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { publicProvider } from "wagmi/providers/public";
 import { ServicesProvider } from "./contexts/Services.context";
+import { ProgressProvider } from "./contexts/Progress.context";
 
 const theme = createTheme({
   palette: {
@@ -83,7 +84,9 @@ root.render(
       <RainbowKitProvider chains={chains}>
         <ServicesProvider>
           <ThemeProvider theme={theme}>
-            <App />
+            <ProgressProvider>
+              <App />
+            </ProgressProvider>
           </ThemeProvider>
         </ServicesProvider>
       </RainbowKitProvider>

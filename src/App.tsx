@@ -27,6 +27,7 @@ import { useMessageCount } from "./hooks/useMessageCount";
 import { useService } from "./hooks/useService";
 import LocalStorageService from "./services/LocalStorage.service";
 import CreateOwnableDialog from "./components/CreateOwnableDialog";
+import { useProgress } from "./contexts/Progress.context";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -62,6 +63,7 @@ export default function App() {
   const relayService = useService("relay");
   const idb = useService("idb");
   const { isLoading: isPackageManagerLoading } = usePackageManager();
+  const progress = useProgress();
 
   const handleNotificationClick = () => {
     // Open messages view - it will fetch messages when opened
@@ -133,9 +135,14 @@ export default function App() {
     if (!ownableService) throw new Error("Ownable service not ready");
 
     try {
-      const result = await ownableService.create(pkg);
+      // Open progress modal for instantiation (2 steps when anchoring enabled, otherwise 1)
+      const steps = [{ id: 'signEvent', label: 'Sign the event' }];
+      if (ownableService.anchoring) steps.push({ id: 'anchorEvent', label: 'Anchor the event' });
+      const [ctrl, onProgress] = progress.open({ title: `Forging ${pkg.title}`, steps });
+      const result = await ownableService.create(pkg, onProgress);
       setOwnables([...ownables, { chain: result.chain, package: pkg.cid }]);
       setShowPackages(false);
+      ctrl.close();
 
       if (result.txHash) {
         const explorerUrl = getExplorerUrl(result.txHash, chainId);
@@ -272,16 +279,26 @@ export default function App() {
     if (consumer.id === consumable.id) return;
     if (!ownableService) throw new Error("Ownable service not ready");
 
+    const steps: Array<{ id: string; label: string }> = [
+      { id: 'signConsumableEvent', label: 'Sign the consumable event' },
+      { id: 'signConsumerEvent', label: 'Sign the consumer event' },
+    ];
+    if (ownableService.anchoring) steps.push({ id: 'anchor', label: 'Anchor both events' });
+
+    const [ctrl, onProgress] = progress.open({ title: 'Consuming Ownable', steps });
+
     ownableService
-      .consume(consumer, consumable)
+      .consume(consumer, consumable, onProgress)
       .then(() => {
         setConsuming(null);
         setOwnables((ownables) => [...ownables]);
         enqueueSnackbar("Consumed", { variant: "success" });
+        ctrl.close();
       })
-      .catch((error) =>
-        showError("Consume failed", ownableErrorMessage(error))
-      );
+      .catch((error) => {
+        // Keep modal open on error; user can dismiss
+        showError("Consume failed", ownableErrorMessage(error));
+      });
   };
 
   const reset = async () => {

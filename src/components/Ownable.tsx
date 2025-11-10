@@ -27,6 +27,7 @@ import { enqueueSnackbar } from "notistack";
 import { PACKAGE_TYPE } from "../constants";
 import { useService } from "../hooks/useService";
 import { useAccount } from "wagmi";
+import { useProgress, LogProgress } from "../contexts/Progress.context";
 
 interface OwnableProps {
   chain: EventChain;
@@ -50,6 +51,7 @@ export default function Ownable(props: OwnableProps) {
   const relay = useService("relay");
   const { address: liveAddress } = useAccount();
   const [address] = useState(liveAddress);
+  const progress = useProgress();
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const busyRef = useRef(false);
@@ -207,11 +209,12 @@ export default function Ownable(props: OwnableProps) {
   );
 
   const execute = useCallback(
-    async (msg: TypedDict): Promise<void> => {
+    async (msg: TypedDict, onProgress?: LogProgress, submitAnchors: boolean = true): Promise<void> => {
       if (!ownables) return;
       try {
-        const sd = await ownables.execute(chain, msg, stateDump);
-        await ownables.store(chain, sd);
+        const sd = await ownables.execute(chain, msg, stateDump, onProgress);
+        if (submitAnchors) await ownables.submitAnchors(onProgress);
+
         await refresh(sd);
         setApplied(chain.latestHash);
         setStateDump(sd);
@@ -254,10 +257,77 @@ export default function Ownable(props: OwnableProps) {
         return;
       if (iframeRef.current?.contentWindow !== event.source)
         throw Error("Not allowed to execute msg on other Ownable");
-      await execute(event.data.msg);
+
+      // Open a progress modal for widget-triggered events (execute)
+      const steps = [] as Array<{ id: string; label: string }>;
+      steps.push({ id: 'signEvent', label: 'Sign the event' });
+      if (ownables?.anchoring) steps.push({ id: 'anchor', label: 'Anchor the event' });
+
+      try {
+        const [ctrl, onProgress] = progress.open({ title: 'Processing action', steps });
+        await execute(event.data.msg, onProgress);
+        ctrl.close();
+      } catch (e) {
+        // Leave modal open in error state; user can close it
+        console.error('Widget action failed', e);
+      }
     },
-    [chain.id, execute]
+    [chain.id, execute, progress, ownables]
   );
+
+  async function transfer(to: string): Promise<void> {
+    if (!relay || !ownables || !pkg) return;
+
+    const available = await relay.isAvailable();
+    if (!available) {
+      enqueueSnackbar('Relay server is down', { variant: 'error' });
+      return;
+    }
+
+    const steps = [] as Array<{ id: string; label: string }>;
+    steps.push({ id: 'signEvent', label: 'Sign the event' });
+    steps.push({ id: 'signMessage', label: 'Sign the Relay message' });
+    if (ownables.anchoring) steps.push({ id: 'anchor', label: 'Anchor the event & Relay message' });
+
+    // progress controls available from top-level hook
+    try {
+      const [ctrl, onProgress] = progress.open({ title: 'Transferring Ownable', steps});
+
+      // Step 1: Execute ownable action (triggers wallet signature)
+      await execute({ transfer: { to } }, onProgress, false);
+
+      // Create the zip package
+      const zip = await ownables.zip(chain);
+      const content = await zip.generateAsync({ type: 'uint8array' });
+
+      // Construct metadata
+      const meta = await constructMeta();
+
+      // Send via relay
+      await relay.sendOwnable(to, content, meta, ownables.anchoring, onProgress);
+
+      // Submit anchors (if any)
+      await ownables.submitAnchors(onProgress);
+
+      enqueueSnackbar(`Ownable sent and anchored successfully!`, {
+        variant: 'success',
+      });
+
+      ctrl.close();
+
+      // Clean up local ownable if it was imported from relay
+      if (pkg.uniqueMessageHash) {
+        await relay.removeOwnable(pkg.uniqueMessageHash);
+        await ownables.delete(chain.id);
+      }
+    } catch (error) {
+      console.error('Error during transfer:', error);
+      enqueueSnackbar(
+        `Transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { variant: 'error' }
+      );
+    }
+  }
 
   // Lifecycle: subscribe to window messages
   useEffect(() => {
@@ -359,47 +429,4 @@ export default function Ownable(props: OwnableProps) {
       </If>
     </Paper>
   );
-
-  async function transfer(to: string): Promise<void> {
-    try {
-      if (!relay || !ownables || !pkg) return;
-
-      const value = await relay.isAvailable();
-
-      if (value) {
-        // Execute the transfer on the ownable
-        await execute({ transfer: { to } });
-
-        // Create the zip package
-        const zip = await ownables.zip(chain);
-        const content = await zip.generateAsync({ type: "uint8array" });
-
-        // Construct metadata
-        const meta = await constructMeta();
-
-        // Send via relay with anchoring enabled
-        await relay.sendOwnable(to, content, meta, true); // true = anchor before send
-
-        enqueueSnackbar(`Ownable sent and anchored successfully!`, {
-          variant: "success",
-        });
-
-        // Clean up local ownable if it was imported from relay
-        if (pkg.uniqueMessageHash) {
-          await relay.removeOwnable(pkg.uniqueMessageHash);
-          await ownables.delete(chain.id);
-        }
-      } else {
-        enqueueSnackbar("Relay server is down", { variant: "error" });
-      }
-    } catch (error) {
-      console.error("Error during transfer:", error);
-      enqueueSnackbar(
-        `Transfer failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        { variant: "error" }
-      );
-    }
-  }
 }

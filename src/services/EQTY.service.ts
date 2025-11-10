@@ -9,6 +9,7 @@ import {
 import { base, baseSepolia } from "viem/chains";
 
 const BRIDGE_URL = process.env.REACT_APP_BRIDGE;
+const ZERO_HASH = Binary.fromHex('0x' + '0'.repeat(64));
 
 /**
  * EQTYService
@@ -19,6 +20,7 @@ export default class EQTYService {
   private publicClient: PublicClient;
   private walletClient: WalletClient;
   private anchorClient: AnchorClient<any>;
+  private anchorQueue: Array<{ key: Binary; value: Binary }> = [];
   public readonly signer: ViemSigner;
 
   private getChain() {
@@ -74,36 +76,51 @@ export default class EQTYService {
   }
 
   /**
-   * Anchor one or multiple entries to Base (or Base Sepolia) using eqty-core.
-   * Accepts an array of Binary values or key/value pairs of Binaries.
-   * Returns the transaction hash.
+   * Queue anchors to be submitted later in a single tx via submitAnchors().
+   * Accepts Binary values or key/value pairs. For value-only anchors, we use
+   * the convention { key: value, value: ZERO_HASH } to allow mixing with pairs.
    */
   async anchor(
     ...anchors:
-      | Array<{
-          key: { hex: string } | Binary;
-          value: { hex: string } | Binary;
-        }>
+      | Array<{ key: { hex: string } | Binary; value: { hex: string } | Binary }>
       | Array<{ hex: string } | Binary>
-  ): Promise<string> {
-    if (anchors.length === 0) throw new Error("No anchors provided");
-
+  ): Promise<void> {
+    if (anchors.length === 0) return;
+    const toBinary = (b: any) => (b instanceof Binary ? b : Binary.fromHex(b.hex));
     const first = anchors[0] as any;
-    const toBinary = (b: any) => b instanceof Binary ? b : Binary.fromHex(b.hex);
 
     if (first instanceof Binary || (first && (first as any).hex)) {
-      // list of Binary or IBinary
+      // list of Binary or IBinary (value-only)
       const list = (anchors as Array<any>).map((b) => toBinary(b));
-      return await this.anchorClient.anchor(list);
+      for (const val of list) {
+        this.anchorQueue.push({ key: val, value: ZERO_HASH });
+      }
     } else {
       // list of { key, value }
       const list = (anchors as Array<any>).map(({ key, value }) => ({
         key: toBinary(key),
         value: toBinary(value),
       }));
-      return await this.anchorClient.anchor(list);
+      this.anchorQueue.push(...list);
     }
+  }
 
+  /**
+   * Submit all queued anchors as a single transaction. Clears the queue on success.
+   * Returns the tx hash, or empty string if queue is empty.
+   */
+  async submitAnchors(): Promise<string | undefined> {
+    if (this.anchorQueue.length === 0) return undefined;
+
+    const payload = this.anchorQueue.slice();
+    this.anchorQueue = [];
+    try {
+      return await this.anchorClient.anchor(payload);
+    } catch (err) {
+      // Restore queue on failure
+      this.anchorQueue.unshift(...payload);
+      throw err;
+    }
   }
 
   async sign(...subjects: Array<Event | Message>): Promise<void> {
