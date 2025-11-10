@@ -128,8 +128,8 @@ export default class OwnableService {
         network_id: networkId,
         keywords: pkg.keywords ?? [],
       };
-      const signer = this.eqty.signer;
-      await new Event(msg).addTo(chain).signWith(signer);
+
+      await this.eqty.sign(new Event(msg).addTo(chain));
     }
 
     if (this.anchoring) {
@@ -379,9 +379,8 @@ export default class OwnableService {
     );
 
     delete msg["@context"]; // Shouldn't be set
-    await new Event({ "@context": "execute_msg.json", ...msg })
-      .addTo(chain)
-      .signWith(this.eqty.signer);
+
+    await this.eqty.sign(new Event({ "@context": "execute_msg.json", ...msg }).addTo(chain))
 
     await this.store(chain, newStateDump);
 
@@ -457,14 +456,10 @@ export default class OwnableService {
       consumer.id
     ).externalEvent(externalEventMsg, info, consumerState);
 
-    await Promise.all([
-      new Event({ "@context": "execute_msg.json", ...consumeMessage })
-        .addTo(consumable)
-        .signWith(this.eqty.signer),
-      new Event({ "@context": "external_event_msg.json", ...consumeEvent })
-        .addTo(consumer)
-        .signWith(this.eqty.signer),
-    ]);
+    await this.eqty.sign(
+      new Event({ "@context": "execute_msg.json", ...consumeMessage }).addTo(consumable),
+      new Event({ "@context": "external_event_msg.json", ...consumeEvent }).addTo(consumer),
+    );
 
     await this.eventChains.store(
       { chain: consumable, stateDump: consumableStateDump },
@@ -510,8 +505,7 @@ export default class OwnableService {
       created: new Date(),
       latestHash: chain.latestHash.hex,
       keywords: this.packages.info(pkg).keywords,
-      uniqueMessageHash: this.packages.info(pkg, uniqueMessageHash)
-        .uniqueMessageHash,
+      uniqueMessageHash: this.packages.info(pkg, uniqueMessageHash).uniqueMessageHash,
     };
 
     const stores = [storeId];

@@ -1,4 +1,4 @@
-import { AnchorClient, Binary, ViemContract, ViemSigner } from "eqty-core";
+import { AnchorClient, Binary, Event, Message, ViemContract, ViemSigner } from "eqty-core";
 import type { PublicClient, WalletClient } from "viem";
 import {
   createPublicClient,
@@ -13,7 +13,6 @@ const BRIDGE_URL = process.env.REACT_APP_BRIDGE;
 /**
  * EQTYService
  *
- * Migration shim replacing LTOService anchoring with eqty-core AnchorClient using viem.
  * Prefer using wagmi hooks in React components to retrieve account information.
  */
 export default class EQTYService {
@@ -90,23 +89,26 @@ export default class EQTYService {
     if (anchors.length === 0) throw new Error("No anchors provided");
 
     const first = anchors[0] as any;
-
-    const toBinary = (b: any) =>
-      b instanceof Binary ? b : Binary.fromHex(b.hex);
+    const toBinary = (b: any) => b instanceof Binary ? b : Binary.fromHex(b.hex);
 
     if (first instanceof Binary || (first && (first as any).hex)) {
       // list of Binary or IBinary
       const list = (anchors as Array<any>).map((b) => toBinary(b));
-      const txHash = await this.anchorClient.anchor(list);
-      return txHash;
+      return await this.anchorClient.anchor(list);
     } else {
       // list of { key, value }
       const list = (anchors as Array<any>).map(({ key, value }) => ({
         key: toBinary(key),
         value: toBinary(value),
       }));
-      const txHash = await this.anchorClient.anchor(list);
-      return txHash;
+      return await this.anchorClient.anchor(list);
+    }
+
+  }
+
+  async sign(...subjects: Array<Event | Message>): Promise<void> {
+    for (const subject of subjects) {
+      await subject.signWith(this.signer);
     }
   }
 

@@ -143,8 +143,7 @@ export class RelayService {
         meta
       );
 
-      message.to(recipient);
-      await message.signWith(this.eqty.signer);
+      await this.eqty.sign(message.to(recipient));
 
       if (anchorBeforeSend) {
         try {
