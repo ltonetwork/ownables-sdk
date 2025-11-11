@@ -1,20 +1,25 @@
-import { AnchorClient, Binary, Event, Message, ViemContract, ViemSigner } from "eqty-core";
+import {
+  AnchorClient,
+  Binary,
+  Event,
+  Message,
+  ViemContract,
+  ViemSigner,
+} from "eqty-core";
 import type { PublicClient, WalletClient } from "viem";
 import {
   createPublicClient,
   createWalletClient,
   custom,
   getAddress,
+  parseAbiItem,
 } from "viem";
 import { base, baseSepolia } from "viem/chains";
 
-const BRIDGE_URL = process.env.REACT_APP_BRIDGE;
-const ZERO_HASH = Binary.fromHex('0x' + '0'.repeat(64));
+const ZERO_HASH = Binary.fromHex("0x" + "0".repeat(64));
 
 /**
  * EQTYService
- *
- * Prefer using wagmi hooks in React components to retrieve account information.
  */
 export default class EQTYService {
   private publicClient: PublicClient;
@@ -45,7 +50,6 @@ export default class EQTYService {
 
     const chain = this.getChain();
 
-    // Use provided clients or create new ones
     this.walletClient =
       walletClient ||
       (createWalletClient({
@@ -75,28 +79,25 @@ export default class EQTYService {
     return (window as any).ethereum;
   }
 
-  /**
-   * Queue anchors to be submitted later in a single tx via submitAnchors().
-   * Accepts Binary values or key/value pairs. For value-only anchors, we use
-   * the convention { key: value, value: ZERO_HASH } to allow mixing with pairs.
-   */
   async anchor(
     ...anchors:
-      | Array<{ key: { hex: string } | Binary; value: { hex: string } | Binary }>
+      | Array<{
+          key: { hex: string } | Binary;
+          value: { hex: string } | Binary;
+        }>
       | Array<{ hex: string } | Binary>
   ): Promise<void> {
     if (anchors.length === 0) return;
-    const toBinary = (b: any) => (b instanceof Binary ? b : Binary.fromHex(b.hex));
+    const toBinary = (b: any) =>
+      b instanceof Binary ? b : Binary.fromHex(b.hex);
     const first = anchors[0] as any;
 
     if (first instanceof Binary || (first && (first as any).hex)) {
-      // list of Binary or IBinary (value-only)
       const list = (anchors as Array<any>).map((b) => toBinary(b));
       for (const val of list) {
         this.anchorQueue.push({ key: val, value: ZERO_HASH });
       }
     } else {
-      // list of { key, value }
       const list = (anchors as Array<any>).map(({ key, value }) => ({
         key: toBinary(key),
         value: toBinary(value),
@@ -105,10 +106,6 @@ export default class EQTYService {
     }
   }
 
-  /**
-   * Submit all queued anchors as a single transaction. Clears the queue on success.
-   * Returns the tx hash, or empty string if queue is empty.
-   */
   async submitAnchors(): Promise<string | undefined> {
     if (this.anchorQueue.length === 0) return undefined;
 
@@ -117,7 +114,6 @@ export default class EQTYService {
     try {
       return await this.anchorClient.anchor(payload);
     } catch (err) {
-      // Restore queue on failure
       this.anchorQueue.unshift(...payload);
       throw err;
     }
@@ -129,29 +125,96 @@ export default class EQTYService {
     }
   }
 
-  /**
-   * Verifies anchors via Ownable bridge
-   */
-  async verifyAnchors(...anchors: any[]): Promise<any> {
-    if (!BRIDGE_URL) return { verified: false, anchors: {}, map: {} };
+  async verifyAnchors(...anchors: any[]): Promise<{
+    verified: boolean;
+    anchors: Record<string, string | undefined>;
+    map: Record<string, string>;
+  }> {
+    if (anchors.length === 0) {
+      return { verified: false, anchors: {}, map: {} };
+    }
 
-    const data =
-      anchors[0] instanceof Uint8Array
-        ? (anchors as Array<Binary>).map((anchor) => anchor.hex)
-        : Object.fromEntries(
-            (anchors as Array<{ key: Binary; value: Binary }>).map(
-              ({ key, value }) => [key.hex, value.hex]
-            )
-          );
-    const url = `${BRIDGE_URL}/verify`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+    const contractAddress = AnchorClient.contractAddress(this.chainId);
+    const anchorsMap: Record<string, string> = {};
+    const txHashes: Record<string, string | undefined> = {};
+    let allVerified = true;
 
-    return await response.json();
+    const anchorPairs: Array<{ key: Binary; value: Binary }> = [];
+
+    const toBinary = (b: any) =>
+      b instanceof Binary ? b : Binary.fromHex(b.hex);
+    const first = anchors[0] as any;
+
+    if (first instanceof Binary || (first && (first as any).hex)) {
+      for (const anchor of anchors as Array<any>) {
+        const key = toBinary(anchor);
+        anchorPairs.push({ key, value: ZERO_HASH });
+      }
+    } else {
+      for (const anchor of anchors as Array<any>) {
+        anchorPairs.push({
+          key: toBinary(anchor.key),
+          value: toBinary(anchor.value),
+        });
+      }
+    }
+
+    const anchoredEvent = parseAbiItem(
+      "event Anchored(bytes32 indexed key, bytes32 value, address indexed sender, uint64 timestamp)"
+    );
+
+    const currentBlock = await (this.publicClient as any).getBlockNumber();
+    const maxBlockRange = BigInt(100000);
+    const fromBlock =
+      currentBlock > maxBlockRange ? currentBlock - maxBlockRange : BigInt(0);
+
+    for (const { key, value } of anchorPairs) {
+      try {
+        const logs = await (this.publicClient as any).getLogs({
+          address: contractAddress as `0x${string}`,
+          event: anchoredEvent,
+          args: {
+            key: key.hex as `0x${string}`,
+          },
+          fromBlock: fromBlock,
+          toBlock: currentBlock,
+        });
+
+        if (logs.length > 0) {
+          const latestLog = logs[logs.length - 1];
+          txHashes[key.hex] = latestLog.transactionHash;
+
+          if (value.hex !== ZERO_HASH.hex) {
+            const logValue = (latestLog.args as any).value;
+            const normalizedLogValue =
+              typeof logValue === "string" ? logValue.toLowerCase() : logValue;
+            const normalizedExpectedValue = value.hex.toLowerCase();
+
+            anchorsMap[key.hex] = normalizedLogValue;
+
+            if (normalizedLogValue !== normalizedExpectedValue) {
+              allVerified = false;
+            }
+          } else {
+            anchorsMap[key.hex] = value.hex.toLowerCase();
+          }
+        } else {
+          txHashes[key.hex] = undefined;
+          anchorsMap[key.hex] = value.hex.toLowerCase();
+          allVerified = false;
+        }
+      } catch (error) {
+        console.error(`Failed to verify anchor ${key.hex}:`, error);
+        txHashes[key.hex] = undefined;
+        anchorsMap[key.hex] = value.hex.toLowerCase();
+        allVerified = false;
+      }
+    }
+
+    return {
+      verified: allVerified,
+      anchors: txHashes,
+      map: anchorsMap,
+    };
   }
 }
